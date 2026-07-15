@@ -686,7 +686,7 @@
 
                                 {{-- Location --}}
                                 <td class="px-3 py-2 truncate max-w-[180px]">
-                                    <div class="text-base text-gray-900 truncate">{{ $user->branch->code ?? 'No branch' }} {{ $user->division->name ?? 'No division' }}</div>
+                                    <div class="text-sm text-gray-900 truncate">{{ $user->branch->code ?? 'No branch' }} {{ $user->division->name ?? 'No division' }}</div>
                                     <x-user-rcunit-taskforce-badge :user="$user" />
 
                                     <div class="text-gray-900 truncate mt-1">{{ $user->email ?? 'No email' }}</div>
