@@ -1,0 +1,11 @@
+Step five is Review — your last check before submitting.
+<break time="0.6s" />
+At the top, you'll see a summary: Audience, Channel, Send window, and Daily cap, all in one place.
+<break time="0.6s" />
+Use "Preview as" to see the message exactly as a real recipient would see it — placeholders are substituted with their actual data.
+<break time="0.6s" />
+Check Readiness for any warnings, and confirm the final checklist before submitting.
+<break time="0.6s" />
+Here's what happens next. After submission, Head Office will review the campaign.
+<break time="0.6s" />
+Once approved, it's processed, and messages are sent.

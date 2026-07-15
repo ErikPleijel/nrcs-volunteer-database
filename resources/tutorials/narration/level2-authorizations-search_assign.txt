@@ -1,0 +1,11 @@
+Here's how to search for a person and assign a role.
+<break time="0.6s" />
+Use "Search for a User" to find the person by name, email, or I-D.
+<break time="0.6s" />
+Once selected, their current role is shown at the top of the form.
+<break time="0.6s" />
+Choose a new role from "Assign Role", then click "Update Roles and Permissions" to save.
+<break time="0.6s" />
+Select "no role" if you want to remove their authorization entirely.
+<break time="0.6s" />
+Click "Clear, search for another user" to start over with someone else.

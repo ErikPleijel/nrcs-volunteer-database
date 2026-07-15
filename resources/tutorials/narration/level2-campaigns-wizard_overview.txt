@@ -1,0 +1,5 @@
+This opens the campaign wizard.
+<break time="0.6s" />
+It has five steps — Purpose, Audience, Throttling, Message, and Review.
+<break time="0.6s" />
+Let's walk through the key points of each one.

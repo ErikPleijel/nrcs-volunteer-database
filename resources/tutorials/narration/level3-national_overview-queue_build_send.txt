@@ -1,0 +1,9 @@
+Once a campaign is approved, three steps take it from waiting to actually sending.
+<break time="0.6s" />
+First, click Queue. This marks the campaign as ready to go out — but no messages are sent yet.
+<break time="0.6s" />
+Next, click Build. This generates the actual list of recipients, based on the campaign's filter, with their contact details attached.
+<break time="0.6s" />
+Finally, click Start. This begins sending — the first batch goes out immediately, and sending continues from there.
+<break time="0.6s" />
+Follow the steps in order — Queue, then Build, then Start.

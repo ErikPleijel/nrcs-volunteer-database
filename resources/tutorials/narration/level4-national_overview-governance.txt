@@ -1,0 +1,5 @@
+Here's where ultimate authority over the system sits.
+<break time="0.6s" />
+The N-R-C-S President and Secretary General hold overall super-admin authority in this system, using their official N-R-C-S email accounts.
+<break time="0.6s" />
+Day to day, user authorization is normally handled by the appointed National D-B Administrator or Administrators, and the Branch D-B Administrators.

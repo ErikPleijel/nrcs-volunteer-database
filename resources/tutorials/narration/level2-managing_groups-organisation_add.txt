@@ -1,0 +1,13 @@
+Branches can also have organisations as members — companies or institutions.
+<break time="0.6s" />
+They can make donations, pay membership fees, get certificates, and receive campaign messages.
+<break time="0.6s" />
+Unlike persons, an organisation can't register itself. It can only be added by a branch.
+<break time="0.6s" />
+Open Organisations, press "Add Organisation", and fill in the form.
+<break time="0.6s" />
+It's necessary to link persons to the organisation.
+<break time="0.6s" />
+If you link more than one, mark one of them as the primary contact.
+<break time="0.6s" />
+From the organisation's page, you can add payments and donations, and view its certificates and campaigns.

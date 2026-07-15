@@ -1,0 +1,5 @@
+Lesson complete.
+<break time="0.6s" />
+You can now approve or reject pending records, and manage certificates from start to finish.
+<break time="0.6s" />
+Printing them, one at a time or in bulk, marking them as printed, and checking the print history.

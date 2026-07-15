@@ -1,0 +1,13 @@
+Let's start with Campaign Approvals.
+<break time="0.6s" />
+Every campaign submitted by a branch lands here before it can be sent.
+<break time="0.6s" />
+At the top, the Messages Pipeline gives you a quick health check — what's queued, sending, failed, or already sent today.
+<break time="0.6s" />
+Below that, tabs take you through a campaign's life.
+<break time="0.6s" />
+Proposed, then Approved or Queued, then Sending, then Sent.
+<break time="0.6s" />
+Cancelled and Rejected hold the ones that didn't go out.
+<break time="0.6s" />
+Open a campaign under Proposed to review its audience and message, then Approve it, or Reject it with a note.

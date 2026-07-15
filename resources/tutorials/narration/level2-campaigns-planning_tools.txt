@@ -1,0 +1,9 @@
+Not sure where to start? The Dashboard is a good place to plan.
+<break time="0.6s" />
+Under Lifecycle Overview, click "Take action" below Pending Engagement, Active, or Dormant, for tailored suggestions.
+<break time="0.6s" />
+Below that, the Planning Tools section links directly to focused reports.
+<break time="0.6s" />
+Welcome Campaign Planner, Expiring Membership, Re-engage Dormant, Training Statistics, I-D Card Expiry Report, Red Cross Units, Donation Appreciation, and All Campaigns.
+<break time="0.6s" />
+These tools help you find the right audience, before you ever open the campaign wizard.

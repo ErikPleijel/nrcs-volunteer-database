@@ -1,0 +1,11 @@
+Step one is Purpose.
+<break time="0.6s" />
+At the top, you'll see your recipient filter — branch, division, lifecycle, age, and so on.
+<break time="0.6s" />
+Select a Purpose. This will pre-fill the message for you in a later step.
+<break time="0.6s" />
+Then choose a Channel.
+<break time="0.6s" />
+"Email, fallback to S-M-S" sends a text message only when no email is on file.
+<break time="0.6s" />
+"Email and S-M-S" may send two separate messages to the same person.

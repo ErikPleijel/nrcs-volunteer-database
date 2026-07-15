@@ -1,0 +1,7 @@
+The Dashboard is your home base for exploring the national database.
+<break time="0.6s" />
+By default, you see statistics for your own branch.
+<break time="0.6s" />
+Use the "Select branch" dropdown to switch to any other branch, or back to National, and compare.
+<break time="0.6s" />
+Below the statistics, you'll find a lifecycle overview, planning tools, trends, and heat maps.

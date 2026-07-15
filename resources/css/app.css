@@ -1,0 +1,616 @@
+/* Import map styles FIRST */
+@import './components/map.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+/* Bulk selection controls */
+.btn-bulk-select {
+    @apply inline-flex items-center px-3 py-1 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50;
+}
+
+.bulk-selection-counter {
+    @apply text-sm font-medium text-gray-700;
+}
+
+/* Help popup dialog backdrop */
+dialog.help-popup-dialog::backdrop {
+    background: rgba(0, 0, 0, 0.4);
+}
+
+/* Edit form styles */
+.form-section {
+    @apply mb-8;
+}
+
+.form-section-header {
+    @apply text-2xl font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200;
+}
+
+.form-label {
+    @apply block text-sm font-medium text-gray-700 mb-2;
+}
+
+.form-input {
+    @apply w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500;
+}
+
+.form-input-error {
+    @apply w-full px-3 py-2 border border-red-500 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500;
+}
+
+.form-textarea {
+    @apply w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500;
+}
+
+.form-textarea-error {
+    @apply w-full px-3 py-2 border border-red-500 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500;
+}
+
+.form-select {
+    @apply w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500;
+}
+
+.form-select-error {
+    @apply w-full px-3 py-2 border border-red-500 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500;
+}
+
+.form-error {
+    @apply mt-1 text-sm text-red-600;
+}
+
+.form-hint {
+    @apply mt-1 text-sm text-gray-500;
+}
+
+/* Custom button class */
+.btn-primary {
+    @apply bg-blue-700 hover:bg-blue-400 text-white font-bold py-2 px-4 rounded;
+}
+
+.btn-secondary {
+    @apply bg-gray-300 hover:bg-gray-200 text-gray-800 font-medium py-2 px-4 rounded-md transition duration-200;
+}
+
+.btn-cancel {
+    @apply bg-gray-300 hover:bg-gray-400 text-gray-700 font-bold py-2 px-4 rounded;
+}
+
+.btn-add {
+    @apply bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded;
+}
+
+.btn-add-small {
+    @apply bg-green-600 hover:bg-green-700 text-white text-xs font-bold py-1 px-2 font-normal rounded;
+}
+
+.btn-backlink {
+    @apply bg-gray-500 hover:bg-gray-700 text-white font-medium py-1 px-2 rounded text-sm;
+}
+.btn-certificates {
+    @apply rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-indigo-400;
+}
+
+.btn-view{
+    @apply inline-flex items-center px-2.5 py-1 text-xs font-medium
+    text-blue-600 border border-blue-200 rounded
+    hover:bg-blue-50 hover:border-blue-300
+    focus:outline-none focus:ring-1 focus:ring-blue-400;
+}
+
+.btn-radio {
+    @apply mr-2 rounded-full border-gray-300 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50;
+}
+
+.btn-show-link {
+    @apply inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-yellow-100 px-4 py-2 text-sm font-medium text-gray-800 transition hover:bg-gray-200 hover:border-gray-400 hover:text-gray-900;
+}
+
+.lifecycle-action-btn {
+    @apply inline-flex items-center justify-center rounded-md bg-white border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-2;
+}
+
+.help-btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-md
+    bg-yellow-600 px-2 py-1 text-sm font-semibold text-white shadow-sm
+    hover:bg-yellow-700 active:scale-[0.98]
+    focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2
+    transition-all duration-150 ease-in-out;
+}
+
+.planning-tool-txt{
+    @apply rounded bg-blue-600 px-2 py-0.5 text-xs font-semibold text-white;
+}
+
+
+.howto-h2{
+    @apply text-xl font-semibold text-gray-900
+}
+
+.howto-h3 {
+    @apply text-base font-semibold text-gray-900;
+}
+
+.howto-h4 {
+    @apply text-base font-semibold text-gray-900;
+}
+
+.howto-ol {
+    @apply mt-3 space-y-2 text-base text-gray-700 list-decimal pl-5;
+}
+
+
+.dashboard-heading{
+    @apply text-3xl font-semibold text-gray-900
+}
+
+
+
+.rcunit-style{
+    @apply bg-red-600 text-white px-2 py-1 rounded-md text-base font-medium;
+}
+
+.taskforce-style{
+    @apply bg-blue-600 text-white px-2 py-1 rounded-md text-xs font-medium text-center;
+}
+
+.db-code {
+    @apply mt-1 text-base text-gray-900 font-mono;
+}
+
+.warning-note {
+    @apply mt-1 text-sm text-yellow-600;
+}
+
+.plain-link{
+    @apply text-blue-600 hover:text-blue-800;
+}
+
+.btn-edit {
+    @apply bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded;
+}
+
+.btn-success {
+    @apply bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded;
+}
+
+.btn-danger {
+    @apply bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded;
+}
+
+.btn-sm {
+    @apply py-1 px-2 text-xs;
+}
+
+.btn-delete {
+    @apply bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded;
+}
+
+.btn-delete-inverted {
+    @apply bg-white hover:bg-red-50 text-red-600 hover:text-red-700 border border-red-600 hover:border-red-700 font-normal py-2 px-4 rounded;
+}
+
+.btn-light{
+    @apply inline-block px-4 py-1 bg-gray-100 border border-gray-300 rounded-full font-medium text-gray-700 hover:bg-gray-200 hover:text-gray-900 hover:border-gray-400 transition-colors duration-200;
+}
+
+
+.btn-addCategory {
+    @apply px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center;
+}
+
+.important-note {
+    @apply bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-4 mb-6;
+}
+
+.table-heading {
+    @apply px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider;
+}
+
+.badge-style {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-medium;
+}
+
+
+.clip-shield {
+    clip-path: polygon(
+        10% 0%,     /* Start flat top slightly in */
+        90% 0%,     /* End flat top slightly in */
+        100% 10%,   /* Rounded top-right shoulder */
+        100% 80%,
+        85% 90%,    /* Start curve toward bottom */
+        50% 100%,   /* Sharp bottom point */
+        15% 90%,    /* Start curve toward bottom */
+        0% 80%,
+        0% 10%      /* Rounded top-left shoulder */
+    );
+}
+
+
+
+.tooltip-icon {
+    @apply text-blue-400 hover:text-blue-500 transition cursor-help text-[14px];
+}
+
+/* DEV NOTES */
+.dev-note {
+    @apply mx-auto my-6 max-w-md px-4 py-3 rounded-lg border border-green-600 bg-green-600 shadow-sm flex gap-3 text-white font-mono;
+}
+
+.dev-note-label {
+    @apply shrink-0 rounded-md bg-white px-2 py-0.5 text-xs font-bold tracking-wide text-green-700;
+}
+
+.dev-note p {
+    @apply text-sm leading-5 text-white;
+}
+
+
+/* Filter Form Containers */
+.filter-container {
+    @apply bg-white shadow rounded-lg mb-6;
+}
+
+.filter-form-content {
+    @apply px-6 py-4;
+}
+
+.filter-form {
+    @apply space-y-4;
+}
+
+/* Filter Grid Layouts */
+.filter-grid {
+    @apply grid grid-cols-1 gap-4;
+}
+
+.filter-grid-2 {
+    @apply grid grid-cols-1 md:grid-cols-2 gap-4;
+}
+
+.filter-grid-3 {
+    @apply grid grid-cols-1 md:grid-cols-3 gap-4;
+}
+
+.filter-grid-4 {
+    @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4;
+}
+
+.filter-grid-5 {
+    @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4;
+}
+
+.filter-grid-6 {
+    @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4;
+}
+
+/* Filter Fields */
+.filter-label {
+    @apply block text-sm font-medium text-gray-700 mb-1;
+}
+
+.filter-label-small {
+    @apply block text-xs font-medium text-gray-700 mb-1;
+}
+
+.filter-input {
+    @apply w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500;
+}
+
+.filter-input-small {
+    @apply w-full px-2 py-1 text-xs border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500;
+}
+
+.filter-select {
+    @apply w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500;
+}
+
+.filter-select-small {
+    @apply w-full px-2 py-1 text-xs border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500;
+}
+
+.filter-active {
+    background-color: #fef9c3; /* bg-yellow-100 */
+}
+
+/* Filter Buttons */
+.filter-btn-primary {
+    @apply bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded;
+}
+
+.filter-btn-secondary {
+    @apply bg-gray-500 text-white font-bold py-2 px-4 rounded;
+}
+
+.filter-btn-secondary-active {
+    @apply hover:bg-gray-700;
+}
+
+.filter-btn-disabled {
+    @apply opacity-50 cursor-not-allowed;
+}
+
+/* Filter Actions */
+.filter-actions {
+    @apply flex justify-between items-center;
+}
+
+.filter-button-group {
+    @apply flex space-x-2;
+}
+
+
+/* Table Components */
+
+/* Table Fields */
+.table-field-main {
+    @apply text-sm font-medium text-gray-900;
+}
+
+.table-field-sub {
+    @apply text-xs text-gray-500;
+}
+
+.table-field-detail {
+    @apply text-xs text-gray-500;
+}
+
+/* Table Container */
+.table-container {
+    @apply bg-white shadow rounded-lg overflow-hidden;
+}
+
+/* Table Wrapper */
+.table-wrapper {
+    @apply overflow-x-auto;
+}
+
+/* Base Table */
+.data-table {
+    @apply min-w-full;
+}
+
+.data-table tbody {
+    @apply bg-white;
+}
+
+/* Table Header */
+.table-header {
+    @apply bg-gray-50;
+}
+
+.table-header-row {
+    @apply border-b border-gray-200;
+}
+
+.table-header-cell {
+    @apply px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider;
+}
+
+.table-header-cell-right {
+    @apply px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider;
+}
+
+/* Table Body */
+.table-body {
+    @apply bg-white divide-y divide-gray-200;
+}
+
+.table-body-row {
+    @apply hover:bg-gray-50;
+}
+
+.table-body-cell {
+    @apply px-3 py-2  align-top;
+}
+
+.table-body-cell-nowrap {
+    @apply px-6 py-4 whitespace-nowrap align-top;
+}
+
+.table-body-cell-right {
+    @apply px-6 py-4 whitespace-nowrap text-right align-top;
+}
+
+/* Empty State Container */
+.table-empty-state {
+    @apply text-center py-12;
+}
+
+/* Pagination Container */
+.table-pagination {
+    @apply bg-white px-4 py-3 border-t border-gray-200;
+}
+
+
+/* Section Heading Components */
+
+/* Section Heading Components */
+
+.section-heading-title {
+    @apply text-2xl font-bold text-gray-900;
+}
+
+/* Section Field Labels and Values */
+
+.section-field-label {
+    @apply block text-xs font-medium uppercase tracking-widest text-gray-400;
+}
+
+.section-field-value {
+    @apply mt-1 text-sm text-gray-900;
+}
+
+.section-field-value-lg {
+    @apply mt-1 text-base font-medium text-gray-900;
+}
+
+.section-field-subtext {
+    @apply mt-0.5 text-xs text-gray-400;
+}
+
+
+
+/* Section Layout */
+
+.section-content-grid {
+    @apply grid grid-cols-1 md:grid-cols-3 gap-6;
+}
+
+.section-divider {
+    @apply border-t border-gray-200 my-8;
+}
+
+/* Centered show-page container */
+.show-page-container {
+    @apply max-w-2xl mx-auto px-4 py-6;
+}
+
+/* 2-column detail table */
+.detail-table {
+    @apply w-full text-sm;
+}
+.detail-table tr {
+    @apply border-b border-gray-300;
+}
+.detail-table td:first-child {
+    @apply py-3 pr-4 text-gray-500 font-medium align-top w-2/5 text-base;
+}
+.detail-table td:last-child {
+    @apply py-3 text-gray-900 align-top text-base;
+}
+
+/* ── Campaign Wizard ─────────────────────────────────────────── */
+.wizard-card         { @apply rounded-lg border border-blue-400 bg-blue-200 p-6; }
+.wizard-label        { @apply block text-base font-medium text-gray-700 mb-1; }
+.wizard-input        { @apply w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-base text-gray-900 shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500; }
+.wizard-btn-continue { @apply inline-flex items-center rounded-md bg-indigo-600 px-5 py-2 text-sm font-semibold text-white hover:bg-indigo-700 transition; }
+.wizard-btn-back     { @apply inline-flex items-center rounded-md border border-gray-300 bg-white px-5 py-2 text-base font-semibold text-gray-700 hover:bg-gray-50 transition; }
+.wizard-hint         { @apply mt-1 text-sm text-gray-600; }
+.wizard-text         { @apply mt-1 text-base text-gray-600; }
+.wizard-section-label { @apply text-xl font-semibold uppercase tracking-wide text-gray-500 mb-1; }
+
+.wizard-section-toggle {
+    background-color: #1e293b; /* slate-800 */
+    color: #ffffff;
+}
+.wizard-section-toggle:hover {
+    background-color: #334155; /* slate-700 */
+}
+
+.check-list-number{
+    @apply flex-shrink-0 w-8 h-8 rounded-full bg-indigo-600 text-white font-bold flex items-center justify-center;
+}
+
+/* ── Welcome Campaign Planner ────────────────────────────────── */
+.contacted-box {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2rem;
+    height: 2rem;
+    padding: 0 0.375rem;
+    border: 1.5px solid #f59e0b;
+    background-color: #fffbeb;
+    color: #b45309;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: 3px;
+}
+
+.contacted-box--red {
+    border-color: #ef4444;
+    background-color: #fef2f2;
+    color: #b91c1c;
+}
+
+/* ── Entry Form ──────────────────────────────────────────────── */
+.entry-card {
+    @apply rounded-xl border-2 border-indigo-500 bg-indigo-50/40 p-5;
+}
+
+.entry-card-title {
+    @apply text-sm font-semibold text-indigo-900 uppercase tracking-wide mb-4;
+}
+
+.entry-field {
+    @apply mt-1 block w-full bg-white border-gray-400 rounded-md shadow-sm
+           focus:border-indigo-500 focus:ring-indigo-500;
+}
+
+.entry-summary {
+    @apply mt-6;
+}
+
+@media print {
+
+    /* Hide watermark, sidebar, footer */
+    .watermark-pattern    { display: none !important; }
+    #sidebar              { display: none !important; }
+    footer                { display: none !important; }
+
+    /* In the header: hide everything except the logo/brand link.
+       The brand link is the <a> that is the second child of the
+       header's inner flex div. Hide the mobile menu button,
+       the navigation+auth flex wrapper, and the mobile navigation
+       and the decorative shadow line divs. */
+    #mobile-menu-button   { display: none !important; }
+    header nav            { display: none !important; }
+    header .flex-1        { display: none !important; }
+    #mobile-menu          { display: none !important; }
+
+    /* Remove gray background, let content fill full width */
+    body                         { background: white !important; }
+    .flex.flex-col.min-h-screen  { box-shadow: none !important; }
+    .flex.flex-1.gap-4           { display: block !important; }
+
+    /* Remove page header action buttons (Register New Person etc.) */
+    .flex.justify-center.items-center.mt-4 { display: none !important; }
+
+    /* Root cause of chart-clipping on print (confirmed via real print-pipeline
+       testing, not just @media print emulation): <main> (components/layouts/
+       admin.blade.php) is the shared content wrapper for every page on this
+       layout. Its width doesn't shrink to the physical printable page width
+       during print/PDF rendering — it stays sized against the original
+       (wide, on-screen) layout viewport — and its overflow-x-hidden then
+       silently clips whatever exceeds the actual page boundary (a
+       responsive:true Chart.js canvas, sized to fill that too-wide <main>,
+       loses its right-hand portion with no visible sign, e.g. no scrollbar).
+       Forcing <main> to the printable page's own width and allowing
+       overflow fixes this globally, for every report on this layout. */
+    main {
+        max-width: 100% !important;
+        width: 100% !important;
+        overflow: visible !important;
+    }
+
+    /* Global backstop for every Chart.js canvas on print, regardless of
+       report. Re-investigated 2026-07-11 using the REAL Chromium print
+       pipeline (page.pdf(), not just @media print emulation + screenshot):
+       Chart.js's `responsive:true` resize is ResizeObserver-driven and
+       genuinely asynchronous — measured ~20-30ms after <main>'s width
+       changes before the canvas's internal pixel buffer and inline
+       width/height style catch up. In practice, actually generating a
+       print job/PDF takes longer than that window, so the resize usually
+       completes in time — but that's a race that happens to resolve
+       favourably, not a guarantee. This CSS rule removes the race
+       entirely: it forces the canvas's DISPLAYED box to fit its container
+       via the same synchronous layout pass that establishes the print
+       page's own dimensions, independent of whether Chart.js's JS resize
+       finished. Confirmed via real page.pdf() output (not emulateMedia
+       screenshots) that Members/Donations/Lifecycle's trend charts do NOT
+       currently clip even without this rule — so this is a zero-cost
+       safety net for edge cases (different browsers/devices/timings) this
+       testing didn't cover, not a fix for an actively-reproducing bug.
+       (Confirmed NOT to reintroduce a JS onbeforeprint resize handler:
+       'beforeprint' was measured firing while <main> is still at its
+       on-screen width — print layout hasn't been applied yet at that
+       point — so a resize computed there would target the wrong,
+       stale container width anyway.) */
+    canvas {
+        max-width: 100% !important;
+        height: auto !important;
+    }
+}

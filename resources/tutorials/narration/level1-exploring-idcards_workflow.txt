@@ -1,0 +1,7 @@
+Use search, or the branch, division, and unit filters, to narrow the list down.
+<break time="0.6s" />
+Here's a tip — choosing a division or a red cross unit groups the view.
+<break time="0.6s" />
+It's a much easier way to work through cards than scanning individual people one by one.
+<break time="0.6s" />
+Press View Print History to see which cards have already been printed.

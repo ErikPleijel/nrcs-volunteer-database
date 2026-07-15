@@ -1,0 +1,13 @@
+Sometimes a person needs to move to a different branch or division.
+<break time="0.6s" />
+Find the person using Search, then click Edit.
+<break time="0.6s" />
+Select the new Branch, or Division, in the dropdowns.
+<break time="0.6s" />
+Scroll down, and click Update Person.
+<break time="0.6s" />
+If the person holds a database admin role, that role must be removed first, before they can be moved.
+<break time="0.6s" />
+You may need to contact your Branch or Head Office to do this.
+<break time="0.6s" />
+Also note — Branch-level admins can only move people within their own branch.

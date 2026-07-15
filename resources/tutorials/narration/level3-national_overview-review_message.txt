@@ -1,0 +1,9 @@
+Next, review the Message.
+<break time="0.6s" />
+Use "Preview as recipient" to see the message exactly as a real person would receive it — placeholders are filled with their actual data.
+<break time="0.6s" />
+Check both panels — Email, and S-M-S — for tone, clarity, and correct placeholders.
+<break time="0.6s" />
+If the campaign encourages phone calls, confirm it includes a call window — times when it's OK to call.
+<break time="0.6s" />
+Use the Final checks list as your guide. Is the tone polite? Is the purpose clear? Are placeholders correct? Are links on the allowed list? Is there anything ambiguous?

@@ -1,0 +1,1 @@
+Everything starts with the main menu, on the left of your screen. <break time="0.6s" /> To find people, look for Persons in the menu, and click it. <break time="0.6s" /> This brings you to the Persons page. You can see its heading at the top: Persons — Find and Filter. <break time="0.7s" /> This page is your home base. Every member, and every volunteer, can be found from here.

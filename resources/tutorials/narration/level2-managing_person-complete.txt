@@ -1,0 +1,5 @@
+Lesson complete.
+<break time="0.6s" />
+You can now manage the key changes to a person's record.
+<break time="0.6s" />
+Assigning someone to a Red Cross Unit, moving them between branches or divisions, keeping their photo and signature up to date, and archiving or reactivating a user when needed.

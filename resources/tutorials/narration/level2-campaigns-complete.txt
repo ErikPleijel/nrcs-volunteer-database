@@ -1,0 +1,5 @@
+Lesson complete.
+<break time="0.6s" />
+You now know how to build, send, and track a campaign.
+<break time="0.6s" />
+Starting from the filter wizard or a manual filter, working through the five-step campaign wizard, targeting organisations, using the planning tools on the dashboard, and tracking everything in Your Campaigns.

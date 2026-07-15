@@ -1,0 +1,9 @@
+Before an I-D card can be printed, four things need to be in place.
+<break time="0.6s" />
+A photo, a signature, the membership fee paid, and a national I-D number.
+<break time="0.6s" />
+When you search for a person here, their card shows a red border if anything is missing.
+<break time="0.6s" />
+A blue border means everything is in place, and the card is ready.
+<break time="0.6s" />
+Prepare everything first, before requesting head office to print.

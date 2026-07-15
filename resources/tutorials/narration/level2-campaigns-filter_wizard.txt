@@ -1,0 +1,9 @@
+There's an easy way to start a campaign — the Campaign filter wizard.
+<break time="0.6s" />
+On Persons, click "Campaign filter wizard", then pick a goal.
+<break time="0.6s" />
+For example, welcoming newly registered persons, re-engaging dormant volunteers, or reminding people about expiring membership.
+<break time="0.6s" />
+Answer a few simple questions — like who to include, or how recently they were last contacted.
+<break time="0.6s" />
+Then click "Apply filter and close". The right filters are set for you automatically.

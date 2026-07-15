@@ -1,0 +1,19 @@
+A few notes on printing.
+<break time="0.6s" />
+For pre-printed paper, there's a layout editor in the top right corner.
+<break time="0.6s" />
+It lets you adjust exactly where the text lands on the page — and your setting is remembered for next time.
+<break time="0.6s" />
+Important — once you've printed one or more certificates successfully, don't leave the page yet.
+<break time="0.6s" />
+Click "Mark as Printed". This is how the database keeps track of every printout.
+<break time="0.6s" />
+Click "View Print History" to see past printouts — and to correct any that were marked printed by mistake.
+<break time="0.6s" />
+One more thing — training certificates come in two kinds.
+<break time="0.6s" />
+Attendance confirms someone was present.
+<break time="0.6s" />
+Competence is a certification — it confirms they've been assessed, and met the standard.
+<break time="0.6s" />
+And finally — some certificates can only be printed at H-Q level.

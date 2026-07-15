@@ -1,0 +1,11 @@
+Next, Signatures and Documents.
+<break time="0.6s" />
+The I-D Card Signature is a PNG file with a transparent background, used as the Secretary General's signature on printed I-D cards.
+<break time="0.6s" />
+The filename is fixed — uploading a new file simply replaces the existing one.
+<break time="0.6s" />
+Signature Images are used on certificates, as pre-printed signatures to save time.
+<break time="0.6s" />
+These must also be PNG files with a transparent background. Use a descriptive filename, like charles-smith-signature dot png.
+<break time="0.6s" />
+There's also a list of Signature Titles — these are the titles shown on certificates, like Branch Chairman, or Branch Health Coordinator.

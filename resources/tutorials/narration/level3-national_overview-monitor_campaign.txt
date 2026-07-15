@@ -1,0 +1,9 @@
+Once a campaign is approved and sending, you can track its progress.
+<break time="0.6s" />
+Open the campaign's monitor page to see Total, Pending, Sent, and Failed counts.
+<break time="0.6s" />
+The send progress bar shows how far along it is, along with when it started, last ran, and completed.
+<break time="0.6s" />
+Use the recipient tabs to search individual recipients, or focus on the Failed ones.
+<break time="0.6s" />
+On the Failed tab, you can reset recipients back to pending, so they're retried — optionally including bounced or undeliverable ones too.

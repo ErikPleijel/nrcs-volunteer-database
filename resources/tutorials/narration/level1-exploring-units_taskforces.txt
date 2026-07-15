@@ -1,0 +1,13 @@
+Two views cover the groups people belong to — Red Cross Units, and Task Forces.
+<break time="0.6s" />
+In both views, you can filter by branch to narrow things down, or search by name to find a specific group.
+<break time="0.6s" />
+Click View on any row to see who belongs to it, along with their team leader and assistant team leader.
+<break time="0.6s" />
+Now, remember the difference between the two.
+<break time="0.6s" />
+A Red Cross Unit is the permanent home for volunteers — it's where they belong, and where their activity is recorded.
+<break time="0.6s" />
+A task force is different. It's temporary, created for a specific purpose, and open to anyone.
+<break time="0.6s" />
+Once its work is done, a task force is dissolved. A unit stays.

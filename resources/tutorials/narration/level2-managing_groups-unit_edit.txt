@@ -1,0 +1,9 @@
+Let's look at managing Red Cross Units.
+<break time="0.6s" />
+Open Red Cross Units from the main menu.
+<break time="0.6s" />
+Press "Add New Unit" to create one, or Edit to update an existing one.
+<break time="0.6s" />
+Under Leadership Assignment, set the Team Leader and Assistant Team Leader.
+<break time="0.6s" />
+A unit no longer in use can be archived from the same page, and reactivated later if needed.

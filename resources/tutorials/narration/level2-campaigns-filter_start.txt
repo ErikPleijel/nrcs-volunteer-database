@@ -1,0 +1,9 @@
+You can also set up the filter yourself, for more control.
+<break time="0.6s" />
+Go to Persons, and set a filter. For example, a specific Division, Volunteers only, and the age group Youth.
+<break time="0.6s" />
+Click Filter, and check how many records were found.
+<break time="0.6s" />
+If the group isn't too large, click "Make campaign from filter".
+<break time="0.6s" />
+If the audience is too big, it's better to narrow the filter first, rather than send to everyone at once.

@@ -1,0 +1,5 @@
+Lesson complete.
+<break time="0.6s" />
+You now have an overview of national-level administration.
+<break time="0.6s" />
+Campaign approvals, authorizing branch and national roles, how system governance works, and the key settings you control.

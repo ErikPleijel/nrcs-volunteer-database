@@ -1,0 +1,7 @@
+One more thing to keep in mind — Branches and Divisions.
+<break time="0.6s" />
+Make sure all contact details are entered, and kept up to date.
+<break time="0.6s" />
+This includes the Public Contact Persons — the names shown on profile and public views.
+<break time="0.6s" />
+Click Edit on the Branch or Division to make changes, and follow the instructions on the Edit page.

@@ -1,0 +1,5 @@
+Lesson complete.
+<break time="0.6s" />
+You can now keep the database clean, and trace administrative changes.
+<break time="0.6s" />
+Using the Archive Tool for bulk archiving, and the Log to review branch moves, role changes, and settings updates.

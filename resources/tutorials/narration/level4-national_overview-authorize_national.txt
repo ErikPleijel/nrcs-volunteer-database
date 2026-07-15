@@ -1,0 +1,9 @@
+Two more roles are assigned only at national level.
+<break time="0.6s" />
+The National D-B Assistant can be given any combination of extra permissions.
+<break time="0.6s" />
+Approving campaign requests, printing certificates, and printing I-D cards.
+<break time="0.6s" />
+The other role is Observer.
+<break time="0.6s" />
+An Observer has full access to statistics, but cannot change anything in the database.

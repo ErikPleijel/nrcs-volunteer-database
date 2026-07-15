@@ -1,0 +1,13 @@
+Here's a common scenario.
+<break time="0.6s" />
+A person calls you — they tried to log in, but got a message that their account is archived.
+<break time="0.6s" />
+Archived users are hidden from the list, so use the "Show archived" button to find them.
+<break time="0.6s" />
+Find the person using Search, then click Edit.
+<break time="0.6s" />
+Scroll down, and untick "Archive this user".
+<break time="0.6s" />
+Click Update Person.
+<break time="0.6s" />
+The person returns to Active or Dormant status.

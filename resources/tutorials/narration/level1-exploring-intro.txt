@@ -1,0 +1,9 @@
+There's more to the database than just people and records.
+<break time="0.6s" />
+There are dedicated views for groups, for branches and divisions, for I-D cards and certificates, and for overall statistics.
+<break time="0.6s" />
+Each one has its own way of searching, filtering, and drilling down into details.
+<break time="0.6s" />
+Knowing where to look will save you time day to day.
+<break time="0.6s" />
+Let's take a quick tour of each one.

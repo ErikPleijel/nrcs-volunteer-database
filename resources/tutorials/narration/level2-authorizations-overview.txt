@@ -1,0 +1,7 @@
+Authorizations are about deciding who can do what in the database.
+<break time="0.6s" />
+This is an important responsibility — handle it with care.
+<break time="0.6s" />
+The N-R-C-S President and Secretary General hold overall super-admin authority in this system, using their official N-R-C-S email accounts.
+<break time="0.6s" />
+Day-to-day authorization is normally handled by the appointed National and Branch D-B Administrators.

@@ -1,0 +1,9 @@
+Further down the dashboard, you'll find Trends and Statistics.
+<break time="0.6s" />
+These are detailed reports on membership, volunteers, finances, donations, training, and registrations.
+<break time="0.6s" />
+Below that, the Heat Maps show bubble charts.
+<break time="0.6s" />
+The bigger the bubble, the more activity in that branch or division.
+<break time="0.6s" />
+It's a quick way to see where things are thriving, and where they might need attention.

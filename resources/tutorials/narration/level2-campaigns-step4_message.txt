@@ -1,0 +1,13 @@
+Step four is Message.
+<break time="0.6s" />
+For email, fill in the From name, Reply-to email, Subject, and the Email body.
+<break time="0.6s" />
+Use "Write" for simple messages, or switch to "Code" for full H-T-M-L newsletters.
+<break time="0.6s" />
+You can insert placeholders — like a person's first name — from the dropdown.
+<break time="0.6s" />
+For S-M-S, write your message and keep an eye on the character count, shown as characters and number of S-M-S parts.
+<break time="0.6s" />
+Both email and S-M-S automatically get a footer appended.
+<break time="0.6s" />
+Email gets a profile and login link, plus unsubscribe information. S-M-S gets an opt-out link.

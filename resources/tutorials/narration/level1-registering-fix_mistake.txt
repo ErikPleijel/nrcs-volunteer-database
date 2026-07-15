@@ -1,0 +1,11 @@
+Mistakes happen.
+<break time="0.6s" />
+A record can't be edited — so you fix it in two steps.
+<break time="0.6s" />
+First, withdraw the record.
+<break time="0.6s" />
+Then, add a new one with the correct details.
+<break time="0.6s" />
+If you don't see a Withdraw button, the record has already been approved.
+<break time="0.6s" />
+In that case, contact your branch — they can delete it for you.

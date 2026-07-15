@@ -1,0 +1,13 @@
+Not every role that can add a record can also approve one.
+<break time="0.6s" />
+A Branch Secretary or Branch D-B Administrator can approve records for their own branch.
+<break time="0.6s" />
+The National D-B Administrator can approve any record, from any branch.
+<break time="0.6s" />
+Division D-B Assistants, Branch D-B Assistants, and National D-B Assistants can only submit records — not approve them.
+<break time="0.6s" />
+Observers can't add or approve anything at all.
+<break time="0.6s" />
+And the four-eyes rule still applies within a branch.
+<break time="0.6s" />
+If a Branch Secretary submits a record themselves, only the Branch D-B Administrator or National D-B Administrator can approve it.

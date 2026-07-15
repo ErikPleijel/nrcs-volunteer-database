@@ -1,0 +1,11 @@
+Payments, volunteering logs, trainings, and donations all need approval before they count.
+<break time="0.6s" />
+Check the bottom of the Dashboard to see how many approvals are pending.
+<break time="0.6s" />
+Go to the relevant records list — for example, Payment Records — and open the Approvals tab.
+<break time="0.6s" />
+From there, click Approve, or Reject.
+<break time="0.6s" />
+If you reject a record, a popup asks you to give a reason.
+<break time="0.6s" />
+The submitter will be notified with the reason you give.

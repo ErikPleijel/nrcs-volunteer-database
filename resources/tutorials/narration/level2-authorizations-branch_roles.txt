@@ -1,0 +1,13 @@
+There are five roles you can authorize at branch level.
+<break time="0.6s" />
+Branch Secretary handles branch administration.
+<break time="0.6s" />
+Branch D-B Administrator holds the same authority, within the database.
+<break time="0.6s" />
+Branch D-B Assistant handles branch data entry.
+<break time="0.6s" />
+Division Assistant, Finance, handles Payments, Donations, Trainings, and Volunteering.
+<break time="0.6s" />
+Division Assistant, Operations, handles Trainings and Volunteering.
+<break time="0.6s" />
+One important note — a Division Assistant, of either kind, sees only their own division.

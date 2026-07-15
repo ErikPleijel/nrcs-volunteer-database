@@ -1,0 +1,13 @@
+Depending on your access level, you can use this system for:
+<break time="0.6s" />
+Payments — Register and track individual membership payments.
+<break time="0.6s" />
+Volunteering — Record volunteering hours.
+<break time="0.6s" />
+Donations — Register individual and organisational donations to the Society.
+<break time="0.6s" />
+Trainings — Track first-aid certifications and other trainings.
+<break time="0.6s" />
+Campaigns — Draft and send bulk email or SMS messages.
+<break time="0.6s" />
+ID-cards and Certificates — Prepare and print membership ID-cards and training certificates.

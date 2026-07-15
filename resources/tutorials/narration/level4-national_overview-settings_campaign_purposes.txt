@@ -1,0 +1,7 @@
+Finally, Campaign Purposes.
+<break time="0.6s" />
+Each purpose — like Membership Pre-Expiry Notice, Training Invitation, or Welcome and Onboarding — has a default email subject, email body, and S-M-S body.
+<break time="0.6s" />
+These are pre-filled automatically when a branch selects that purpose in the campaign wizard, saving them from writing a message from scratch.
+<break time="0.6s" />
+Placeholders, like "user dot first name", are substituted automatically at send time — with the person's real name, branch, membership status, and more.

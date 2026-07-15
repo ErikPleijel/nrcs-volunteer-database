@@ -1,0 +1,11 @@
+Now, Campaign Settings — these control how campaigns are sent, system-wide.
+<break time="0.6s" />
+Pay close attention to "Allowed link domains".
+<break time="0.6s" />
+This is a comma-separated list of domains allowed in campaign content links.
+<break time="0.6s" />
+Keep this list deliberate — it's a safeguard on what links can go out to members and volunteers.
+<break time="0.6s" />
+You'll also find a Daily email sending cap, and a Daily S-M-S sending cap.
+<break time="0.6s" />
+These set the maximum number of messages sent per day, before sending pauses automatically.

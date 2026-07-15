@@ -1,0 +1,13 @@
+The Archive Tool lets you deactivate inactive persons in bulk, instead of one by one.
+<break time="0.6s" />
+It keeps the database clean, and it saves cost — sending campaign messages to people who won't respond adds up.
+<break time="0.6s" />
+Here's how it works.
+<break time="0.6s" />
+Set an inactivity threshold — for example, four years.
+<break time="0.6s" />
+You'll see a list of persons, their last activity, and whether they've already been targeted by a campaign.
+<break time="0.6s" />
+Use this to make a quick judgment, person by person, on whether they should be archived.
+<break time="0.6s" />
+And remember — archived users can always be reactivated later. Archiving is not permanent.

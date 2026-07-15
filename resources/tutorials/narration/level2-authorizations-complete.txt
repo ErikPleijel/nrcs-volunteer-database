@@ -1,0 +1,11 @@
+Lesson complete.
+<break time="0.6s" />
+You now know how to manage authorizations at branch level.
+<break time="0.6s" />
+The roles you can assign, how to search for a person and update their role, and how to review everyone currently authorized in Users by Role.
+<break time="0.6s" />
+And with that, you've completed Level 2.
+<break time="0.7s" />
+You've covered branch administration — managing a person's record, groups and structure, approvals and certificates, keeping the database clean, campaigns, and authorizations.
+<break time="0.7s" />
+Well done.

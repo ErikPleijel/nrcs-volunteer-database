@@ -1,0 +1,5 @@
+There are two more settings areas that shape day-to-day records.
+<break time="0.6s" />
+Membership Fees lets you change fee amounts, or add new membership fee types.
+<break time="0.6s" />
+Training Types lets you manage the kinds of trainings available, and mark whether certificates for a given type are H-Q print only.

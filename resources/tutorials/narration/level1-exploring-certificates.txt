@@ -1,0 +1,13 @@
+The Certificates view covers membership, training, volunteering, and donation certificates, all in one place.
+<break time="0.6s" />
+Filter by certificate type, branch, division, unit, or training type.
+<break time="0.6s" />
+Each one shows whether it's already been printed, or still pending.
+<break time="0.6s" />
+Press View Print History to see everything that's been printed so far.
+<break time="0.6s" />
+Some certificates can be printed at branch level. Others are marked "Printed at H-Q" — those are handled nationally.
+<break time="0.6s" />
+This lesson only covers finding and checking certificates.
+<break time="0.6s" />
+Actual printing is covered in Level 2.

@@ -1,0 +1,11 @@
+Two more views cover the structure above units — Branches, and Divisions.
+<break time="0.6s" />
+A branch is the state-level structure, one step below National.
+<break time="0.6s" />
+A division sits between a branch and its Red Cross Units.
+<break time="0.6s" />
+In both views, you can see contact details, and key statistics like the number of members and volunteers.
+<break time="0.6s" />
+Click View on any row to see more.
+<break time="0.6s" />
+Every branch also lists its key contact persons — so you always know who to reach there.

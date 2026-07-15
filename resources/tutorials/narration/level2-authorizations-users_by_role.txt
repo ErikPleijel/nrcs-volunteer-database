@@ -1,0 +1,9 @@
+Below the form, you'll find "Users by Role".
+<break time="0.6s" />
+This table shows everyone currently authorized, grouped by role.
+<break time="0.6s" />
+If someone holds extra Direct Permissions, they appear as red tags next to their name.
+<break time="0.6s" />
+Click Edit on any row to jump straight to that person's role form.
+<break time="0.6s" />
+One exception — National D-B Administrators can only be edited by a super-admin.

@@ -1,0 +1,11 @@
+For donations, payments, volunteering, and training, one person enters the record.
+<break time="0.6s" />
+But it doesn't count yet.
+<break time="0.6s" />
+A different person has to check it and approve it before it's final.
+<break time="0.6s" />
+The person who entered it can never approve their own entry — even if they normally have approval rights.
+<break time="0.6s" />
+It always takes a second person.
+<break time="0.6s" />
+And until it's approved, the record won't show up in reports, totals, or statistics.

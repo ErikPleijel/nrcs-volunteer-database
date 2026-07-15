@@ -1,0 +1,10 @@
+Step two is Audience.
+<break time="0.6s" />
+This is your Delivery Check — it shows exactly how many people will actually be reached.
+<break time="0.6s" />
+For example: email will be sent to 55 people. S-M-S fallback will be sent to 13, where no email is on file.
+<break time="0.6s" />
+
+If the matched audience is too big, go back and adjust the filter, then create a new campaign from that filter.
+<break time="0.6s" />
+Below, a list of sample recipients lets you spot-check who's actually in this audience.

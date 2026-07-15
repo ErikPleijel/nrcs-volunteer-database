@@ -1,0 +1,9 @@
+At national level, you appoint the people who run each branch's database.
+<break time="0.6s" />
+There are two roles — Branch Secretary, and Branch D-B Administrator.
+<break time="0.6s" />
+They have the same permissions.
+<break time="0.6s" />
+One important rule — every branch must have exactly one Branch Secretary. No more, and no less.
+<break time="0.6s" />
+To check the overall picture across all branches, go to Dashboard, then Database Administration, then Database Team.

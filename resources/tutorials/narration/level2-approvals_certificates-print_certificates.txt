@@ -1,0 +1,15 @@
+There are two ways to print a certificate.
+<break time="0.6s" />
+One at a time — go to Persons, find the person, click View, then scroll to the relevant record, and click Print certificate.
+<break time="0.6s" />
+This brings you to the Certificate Generator page.
+<break time="0.6s" />
+You can also print in bulk, right from that same page.
+<break time="0.6s" />
+Tick the certificates you want, or click Select All.
+<break time="0.6s" />
+Then choose "Print for pre-printed paper", or "Print with logo and frame".
+<break time="0.6s" />
+Pre-printed paper assumes you already have branded stationery — it only prints the text.
+<break time="0.6s" />
+Print with logo and frame prints the full certificate design.

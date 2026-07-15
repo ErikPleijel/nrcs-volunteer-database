@@ -1,0 +1,13 @@
+One more page to know — Your Campaigns.
+<break time="0.6s" />
+This is where you come back after building a campaign — to track it, finish it, or fix it.
+<break time="0.6s" />
+Use the tabs to find what you're looking for. Drafts, Submitted, Rejected, Approved or Sending, and Sent.
+<break time="0.6s" />
+On a Draft, click "Continue editing" to pick up where you left off.
+<break time="0.6s" />
+On a Rejected campaign, click "Edit campaign" to make changes and resubmit.
+<break time="0.6s" />
+You can also watch delivery live. Each card shows Queued, Sending, or how many messages have been sent out of the total — with any failures shown in red.
+<break time="0.6s" />
+One thing to remember — the Delete button only appears on Draft and Rejected campaigns, and deleting is permanent.

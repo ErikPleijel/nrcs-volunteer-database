@@ -1,0 +1,9 @@
+The Nigerian Red Cross Society is structured in four levels.
+<break time="0.6s" />
+National — The headquarters level, with visibility across all branches and full access to national reports and settings.
+<break time="0.6s" />
+Branches — There are thirty-seven state-level branches, one per state plus the Federal Capital Territory. Each branch manages its own divisions and their volunteer units.
+<break time="0.6s" />
+Divisions — These are local government area units. This is the operational level where much of the activity recording takes place.
+<break time="0.6s" />
+Red Cross Units — Volunteer groups within a division. Individual volunteers belong to a unit and record their activity through it. A Red Cross Unit is usually a Detachment.

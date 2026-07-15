@@ -1,0 +1,5 @@
+Lesson complete.
+<break time="0.6s" />
+You can now manage the groups and structure behind the database.
+<break time="0.6s" />
+Creating and organising Red Cross Units, managing Task Forces and their members, adding organisations, and keeping Branch and Division contact details up to date.

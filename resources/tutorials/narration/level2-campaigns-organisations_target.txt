@@ -1,0 +1,7 @@
+Campaigns aren't just for people. You can also target organisations.
+<break time="0.6s" />
+Go to Organisations, and set a filter.
+<break time="0.6s" />
+Click "Make campaign from filter" — the same wizard you've already seen takes over from there.
+<break time="0.6s" />
+One thing to note. When a campaign reaches an organisation, it's sent to both the organisation's own email or S-M-S contact details, and its linked contact person or persons.

@@ -1,0 +1,7 @@
+Once you've reviewed the audience and the message, it's time to decide.
+<break time="0.6s" />
+If everything looks good, click Approve. The campaign is queued for sending.
+<break time="0.6s" />
+If it's not ready, click Reject, and write a rejection note explaining why.
+<break time="0.6s" />
+The submitter is notified with your note, so they know exactly what to fix before resubmitting.

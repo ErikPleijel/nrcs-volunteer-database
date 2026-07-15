@@ -1,0 +1,9 @@
+The Log gives you a history of administrative changes.
+<break time="0.6s" />
+It records things like moving a person between branches or divisions, changes to roles and permissions, membership fee changes, and app-wide setting changes.
+<break time="0.6s" />
+Each entry shows who made the change, what it was, and a before-and-after snapshot of the data.
+<break time="0.6s" />
+One important note. This log covers administrative and settings changes.
+<break time="0.6s" />
+It does not cover the deletion or approval of donations, payments, trainings, or volunteering records. Those are tracked on the record itself.

@@ -1,0 +1,13 @@
+The Lifecycle Overview shows three boxes — Pending engagement, Active, and Dormant.
+<break time="0.6s" />
+Pending engagement means someone has registered but hasn't been guided to the next step yet.
+<break time="0.6s" />
+Active means they're engaged and contributing.
+<break time="0.6s" />
+Dormant means they were active before, but have gone quiet.
+<break time="0.6s" />
+Here's the challenge — keep the Active box as full as possible.
+<break time="0.6s" />
+Move people out of Pending and out of Dormant, and into Active.
+<break time="0.6s" />
+Click "Take action" on any box for step-by-step tips on exactly what to do.

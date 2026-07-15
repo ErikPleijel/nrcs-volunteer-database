@@ -1,0 +1,15 @@
+Next — adding a photo and signature.
+<break time="0.6s" />
+Find the person using Search, then click Edit.
+<break time="0.6s" />
+Under the photo, click Choose File, then Update Profile Photo.
+<break time="0.6s" />
+Under the signature, click Choose File, then Update Signature.
+<break time="0.6s" />
+You can also capture both images directly, using the built-in camera.
+<break time="0.6s" />
+You don't need to click Update Person for these — they save separately.
+<break time="0.6s" />
+A recent, clear photo is required for printed I-D cards.
+<break time="0.6s" />
+Use the Profile Photo and Signature filter to find people who are still missing one.

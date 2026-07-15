@@ -1,0 +1,7 @@
+Let's look at the National D-B Administrator — the highest working role in the database itself.
+<break time="0.6s" />
+A National D-B Administrator authorizes and oversees the whole system.
+<break time="0.6s" />
+This includes appointing Branch Secretaries, and Branch D-B Administrators.
+<break time="0.6s" />
+National D-B Administrators themselves are appointed, or removed, through the Super Administrator account.

@@ -1,0 +1,17 @@
+Now let's look at Task Forces.
+<break time="0.6s" />
+Open Task Forces from the main menu, and press "Add New Task Force" to create one.
+<break time="0.6s" />
+To add or remove people, click Edit, then find "Task Force Members".
+<break time="0.6s" />
+Search for a name, and click Add. It's stored instantly — no need to save separately.
+<break time="0.6s" />
+Archive a task force once it's no longer active, to keep the database clean. You can reactivate it later.
+<break time="0.6s" />
+Here's an important difference from Red Cross Units.
+<break time="0.6s" />
+For a unit, you change a person's assignment through Persons, Edit.
+<break time="0.6s" />
+For a task force, you add and remove members directly on the task force's own Edit page.
+<break time="0.6s" />
+And one more thing — a task force can include people from any branch. For example, a Lagos task force can include someone from Borno.

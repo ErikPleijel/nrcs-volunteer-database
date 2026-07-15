@@ -1,0 +1,9 @@
+Lesson complete.
+<break time="0.6s" />
+You can now find your way around units, branches, divisions, I-D cards, certificates, and the dashboard.
+<break time="0.6s" />
+And with that, you've completed Level 1.
+<break time="0.6s" />
+You've covered the basics — definitions and lifecycle, finding people, registering records, and exploring the database.
+<break time="0.7s" />
+Well done.

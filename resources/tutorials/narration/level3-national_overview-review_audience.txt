@@ -1,0 +1,9 @@
+Open a campaign under Proposed to review it.
+<break time="0.6s" />
+Start with the Audience panel.
+<break time="0.6s" />
+Check the Filters — make sure the targeting matches the campaign's stated purpose.
+<break time="0.6s" />
+Then check the Delivery summary — Matched, Email contactable, and S-M-S contactable counts.
+<break time="0.6s" />
+Watch for warnings. Some people may receive both an email and an S-M-S. Others may have no way to be reached at all.

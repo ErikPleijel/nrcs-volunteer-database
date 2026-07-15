@@ -1,0 +1,7 @@
+Step three is Throttling.
+<break time="0.6s" />
+If your message encourages people to call the branch, set a call window — for example, 8 A-M to 8 P-M — so people know when it's OK to call.
+<break time="0.6s" />
+You can also set a Daily cap — for example, 200 — to limit how many messages go out at once.
+<break time="0.6s" />
+Smaller batches help avoid the branch being overwhelmed by incoming calls all at once.

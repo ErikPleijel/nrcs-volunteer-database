@@ -1,0 +1,13 @@
+Sometimes a person has permanently left the organisation.
+<break time="0.6s" />
+Find the person using Search, then click Edit.
+<break time="0.6s" />
+Scroll down, and tick "Archive this user".
+<break time="0.6s" />
+Click Update Person.
+<break time="0.6s" />
+Use this for someone who has left for good — not just gone quiet for a while.
+<break time="0.6s" />
+Archived users are hidden from the list. Use the "Show archived" button to find them again.
+<break time="0.6s" />
+Note — you cannot archive your own account.
