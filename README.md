@@ -2,7 +2,12 @@
 
 A web-based management platform for Red Cross and Red Crescent national societies, originally developed for the **Nigerian Red Cross Society (NRCS)**. Built to manage volunteers, members, donations, training, and campaigns across a multi-tier geographic structure.
 
-> Dedicated to supporting Red Cross and Red Crescent national societies worldwide.
+## For other national societies
+
+This project is MIT-licensed — you're welcome to use, modify, and deploy it
+for your own society. Deploying organizations are responsible for ensuring
+their own compliance with local data protection law (this codebase includes
+NDPA-specific handling built for Nigeria, which may need adaptation elsewhere).
 
 ---
 
