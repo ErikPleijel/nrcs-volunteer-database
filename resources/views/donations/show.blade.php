@@ -189,19 +189,21 @@
             </table>
         </div>
 
-        @if(!$donation->is_deleted)
-            <div class="flex justify-end mt-4">
-                <form action="{{ route('donations.destroy', $donation) }}"
-                      method="POST"
-                      onsubmit="return confirm('Are you sure you want to soft delete this donation? It can be restored later.')">
-                    @csrf
-                    @method('DELETE')
-                    <button type="submit" class="btn-delete">
-                        <i class="fas fa-trash-alt mr-2"></i>Delete donation
-                    </button>
-                </form>
-            </div>
-        @endif
+        @can('remove_donations')
+            @if(!$donation->is_deleted)
+                <div class="flex justify-end mt-4">
+                    <form action="{{ route('donations.destroy', $donation) }}"
+                          method="POST"
+                          onsubmit="return confirm('Are you sure you want to soft delete this donation? It can be restored later.')">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="btn-delete">
+                            <i class="fas fa-trash-alt mr-2"></i>Delete donation
+                        </button>
+                    </form>
+                </div>
+            @endif
+        @endcan
 
     </div>
 

@@ -21,7 +21,7 @@ use Tests\TestCase;
 
 uses(TestCase::class, RefreshDatabase::class);
 
-test('approving a pending_engagement user\'s training promotes them to active', function () {
+test('approving a pending_engagement user\'s training does NOT promote them to active', function () {
     $submitter = User::factory()->create();
     $approver = User::factory()->create();
     $member = User::factory()->create(['lifecycle_status' => 'pending_engagement']);
@@ -34,8 +34,11 @@ test('approving a pending_engagement user\'s training promotes them to active', 
 
     $training->approve($approver);
 
+    // Training::promotesFromPendingEngagement() returns false — the lift-block
+    // never fires, and recalculateLifecycle() itself no-ops for a non-active
+    // member (its early-return guard), so nothing here can touch lifecycle_status.
     expect(Training::withAnyApprovalStatus()->find($training->id)->approval_status)->toBe(Training::APPROVED)
-        ->and($member->refresh()->lifecycle_status)->toBe('active');
+        ->and($member->refresh()->lifecycle_status)->toBe('pending_engagement');
 });
 
 test('approving a pending_engagement user\'s activity promotes them to active', function () {
@@ -94,32 +97,42 @@ test('approving a pending_engagement user\'s donation does NOT promote them to a
         ->and($member->refresh()->lifecycle_status)->toBe('pending_engagement');
 });
 
-test('a pending_engagement user with no RC unit or membership is re-demoted to dormant when the promoting record is old', function () {
+test('a pending_engagement user with no RC unit is re-demoted to dormant when the promoting membership payment is already expired', function () {
     $submitter = User::factory()->create();
     $approver = User::factory()->create();
-    // No red_cross_unit_id, no assigned_rcu_date, no membership payment: this
-    // member classifies as policy type 'neither', governed purely by
-    // last_activity_at against the default 12-month dormant_after_months.
+    // No red_cross_unit_id, no assigned_rcu_date: classification only turns
+    // 'member' when a CURRENT (unexpired) membership payment exists —
+    // User::currentMembershipPayment() filters expiry_date >= today. An
+    // already-expired payment therefore leaves the member classified as
+    // 'neither', governed purely by last_activity_at against the default
+    // 12-month dormant_after_months threshold. This replaces the old
+    // training-based version of this test, since Training no longer
+    // promotes at all.
     $member = User::factory()->create(['lifecycle_status' => 'pending_engagement']);
 
-    $training = Training::factory()->create([
+    $payment = MembershipPayment::factory()->create([
         'user_id' => $member->id,
         'submitted_by_user_id' => $submitter->id,
-        // 18 months ago — beyond the default 12-month inactivity threshold.
-        'training_date' => now()->subMonths(18)->toDateString(),
+        // Paid 18 months ago, expired 6 months ago — both beyond "current"
+        // and beyond the 12-month inactivity threshold.
+        'payment_date' => now()->subMonths(18)->toDateString(),
+        'expiry_date' => now()->subMonths(6)->toDateString(),
     ]);
 
-    $training->approve($approver);
+    $payment->approve($approver);
 
     // The lift-then-recompute sequence promotes to 'active' first, then
-    // recalculateLifecycle() immediately walks it back to 'dormant' in the same
-    // request, because the only qualifying record is too old to satisfy policy.
+    // recalculateLifecycle() immediately walks it back to 'dormant' in the
+    // same request: the expired payment doesn't count as a CURRENT
+    // membership, so the member classifies as 'neither', and
+    // last_activity_at (derived from the payment_date) is too old to
+    // satisfy the inactivity threshold.
     $member->refresh();
     expect($member->lifecyclePolicyType())->toBe('neither')
         ->and($member->lifecycle_status)->toBe('dormant');
 });
 
-test('an earlier non-promoting donation does not block a later training from promoting the member', function () {
+test('two earlier non-promoting approvals (donation, training) do not block a later membership payment from promoting the member', function () {
     $submitter = User::factory()->create();
     $approver = User::factory()->create();
     $member = User::factory()->create(['lifecycle_status' => 'pending_engagement']);
@@ -140,28 +153,47 @@ test('an earlier non-promoting donation does not block a later training from pro
     ]);
     $training->approve($approver);
 
-    // The training approval promotes the member normally — unaffected by the
-    // earlier donation, which correctly left them pending_engagement.
+    // Neither Donation nor Training promotes on its own (both override
+    // promotesFromPendingEngagement() to return false) — the member is
+    // still pending_engagement after both approvals.
+    expect($member->refresh()->lifecycle_status)->toBe('pending_engagement');
+
+    // Default factory dates (payment_date within the last 3 months, validity_years 1)
+    // yield a currently-valid membership, so this approval promotes the member —
+    // unaffected by the two earlier non-promoting approvals before it.
+    $payment = MembershipPayment::factory()->create([
+        'user_id' => $member->id,
+        'submitted_by_user_id' => $submitter->id,
+    ]);
+    $payment->approve($approver);
+
     expect($member->refresh()->lifecycle_status)->toBe('active');
 });
 
-test('a pending_engagement user with no RC unit or membership is promoted to active when the promoting record is recent', function () {
-    // Happy-path complement to the old-date re-demotion test above: identical
-    // setup, recent date instead of old.
+test('a pending_engagement user with no RC unit is promoted to active and classified as a member when the membership payment is current', function () {
+    // Happy-path complement to the expired-payment re-demotion test above:
+    // identical setup, a current (unexpired) payment instead of an expired
+    // one. Replaces the old training-based version of this test, since
+    // Training no longer promotes at all.
     $submitter = User::factory()->create();
     $approver = User::factory()->create();
     $member = User::factory()->create(['lifecycle_status' => 'pending_engagement']);
 
-    $training = Training::factory()->create([
+    // Default factory dates yield a currently-valid membership.
+    $payment = MembershipPayment::factory()->create([
         'user_id' => $member->id,
         'submitted_by_user_id' => $submitter->id,
-        'training_date' => now()->subWeek()->toDateString(),
     ]);
 
-    $training->approve($approver);
+    $payment->approve($approver);
 
     $member->refresh();
-    expect($member->lifecyclePolicyType())->toBe('neither')
+    // Unlike the old training-based version of this test, a CURRENT
+    // membership payment reclassifies the member from 'neither' to 'member'
+    // (User::currentMembershipPayment() now finds it) — isDormantByPolicy()
+    // for 'member' only checks for a current payment's existence, which is
+    // satisfied, so the member stays active regardless of last_activity_at.
+    expect($member->lifecyclePolicyType())->toBe('member')
         ->and($member->lifecycle_status)->toBe('active');
 });
 

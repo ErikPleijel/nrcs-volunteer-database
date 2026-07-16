@@ -76,10 +76,11 @@
                 </button>
                 <div x-show="open === 'pending-to-active'" x-collapse class="px-4 py-3 bg-white">
                     <ul class="space-y-2 text-sm text-gray-700 list-disc pl-4">
-                        <li>A pending engagement person is automatically promoted to "active" the first time an approved training, volunteering activity, or membership payment is recorded for them.</li>
-                        <li>A donation alone does not promote someone out of pending engagement — a one-time donor isn't treated the same as an engaged volunteer or member. If they also have a training, activity, or membership payment approved, that will promote them normally.</li>
-                        <li>Being assigned to a Red Cross unit also promotes someone to active directly, independent of any approved record.</li>
-                        <li>In rare cases, a person can be promoted to active and then immediately re-evaluated as dormant in the same action — for example, if the only approved record is old enough to already fall outside the dormancy window. This is expected: the system always settles on the policy-correct status, even if that means passing through "active" only briefly.</li>
+                        <li>A pending engagement person is automatically promoted to "active" when an approved membership payment is recorded for them.</li>
+                        <li>Approved donations and training records do NOT promote someone out of pending engagement. A one-time donor isn't treated as an engaged volunteer or member, and a training record alone doesn't confirm real engagement either — someone who trains but never joins a unit or pays membership shouldn't be marked "active" only to quietly slip back to dormant later with no real path forward.</li>
+                        <li>Being assigned to a Red Cross unit also promotes someone to active directly, independent of any approved record. In practice, this is how most volunteers become active — a volunteering activity record can only exist for someone already assigned to a unit, so by the time they have one, they've typically already been promoted this way.</li>
+                        <li>If someone has expressed interest in becoming a volunteer, the membership payment form reminds staff that it's best to assign them to a Red Cross unit first — otherwise they'll only see non-volunteering fee types when a payment is entered for them.</li>
+                        <li>In rare cases, a person can be promoted to active and then immediately re-evaluated as dormant in the same action — for example, if the membership payment approved for them is already expired at the time of approval. This is expected: the system always settles on the policy-correct status.</li>
                     </ul>
                 </div>
             </div>

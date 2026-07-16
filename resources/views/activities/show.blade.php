@@ -176,19 +176,21 @@
             </table>
         </div>
 
-        @if(!$activity->is_deleted)
-            <div class="flex justify-end mt-4">
-                <form action="{{ route('activities.destroy', $activity) }}"
-                      method="POST"
-                      onsubmit="return confirm('Are you sure you want to delete this activity? This will move it to the trash.');">
-                    @csrf
-                    @method('DELETE')
-                    <button type="submit" class="btn-delete">
-                        <i class="fas fa-trash-alt mr-2"></i>Delete activity
-                    </button>
-                </form>
-            </div>
-        @endif
+        @can('remove_volunteering')
+            @if(!$activity->is_deleted)
+                <div class="flex justify-end mt-4">
+                    <form action="{{ route('activities.destroy', $activity) }}"
+                          method="POST"
+                          onsubmit="return confirm('Are you sure you want to delete this activity? This will move it to the trash.');">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="btn-delete">
+                            <i class="fas fa-trash-alt mr-2"></i>Delete activity
+                        </button>
+                    </form>
+                </div>
+            @endif
+        @endcan
 
     </div>
 

@@ -61,22 +61,18 @@ class PermissionsTableSeeder extends Seeder
             'add_payments',
             'edit_payments',
             'view_payments',
-            'remove_payments',
 
             'add_volunteering',
             'edit_volunteering',
             'view_volunteering',
-            'remove_volunteering',
 
             'add_trainings',
             'edit_trainings',
             'view_trainings',
-            'remove_trainings',
 
             'add_donations',
             'edit_donations',
             'view_donations',
-            'remove_donations',
         ];
 
         /**
@@ -115,6 +111,12 @@ class PermissionsTableSeeder extends Seeder
 
                     // meta
                     'manage_roles_and_permissions',
+
+                    // deletion (retained at this tier)
+                    'remove_payments',
+                    'remove_volunteering',
+                    'remove_trainings',
+                    'remove_donations',
                 ],
                 $dbAdminCore
             ))),
@@ -151,6 +153,12 @@ class PermissionsTableSeeder extends Seeder
 
                     // meta
                     'manage_roles_and_permissions',
+
+                    // deletion (retained at this tier)
+                    'remove_payments',
+                    'remove_volunteering',
+                    'remove_trainings',
+                    'remove_donations',
                 ],
                 $dbAdminCore
             ))),
@@ -177,6 +185,12 @@ class PermissionsTableSeeder extends Seeder
 
                     // meta
                     'manage_roles_and_permissions',
+
+                    // deletion (retained at this tier)
+                    'remove_payments',
+                    'remove_volunteering',
+                    'remove_trainings',
+                    'remove_donations',
                 ],
                 $dbAdminCore
             ))),
@@ -201,22 +215,18 @@ class PermissionsTableSeeder extends Seeder
                 'add_payments',
                 'edit_payments',
                 'view_payments',
-                'remove_payments',
 
                 'add_volunteering',
                 'edit_volunteering',
                 'view_volunteering',
-                'remove_volunteering',
 
                 'add_trainings',
                 'edit_trainings',
                 'view_trainings',
-                'remove_trainings',
 
                 'add_donations',
                 'edit_donations',
                 'view_donations',
-                'remove_donations',
             ],
 
             // ✅ New: Division ops (no money)
@@ -235,12 +245,10 @@ class PermissionsTableSeeder extends Seeder
                 'add_volunteering',
                 'edit_volunteering',
                 'view_volunteering',
-                'remove_volunteering',
 
                 'add_trainings',
                 'edit_trainings',
                 'view_trainings',
-                'remove_trainings',
             ],
 
             // ✅ New: Division finance (includes money + ops)
@@ -259,22 +267,18 @@ class PermissionsTableSeeder extends Seeder
                 'add_payments',
                 'edit_payments',
                 'view_payments',
-                'remove_payments',
 
                 'add_donations',
                 'edit_donations',
                 'view_donations',
-                'remove_donations',
 
                 'add_volunteering',
                 'edit_volunteering',
                 'view_volunteering',
-                'remove_volunteering',
 
                 'add_trainings',
                 'edit_trainings',
                 'view_trainings',
-                'remove_trainings',
             ],
 
             'observer_national_level' => [

@@ -100,6 +100,12 @@ class Training extends Model
         return ($this->trainingType->name ?? 'Training').' — '.(optional($this->training_date)->format('M d, Y') ?? '');
     }
 
+    /** A single approved training alone should not promote a pending_engagement member to active. */
+    protected function promotesFromPendingEngagement(): bool
+    {
+        return false;
+    }
+
     /** Label => value detail rows for the review page. */
     public function approvalDetailRows(): array
     {

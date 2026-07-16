@@ -205,19 +205,21 @@
             </table>
         </div>
 
-        @if(!$training->is_deleted)
-            <div class="flex justify-end mt-4">
-                <form action="{{ route('trainings.destroy', $training) }}"
-                      method="POST"
-                      onsubmit="return confirm('Are you sure you want to delete this training record? This action cannot be undone.')">
-                    @csrf
-                    @method('DELETE')
-                    <button type="submit" class="btn-delete">
-                        <i class="fas fa-trash-alt mr-2"></i>Delete training
-                    </button>
-                </form>
-            </div>
-        @endif
+        @can('remove_trainings')
+            @if(!$training->is_deleted)
+                <div class="flex justify-end mt-4">
+                    <form action="{{ route('trainings.destroy', $training) }}"
+                          method="POST"
+                          onsubmit="return confirm('Are you sure you want to delete this training record? This action cannot be undone.')">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="btn-delete">
+                            <i class="fas fa-trash-alt mr-2"></i>Delete training
+                        </button>
+                    </form>
+                </div>
+            @endif
+        @endcan
 
     </div>
 

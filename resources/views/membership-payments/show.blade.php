@@ -222,19 +222,21 @@
             </table>
         </div>
 
-        @if(!$membershipPayment->is_deleted)
-            <div class="flex justify-end mt-4">
-                <form action="{{ route('membership-payments.destroy', $membershipPayment) }}"
-                      method="POST"
-                      onsubmit="return confirm('Are you sure you want to delete this membership payment? This action cannot be undone.');">
-                    @csrf
-                    @method('DELETE')
-                    <button type="submit" class="btn-delete">
-                        <i class="fas fa-trash-alt mr-2"></i>Delete payment
-                    </button>
-                </form>
-            </div>
-        @endif
+        @can('remove_payments')
+            @if(!$membershipPayment->is_deleted)
+                <div class="flex justify-end mt-4">
+                    <form action="{{ route('membership-payments.destroy', $membershipPayment) }}"
+                          method="POST"
+                          onsubmit="return confirm('Are you sure you want to delete this membership payment? This action cannot be undone.');">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="btn-delete">
+                            <i class="fas fa-trash-alt mr-2"></i>Delete payment
+                        </button>
+                    </form>
+                </div>
+            @endif
+        @endcan
 
     </div>
 
