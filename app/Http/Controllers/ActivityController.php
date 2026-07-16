@@ -416,10 +416,13 @@ class ActivityController extends Controller
         // Your existing show logic, ensure assignable is loaded if you display it
         $activity->load(['user.branch', 'user.division', 'activityType', 'submittedByUser.branch', 'assignable', 'decidedByUser']);
 
-        // Authorize that the logged-in user can view the activity's associated user.
-        if ($activity->user) {
-            $this->authorize('view', $activity->user);
+        if (! $activity->user) {
+            return redirect()->route('activities.index')
+                ->with('error', 'The associated user for this activity no longer exists.');
         }
+
+        // Authorize that the logged-in user can view the activity's associated user.
+        $this->authorize('view', $activity->user);
 
         $volunteerActivities = collect();
         $activitiesLimitMessage = false;
@@ -460,10 +463,13 @@ class ActivityController extends Controller
      */
     public function edit(Activity $activity)
     {
-        // Authorize that the logged-in user can edit the activity's associated user.
-        if ($activity->user) {
-            $this->authorize('view', $activity->user);
+        if (! $activity->user) {
+            return redirect()->route('activities.index')
+                ->with('error', 'The associated user for this activity no longer exists.');
         }
+
+        // Authorize that the logged-in user can edit the activity's associated user.
+        $this->authorize('view', $activity->user);
 
         $activityTypes = ActivityType::all();
         $branches = Branch::all();
@@ -478,10 +484,13 @@ class ActivityController extends Controller
      */
     public function update(Request $request, Activity $activity)
     {
-        // Authorize that the logged-in user can update the activity's associated user.
-        if ($activity->user) {
-            $this->authorize('view', $activity->user);
+        if (! $activity->user) {
+            return redirect()->route('activities.index')
+                ->with('error', 'The associated user for this activity no longer exists.');
         }
+
+        // Authorize that the logged-in user can update the activity's associated user.
+        $this->authorize('view', $activity->user);
 
         $validated = $request->validate([
             'activity_type_id' => 'required|exists:activity_types,id',
@@ -532,10 +541,13 @@ class ActivityController extends Controller
      */
     public function destroy(Activity $activity): RedirectResponse
     {
-        // Authorize that the logged-in user can delete the activity's associated user.
-        if ($activity->user) {
-            $this->authorize('view', $activity->user);
+        if (! $activity->user) {
+            return redirect()->route('activities.index')
+                ->with('error', 'The associated user for this activity no longer exists.');
         }
+
+        // Authorize that the logged-in user can delete the activity's associated user.
+        $this->authorize('view', $activity->user);
 
         $viewer = Auth::user();
 

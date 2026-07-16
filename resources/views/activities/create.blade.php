@@ -73,7 +73,7 @@
                             <p class="mt-1 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
                                 <i class="fas fa-triangle-exclamation mr-1"></i>
                                 Only persons assigned to a Red Cross Unit can have volunteering recorded.
-                                If the person you are looking for is not appearing, they may not yet be
+                                <strong>If the person you are looking for is not appearing</strong>, they may not yet be
                                 placed in a unit — contact your branch administrator.
                             </p>
                         </div>
