@@ -85,17 +85,17 @@ stands at the time of backfill, not the historical point-in-time state.
 This is a known limitation — document it but do not treat non-matching
 historical counts as a migration error.
 
-**users:update-lifecycle-from-activity vs lifecycle:reconcile**
-These two commands are NOT interchangeable:
-- lifecycle:reconcile [--apply]: scans BOTH active and dormant users;
-  promotes AND demotes. This is the command to run post-migration and
-  post-dates:shift. With --apply it makes changes; without it is a dry-run.
-  Also runs nightly via the scheduler (lifecycle:reconcile --apply at 03:00).
-- users:update-lifecycle-from-activity: scans ACTIVE users only; DEMOTES
-  only (never promotes). No longer scheduled — callable manually only.
-  Do NOT use this for post-shift promotion — it will not promote dormant
-  users to active.
-Neither command scans pending_engagement users.
+**lifecycle:reconcile**
+lifecycle:reconcile [--apply] scans BOTH active and dormant users; promotes
+AND demotes. This is the command to run post-migration and post-dates:shift.
+With --apply it makes changes; without it is a dry-run. Also runs nightly via
+the scheduler (lifecycle:reconcile --apply at 03:00). It does not scan
+pending_engagement users.
+
+(The older users:update-lifecycle-from-activity command — a one-way,
+active-only, demote-only batch sweep — has been removed. It predated
+lifecycle:reconcile and was never scheduled; lifecycle:reconcile fully
+supersedes it, including the organisation-linked-user exclusion.)
 
 
 ## Verify after - Check Roles Issues

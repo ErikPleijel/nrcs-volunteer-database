@@ -29,6 +29,12 @@ class Donation extends Model
         return $this->formatted_donation.($this->purpose ? ' — '.$this->purpose : '');
     }
 
+    /** A single approved donation alone should not promote a pending_engagement donor to active. */
+    protected function promotesFromPendingEngagement(): bool
+    {
+        return false;
+    }
+
     /** Label => value detail rows for the review page. */
     public function approvalDetailRows(): array
     {

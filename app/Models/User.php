@@ -1783,7 +1783,8 @@ class User extends Authenticatable implements MustVerifyEmail
 
     /**
      * Re-evaluate this user's lifecycle status after a record is deleted.
-     * Uses the same dormancy logic as the UpdateUserLifecycleFromActivity command,
+     * Delegates the demotion decision to isDormantByPolicy() — the same policy
+     * used by the scheduled lifecycle:reconcile sweep (ReconcileLifecycleStatus) —
      * but applied to a single user instead of a batch.
      *
      * First recalculates last_activity_at from actual remaining non-deleted records,

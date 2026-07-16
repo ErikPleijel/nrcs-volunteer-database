@@ -670,6 +670,7 @@ Route::middleware('auth')->group(function () {
 
             // Dashboard
             Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+            Route::get('/policies', [\App\Http\Controllers\Reports\PoliciesController::class, 'index'])->name('policies');
             Route::get('/pending-approvals',
                 [\App\Http\Controllers\Reports\PendingApprovalsReportController::class, 'index'])
                 ->name('pending-approvals');

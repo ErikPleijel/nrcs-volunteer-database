@@ -225,6 +225,11 @@ trait Approvable
                 if ($member->lifecycle_status === 'dormant') {
                     $member->update(['lifecycle_status' => 'active']);
                 }
+                // Silently lift a pending_engagement member back to active before
+                // recompute, unless the module opts out (e.g. Donation).
+                if ($member->lifecycle_status === 'pending_engagement' && $this->promotesFromPendingEngagement()) {
+                    $member->update(['lifecycle_status' => 'active']);
+                }
                 // Authoritative recompute (may legitimately re-demote per policy).
                 $member->recalculateLifecycle();
             }
@@ -237,6 +242,17 @@ trait Approvable
 
             return $reactivatedFromArchived;
         });
+    }
+
+    /**
+     * Whether approving this record should promote a pending_engagement member
+     * to active. Default true; modules override to opt out (e.g. Donation,
+     * where a single donation alone shouldn't mark a donor as an active
+     * volunteer/member).
+     */
+    protected function promotesFromPendingEngagement(): bool
+    {
+        return true;
     }
 
     /**

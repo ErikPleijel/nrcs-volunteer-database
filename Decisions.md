@@ -342,7 +342,7 @@ First Aid Coverage map (reports.maps.first-aid.{branches,divisions}) clones the 
 
 ## Dormancy policy
 Dormancy policy split by user type, defined once in User::isDormantByPolicy() / lifecyclePolicyType(). Volunteers (in a Red Cross unit) and "neither" users use the last_activity_at inactivity threshold (membership.dormant_after_months); members (no unit, with membership history) are dormant whenever they hold no current valid membership payment (expiry-based), regardless of inactivity — fixing members being wrongly dormant'd while their multi-year membership was still valid. Volunteer status takes precedence over membership. lifecycle:reconcile evaluates both directions and doubles as the one-time corrective sweep (--apply) for migration.
-Batch 2: UpdateUserLifecycleFromActivity (nightly) and User::recalculateLifecycle() (post-deletion) now delegate their demotion decision to User::isDormantByPolicy() instead of inline last_activity_at threshold checks. Both remain demote-only (active → dormant); promotion stays event-driven (markActive()) plus the manual lifecycle:reconcile. The nightly job moved from a single bulk SQL update to chunked per-user evaluation to keep one policy definition; recalculateLifecycle() still recomputes last_activity_at (needed for the volunteer/neither branch, harmless for members).
+Batch 2: User::recalculateLifecycle() (post-deletion) delegates its demotion decision to User::isDormantByPolicy() instead of inline last_activity_at threshold checks. It remains demote-only (active → dormant); promotion stays event-driven (markActive()) plus the manual/scheduled lifecycle:reconcile. recalculateLifecycle() still recomputes last_activity_at (needed for the volunteer/neither branch, harmless for members). (UpdateUserLifecycleFromActivity, the unscheduled one-way batch demote command this paragraph originally also covered, was removed — lifecycle:reconcile is the sole scheduled sweep and already shares the same isDormantByPolicy() decision.)
 
 ## 500 error
 /red-cross-units/{id}/edit 500'd on production-scale data (OOM at 128M) due to an unused User::orderBy()->get() hydrating the entire users table in RedCrossUnitController@edit. Removed — it fed no view variable. Watch for the same unbounded User::...->get() pattern elsewhere; it's invisible on small local data and only surfaces at full scale.
@@ -582,14 +582,14 @@ are actually satisfied. If the new record does not meet the dormancy threshold
 to dormant immediately. The net result is always policy-correct.
 
 **Consequence:** dormant → active promotion in normal operations happens
-exclusively on record approval via Approvable. The nightly cron
-(users:update-lifecycle-from-activity) and recalculateLifecycle() called from
-entry controllers are demote-only. lifecycle:reconcile --apply is the manual
-bulk correction tool and is bidirectional, but is not scheduled.
+exclusively on record approval via Approvable. recalculateLifecycle() called
+from entry controllers is demote-only. lifecycle:reconcile --apply is
+bidirectional and is the scheduled nightly sweep (03:00) as well as the
+manual bulk correction tool.
 
 **Full transition map:**
 - pending → active:    lifecycle:reconcile --apply only (post-migration corrective)
-- active → dormant:    nightly cron + recalculateLifecycle() on record removal
+- active → dormant:    nightly lifecycle:reconcile + recalculateLifecycle() on record removal
 - dormant → active:    record approval (Approvable) + lifecycle:reconcile --apply
 - * → archived:        manual admin action (UserController edit form)
 - archived → active:   manual admin action, or record approval with explicit flag
@@ -628,8 +628,8 @@ archived via bulk-archive, purely from personal inactivity — even while active
 serving as their organisation's registered contact.
 
 **Fix applied (minimal exemption, not a full policy branch):**
-- `UpdateUserLifecycleFromActivity` (nightly sweep) excludes organisation-linked
-  users via `whereDoesntHave('organisations')`.
+- `ReconcileLifecycleStatus` (the scheduled `lifecycle:reconcile` sweep) excludes
+  organisation-linked users via `whereDoesntHave('organisations')`.
 - `DormantUserController::bulkArchive()` applies the same exclusion, so this
   exemption is enforced at the point of archiving, not just cosmetically in the
   bulk-archive listing UI (which already filtered them out visually).

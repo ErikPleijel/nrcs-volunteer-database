@@ -1555,7 +1555,7 @@
             <h3 class="text-center text-sm font-semibold uppercase tracking-wide text-gray-500 mb-3">
                 Housekeeping
             </h3>
-            <div class="flex justify-center">
+            <div class="flex flex-wrap justify-center gap-4">
                 <div class="bg-white rounded-lg shadow p-4 w-64 text-center">
                     <a href="{{ route('users.index', array_filter(['person_type' => 'unassigned', 'branch_id' => $dashboardData['branchId']])) }}" class="block hover:opacity-80 transition">
                         <p class="text-3xl font-bold text-orange-600">{{ number_format($dashboardData['unassignedGhostCount']) }}</p>
@@ -1590,6 +1590,13 @@
                             </ul>
                         </x-help-popup>
                     </div>
+                </div>
+
+                <div class="bg-white rounded-lg shadow p-4 w-64 text-center">
+                    <a href="{{ route('reports.policies') }}" class="block hover:opacity-80 transition">
+                        <i class="fas fa-scale-balanced text-3xl text-indigo-600"></i>
+                        <p class="mt-1 text-sm text-gray-600">Policies &amp; Rules</p>
+                    </a>
                 </div>
             </div>
         </div>
