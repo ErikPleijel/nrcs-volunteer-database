@@ -9,10 +9,11 @@ class ArchivedAccountController extends Controller
 {
     public function show(Request $request)
     {
-        $dbReference = session('archived_db_ref');
-        $name        = session('archived_name');
-        $branchId    = $request->filled('branch_id') ? (int) $request->branch_id : session('archived_branch_id');
-        $branch      = $branchId ? Branch::find($branchId) : null;
+        $dbReference   = session('archived_db_ref');
+        $name          = session('archived_name');
+        $branchId      = $request->filled('branch_id') ? (int) $request->branch_id : session('archived_branch_id');
+        $branch        = $branchId ? Branch::find($branchId) : null;
+        $selfInitiated = $request->boolean('self');
 
         $rejoinSubject = 'Request to rejoin the Nigerian Red Cross Society';
         $rejoinBody =
@@ -24,6 +25,6 @@ class ArchivedAccountController extends Controller
             . "Thank you,\n"
             . ($name ?: '[Your name]');
 
-        return view('auth.archived-account', compact('branch', 'dbReference', 'rejoinSubject', 'rejoinBody'));
+        return view('auth.archived-account', compact('branch', 'dbReference', 'rejoinSubject', 'rejoinBody', 'selfInitiated'));
     }
 }

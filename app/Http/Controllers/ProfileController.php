@@ -19,6 +19,7 @@ use Illuminate\View\View; // Import the View class
 use App\Models\CertificatePrint;
 use App\Models\IdCardPrint;
 use App\Models\Organisation;
+use App\Models\Log as AuditLog;
 
 
 class ProfileController extends Controller
@@ -99,6 +100,8 @@ class ProfileController extends Controller
                 'membership_type' => $personalCurrentPayment->membershipFee->name ?? 'N/A',
                 'formatted_amount' => '₦' . number_format($personalCurrentPayment->membershipFee->amount ?? 0, 2),
                 'expiry_date' => $personalCurrentPayment->expiry_date?->format('M d, Y'),
+                'expiring_soon' => $personalCurrentPayment?->expiresSoon(28) ?? false,
+                'days_until_expiry' => $personalCurrentPayment?->days_until_expiry,
             ] : null;
 
             // Process Donations. Same rule as membership payments above:
@@ -592,6 +595,57 @@ class ProfileController extends Controller
         $user->save();
 
         return redirect()->route('profile.show')->with('success', 'Communication preferences updated.');
+    }
+
+    /**
+     * Self-service account archival.
+     */
+    public function selfArchive(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'confirmation' => 'required|string',
+        ]);
+
+        if ($validator->fails() || strtolower(trim($request->input('confirmation'))) !== 'archive') {
+            return redirect()->back()->withErrors(['confirmation' => "Please type 'archive' to confirm."]);
+        }
+
+        if (auth()->user()->getRoleNames()->isNotEmpty()) {
+            return redirect()->back()->withErrors(['confirmation' => 'You hold an administrative role. Ask another administrator to remove it before archiving your own account.']);
+        }
+
+        $user = auth()->user();
+
+        $user->lifecycle_status = 'archived';
+        $user->save();
+
+        AuditLog::write(
+            'user_self_archived',
+            $user,
+            null,
+            null,
+            null,
+            "{$user->full_name} (DB-{$user->id}) archived their own account."
+        );
+
+        $branchId = $user->branch_id;
+        $archivedDbRef = $user->user_id_reference;
+        $archivedName = $user->full_name;
+
+        Auth::logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        // invalidate() wipes all session data before this point, so the values are
+        // set afterward (matching LoginController's archived-user interceptor).
+        $request->session()->put([
+            'archived_db_ref' => $archivedDbRef,
+            'archived_name' => $archivedName,
+            'archived_branch_id' => $branchId,
+            'archived_self_initiated' => true,
+        ]);
+
+        return redirect()->route('archived-account.show', ['branch_id' => $branchId, 'self' => 1]);
     }
 
     // --- Original helper methods remain below ---

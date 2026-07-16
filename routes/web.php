@@ -232,6 +232,7 @@ Route::middleware('auth')->group(function () {
             Route::get('/branches/{branch}/divisions', [ProfileController::class, 'getDivisionsByBranch'])->name('branches.divisions');
             Route::get('/organisation/{organisation}', [ProfileController::class, 'organisationProfile'])->name('organisation');
             Route::post('/communication-preferences', [ProfileController::class, 'updateCommunicationPreferences'])->name('communication.update');
+            Route::post('/self-archive', [ProfileController::class, 'selfArchive'])->name('self-archive');
         });
 
     // User-specific Red Cross Unit and Task Force views

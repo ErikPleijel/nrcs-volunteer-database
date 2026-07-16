@@ -80,67 +80,8 @@
                 </div>
             @endif
 
-            {{-- TEMPORARY: Display User Roles and Permissions (visible only in non-production environments) config('app.env') !== 'production' --}}
-            @if (false)
-                <div class="mb-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 shadow-sm">
-                        <h3 class="text-lg font-bold text-blue-800 mb-2">
-                            <i class="fas fa-flask mr-2"></i>Developer Info (Temporary)
-                        </h3>
-                        <div class="text-sm text-blue-700 space-y-1">
-                            <div>
-                                <span class="font-semibold">Roles:</span>
-                                @forelse ($user->getRoleNames() as $role)
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 mr-1">
-                            {{ $role }}
-                        </span>
-                                @empty
-                                    <span class="text-blue-600 italic">No roles assigned.</span>
-                                @endforelse
-                            </div>
-                            <div>
-                                <span class="font-semibold">Permissions:</span>
-                                @forelse ($user->getAllPermissions() as $permission)
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 mr-1">
-                            {{ $permission->name }}
-                        </span>
-                                @empty
-                                    <span class="text-blue-600 italic">No direct permissions or permissions via roles.</span>
-                                @endforelse
-                            </div>
-                            <div>
-                                <span class="font-semibold">Access Level:</span>
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 mr-1">
-                        {{ $user->getAccessLevel() }}
-                    </span>
-                            </div>
-                            <div>
-                                <span class="font-semibold">Scoped ID:</span>
-                                @php
-                                    $accessLevel = $user->getAccessLevel();
-                                    $scopedId = $user->getScopedId();
-                                @endphp
 
-                                @if ($scopedId)
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800 mr-1">
-                            @if ($accessLevel === 'branch')
-                                            Branch ID: {{ $scopedId }}
-                                            @if($user->branch) ({{ $user->branch->name }}) @endif
-                                        @elseif ($accessLevel === 'division')
-                                            Division ID: {{ $scopedId }}
-                                            @if($user->division) ({{ $user->division->name }}) @endif
-                                        @else
-                                            {{ $scopedId }}
-                                        @endif
-                        </span>
-                                @else
-                                    <span class="text-blue-600 italic">N/A (National or No specific scope)</span>
-                                @endif
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            @endif
+
     @endauth
 
     <div class="py-8">
@@ -213,6 +154,52 @@
                         <p class="text-sm text-gray-700 italic text-left leading-relaxed mt-4">
                             When an emergency strikes anywhere in Nigeria, you may be called upon. In all of your actions, you are expected to uphold our seven fundamental principles: Humanity, Impartiality, Neutrality, Independence, Voluntary Service, Unity, and Universality.
                         </p>
+
+                        @php
+                            $wantsVolunteering = (bool) $user->can_contribute_volunteering;
+                            $wantsMember = (bool) $user->can_contribute_member && !$wantsVolunteering; // prefer volunteering if both are set
+                        @endphp
+
+                        @if($wantsVolunteering && !$user->redCrossUnit)
+                            <div class="mt-6 p-5 bg-sky-50 border border-sky-200 rounded-lg">
+                                <div class="flex items-start gap-3">
+                                    <i class="fas fa-seedling text-sky-500 mt-1"></i>
+                                    <div class="text-lg text-sky-900">
+                                        <p><strong>Next step:</strong> Contact your branch so we can place you in a Red Cross Unit.</p>
+                                        <p>See contact details below.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        @elseif($wantsMember && !$currentMembership)
+                            <div class="mt-6 p-5 bg-blue-50 border border-blue-200 rounded-lg">
+                                <div class="flex items-start gap-3">
+                                    <i class="fas fa-id-card text-blue-500 mt-1"></i>
+                                    <div class="text-sm text-blue-900">
+                                        <p><strong>Your membership has expired.</strong> Pay your membership fee to activate it.</p>
+                                        <p class="mt-1 text-blue-700 italic">Online payment via Paystack — to be implemented.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        @elseif($wantsMember && $currentMembership && ($currentMembership['expiring_soon'] ?? false))
+                            <div class="mt-6 p-5 bg-blue-50 border border-blue-200 rounded-lg">
+                                <div class="flex items-start gap-3">
+                                    <i class="fas fa-id-card text-blue-500 mt-1"></i>
+                                    <div class="text-sm text-blue-900">
+                                        <p><strong>Membership expires in {{ $currentMembership['days_until_expiry'] }} days</strong> ({{ $currentMembership['expiry_date'] }}).</p>
+                                        <p class="mt-1 text-blue-700 italic">Online renewal via Paystack — to be implemented.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        @elseif(!$wantsVolunteering && !$wantsMember)
+                            <div class="mt-6 p-5 bg-sky-50 border border-sky-200 rounded-lg">
+                                <div class="flex items-start gap-3">
+                                    <i class="fas fa-seedling text-sky-500 mt-1"></i>
+                                    <div class="text-lg text-sky-900">
+                                        <p>Please update your contribution preference below so we can guide your next step.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        @endif
 
                         @if($user->primary_role_name)
                             <div class="mt-6">
@@ -1174,6 +1161,37 @@
                         <p class="mt-4 text-xs text-gray-400 italic">
                             You can also unsubscribe directly from any campaign message you receive.
                         </p>
+                    </div>
+
+                    <!-- Archive My Account -->
+                    <div class="bg-white rounded-lg shadow-lg p-6 border border-red-200">
+                        <div class="flex items-center mb-4">
+                            <div class="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center mr-4">
+                                <i class="fas fa-user-slash text-red-600 text-xl"></i>
+                            </div>
+                            <h2 class="text-xl font-bold text-gray-900">Archive My Account</h2>
+                        </div>
+                        <p class="text-sm text-gray-600 mb-4">
+                            This will deactivate your account and log you out. You will not be able to log in again until an administrator or your branch reactivates you.
+                        </p>
+                        @if(auth()->user()->getRoleNames()->isNotEmpty())
+                            <p class="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded p-3">
+                                You hold an administrative role. Ask another administrator to remove it before you can archive your own account.
+                            </p>
+                        @else
+                            <form method="POST" action="{{ route('profile.self-archive') }}" onsubmit="return confirm('Are you sure? This cannot be undone by you — you will need to contact your branch to be reactivated.');">
+                                @csrf
+                                <label for="archive_confirmation" class="block text-sm font-medium text-gray-700 mb-1">
+                                    Type <strong>archive</strong> to confirm:
+                                </label>
+                                <input type="text" name="confirmation" id="archive_confirmation" required
+                                       class="border-gray-300 rounded-md shadow-sm w-full max-w-xs mb-3"
+                                       placeholder="archive" autocomplete="off">
+                                <button type="submit" class="inline-flex items-center px-4 py-2 rounded-md text-sm font-medium bg-red-600 text-white hover:bg-red-700">
+                                    <i class="fas fa-user-slash mr-2"></i>Archive My Account
+                                </button>
+                            </form>
+                        @endif
                     </div>
 
                 </div>

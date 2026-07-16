@@ -19,9 +19,15 @@
 
             {{-- Body card --}}
             <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-                <p class="text-gray-700 leading-relaxed mb-3">
-                    It looks like your Red Cross account has been inactive for some time and has been deactivated.
-                </p>
+                @if($selfInitiated ?? false)
+                    <p class="text-gray-700 leading-relaxed mb-3">
+                        You archived your own account, as requested. Contact your branch below if you'd like to be reactivated.
+                    </p>
+                @else
+                    <p class="text-gray-700 leading-relaxed mb-3">
+                        It looks like your Red Cross account has been inactive for some time and has been deactivated.
+                    </p>
+                @endif
                 <p class="text-gray-700 leading-relaxed mb-3">
                     If you'd like to continue your involvement with the Nigerian Red Cross Society — whether as a member,
                     volunteer, or donor — we'd love to have you back.
@@ -37,7 +43,8 @@
                     <i class="fas fa-paper-plane mr-2 text-red-600"></i>Email your branch to rejoin
                 </h2>
                 <p class="text-sm text-gray-600 mb-3">
-                    Use this ready-made message — copy it, or open it in your email app — and send it to your branch.
+                    Use this ready-made message — copy it, or open it in your email app — and send it to your branch at
+                    <strong>@if($branch->email)  {{ $branch->email }}@endif</strong>.
                 </p>
                 <pre id="rejoin-message" class="whitespace-pre-wrap text-sm text-gray-800 bg-gray-50 border border-gray-200 rounded-md p-3 mb-4 font-sans">{{ $rejoinBody }}</pre>
                 <div class="flex flex-wrap gap-3">
