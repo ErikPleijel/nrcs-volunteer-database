@@ -446,7 +446,7 @@ class MembershipPaymentController extends Controller
                 // 'national' level does not have restrictions
         }
 
-        $users = $usersQuery->select('id', 'first_name', 'middle_name', 'last_name', 'email', 'telephone1', 'branch_id', 'division_id', 'red_cross_unit_id', 'lifecycle_status')
+        $users = $usersQuery->select('id', 'first_name', 'middle_name', 'last_name', 'email', 'telephone1', 'branch_id', 'division_id', 'red_cross_unit_id', 'lifecycle_status', 'can_contribute_volunteering')
             ->with(['branch:id,name,code', 'division:id,name'])
             ->limit(50)
             ->get();
@@ -468,6 +468,7 @@ class MembershipPaymentController extends Controller
                 'division_id' => $user->division_id,
                 'red_cross_unit_id' => $user->red_cross_unit_id,
                 'lifecycle_status' => $user->lifecycle_status,
+                'can_contribute_volunteering' => (bool) $user->can_contribute_volunteering,
                 'rcu_name' => $user->red_cross_unit_id ? ($rcuNames[$user->red_cross_unit_id] ?? null) : null,
                 'branch' => $user->branch ? ['id' => $user->branch->id, 'name' => $user->branch->name, 'code' => $user->branch->code] : null,
                 'division' => $user->division ? ['id' => $user->division->id, 'name' => $user->division->name] : null,

@@ -94,6 +94,11 @@
                                     </button>
                                 </div>
 
+                                <div id="volunteer-interest-warning" class="hidden mb-4 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                                    <i class="fas fa-triangle-exclamation mr-1"></i>
+                                    <span id="volunteer-interest-warning-text"></span>
+                                </div>
+
                                 {{-- Current membership info panel (shown after user selected) --}}
                                 <div id="current-membership-panel" class="hidden mb-6 rounded-lg border p-4 text-sm">
                                     <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Current Payment</p>
@@ -667,6 +672,20 @@
                 document.getElementById('fee-label').innerHTML = 'Fee <span class="font-normal text-gray-500 text-xs">(showing member fee options)</span>';
             }
 
+            const volunteerWarning = document.getElementById('volunteer-interest-warning');
+            const volunteerWarningText = document.getElementById('volunteer-interest-warning-text');
+
+            if (!isVolunteer && user.can_contribute_volunteering) {
+                volunteerWarningText.innerHTML =
+                    `<strong>${fullName}</strong> expressed interest in <strong>volunteering</strong> at registration. ` +
+                    `Only <strong>membership-type fees</strong> are shown, since they aren't assigned to a unit yet. ` +
+                    `If they still want to volunteer, <strong>assign them to a Red Cross Unit</strong> first. ` +
+                    `If they've changed their mind, you can proceed with a membership payment.`;
+                volunteerWarning.classList.remove('hidden');
+            } else {
+                volunteerWarning.classList.add('hidden');
+            }
+
             // Set hidden branch and division IDs
             selectedBranchId.value = user.branch_id || '';
             selectedDivisionId.value = user.division_id || '';
@@ -695,6 +714,7 @@
 
             // Reset membership panel and payment date
             currentMembershipPanel.classList.add('hidden');
+            document.getElementById('volunteer-interest-warning').classList.add('hidden');
             overlapNote.classList.add('hidden');
             paymentDateInput.value = new Date().toISOString().split('T')[0];
         }
