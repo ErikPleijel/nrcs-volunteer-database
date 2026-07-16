@@ -282,12 +282,15 @@
                                                 <dt class="text-xs uppercase text-gray-400">ID Card</dt>
                                                 <dd class="text-gray-900">{{ $payment->id_card_included ? 'Yes' : 'No' }}</dd>
                                             </div>
-                                            @if($payment->reference)
-                                                <div>
-                                                    <dt class="text-xs uppercase text-gray-400">Reference</dt>
-                                                    <dd class="text-gray-900">{{ $payment->reference }}</dd>
-                                                </div>
-                                            @endif
+                                            <div>
+                                                <dt class="text-xs uppercase text-gray-400">Reference</dt>
+                                                <dd class="text-gray-900">
+                                                    <div>{{ $payment->getPaymentReferenceAttribute() }}</div>
+                                                    @if($payment->reference)
+                                                        <div class="text-xs text-gray-500"><i class="fas fa-hashtag mr-1"></i>{{ $payment->reference }}</div>
+                                                    @endif
+                                                </dd>
+                                            </div>
                                         </dl>
                                         <div class="mt-3">
                                             <x-recent-log-actions

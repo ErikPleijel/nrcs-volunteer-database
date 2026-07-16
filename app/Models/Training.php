@@ -4,11 +4,12 @@ namespace App\Models;
 
 use App\Models\Concerns\Approvable;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Training extends Model
 {
-    use Approvable;
+    use Approvable, HasFactory;
 
     /** Module key for approval audit actions / notifications. */
     protected $approvalModule = 'training';
@@ -78,6 +79,17 @@ class Training extends Model
      * from the member's APPROVED first-aid trainings and is a no-op otherwise.
      */
     protected function afterApproved(?User $member): void
+    {
+        $member?->recalculateLastFirstAidAt();
+    }
+
+    /**
+     * After a training is demoted back to pending (edited post-approval), recompute
+     * the member's denormalised latest first-aid date the same way afterApproved()
+     * does — this training no longer counts as approved, so it may need to drop out
+     * of the MAX(training_date) aggregate recalculateLastFirstAidAt() derives from.
+     */
+    protected function afterDemoted(?User $member): void
     {
         $member?->recalculateLastFirstAidAt();
     }

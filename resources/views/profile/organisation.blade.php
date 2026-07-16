@@ -10,7 +10,7 @@
     </x-slot>
 
     <div class="py-8">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:mx-8 space-y-8">
+        <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
 
             <div>
                 <a href="{{ route('profile.show') }}" class="text-blue-600 hover:text-blue-800 text-sm">

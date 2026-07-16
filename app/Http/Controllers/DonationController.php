@@ -508,6 +508,11 @@ class DonationController extends Controller
 
         $donation->update($validated);
 
+        // Editing an approved record demotes it back to pending for a fresh
+        // approval cycle (no-op if it wasn't approved); resetApprovalOnEdit()
+        // already recomputes lifecycle as part of that demotion.
+        $donation->resetApprovalOnEdit();
+
         // Editing an APPROVED record can change freshness, so recompute lifecycle.
         // A pending record has no lifecycle effect until it is approved.
         if ($donation->isApproved()) {

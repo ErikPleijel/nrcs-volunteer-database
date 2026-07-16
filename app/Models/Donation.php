@@ -4,12 +4,13 @@ namespace App\Models;
 
 use App\Models\Concerns\Approvable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Donation extends Model
 {
-    use Approvable, SoftDeletes;
+    use Approvable, HasFactory, SoftDeletes;
 
     const DELETED_AT = 'removed_date';
 

@@ -373,6 +373,26 @@
                         </td>
                     </tr>
 
+                    {{-- Organisation(s) --}}
+                    <tr>
+                        <td>Organisation(s)</td>
+                        <td>
+                            @forelse($user->organisations as $organisation)
+                                <div class="flex items-center gap-2 mb-1">
+                                    <div class="taskforce-style w-fit flex flex-col">
+                                        <span>{{ $organisation->name }}</span>
+                                        @if($organisation->pivot->is_primary_contact)
+                                            <span class="text-xs font-semibold text-amber-700">Primary contact</span>
+                                        @endif
+                                    </div>
+                                    <a href="{{ route('organisations.show', $organisation) }}" class="btn-view w-fit">View</a>
+                                </div>
+                            @empty
+                                <span class="text-sm italic text-gray-400">No linked organisations</span>
+                            @endforelse
+                        </td>
+                    </tr>
+
 
 
                 </tbody>

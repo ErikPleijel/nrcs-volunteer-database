@@ -369,10 +369,10 @@
                         const years = Number(limit);
                         validityReminderText.textContent =
                             `Heads up: this training type expires ${years} year${years === 1 ? '' : 's'} after the training date.`;
+                        validityReminder.classList.remove('hidden');
                     } else {
-                        validityReminderText.textContent = 'This training type has no expiry.';
+                        validityReminder.classList.add('hidden');
                     }
-                    validityReminder.classList.remove('hidden');
                 }
                 trainingTypeSelect.addEventListener('change', updateValidityReminder);
                 updateValidityReminder(); // reflect any pre-selected / old() value on load

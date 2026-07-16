@@ -306,7 +306,7 @@ class UserFilterDescriber
             $labels[] = match ($filters['person_type']) {
                 'volunteer' => 'Volunteers only',
                 'member' => 'Members only',
-                'unassigned' => 'Unassigned (left unit, no membership)',
+                'unassigned' => 'Volunteers in Limbo (left unit, not reassigned)',
                 default => 'Person type: '.$filters['person_type'],
             };
         }

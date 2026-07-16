@@ -539,6 +539,12 @@ class TrainingController extends Controller
 
         $training->update($validated);
 
+        // Editing an approved record demotes it back to pending for a fresh
+        // approval cycle (no-op if it wasn't approved); resetApprovalOnEdit()
+        // already recomputes lifecycle and the first-aid date as part of that
+        // demotion (Training::afterDemoted()).
+        $training->resetApprovalOnEdit();
+
         $user = User::find($training->user_id);
 
         // Recompute lifecycle only for an APPROVED record; a pending one has no effect.

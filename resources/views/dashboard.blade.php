@@ -1607,6 +1607,13 @@
 
     @php
         $myRole = auth()->user()->primary_role_name; // machine name, e.g. 'branch_secretary'
+        $myExtraPermissions = auth()->user()->getDirectPermissions()->pluck('name');
+        $extraPermissionLabels = [
+            'send_bulk_messages' => 'Bulk Messaging',
+            'print_idcards' => 'Print ID Cards',
+            'print_certificates' => 'Print Certificates',
+            'campaign_request_approve' => 'Campaign Request Approve',
+        ];
     @endphp
 
     <section class="mt-6 mb-20  px-4 sm:px-6 lg:px-8">
@@ -1625,6 +1632,15 @@
                         @php $on = $myRole === 'national_db_administrator'; @endphp
                         <div class="relative rounded-xl border p-3 text-center transition {{ $on ? 'bg-indigo-50 border-indigo-400 ring-2 ring-indigo-400 shadow-sm' : 'bg-gray-50 border-gray-100 opacity-60' }}">
                             @if($on)<span class="absolute -top-2 left-1/2 -translate-x-1/2 bg-indigo-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap">YOU</span>@endif
+                            @if($on && $myExtraPermissions->isNotEmpty())
+                                <div class="mt-2 flex flex-wrap gap-1 justify-center">
+                                    @foreach($myExtraPermissions as $perm)
+                                        <span class="inline-block px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-semibold">
+                                            {{ $extraPermissionLabels[$perm] ?? \Illuminate\Support\Str::headline($perm) }}
+                                        </span>
+                                    @endforeach
+                                </div>
+                            @endif
                             <i class="fas fa-user-shield text-2xl {{ $on ? 'text-indigo-500' : 'text-red-500' }} mb-1"></i>
                             <p class="font-semibold text-gray-800 text-sm">National DB Administrator</p>
                             <p class="text-xs text-gray-500">Authorizes &amp; oversees</p>
@@ -1633,6 +1649,15 @@
                         @php $on = $myRole === 'national_db_assistant'; @endphp
                         <div class="relative rounded-xl border p-3 text-center transition {{ $on ? 'bg-indigo-50 border-indigo-400 ring-2 ring-indigo-400 shadow-sm' : 'bg-gray-50 border-gray-100 opacity-60' }}">
                             @if($on)<span class="absolute -top-2 left-1/2 -translate-x-1/2 bg-indigo-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap">YOU</span>@endif
+                            @if($on && $myExtraPermissions->isNotEmpty())
+                                <div class="mt-2 flex flex-wrap gap-1 justify-center">
+                                    @foreach($myExtraPermissions as $perm)
+                                        <span class="inline-block px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-semibold">
+                                            {{ $extraPermissionLabels[$perm] ?? \Illuminate\Support\Str::headline($perm) }}
+                                        </span>
+                                    @endforeach
+                                </div>
+                            @endif
                             <i class="fas fa-keyboard text-2xl {{ $on ? 'text-indigo-500' : 'text-red-400' }} mb-1"></i>
                             <p class="font-semibold text-gray-800 text-sm">National DB Assistant</p>
                             <p class="text-xs text-gray-500">National data entry</p>
@@ -1641,6 +1666,15 @@
                         @php $on = $myRole === 'observer_national_level'; @endphp
                         <div class="relative rounded-xl border p-3 text-center transition {{ $on ? 'bg-indigo-50 border-indigo-400 ring-2 ring-indigo-400 shadow-sm' : 'bg-gray-50 border-gray-100 opacity-60' }}">
                             @if($on)<span class="absolute -top-2 left-1/2 -translate-x-1/2 bg-indigo-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap">YOU</span>@endif
+                            @if($on && $myExtraPermissions->isNotEmpty())
+                                <div class="mt-2 flex flex-wrap gap-1 justify-center">
+                                    @foreach($myExtraPermissions as $perm)
+                                        <span class="inline-block px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-semibold">
+                                            {{ $extraPermissionLabels[$perm] ?? \Illuminate\Support\Str::headline($perm) }}
+                                        </span>
+                                    @endforeach
+                                </div>
+                            @endif
                             <i class="fas fa-eye text-2xl {{ $on ? 'text-indigo-500' : 'text-gray-400' }} mb-1"></i>
                             <p class="font-semibold text-gray-800 text-sm">Observer</p>
                             <p class="text-xs text-gray-500">Read-only reports</p>
@@ -1657,6 +1691,15 @@
                         @php $on = $myRole === 'branch_secretary'; @endphp
                         <div class="relative rounded-xl border p-3 text-center transition {{ $on ? 'bg-indigo-50 border-indigo-400 ring-2 ring-indigo-400 shadow-sm' : 'bg-gray-50 border-gray-100 opacity-60' }}">
                             @if($on)<span class="absolute -top-2 left-1/2 -translate-x-1/2 bg-indigo-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap">YOU</span>@endif
+                            @if($on && $myExtraPermissions->isNotEmpty())
+                                <div class="mt-2 flex flex-wrap gap-1 justify-center">
+                                    @foreach($myExtraPermissions as $perm)
+                                        <span class="inline-block px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-semibold">
+                                            {{ $extraPermissionLabels[$perm] ?? \Illuminate\Support\Str::headline($perm) }}
+                                        </span>
+                                    @endforeach
+                                </div>
+                            @endif
                             <i class="fas fa-user-tie text-2xl {{ $on ? 'text-indigo-500' : 'text-red-500' }} mb-1"></i>
                             <p class="font-semibold text-gray-800 text-sm">Branch Secretary</p>
                             <p class="text-xs text-gray-500">Branch administration</p>
@@ -1665,6 +1708,15 @@
                         @php $on = $myRole === 'branch_db_administrator'; @endphp
                         <div class="relative rounded-xl border p-3 text-center transition {{ $on ? 'bg-indigo-50 border-indigo-400 ring-2 ring-indigo-400 shadow-sm' : 'bg-gray-50 border-gray-100 opacity-60' }}">
                             @if($on)<span class="absolute -top-2 left-1/2 -translate-x-1/2 bg-indigo-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap">YOU</span>@endif
+                            @if($on && $myExtraPermissions->isNotEmpty())
+                                <div class="mt-2 flex flex-wrap gap-1 justify-center">
+                                    @foreach($myExtraPermissions as $perm)
+                                        <span class="inline-block px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-semibold">
+                                            {{ $extraPermissionLabels[$perm] ?? \Illuminate\Support\Str::headline($perm) }}
+                                        </span>
+                                    @endforeach
+                                </div>
+                            @endif
                             <i class="fas fa-user-shield text-2xl {{ $on ? 'text-indigo-500' : 'text-red-500' }} mb-1"></i>
                             <p class="font-semibold text-gray-800 text-sm">Branch DB Administrator</p>
                             <p class="text-xs text-gray-500">Same authority</p>
@@ -1673,6 +1725,15 @@
                         @php $on = $myRole === 'branch_db_assistant'; @endphp
                         <div class="relative rounded-xl border p-3 text-center transition {{ $on ? 'bg-indigo-50 border-indigo-400 ring-2 ring-indigo-400 shadow-sm' : 'bg-gray-50 border-gray-100 opacity-60' }}">
                             @if($on)<span class="absolute -top-2 left-1/2 -translate-x-1/2 bg-indigo-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap">YOU</span>@endif
+                            @if($on && $myExtraPermissions->isNotEmpty())
+                                <div class="mt-2 flex flex-wrap gap-1 justify-center">
+                                    @foreach($myExtraPermissions as $perm)
+                                        <span class="inline-block px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-semibold">
+                                            {{ $extraPermissionLabels[$perm] ?? \Illuminate\Support\Str::headline($perm) }}
+                                        </span>
+                                    @endforeach
+                                </div>
+                            @endif
                             <i class="fas fa-keyboard text-2xl {{ $on ? 'text-indigo-500' : 'text-red-400' }} mb-1"></i>
                             <p class="font-semibold text-gray-800 text-sm">Branch DB Assistant</p>
                             <p class="text-xs text-gray-500">Branch data entry</p>
@@ -1689,6 +1750,15 @@
                         @php $on = $myRole === 'division_db_assistant_finance'; @endphp
                         <div class="relative rounded-xl border p-3 text-center transition {{ $on ? 'bg-indigo-50 border-indigo-400 ring-2 ring-indigo-400 shadow-sm' : 'bg-gray-50 border-gray-100 opacity-60' }}">
                             @if($on)<span class="absolute -top-2 left-1/2 -translate-x-1/2 bg-indigo-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap">YOU</span>@endif
+                            @if($on && $myExtraPermissions->isNotEmpty())
+                                <div class="mt-2 flex flex-wrap gap-1 justify-center">
+                                    @foreach($myExtraPermissions as $perm)
+                                        <span class="inline-block px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-semibold">
+                                            {{ $extraPermissionLabels[$perm] ?? \Illuminate\Support\Str::headline($perm) }}
+                                        </span>
+                                    @endforeach
+                                </div>
+                            @endif
                             <i class="fas fa-coins text-2xl {{ $on ? 'text-indigo-500' : 'text-amber-500' }} mb-1"></i>
                             <p class="font-semibold text-gray-800 text-sm">Division Assistant — Finance</p>
                             <p class="text-xs text-gray-500">Payments, Donations, Trainings &amp; Volunteering</p>
@@ -1697,6 +1767,15 @@
                         @php $on = $myRole === 'division_db_assistant_operations'; @endphp
                         <div class="relative rounded-xl border p-3 text-center transition {{ $on ? 'bg-indigo-50 border-indigo-400 ring-2 ring-indigo-400 shadow-sm' : 'bg-gray-50 border-gray-100 opacity-60' }}">
                             @if($on)<span class="absolute -top-2 left-1/2 -translate-x-1/2 bg-indigo-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap">YOU</span>@endif
+                            @if($on && $myExtraPermissions->isNotEmpty())
+                                <div class="mt-2 flex flex-wrap gap-1 justify-center">
+                                    @foreach($myExtraPermissions as $perm)
+                                        <span class="inline-block px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-semibold">
+                                            {{ $extraPermissionLabels[$perm] ?? \Illuminate\Support\Str::headline($perm) }}
+                                        </span>
+                                    @endforeach
+                                </div>
+                            @endif
                             <i class="fas fa-clipboard-list text-2xl {{ $on ? 'text-indigo-500' : 'text-indigo-400' }} mb-1"></i>
                             <p class="font-semibold text-gray-800 text-sm">Division Assistant — Operations</p>
                             <p class="text-xs text-gray-500">Trainings &amp; Volunteering</p>

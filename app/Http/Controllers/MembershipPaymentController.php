@@ -608,6 +608,11 @@ class MembershipPaymentController extends Controller
 
         $membershipPayment->update($validated);
 
+        // Editing an approved record demotes it back to pending for a fresh
+        // approval cycle (no-op if it wasn't approved); resetApprovalOnEdit()
+        // already recomputes lifecycle as part of that demotion.
+        $membershipPayment->resetApprovalOnEdit();
+
         // Recompute lifecycle only for an APPROVED record; a pending one has no effect.
         if ($membershipPayment->isApproved()) {
             optional(User::find($membershipPayment->user_id))->recalculateLifecycle();

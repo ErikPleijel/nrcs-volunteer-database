@@ -510,6 +510,11 @@ class ActivityController extends Controller
 
         $activity->update($validated);
 
+        // Editing an approved record demotes it back to pending for a fresh
+        // approval cycle (no-op if it wasn't approved); resetApprovalOnEdit()
+        // already recomputes lifecycle as part of that demotion.
+        $activity->resetApprovalOnEdit();
+
         // Recompute lifecycle only for an APPROVED record; a pending one has no effect.
         if ($activity->isApproved()) {
             optional(User::find($activity->user_id))->recalculateLifecycle();

@@ -251,6 +251,56 @@ trait Approvable
     }
 
     /**
+     * Demote an already-approved record back to pending after a content edit, so
+     * it goes through a fresh approval cycle. No-op if the record isn't currently
+     * approved (editing a pending or rejected record has nothing to reset).
+     *
+     * Mirrors approve()'s shape: forceFill + save inside a transaction, an
+     * unconditional lifecycle recompute (the fix for the gap where controllers'
+     * `if ($model->isApproved()) { recalculateLifecycle(); }` never fires here,
+     * since the record is no longer approved once this runs), then a
+     * module-specific afterDemoted() hook.
+     */
+    public function resetApprovalOnEdit(): void
+    {
+        if (! $this->isApproved()) {
+            return;
+        }
+
+        DB::transaction(function () {
+            $member = $this->user;
+
+            $this->forceFill([
+                'approval_status' => self::PENDING,
+                'decided_by_user_id' => null,
+                'decided_at' => null,
+                'rejection_reason' => null,
+            ])->save();
+
+            if ($member) {
+                $member->recalculateLifecycle();
+            }
+
+            // Module-specific follow-up after the universal lifecycle work
+            // (e.g. Training recomputes the denormalised first-aid date, since
+            // this record no longer counts as approved). Default no-op.
+            $this->afterDemoted($member);
+        });
+    }
+
+    /**
+     * Hook invoked inside resetApprovalOnEdit()'s transaction, after the
+     * universal lifecycle work. Default no-op; modules override to add their
+     * own follow-up. Mirrors afterApproved().
+     *
+     * @param  User|null  $member  the record's related member (may be null)
+     */
+    protected function afterDemoted(?User $member): void
+    {
+        // no-op by default
+    }
+
+    /**
      * Reject a pending record. Runs in a transaction.
      *
      * No deletion, no lifecycle change. The submitter is notified via the

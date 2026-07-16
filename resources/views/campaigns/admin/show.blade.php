@@ -334,6 +334,12 @@
                             <dt class="text-gray-500">Submitted</dt>
                             <dd class="font-medium text-gray-900">{{ $campaign->submitted_at?->format('Y-m-d H:i') ?? '—' }}<br><span class="text-sm text-gray-500">{{ $campaign->submitter?->full_name ?? '—' }}</span></dd>
                         </div>
+                        @if($campaign->approved_at)
+                        <div class="flex justify-between gap-4">
+                            <dt class="text-gray-500">Approved</dt>
+                            <dd class="font-medium text-gray-900">{{ $campaign->approved_at->format('Y-m-d H:i') }}<br><span class="text-sm text-gray-500">{{ $campaign->approver?->full_name ?? '—' }}</span></dd>
+                        </div>
+                        @endif
                         @if($campaign->reviewed_at)
                         <div class="flex justify-between gap-4">
                             <dt class="text-gray-500">Reviewed</dt>

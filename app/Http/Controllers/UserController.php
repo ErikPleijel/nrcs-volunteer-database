@@ -508,6 +508,7 @@ class UserController extends Controller
             'activities.assignable',
             'trainings.trainingType',
             'taskForces',
+            'organisations',
         ]);
 
         if ($user->redCrossUnit) {

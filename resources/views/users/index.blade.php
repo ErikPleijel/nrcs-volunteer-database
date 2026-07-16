@@ -293,7 +293,7 @@
                                     <option value="" {{ request('person_type', '') === '' ? 'selected' : '' }}>All</option>
                                     <option value="member"    {{ request('person_type') === 'member'    ? 'selected' : '' }}>Members</option>
                                     <option value="volunteer" {{ request('person_type') === 'volunteer' ? 'selected' : '' }}>Volunteers</option>
-                                    <option value="unassigned" {{ request('person_type') === 'unassigned' ? 'selected' : '' }}>Unassigned</option>
+                                    <option value="unassigned" {{ request('person_type') === 'unassigned' ? 'selected' : '' }}>Unassigned (Volunteers in Limbo)</option>
                                 </select>
                             </div>
 
@@ -314,7 +314,7 @@
                         <div id="show-filters-btn-container" class="flex flex-col items-start gap-2 pt-6">
                             <button type="button" id="show-filters-btn"
                                     aria-expanded="{{ $anyHiddenFilterActive ? 'true' : 'false' }}"
-                                    class="inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium bg-white text-slate-700 ring-1 ring-inset ring-slate-300 hover:bg-slate-50 shadow-sm">
+                                    class="inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium bg-blue-100 text-slate-700 ring-1 ring-inset ring-slate-300 hover:bg-slate-50 shadow-sm">
                                 <i class="fas fa-sliders text-slate-500"></i>
                                 <span id="show-filters-btn-label">{{ $anyHiddenFilterActive ? 'Hide filters' : 'Show all filters' }}</span>
                             </button>
@@ -999,7 +999,7 @@
 
                         <p class="text-slate-600 mb-4">
                             Find people who have registered but not yet become fully active.
-                            Filters applied: Lifecycle Status = Pending Engagement.
+
                         </p>
 
                         {{-- Sort order --}}
@@ -1109,7 +1109,7 @@
 
                         <p class="text-slate-600 mb-4">
                             Find volunteers who have become inactive and may need a nudge to re-engage.
-                            Filters applied: <strong>Lifecycle Status = Dormant</strong>, <strong>Members / Volunteers = Volunteers</strong>.
+
                         </p>
 
                         {{-- Who to include --}}
@@ -1169,7 +1169,7 @@
 
                         <p class="text-slate-600 mb-4">
                             Target members based on their membership expiry status.
-                            Choose whether to reach out <strong>before</strong> or <strong>after</strong> expiry.
+
                         </p>
 
                         {{-- Before / After toggle --}}
@@ -1437,7 +1437,7 @@
                         <p class="text-slate-600 mb-4">
                             Find members and volunteers whose most recent first-aid training — of any type — has
                             gone stale, and invite them to arrange a refresher with their branch.
-                            Filter applied: <strong>First aid older than the chosen age</strong>.
+
                         </p>
 
                         {{-- Staleness threshold --}}
@@ -1535,7 +1535,7 @@
 
                         <p class="text-slate-600 mb-4">
                             Find members or volunteers whose training certification is approaching expiry or has already lapsed.
-                            The message will be a general training expiry reminder — not specific to a particular course.
+
                         </p>
 
                         {{-- Training type --}}
