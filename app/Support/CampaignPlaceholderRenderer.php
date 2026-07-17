@@ -56,6 +56,7 @@ class CampaignPlaceholderRenderer
             'user.current_membership' => fn () => $user->current_membership_name ?? self::NO_MEMBERSHIP_NAME_FALLBACK,
             'user.membership_expiry' => fn () => optional($user->currentMembershipPayment()->personal()->first()?->expiry_date)->format('d M Y') ?? self::NO_MEMBERSHIP_FALLBACK,
             'user.time_since_last_first_aid' => fn () => $user->timeSinceLastFirstAid() ?? self::NO_FIRST_AID_FALLBACK,
+            'app.url' => fn () => route('welcome'),
         ];
 
         // Resolve each token at most once per render, even if it appears multiple times,

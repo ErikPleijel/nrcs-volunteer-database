@@ -48,7 +48,7 @@ class SettingsTableSeeder extends Seeder
         Setting::updateOrCreate(
             ['key' => 'campaign.allowed_domains'],
             [
-                'value'       => 'example.org, example.com, example.net',
+                'value'       => 'nrcsvdb.org, redcrossnigeria.org',
                 'type'        => 'string',
                 'group'       => 'campaign',
                 'label'       => 'Allowed link domains (comma-separated)',

@@ -124,7 +124,7 @@
                                 @if($showEmail)
                                     <div class="mt-2 rounded-md border border-gray-200 bg-gray-50 p-3 text-sm text-gray-500">
 
-                                        <p>Stay up to date with the Nigerian Red Cross — <span class="underline">visit our website</span> and log in to your account to see what's on file: your membership status, training history, volunteering record, and any donations you've made.</p>
+                                        <p>Stay up to date with the Nigerian Red Cross — visit our <span class="underline">member database</span> and log in to your account to see what's on file: your membership status, training history, volunteering record, and any donations you've made. Learn more about our work at <span class="underline">redcrossnigeria.org</span>.</p>
                                         <p>You are receiving this message because you are a registered member or volunteer of the Nigerian Red Cross Society. <span class="underline">Unsubscribe</span>.</p>
 
                                         <p class=" text-gray-600 mt-2 text-xs"><i class="fas fa-lock mr-1"></i>Automatically appended to every email.</p>

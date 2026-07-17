@@ -71,7 +71,7 @@
             @if ($hasRecipients)
                 <label class="flex items-center gap-2 text-xs text-amber-800 mb-2">
                     <input type="checkbox" name="force_outside_window" value="1" class="rounded border-amber-300">
-                    Send this batch now even if outside the call window (e.g. for an urgent message)
+                    <strong>Urgent message?</strong> Send this batch now even if outside the call window.
                 </label>
             @endif
 

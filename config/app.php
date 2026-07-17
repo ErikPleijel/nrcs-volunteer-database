@@ -54,6 +54,8 @@ return [
 
     'url' => env('APP_URL', 'http://localhost'),
 
+    'official_website' => env('OFFICIAL_WEBSITE_URL', 'https://redcrossnigeria.org'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Timezone
