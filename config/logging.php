@@ -130,7 +130,7 @@ return [
         'campaign_deliveries' => [
             'driver' => 'daily',
             'path' => storage_path('logs/campaign_deliveries.log'),
-            'level' => env('LOG_LEVEL', 'info'),
+            'level' => env('LOG_CAMPAIGN_DELIVERY_LEVEL', 'info'),
             'days' => env('LOG_CAMPAIGN_DELIVERY_DAYS', 30),
             'replace_placeholders' => true,
         ],
