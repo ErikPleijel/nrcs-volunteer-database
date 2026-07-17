@@ -9,7 +9,7 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 
-Schedule::command('lifecycle:reconcile', ['--apply' => true])
+Schedule::command('lifecycle:reconcile --apply')
     ->dailyAt('03:00')
     ->withoutOverlapping();
 
