@@ -46,16 +46,18 @@
             $hasWindow = !empty($th['send_window_start']) && !empty($th['send_window_end']);
         @endphp
 
-        @if ($hasWindow)
-            <p class="text-xs text-gray-600 mb-2">
-                Call window: <strong>{{ $th['send_window_start'] }}–{{ $th['send_window_end'] }}</strong>.
-                Outside this window, sending will pause automatically until the window reopens.
-            </p>
-        @else
-            <p class="text-xs text-gray-600 mb-2">
-                Default sending hours: <strong>08:00–20:00</strong>.
-                Outside these hours, sending will pause automatically until they reopen.
-            </p>
+        @if ($hasRecipients)
+            @if ($hasWindow)
+                <p class="text-xs text-gray-600 mb-2">
+                    Call window: <strong>{{ $th['send_window_start'] }}–{{ $th['send_window_end'] }}</strong>.
+                    Outside this window, sending will pause automatically until the window reopens.
+                </p>
+            @else
+                <p class="text-xs text-gray-600 mb-2">
+                    Default sending hours: <strong>08:00–20:00</strong>.
+                    Outside these hours, sending will pause automatically until they reopen.
+                </p>
+            @endif
         @endif
 
         <form method="POST" action="{{ route('campaigns.admin.startSending', $campaign) }}">
@@ -66,10 +68,12 @@
                     : 'inline-flex items-center px-3 py-1.5 rounded-md text-sm font-semibold bg-indigo-600 text-white hover:bg-indigo-700';
             @endphp
 
-            <label class="flex items-center gap-2 text-xs text-amber-800 mb-2">
-                <input type="checkbox" name="force_outside_window" value="1" class="rounded border-amber-300">
-                Send this batch now even if outside the call window (e.g. for an urgent message)
-            </label>
+            @if ($hasRecipients)
+                <label class="flex items-center gap-2 text-xs text-amber-800 mb-2">
+                    <input type="checkbox" name="force_outside_window" value="1" class="rounded border-amber-300">
+                    Send this batch now even if outside the call window (e.g. for an urgent message)
+                </label>
+            @endif
 
             <button type="submit" {{ $startDisabled ? 'disabled' : '' }}
             class="{{ $startButtonClasses }}">
