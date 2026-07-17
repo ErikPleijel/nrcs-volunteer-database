@@ -91,10 +91,6 @@
             </div>
 
 
-
-            <div class="mt-3 text-xs text-slate-500">
-                Tip: when you add a scheduler, this page becomes “live”. Until then, use <span class="font-medium">Run once</span>.
-            </div>
         </div>
 
         {{-- Throttling card --}}

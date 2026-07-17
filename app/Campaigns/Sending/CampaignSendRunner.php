@@ -366,12 +366,8 @@ final class CampaignSendRunner
 
     private function isWithinSendWindow(array $throttling): bool
     {
-        $start = $throttling['send_window_start'] ?? null;
-        $end = $throttling['send_window_end'] ?? null;
-
-        if (! $start || ! $end) {
-            return true;
-        }
+        $start = $throttling['send_window_start'] ?? '08:00';
+        $end = $throttling['send_window_end'] ?? '20:00';
 
         $now = now();
         $startTime = $now->copy()->setTimeFromTimeString($start);
