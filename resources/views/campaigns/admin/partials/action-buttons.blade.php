@@ -41,6 +41,18 @@
             </button>
         </form>
 
+        @php
+            $th = $campaign->filter_json['_throttling'] ?? [];
+            $hasWindow = !empty($th['send_window_start']) && !empty($th['send_window_end']);
+        @endphp
+
+        @if ($hasWindow)
+            <p class="text-xs text-gray-600 mb-2">
+                Call window: <strong>{{ $th['send_window_start'] }}–{{ $th['send_window_end'] }}</strong>.
+                Outside this window, sending will pause automatically until the window reopens.
+            </p>
+        @endif
+
         <form method="POST" action="{{ route('campaigns.admin.startSending', $campaign) }}">
             @csrf
             @php
@@ -48,6 +60,14 @@
                     ? 'inline-flex items-center px-3 py-1.5 rounded-md text-sm font-semibold bg-gray-200 text-gray-500 cursor-not-allowed'
                     : 'inline-flex items-center px-3 py-1.5 rounded-md text-sm font-semibold bg-indigo-600 text-white hover:bg-indigo-700';
             @endphp
+
+            @if ($hasWindow)
+                <label class="flex items-center gap-2 text-xs text-amber-800 mb-2">
+                    <input type="checkbox" name="force_outside_window" value="1" class="rounded border-amber-300">
+                    Send this batch now even if outside the call window (e.g. for an urgent message)
+                </label>
+            @endif
+
             <button type="submit" {{ $startDisabled ? 'disabled' : '' }}
             class="{{ $startButtonClasses }}">
                 Start

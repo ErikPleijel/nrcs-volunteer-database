@@ -551,8 +551,13 @@ class CampaignAdminController extends Controller
             return back()->with('error', 'No recipients exist yet. Build recipients first.');
         }
 
+        $data = $request->validate([
+            'batch' => ['nullable', 'integer', 'min:1', 'max:500'],
+        ]);
+
         $dryRun = (bool) $request->boolean('dry_run', false); // optional toggle later
-        $batch = (int) ($request->input('batch') ?: 50);
+        $batch = (int) ($data['batch'] ?? 50);
+        $forceOutsideWindow = $request->boolean('force_outside_window', false);
 
         $campaign->update([
             'status' => 'sending',
@@ -564,7 +569,7 @@ class CampaignAdminController extends Controller
         ]);
 
         // ✅ Kick one run immediately
-        $result = $runner->runOneBatch($campaign->fresh(), batch: $batch, dryRun: $dryRun, force: true);
+        $result = $runner->runOneBatch($campaign->fresh(), batch: $batch, dryRun: $dryRun, force: $forceOutsideWindow);
 
         return back()->with('success', "Campaign started. Processed {$result['processed']} (sent {$result['sent']}, failed {$result['failed']}).");
     }

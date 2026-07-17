@@ -13,10 +13,10 @@ Schedule::command('lifecycle:reconcile', ['--apply' => true])
     ->dailyAt('03:00')
     ->withoutOverlapping();
 
-// TODO VPS, enable runInBackground
-/*Schedule::command('campaigns:send --batch=50')
+// Enabled 2026-07-17: campaigns:send now runs automatically via the scheduler.
+Schedule::command('campaigns:send --batch=50')
     ->everyMinute()
-    ->withoutOverlapping(10);*/
+    ->withoutOverlapping(10);
 //    ->runInBackground();
 
 // Daily statistics snapshot. VPS cron required: * * * * * php /path/to/artisan schedule:run >> /dev/null 2>&1
