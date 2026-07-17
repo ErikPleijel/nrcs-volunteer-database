@@ -22,7 +22,7 @@
             {{-- Context hint (always visible) --}}
             <div class=" space-y-2">
                 <ul class="list-disc list-inside space-y-1">
-                    <li>Set a <strong>call window</strong> so people know <em>when</em> to call.</li>
+                    <li>Set a <strong>call window</strong> so people know <em>when</em> to call — this also controls when messages are actually sent. Outside this window, sending pauses automatically until it reopens.</li>
                     <li>Use a <strong>daily cap</strong> to limit how many messages are sent at once.</li>
                     <li>Smaller batches help avoid being overwhelmed by incoming calls.</li>
                 </ul>
@@ -47,7 +47,7 @@
                         name="send_window_start"
                         value="{{ old('send_window_start', $th['send_window_start'] ?? '') }}"
                         class="wizard-input disabled:opacity-50 disabled:bg-gray-100 disabled:cursor-not-allowed @error('send_window_start') border-red-300 focus:border-red-500 focus:ring-red-500 @enderror"
-                        placeholder="For example: 08:00"
+                        placeholder="From 08:00"
                         {{ $callsChecked ? '' : 'disabled' }}
                     >
                     @error('send_window_start')
@@ -62,7 +62,7 @@
                         name="send_window_end"
                         value="{{ old('send_window_end', $th['send_window_end'] ?? '') }}"
                         class="wizard-input disabled:opacity-50 disabled:bg-gray-100 disabled:cursor-not-allowed @error('send_window_end') border-red-300 focus:border-red-500 focus:ring-red-500 @enderror"
-                        placeholder="For example: 20:00"
+                        placeholder="to 17:00"
                         {{ $callsChecked ? '' : 'disabled' }}
                     >
                     @error('send_window_end')
