@@ -1047,7 +1047,7 @@ class UserController extends Controller
         }
 
         // If no file was uploaded and no photo was captured, or if there was an error
-        return back()->with('error', 'Failed to update profile picture. Please ensure you either uploaded a file or captured a photo, and try again.');
+        return back()->with('error', 'Photo uploaded but could not be processed — please try a different image or contact support.');
     }
 
     /**
@@ -1076,7 +1076,7 @@ class UserController extends Controller
             return back()->with('success', 'Signature updated successfully.');
         }
 
-        return back()->with('error', 'Failed to update signature. Please ensure you either uploaded a file or captured a signature, and try again.');
+        return back()->with('error', 'Signature uploaded but could not be processed — please try a different image or contact support.');
     }
 
     /**

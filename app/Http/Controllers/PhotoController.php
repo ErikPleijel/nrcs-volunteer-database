@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
@@ -56,13 +57,25 @@ class PhotoController extends Controller
             // Primary: storage/app/private/ (Storage::disk('local') root on Laravel 12)
             $storageFull = Storage::disk('local')->path($path);
             if (file_exists($storageFull)) {
-                return response()->file($storageFull);
+                return $this->withCacheHeaders(
+                    response()->file($storageFull),
+                    $request,
+                    $user,
+                    $type,
+                    $storageFull
+                );
             }
 
             // Backward compat: serve from old public/ location for pre-migration files
             $publicFull = public_path($path);
             if (file_exists($publicFull)) {
-                return response()->file($publicFull);
+                return $this->withCacheHeaders(
+                    response()->file($publicFull),
+                    $request,
+                    $user,
+                    $type,
+                    $publicFull
+                );
             }
         }
 
@@ -77,13 +90,62 @@ class PhotoController extends Controller
             $remoteUrl = 'https://nrcsvdb.org/nrcs/database/' . $rawField;
             $remoteResponse = Http::timeout(5)->get($remoteUrl);
             if ($remoteResponse->successful()) {
-                return response($remoteResponse->body(), 200, [
-                    'Content-Type' => $remoteResponse->header('Content-Type'),
-                ]);
+                return $this->withCacheHeaders(
+                    response($remoteResponse->body(), 200, [
+                        'Content-Type' => $remoteResponse->header('Content-Type'),
+                    ]),
+                    $request,
+                    $user,
+                    $type,
+                    null
+                );
             }
         }
 
-        return $this->placeholder($type);
+        return $this->withCacheHeaders($this->placeholder($type), $request, $user, $type, null);
+    }
+
+    /**
+     * Attach validators (ETag / Last-Modified) and a revalidate-always Cache-Control
+     * to a photo response, then let the client's conditional request (if any) collapse
+     * it to a 304 when nothing has actually changed.
+     *
+     * Without this, the photos.show URL never changes even when the underlying file
+     * does (a fresh upload reuses the same route), so browsers can keep serving a
+     * stale cached copy indefinitely — this forces a revalidation on every request
+     * while still avoiding a full re-download when the photo is genuinely unchanged
+     * (important for index pages rendering ~15 photos at once).
+     *
+     * @param string|null $sourcePath Full path to the file actually being served, when
+     *                                one exists locally (null for the remote-fetch/placeholder paths).
+     */
+    private function withCacheHeaders(Response $response, Request $request, User $user, string $type, ?string $sourcePath): Response
+    {
+        if ($type === 'profile' && $user->image_upload_date) {
+            $lastModified = Carbon::parse($user->image_upload_date);
+        } elseif ($sourcePath !== null && file_exists($sourcePath)) {
+            $lastModified = Carbon::createFromTimestamp(filemtime($sourcePath));
+        } else {
+            $lastModified = $user->updated_at ?? Carbon::now();
+        }
+
+        $etag = md5(implode('|', [
+            $type,
+            $user->id,
+            $sourcePath !== null ? basename($sourcePath) : ($user->getRawOriginal($type === 'signature' ? 'signature' : 'picture') ?? 'none'),
+            $lastModified->timestamp,
+        ]));
+
+        $response->setLastModified($lastModified);
+        $response->setEtag($etag);
+        $response->setPrivate();
+        $response->setMaxAge(0);
+        $response->headers->addCacheControlDirective('must-revalidate');
+
+        // Collapses to a 304 (empty body) if the client's cached copy is still valid.
+        $response->isNotModified($request);
+
+        return $response;
     }
 
     private function resolveStoragePath(User $user, string $type): ?string

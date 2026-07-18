@@ -688,3 +688,37 @@ migrated admin/staff account has it NULL and is forced through
 `web` middleware group in `bootstrap/app.php`) on first login after
 go-live — identical treatment to a freshly-created account. No gap exists
 here.
+
+
+## Photo caching fix — verified via automated test, NOT yet confirmed in real browser use
+
+**Decision/status:** `PhotoController::show()` was updated to send proper
+`Cache-Control`, `ETag`, and `Last-Modified` headers, intended to fix a bug
+where a newly uploaded profile photo would not display until the user
+performed a hard refresh (the photo URL never changes even when the
+underlying file does, so browsers were serving a stale cached copy
+indefinitely).
+
+**What was verified:** An automated test confirmed the fix works correctly
+at the HTTP level — replaying a browser's old cached `ETag`/
+`Last-Modified` headers after a real upload correctly returns a fresh 200
+with the new image, not a stale 304. All existing photo-authorization
+tests (`DataAccessControlTest`) still pass unaffected.
+
+**What was NOT resolved:** In manual testing on the VPS immediately after
+this fix, a hard refresh was still required to see a newly uploaded photo
+— the exact symptom the fix was meant to eliminate. This discrepancy is
+unexplained. Possible causes not yet investigated: browser-level caching
+behavior that doesn't even send a conditional request in the first place
+(in which case `Cache-Control` headers alone can't help), an intermediate
+caching layer (proxy, XAMPP/dev-server config) between the browser and the
+app, or a genuine remaining gap in the fix not caught by the automated
+test's request-level simulation.
+
+**Do not treat this as fully resolved.** Testing was paused because the
+specific test users showing the bug (black-and-white placeholder photos)
+were exhausted — all had already been "fixed" by re-uploading during this
+session, leaving no remaining reproduction case. Re-verify this properly
+the next time a user with a stale/placeholder photo is available, ideally
+by checking actual browser Network tab behavior (is a conditional request
+even being sent?) rather than relying on the automated test alone.

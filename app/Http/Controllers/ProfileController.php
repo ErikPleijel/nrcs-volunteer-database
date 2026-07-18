@@ -433,7 +433,7 @@ class ProfileController extends Controller
         }
 
         // If input was provided but processPhotoUpload returned null, it indicates a failure during processing
-        return back()->with('error', 'Failed to update profile picture due to a processing error. Please try again.');
+        return back()->with('error', 'Photo uploaded but could not be processed — please try a different image or contact support.');
     }
 
 
@@ -470,7 +470,7 @@ class ProfileController extends Controller
         }
 
         // If input was provided but processPhotoUpload returned null, it indicates a failure during processing
-        return back()->with('error', 'Failed to update signature due to a processing error. Please try again.');
+        return back()->with('error', 'Signature uploaded but could not be processed — please try a different image or contact support.');
     }
 
     /**

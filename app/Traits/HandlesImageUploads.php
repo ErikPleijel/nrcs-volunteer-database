@@ -3,6 +3,7 @@
 namespace App\Traits;
 
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
@@ -95,16 +96,25 @@ trait HandlesImageUploads
             );
 
             if (!$optimized) {
-                Log::warning('Failed to create web-optimized image for ' . $category . '. The original file is saved.', ['filename' => $baseFilename]);
-                // Depending on requirements, you might delete original or return null here.
-                // For now, we allow the original to stay and return its filename.
+                Log::error('Photo upload rejected: web-optimized image could not be generated. Discarding upload rather than recording a filename PhotoController cannot serve.', [
+                    'category' => $category,
+                    'filename' => $baseFilename,
+                    'original_client_name' => $file->getClientOriginalName(),
+                    'actor_id' => Auth::id(),
+                ]);
+
+                // Don't leave an orphaned original/ file with no usable web/ copy and no DB reference.
+                Storage::disk('local')->delete($originalDir . '/' . $baseFilename);
+
+                return null;
             }
 
             return $baseFilename;
         } catch (\Exception $e) {
             Log::error('Failed to handle uploaded file for ' . $category, [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
+                'actor_id' => Auth::id(),
             ]);
             return null;
         }
@@ -174,14 +184,24 @@ trait HandlesImageUploads
             );
 
             if (!$optimized) {
-                Log::warning('Failed to create web-optimized image from captured photo for ' . $category . '. The original file is saved.', ['filename' => $baseFilename]);
+                Log::error('Captured photo upload rejected: web-optimized image could not be generated. Discarding upload rather than recording a filename PhotoController cannot serve.', [
+                    'category' => $category,
+                    'filename' => $baseFilename,
+                    'actor_id' => Auth::id(),
+                ]);
+
+                // Don't leave an orphaned original/ file with no usable web/ copy and no DB reference.
+                Storage::disk('local')->delete($originalDir . '/' . $baseFilename);
+
+                return null;
             }
 
             return $baseFilename;
         } catch (\Exception $e) {
             Log::error('Failed to handle captured base64 photo for ' . $category, [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
+                'actor_id' => Auth::id(),
             ]);
             return null;
         }
@@ -207,13 +227,19 @@ trait HandlesImageUploads
     {
         try {
             if (!extension_loaded('gd')) {
-                Log::warning('GD extension not loaded, image optimization skipped for: ' . $sourcePath);
+                Log::error('Image optimization failed: GD extension not loaded.', [
+                    'file' => $sourcePath,
+                    'actor_id' => Auth::id(),
+                ]);
                 return false;
             }
 
             $imageInfo = getimagesize($sourcePath);
             if (!$imageInfo) {
-                Log::error('Could not get image info for optimization.', ['file' => $sourcePath]);
+                Log::error('Image optimization failed: could not read image dimensions (getimagesize failed).', [
+                    'file' => $sourcePath,
+                    'actor_id' => Auth::id(),
+                ]);
                 return false;
             }
 
@@ -231,12 +257,19 @@ trait HandlesImageUploads
                     $image = imagecreatefromgif($sourcePath);
                     break;
                 default:
-                    Log::warning('Unsupported image type for optimization.', ['file' => $sourcePath, 'type' => $imageType]);
+                    Log::error('Image optimization failed: unsupported image type.', [
+                        'file' => $sourcePath,
+                        'type' => $imageType,
+                        'actor_id' => Auth::id(),
+                    ]);
                     return false;
             }
 
             if (!$image) {
-                Log::error('Failed to create image resource for optimization.', ['file' => $sourcePath]);
+                Log::error('Image optimization failed: could not create GD image resource from source.', [
+                    'file' => $sourcePath,
+                    'actor_id' => Auth::id(),
+                ]);
                 return false;
             }
 
@@ -263,13 +296,26 @@ trait HandlesImageUploads
             }
 
             // Resample/copy the image
-            imagecopyresampled(
+            $resampled = imagecopyresampled(
                 $newImage,
                 $image,
                 0, 0, 0, 0,
                 (int)$newWidth, (int)$newHeight,
                 $originalWidth, $originalHeight
             );
+
+            if (!$resampled) {
+                Log::error('Image optimization failed: imagecopyresampled() returned false — resampled canvas may be blank/black rather than the source image. Aborting without writing a destination file.', [
+                    'file' => $sourcePath,
+                    'destination' => $destinationPath,
+                    'actor_id' => Auth::id(),
+                ]);
+
+                imagedestroy($image);
+                imagedestroy($newImage);
+
+                return false;
+            }
 
             // Save the new image based on its type
             $success = false;
@@ -298,13 +344,23 @@ trait HandlesImageUploads
                 return true;
             }
 
-            Log::error('Failed to save optimized image.', ['file' => $destinationPath, 'source' => $sourcePath]);
+            // Guard against a partially-written destination file from a failed encoder write.
+            if (file_exists($destinationPath)) {
+                @unlink($destinationPath);
+            }
+
+            Log::error('Image optimization failed: could not write the final optimized image file.', [
+                'file' => $destinationPath,
+                'source' => $sourcePath,
+                'actor_id' => Auth::id(),
+            ]);
             return false;
         } catch (\Exception $e) {
             Log::error('Image optimization failed', [
                 'file' => $sourcePath,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
+                'actor_id' => Auth::id(),
             ]);
             return false;
         }
