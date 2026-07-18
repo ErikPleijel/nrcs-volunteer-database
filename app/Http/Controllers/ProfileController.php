@@ -292,7 +292,7 @@ class ProfileController extends Controller
                 'gender' => 'required|in:male,female',
                 'birth_year' => 'required|integer|min:1900|max:' . date('Y'),
                 'marital_status' => 'nullable|in:single,married,other',
-                'national_id_number' => 'required|string|max:255',
+                'national_id_number' => 'nullable|string|max:255',
                 'organisation' => 'nullable|string|max:255',
                 'occupation' => 'nullable|string|max:255',
                 'disciplin' => 'nullable|string|max:255',

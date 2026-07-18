@@ -153,7 +153,7 @@
                             <!-- National ID Number -->
                             <div class="mb-4">
                                 <label for="national_id_number" class="block text-sm font-medium text-gray-700 mb-1">
-                                    National ID Number <span class="text-red-500">*</span>
+                                    National ID Number
                                 </label>
                                 <input type="text" id="national_id_number" name="national_id_number"
                                        class="w-full md:w-1/2 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 @error('national_id_number') border-red-500 @enderror"
@@ -420,6 +420,17 @@
                             </div>
                         </div>
 
+                        <div class="flex items-center gap-3 mb-4">
+                            <button type="button" id="generate-password-btn"
+                                    class="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                                <i class="fas fa-dice mr-2"></i>Generate Password
+                            </button>
+                            <button type="button" id="toggle-password-visibility-btn"
+                                    class="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                                <i class="fas fa-eye mr-2"></i><span id="toggle-password-visibility-label">Show Password</span>
+                            </button>
+                        </div>
+
                         <div class="mb-4 rounded bg-yellow-50 border-l-4 border-yellow-500 p-4 text-sm text-yellow-900">
                             <p class="font-semibold">
                                 If the user does not have an email address, they can log in using:
@@ -427,7 +438,8 @@
 
                             <ul class="mt-2 list-disc list-inside">
                                 <li>
-                                    <strong>Username:</strong> DB-{number}
+                                    <strong>Phone Number:</strong> their phone number as entered above
+                                    (spaces/dashes don't matter)
                                 </li>
                                 <li>
                                     <strong>Password:</strong> the password you enter here
@@ -608,6 +620,56 @@
                     }
                 }
             });
+
+            // --- Generate Password / Show-Hide Password ---
+            const generatePasswordBtn = document.getElementById('generate-password-btn');
+            const togglePasswordBtn = document.getElementById('toggle-password-visibility-btn');
+            const togglePasswordLabel = document.getElementById('toggle-password-visibility-label');
+            const passwordField = document.getElementById('password');
+            const passwordConfirmField = document.getElementById('password_confirmation');
+
+            function generateEasyPassword(length = 8) {
+                // Lowercase only (no case-sensitivity confusion on a phone keyboard),
+                // excluding visually-similar characters: 0/o, 1/l/i.
+                const lower = 'abcdefghjkmnpqrstuvwxyz';
+                const digits = '23456789';
+                const all = lower + digits;
+
+                function randomChar(set) {
+                    const bytes = new Uint32Array(1);
+                    crypto.getRandomValues(bytes);
+                    return set[bytes[0] % set.length];
+                }
+
+                let password;
+                do {
+                    password = Array.from({ length }, () => randomChar(all)).join('');
+                } while (!/[a-z]/.test(password) || !/[0-9]/.test(password));
+
+                return password;
+            }
+
+            if (generatePasswordBtn && passwordField && passwordConfirmField) {
+                generatePasswordBtn.addEventListener('click', () => {
+                    const newPassword = generateEasyPassword();
+                    passwordField.value = newPassword;
+                    passwordConfirmField.value = newPassword;
+
+                    // Reveal the password so the admin can read it back to the user
+                    passwordField.type = 'text';
+                    passwordConfirmField.type = 'text';
+                    if (togglePasswordLabel) togglePasswordLabel.textContent = 'Hide Password';
+                });
+            }
+
+            if (togglePasswordBtn && passwordField && passwordConfirmField) {
+                togglePasswordBtn.addEventListener('click', () => {
+                    const showing = passwordField.type === 'text';
+                    passwordField.type = showing ? 'password' : 'text';
+                    passwordConfirmField.type = showing ? 'password' : 'text';
+                    if (togglePasswordLabel) togglePasswordLabel.textContent = showing ? 'Show Password' : 'Hide Password';
+                });
+            }
         });
     </script>
 </x-layouts.admin>

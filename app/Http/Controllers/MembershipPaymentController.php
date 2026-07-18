@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\OverlappingMembershipPaymentRequiresConfirmation;
 use App\Models\Branch;
 use App\Models\Division;
 use App\Models\Log as AuditLog;
@@ -376,7 +377,8 @@ class MembershipPaymentController extends Controller
      */
     public function getCurrentMembership(User $user)
     {
-        $payment = MembershipPayment::where('user_id', $user->id)
+        $payment = MembershipPayment::personal()
+            ->where('user_id', $user->id)
             ->where('is_deleted', false)
             ->with('membershipFee')
             ->latest('payment_date')
@@ -500,6 +502,23 @@ class MembershipPaymentController extends Controller
         $paymentDate = Carbon::parse($request->payment_date);
         $expiryDate = $paymentDate->copy()->addYears($membershipFee->validity_years);
 
+        // Organisational payments are attributed and tracked independently of a
+        // member's personal membership history (see scopePersonal()) — the
+        // overlap check only applies between personal payments.
+        if (! $isOrgPayment) {
+            try {
+                $overlapping = $this->findOverlappingMembershipPayment($request->user_id, $paymentDate, $expiryDate);
+
+                if ($overlapping && ! $request->boolean('confirm_overlap')) {
+                    throw new OverlappingMembershipPaymentRequiresConfirmation($overlapping);
+                }
+            } catch (OverlappingMembershipPaymentRequiresConfirmation $e) {
+                return back()->withInput()
+                    ->with('warning', $e->getMessage())
+                    ->with('overlap_confirmation_needed', true);
+            }
+        }
+
         $membershipPayment = MembershipPayment::create([
             'user_id' => $request->user_id,
             'organisation_id' => $request->organisation_id ?: null,
@@ -607,6 +626,28 @@ class MembershipPaymentController extends Controller
             'id_card_included' => 'boolean',
         ]);
 
+        // Organisational payments are attributed and tracked independently of a
+        // member's personal membership history (see scopePersonal()) — the
+        // overlap check only applies when editing a personal payment.
+        if ($membershipPayment->organisation_id === null) {
+            try {
+                $overlapping = $this->findOverlappingMembershipPayment(
+                    $validated['user_id'],
+                    $validated['payment_date'],
+                    $validated['expiry_date'],
+                    $membershipPayment->id
+                );
+
+                if ($overlapping && ! $request->boolean('confirm_overlap')) {
+                    throw new OverlappingMembershipPaymentRequiresConfirmation($overlapping);
+                }
+            } catch (OverlappingMembershipPaymentRequiresConfirmation $e) {
+                return back()->withInput()
+                    ->with('warning', $e->getMessage())
+                    ->with('overlap_confirmation_needed', true);
+            }
+        }
+
         $membershipPayment->update($validated);
 
         // Editing an approved record demotes it back to pending for a fresh
@@ -625,6 +666,24 @@ class MembershipPaymentController extends Controller
 
         return redirect()->route('membership-payments.show', $membershipPayment)
             ->with('success', 'Membership payment updated successfully.');
+    }
+
+    /**
+     * Find another approved, non-deleted, personal membership payment for
+     * $userId whose [payment_date, expiry_date] range overlaps
+     * [$paymentDate, $expiryDate], if any. ApprovedScope already restricts
+     * this to approved payments; personal() excludes organisational
+     * payments, which are attributed and tracked independently.
+     */
+    private function findOverlappingMembershipPayment($userId, $paymentDate, $expiryDate, ?int $excludeId = null): ?MembershipPayment
+    {
+        return MembershipPayment::personal()
+            ->where('user_id', $userId)
+            ->where('is_deleted', false)
+            ->when($excludeId, fn ($query) => $query->where('id', '!=', $excludeId))
+            ->where('payment_date', '<=', $expiryDate)
+            ->where('expiry_date', '>=', $paymentDate)
+            ->first();
     }
 
     /**

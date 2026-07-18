@@ -385,20 +385,16 @@
                                         @else
                                             <div class="flex gap-2">
                                                 <a href="{{ route('organisations.show', $organisation) }}"
-                                                   class="btn-primary inline-flex flex-col items-center justify-center py-1 px-3 leading-tight text-center"
-                                                   target="_blank">
+                                                   class="btn-primary inline-flex flex-col items-center justify-center py-1 px-3 leading-tight text-center">
                                                     <span class="font-semibold">
                                                         View
-                                                        <i class="fa-solid fa-up-right-from-square ml-1 text-xs"></i>
                                                     </span>
                                                     <span class="text-xs -mt-1 font-normal opacity-90">
                                                         Link persons
                                                     </span>
                                                 </a>
                                                 <a href="{{ route('organisations.edit', $organisation) }}"
-                                                   target="_blank"
                                                    class="btn-edit">Edit
-                                                    <i class="fa-solid fa-up-right-from-square ml-1 text-xs"></i>
                                                 </a>
                                             </div>
                                         @endif

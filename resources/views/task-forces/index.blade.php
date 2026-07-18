@@ -263,14 +263,12 @@
                                 <td class="table-body-cell-no-wrap">
                                     <div class="flex gap-2 items-center">
                                         <a href="{{ route('task-forces.show', $taskForce) }}"
-                                           class="btn-primary whitespace-nowrap"
-                                           target="_blank">
-                                            View<i class="fa-solid fa-up-right-from-square ml-1"></i>
+                                           class="btn-primary whitespace-nowrap">
+                                            View
                                         </a>
                                         @can('edit_task_force')
                                             <a href="{{ route('task-forces.edit', $taskForce) }}"
-                                               target="_blank"
-                                               class="btn-edit whitespace-nowrap">Edit<i class="fa-solid fa-up-right-from-square ml-1"></i></a>
+                                               class="btn-edit whitespace-nowrap">Edit</a>
                                         @endcan
 
                                         @can('campaign_request_create')
@@ -321,7 +319,7 @@
                 </div>
 
                 <div class="table-pagination">
-                    {{ $taskForces->links() }}
+                    {{ $taskForces->appends(request()->query())->links() }}
                 </div>
 
             @else

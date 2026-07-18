@@ -538,7 +538,7 @@
                                     @endif
                                 </td>
                                 <td class="table-body-cell-nowrap">
-                                    <a href="{{ route('trainings.show', $training) }}" class="btn-primary" target="_blank">View<i class="fa-solid fa-up-right-from-square ml-1"></i></a>
+                                    <a href="{{ route('trainings.show', $training) }}" class="btn-primary">View</a>
                                 </td>
                             </tr>
                         @endforeach

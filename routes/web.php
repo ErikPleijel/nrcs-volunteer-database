@@ -545,18 +545,6 @@ Route::middleware('auth')->group(function () {
         Route::get('/organisations/{organisation}/payments/create', [MembershipPaymentController::class, 'createForOrganisation'])->name('organisations.payments.create');
         Route::get('/organisations/{organisation}/donations/create', [DonationController::class, 'createForOrganisation'])->name('organisations.donations.create');
 
-        /*// Messaging System Routes
-        Route::prefix('messaging')->name('messaging.')->group(function () {
-            Route::get('/filter-users', [ComposerController::class, 'filterUsers'])->name('filter-users');
-            Route::get('/compose', [ComposerController::class, 'compose'])->name('compose');
-            Route::post('/preview', [ComposerController::class, 'preview'])->name('preview');
-            Route::post('/send', [ComposerController::class, 'send'])->name('send');
-
-            // Messaging Campaigns
-            Route::get('campaigns', [ComposerController::class, 'campaignsIndex'])->name('campaigns.index');
-            Route::get('campaigns/{campaign}', [ComposerController::class, 'campaignsShow'])->name('campaigns.show');
-        });*/
-
         Route::middleware(['can:campaign_request_approve'])
             ->prefix('campaigns/admin')
             ->name('campaigns.admin.')

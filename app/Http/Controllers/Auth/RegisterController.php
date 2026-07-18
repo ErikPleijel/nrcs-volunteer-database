@@ -132,7 +132,7 @@ class RegisterController extends Controller
                 },
             ],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
-            'national_id_number' => ['required', 'string', 'max:255'],
+            'national_id_number' => ['nullable', 'string', 'max:255'],
             'telephone1' => ['required', 'string', 'max:20'],
             'telephone2' => ['nullable', 'string', 'max:20'],
             'residential_address' => ['nullable', 'string', 'max:500'],

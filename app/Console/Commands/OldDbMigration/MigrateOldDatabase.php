@@ -132,14 +132,21 @@ class MigrateOldDatabase extends Command
         Artisan::call('migrate:public-contacts');
         $this->line(Artisan::output());
 
-        // Organisations are re-registered manually — skip on migration.
-        // $this->info('Migrating organisations...');
+        // Organisations ARE migrated (real org records: name/address/email/branch).
+        // Their old-system "contact person" is NOT carried over as a linked user
+        // anymore — the old data doesn't support reliably re-establishing that
+        // link, so organisation contacts are re-registered fresh by NRCS admins
+        // after migration, via OrganisationController::linkUser().
+        // Position note: this no longer creates users, so it has no ordering
+        // dependency on migrate:users (or vice versa) — it only needs Branches
+        // migrated first (for branch_id), which already happens above.
+        $this->info('Migrating organisations...');
         $options = ['--chunk' => $batchSize];
         if ($clear) {
             $options['--clear'] = true;
         }
-        // Artisan::call('migrate:organisations', $options);
-        // $this->line(Artisan::output());
+        Artisan::call('migrate:organisations', $options);
+        $this->line(Artisan::output());
 
         // Red Cross units
         $this->info('Migrating red cross units...');
@@ -257,7 +264,7 @@ class MigrateOldDatabase extends Command
             'activity-types' => $this->migrateActivityTypes($batchSize, $clear),
             'activities' => $this->migrateActivities($batchSize, $clear),
             'donations' => $this->migrateDonations($batchSize, $clear),
-            //   'organisations' => $this->migrateOrganisations($batchSize, $clear),
+            'organisations' => $this->migrateOrganisations($batchSize, $clear),
             'positions' => $this->migratePositions($batchSize, $clear),
             'signature-titles' => $this->migrateSignatureTitles($batchSize, $clear),
             'membership-fees' => $this->migrateMembershipFees($batchSize, $clear),
@@ -345,7 +352,6 @@ class MigrateOldDatabase extends Command
         $this->line(Artisan::output());
     }
 
-    // migrateOrganisations is disabled below, since Branches need to re-register organisations one by one.
     private function migrateOrganisations($batchSize, $clear)
     {
         $options = ['--chunk' => $batchSize];

@@ -207,6 +207,17 @@
                                         </div>
                                     </div>
 
+                                    @if (session('overlap_confirmation_needed'))
+                                        <div class="mt-4 flex items-start gap-2 rounded-md border border-yellow-300 bg-yellow-50 px-3 py-2 text-sm text-yellow-800">
+                                            <input type="checkbox" name="confirm_overlap" id="confirm_overlap" value="1"
+                                                   class="mt-1 h-4 w-4 text-yellow-600 border-gray-300 rounded focus:ring-yellow-500">
+                                            <label for="confirm_overlap">
+                                                I understand this overlaps an existing membership payment for this
+                                                member — proceed anyway.
+                                            </label>
+                                        </div>
+                                    @endif
+
                                     <!-- Form Actions -->
                                     <div class="flex items-center justify-end space-x-4 mt-8">
                                         <a href="{{ route('membership-payments.index') }}"

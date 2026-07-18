@@ -357,12 +357,12 @@ class UserController extends Controller
             'middle_name' => 'nullable|string|max:255',
             'last_name' => 'required|string|max:255',
             'title' => 'nullable|in:Mr,Mrs,Ms,Miss,Prof.,Chief,Dr.,Hon.',
-            'email' => 'nullable|string|email|max:255|unique:users', // Changed to required
+            'email' => 'nullable|string|email|max:255|unique:users',
             'password' => 'nullable|string|min:8|confirmed',
             'gender' => 'required|in:male,female', // Changed to required
             'birth_year' => 'required|integer|min:1900|max:'.date('Y'),
             'marital_status' => 'nullable|in:single,married,other', // Changed allowed values
-            'national_id_number' => 'required|string|max:255',
+            'national_id_number' => 'nullable|string|max:255',
             'organisation' => 'nullable|string|max:255',
             'occupation' => 'nullable|string|max:255',
             'residential_address' => 'nullable|string|max:500', // Added max:500
@@ -1192,6 +1192,19 @@ class UserController extends Controller
         if ($assigningUser->getAccessLevel() === 'branch'
             && $user->hasAnyRole(['branch_secretary', 'branch_db_administrator'])) {
             abort(403, 'Branch-level administrators cannot modify the role of another branch_secretary or branch_db_administrator. Contact a National DB Administrator.');
+        }
+
+        // Security check: the incoming role must be one the assigning user is
+        // actually authorized to grant (per getAssignableRoles()), regardless of
+        // the target's CURRENT role. Closes the gap where a target not caught by
+        // either guard above (e.g. a plain branch_db_assistant) could still be
+        // promoted to a role — such as national_db_administrator or super-admin —
+        // that the assigning user holds no authorize_* permission for.
+        if ($request->filled('role')) {
+            $assignableRoleNames = $assigningUser->getAssignableRoles()->pluck('name');
+            if (! $assignableRoleNames->contains($request->input('role'))) {
+                abort(403, 'You are not authorized to assign this role.');
+            }
         }
 
         $incomingRole = $validated['role'] ?? '';

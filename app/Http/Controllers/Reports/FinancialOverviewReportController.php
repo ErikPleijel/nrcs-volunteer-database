@@ -71,11 +71,13 @@ class FinancialOverviewReportController extends Controller
                 $base = $basePayments($row);
 
                 $memberAmount = (clone $base)
+                    ->whereNull('organisation_id')
                     ->whereHas('membershipFee', fn($q) => $q->where('is_volunteer_fee', false))
                     ->join('membership_fees', 'membership_payments.membership_fee_id', '=', 'membership_fees.id')
                     ->sum('membership_fees.amount');
 
                 $volunteerAmount = (clone $base)
+                    ->whereNull('organisation_id')
                     ->whereHas('membershipFee', fn($q) => $q->where('is_volunteer_fee', true))
                     ->join('membership_fees', 'membership_payments.membership_fee_id', '=', 'membership_fees.id')
                     ->sum('membership_fees.amount');

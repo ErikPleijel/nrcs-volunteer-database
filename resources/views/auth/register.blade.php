@@ -136,13 +136,12 @@
                             <!-- National ID Number -->
                             <div class="mb-4">
                                 <label for="national_id_number" class="block text-sm font-medium text-gray-700 mb-1">
-                                    National ID Number <span class="text-red-500">*</span>
+                                    National ID Number
                                 </label>
                                 <input type="text" id="national_id_number" name="national_id_number"
                                        class="w-full md:w-1/2 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 @error('national_id_number') border-red-500 @enderror"
                                        value="{{ old('national_id_number') }}"
-                                       maxlength="50"
-                                       required> {{-- Added required attribute here --}}
+                                       maxlength="50">
 
                                 @error('national_id_number')
                                 <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
@@ -475,6 +474,7 @@
                                 <div class="ml-3 text-sm">
                                     <label for="coc_commitment_1" class="font-medium text-gray-700 cursor-pointer">
                                         I have read the entire Code of Conduct.
+                                        <span class="text-red-500">*</span>
                                     </label>
                                     @error('coc_commitment_1')
                                     <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
@@ -497,6 +497,7 @@
                                 <div class="ml-3 text-sm">
                                     <label for="coc_commitment_2" class="font-medium text-gray-700 cursor-pointer">
                                         I agree to follow the Code of Conduct at all times.
+                                        <span class="text-red-500">*</span>
                                     </label>
                                     @error('coc_commitment_2')
                                     <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
@@ -519,6 +520,7 @@
                                 <div class="ml-3 text-sm">
                                     <label for="coc_commitment_3" class="font-medium text-gray-700 cursor-pointer">
                                         I understand that violations may result in disciplinary action.
+                                        <span class="text-red-500">*</span>
                                     </label>
                                     @error('coc_commitment_3')
                                     <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
@@ -541,6 +543,7 @@
                                 <div class="ml-3 text-sm">
                                     <label for="coc_commitment_4" class="font-medium text-gray-700 cursor-pointer">
                                         I consent to the Nigerian Red Cross Society collecting, storing, and processing my personal data (including identification details and photo) for membership and volunteer management purposes, in accordance with the Nigeria Data Protection Act 2023. I understand I may request access to or deletion of my data by contacting the NRCS Data Protection Officer.
+                                        <span class="text-red-500">*</span>
                                     </label>
                                     @error('coc_commitment_4')
                                     <p class="text-red-500 text-xs mt-1">{{ $message }}</p>

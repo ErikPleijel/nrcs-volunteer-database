@@ -264,13 +264,12 @@
                             <td class="table-body-cell">
                                 <div class="flex gap-2 items-center">
                                     <a href="{{ route('red-cross-units.show', $unit) }}"
-                                       class="btn-primary whitespace-nowrap"
-                                       target="_blank">
-                                        View<i class="fa-solid fa-up-right-from-square ml-1"></i>
+                                       class="btn-primary whitespace-nowrap">
+                                        View
                                     </a>
                                     @can('edit_red_cross_unit')
                                         <a href="{{ route('red-cross-units.edit', $unit) }}"
-                                           target="_blank" class="btn-edit whitespace-nowrap">Edit<i class="fa-solid fa-up-right-from-square ml-1"></i></a>
+                                           class="btn-edit whitespace-nowrap">Edit</a>
                                     @endcan
                                 </div>
                             </td>

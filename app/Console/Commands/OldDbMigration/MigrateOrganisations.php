@@ -4,7 +4,6 @@ namespace App\Console\Commands\OldDbMigration;
 
 use App\Models\Branch;
 use App\Models\User;
-use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -18,7 +17,7 @@ class MigrateOrganisations extends Command
                             {--clear : Clear existing organisations before migration}
                             {--dry-run : Run without making changes}';
 
-    protected $description = 'Migrate organisations from old persons table where IsOrganisation=1, Inactive<>1, AccountActivated=1, and create linked users';
+    protected $description = 'Migrate organisations from old persons table where IsOrganisation=1, Inactive<>1, AccountActivated=1';
 
     public function handle()
     {
@@ -46,11 +45,6 @@ class MigrateOrganisations extends Command
         // Check if organisations table exists
         if (! Schema::hasTable('organisations')) {
             $this->error('âŒ Organisations table does not exist. Please run migrations first.');
-            return Command::FAILURE;
-        }
-
-        if (! Schema::hasTable('users')) {
-            $this->error('âŒ Users table does not exist. Cannot create organisation users.');
             return Command::FAILURE;
         }
 
@@ -186,12 +180,6 @@ class MigrateOrganisations extends Command
             $skippedCount        = 0;
             $errorCount          = 0;
 
-            // User-related stats
-            $userCreatedCount    = 0;
-            $userSkippedIdCount  = 0;
-            $userErrorCount      = 0;
-            $duplicateEmailCount = 0;
-
             if ($totalCount === 0) {
                 $this->warn('âš ï¸ No organisations with valid names found to migrate.');
                 if ($skippedForNameFilter > 0) {
@@ -206,24 +194,22 @@ class MigrateOrganisations extends Command
             $progressBar->start();
 
             // Process in chunks
+            // Shadow "user" rows representing organisations are no longer created
+            // here — organisation contacts are re-registered fresh by NRCS admins
+            // via the app's own OrganisationController::linkUser() flow. This
+            // command now only imports the real Organisation records.
             $migrationQuery->orderBy('PersonID')
                 ->chunk($chunk, function ($organisations) use (
                     &$migratedCount,
                     &$skippedCount,
                     &$errorCount,
-                    &$userCreatedCount,
-                    &$userSkippedIdCount,
-                    &$userErrorCount,
-                    &$duplicateEmailCount,
                     $progressBar,
                     $dryRun
                 ) {
                     $organisationData = [];
-                    $userData         = [];
 
                     foreach ($organisations as $org) {
                         try {
-                            // ---------- ORGANISATION PART ----------
                             $orgExists = false;
 
                             if (! $dryRun) {
@@ -249,90 +235,6 @@ class MigrateOrganisations extends Command
                                 $organisationData[] = $newOrganisation;
                                 $migratedCount++;
                             }
-
-                            // ---------- USER PART ----------
-                            // Map fields as requested:
-                            // FirstName -> first_name
-                            // LastName -> last_name
-                            // Email -> email
-                            // Telephone1 -> telephone1
-                            // Password -> legacy_password_hash
-                            // TimeStamp -> created_at + email_verified_at
-                            // Lastlogin -> last_login_at
-                            $firstName  = $this->cleanString($org->FirstName ?? null);
-                            $lastName   = $this->cleanString($org->LastName ?? null);
-                            $baseEmail  = $this->cleanEmail($org->Email ?? null);
-                            $telephone1 = $this->cleanString($org->Telephone1 ?? null);
-                            $legacyHash = $org->Password ?? null;
-                            $createdAt  = $this->normalizeTimestamp($org->TimeStamp ?? null);
-                            $lastLogin  = $this->normalizeTimestamp($org->Lastlogin ?? null);
-                            $branchId   = $this->getBranchId($org);
-
-                            if (! $dryRun) {
-                                // Skip if user ID already exists
-                                $idExists = DB::table('users')
-                                    ->where('id', $org->PersonID)
-                                    ->exists();
-
-                                if ($idExists) {
-                                    $userSkippedIdCount++;
-                                } else {
-                                    $finalEmail = $baseEmail;
-
-                                    if ($finalEmail !== null) {
-                                        // If email already exists, append .PersonID
-                                        $emailExists = DB::table('users')
-                                            ->where('email', $finalEmail)
-                                            ->exists();
-
-                                        if ($emailExists) {
-                                            $duplicateEmailCount++;
-                                            $finalEmail = $finalEmail . '.' . $org->PersonID;
-
-                                            // Just in case that also exists, add a numeric suffix
-                                            $suffix = 1;
-                                            while (DB::table('users')->where('email', $finalEmail)->exists()) {
-                                                $finalEmail = $baseEmail . '.' . $org->PersonID . '.' . $suffix;
-                                                $suffix++;
-                                            }
-                                        }
-                                    }
-
-                                    $userData[] = [
-                                        'id'                   => $org->PersonID,
-                                        'first_name'           => $firstName,
-                                        'last_name'            => $lastName,
-                                        'email'                => $finalEmail,
-                                        'telephone1'           => $telephone1,
-                                        'legacy_password_hash' => $legacyHash,
-                                        'password'             => '', // Empty string intentionally set so LoginController legacy MD5 upgrade fires on first login.
-                                        'branch_id'            => $branchId,
-                                        'organisation_id'      => $org->PersonID,
-                                        'created_at'           => $createdAt ?? now(),
-                                        'email_verified_at'    => $createdAt, // old timestamp = verification time
-                                        'updated_at'           => now(),
-                                        'last_login_at'           => $lastLogin,
-                                    ];
-
-                                    $userCreatedCount++;
-                                }
-                            } else {
-                                // DRY RUN: simulate user creation / duplicate detection
-                                if ($firstName || $lastName || $baseEmail) {
-                                    if ($baseEmail !== null) {
-                                        $emailExists = DB::table('users')
-                                            ->where('email', $baseEmail)
-                                            ->exists();
-
-                                        if ($emailExists) {
-                                            $duplicateEmailCount++;
-                                        }
-                                    }
-
-                                    $userCreatedCount++;
-                                }
-                            }
-
                         } catch (\Exception $e) {
                             $errorCount++;
                             $this->error("Failed to process organisation {$org->PersonID}: " . $e->getMessage());
@@ -350,15 +252,6 @@ class MigrateOrganisations extends Command
                             $errorCount += count($organisationData);
                         }
                     }
-
-                    if (! $dryRun && ! empty($userData)) {
-                        try {
-                            DB::table('users')->insert($userData);
-                        } catch (\Exception $e) {
-                            $this->error("Failed to insert user batch: " . $e->getMessage());
-                            $userErrorCount += count($userData);
-                        }
-                    }
                 });
 
             $progressBar->finish();
@@ -369,10 +262,6 @@ class MigrateOrganisations extends Command
                 $maxOrgId = DB::table('organisations')->max('id') ?? 0;
                 DB::statement("ALTER TABLE organisations AUTO_INCREMENT = " . ($maxOrgId + 1));
                 $this->info("âœ… Set organisations AUTO_INCREMENT to " . ($maxOrgId + 1));
-
-                $maxUserId = DB::table('users')->max('id') ?? 0;
-                DB::statement("ALTER TABLE users AUTO_INCREMENT = " . ($maxUserId + 1));
-                $this->info("âœ… Set users AUTO_INCREMENT to " . ($maxUserId + 1));
             }
 
             // Show results
@@ -384,13 +273,6 @@ class MigrateOrganisations extends Command
                 ['Successfully Migrated (Orgs)', $migratedCount],
                 ['Skipped (Orgs Already Existed)', $skippedCount],
                 ['Org Errors', $errorCount],
-            ]);
-
-            $this->table(['User Metric', 'Count'], [
-                ['Users Successfully Created', $userCreatedCount],
-                ['Users Skipped (ID already existed)', $userSkippedIdCount],
-                ['User Insert Errors', $userErrorCount],
-                ['Emails needing suffix due to duplication', $duplicateEmailCount],
             ]);
 
             if ($dryRun) {
@@ -430,19 +312,6 @@ class MigrateOrganisations extends Command
         }
 
         return $cleaned;
-    }
-
-    private function normalizeTimestamp($value)
-    {
-        if (empty($value)) {
-            return null;
-        }
-
-        try {
-            return Carbon::parse($value)->toDateTimeString();
-        } catch (\Exception $e) {
-            return null;
-        }
     }
 
     private function getBranchId($org)

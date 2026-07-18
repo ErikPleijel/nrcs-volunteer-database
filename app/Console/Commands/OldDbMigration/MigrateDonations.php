@@ -40,7 +40,29 @@ class MigrateDonations extends Command
         }
 
         try {
-            $totalCount = DB::connection('old_db')->table('donations')->count();
+            $rawTotalCount = DB::connection('old_db')->table('donations')->count();
+
+            // Organisations are re-entered fresh by NRCS admins going forward (see
+            // MigrateOrganisations.php) — old-system donations attributed to an
+            // organisation rather than a person have no reliable way to be
+            // re-linked to the freshly-registered organisation records, so they
+            // are excluded here rather than imported as orphaned/misattributed
+            // rows. Excluded only when the donor PersonID is flagged
+            // IsOrganisation=1 in the old persons table; a PersonID with no
+            // matching person row at all is treated as personal (not excluded),
+            // matching the tolerant NULL-handling already used elsewhere in this
+            // migration pipeline (see MigrateOrganisations's $inactiveCol handling).
+            $donationsQuery = fn () => DB::connection('old_db')
+                ->table('donations')
+                ->leftJoin('persons', 'persons.PersonID', '=', 'donations.PersonID')
+                ->where(function ($q) {
+                    $q->where('persons.IsOrganisation', '<>', 1)
+                        ->orWhereNull('persons.IsOrganisation');
+                })
+                ->select('donations.*');
+
+            $totalCount = $donationsQuery()->count();
+            $excludedOrgCount = $rawTotalCount - $totalCount;
             $migratedCount = 0;
             $skippedCount = 0;
             $errorCount = 0;
@@ -50,15 +72,14 @@ class MigrateDonations extends Command
                 return Command::SUCCESS;
             }
 
-            $this->info("ðŸ“Š Found {$totalCount} donations to migrate");
+            $this->info("Found {$totalCount} donations to migrate ({$excludedOrgCount} excluded: organisation-attributed in old data)");
 
             $progressBar = $this->output->createProgressBar($totalCount);
             $progressBar->start();
 
             // Process in chunks
-            DB::connection('old_db')
-                ->table('donations')
-                ->orderBy('DonationID')
+            $donationsQuery()
+                ->orderBy('donations.DonationID')
                 ->chunk($chunk, function ($donations) use (&$migratedCount, &$skippedCount, &$errorCount, $progressBar, $dryRun) {
 
                     $donationData = [];
@@ -133,7 +154,9 @@ class MigrateDonations extends Command
             // Show results
             $this->info('ðŸŽ‰ Donation migration completed!');
             $this->table(['Metric', 'Count'], [
-                ['Total Records', $totalCount],
+                ['Total Records In Old DB', $rawTotalCount],
+                ['Excluded (Organisation-Attributed)', $excludedOrgCount],
+                ['Eligible For Migration', $totalCount],
                 ['Successfully Processed', $migratedCount],
                 ['Skipped (Already Exist)', $skippedCount],
                 ['Errors', $errorCount],

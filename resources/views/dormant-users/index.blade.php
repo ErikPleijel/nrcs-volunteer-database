@@ -371,9 +371,8 @@
                                         <td class="px-3 py-2 max-w-[160px]">
                                             <div class="flex gap-2 mt-1 flex-wrap items-center">
                                                 <a href="{{ route('users.show', $user) }}"
-                                                   class="btn-primary btn-sm"
-                                                   target="_blank">
-                                                    View<i class="fa-solid fa-up-right-from-square ml-1"></i>
+                                                   class="btn-primary btn-sm">
+                                                    View
                                                 </a>
                                                 <input type="checkbox"
                                                        name="user_ids[]"

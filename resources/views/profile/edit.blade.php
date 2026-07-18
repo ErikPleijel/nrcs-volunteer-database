@@ -179,7 +179,7 @@
                             <!-- National ID Number -->
                             <div>
                                 <label for="national_id_number" class="block text-sm font-medium text-gray-700 mb-2">
-                                    National ID Number <span class="text-red-500">*</span>
+                                    National ID Number
                                 </label>
                                 <input type="text"
                                        id="national_id_number"
@@ -250,7 +250,7 @@
                             <!-- Telephone 1 -->
                             <div>
                                 <label for="telephone1" class="block text-sm font-medium text-gray-700 mb-2">
-                                    Telephone 1
+                                    Telephone 1 <span class="text-red-500">*</span>
                                 </label>
                                 <input type="text"
                                        id="telephone1"
@@ -327,7 +327,7 @@
                                 <!-- Branch Dropdown -->
                             <div>
                                 <label for="branch_id" class="block text-sm font-medium text-gray-700 mb-2">
-                                    Branch <span class="text-red-500">*</span>
+                                    Branch @unless($isRedCrossUnitMember)<span class="text-red-500">*</span>@endunless
                                 </label>
                                 <select id="branch_id" name="branch_id" required
                                         class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 @error('branch_id') border-red-500 @enderror"
@@ -350,7 +350,7 @@
                             <!-- Division Dropdown (Cascading) -->
                             <div>
                                 <label for="division_id" class="block text-sm font-medium text-gray-700 mb-2">
-                                    Division <span class="text-red-500">*</span>
+                                    Division @unless($isRedCrossUnitMember)<span class="text-red-500">*</span>@endunless
                                 </label>
                                 <select id="division_id" name="division_id" required
                                         data-selected-division="{{ old('division_id', $user->division_id) }}"
@@ -400,7 +400,7 @@
                         @endphp
                         <h2 class="text-lg font-medium text-gray-800 mb-4 pb-2 border-b">Contribution Capabilities</h2>
                         <h3 class="text-md font-medium text-gray-800 mb-2">
-                            How would you like to contribute?
+                            How would you like to contribute? <span class="text-red-500">*</span>
                         </h3>
                         <p class="text-sm text-gray-600 mb-4">
                             Please select one option.

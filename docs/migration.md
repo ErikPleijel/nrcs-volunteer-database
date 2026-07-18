@@ -20,6 +20,16 @@ Migration, seeding
 NOTES while migrating: 
  - You have to type "Yes" when it reaches Migrate Branches (the second step)
  - When migrating users, Check users phpMyAdmin to see progress.
+ - migrate:organisations now runs automatically as part of this step. It
+   imports real Organisation records (name, address, email, branch) from the
+   old persons table (IsOrganisation=1). It does NOT create a linked "user" for
+   each organisation's old contact person anymore — organisation contacts are
+   re-registered fresh by NRCS admins after migration (link a person to the
+   org via the Organisations screen). As a consequence, old donations and
+   membership payments made by an organisation (rather than a person) are
+   skipped on import by migrate:donations / migrate:membership-payments —
+   check the "Excluded (Organisation-Attributed)" row in each command's
+   summary table to see how many rows this dropped.
 --> SELECT * FROM `users` where division_id is null; the migration might have missed some division_id; if not too many set manually. 
 
 

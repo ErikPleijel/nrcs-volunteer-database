@@ -931,14 +931,12 @@
                                 <td class="table-body-cell">
                                     <div class="flex gap-2">
                                         <a href="{{ route('users.show', $user) }}"
-                                           class="btn-primary whitespace-nowrap"
-                                           target="_blank">
-                                            View<i class="fa-solid fa-up-right-from-square ml-1"></i>
+                                           class="btn-primary whitespace-nowrap">
+                                            View
                                         </a>
                                         @can('edit_user')
                                             <a href="{{ route('users.edit', $user) }}"
-                                               target="_blank"
-                                               class="btn-edit whitespace-nowrap">Edit<i class="fa-solid fa-up-right-from-square ml-1"></i></a>
+                                               class="btn-edit whitespace-nowrap">Edit</a>
                                         @endcan
                                     </div>
                                 </td>

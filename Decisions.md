@@ -1,3 +1,5 @@
+
+
 # Architecture & Policy Decisions — NRCS Volunteer Database
 
 This file records deliberate decisions, including things we chose **not** to fix.
@@ -662,3 +664,27 @@ generated excessive log volume with no proportionate compliance benefit —
 photo access control is already enforced via authenticated PhotoController
 access, which is the actual safeguard. This entry formalizes that decision
 after the fact so it's not mistaken for an unexplained regression.
+
+
+## 2026-07-18 — Consent vs. policy-acceptance gating: migrated users
+
+Two related-but-distinct NDPA fields on `users`, deliberately treated
+differently:
+
+**consent_obtained_at** (member/volunteer NDPA consent, recorded once at
+registration — see `RegisterController`/`UserController::store()`) is
+intentionally **not** enforced retroactively. Migrated users imported via
+`MigrateUsers.php` have this field NULL, and nothing in the app currently
+gates on it — no middleware, no visibility/contactability restriction, no
+downstream check of any kind. This is a deliberate decision pending NRCS's
+final policy on historical/migrated member consent, not an oversight.
+
+**policy_accepted_at** (staff data-handling policy acknowledgement) IS
+fully enforced for every role-holding user regardless of origin.
+Confirmed by investigation: `MigrateUsers.php`'s user-insert (~60 fields,
+explicitly "ALL the fields") never sets `policy_accepted_at`, so every
+migrated admin/staff account has it NULL and is forced through
+`/policy/accept` (`RequiresPolicyAcceptance`, appended globally to the
+`web` middleware group in `bootstrap/app.php`) on first login after
+go-live — identical treatment to a freshly-created account. No gap exists
+here.

@@ -1,6 +1,61 @@
-# NDPA Compliance — Nigerian Red Cross Society Volunteer & Member Database
+# NDPA Compliance — Current State Summary
 
-Last updated: 2026-06-25
+This section summarizes, in plain terms, the current data-protection
+posture of the volunteer and membership database. The detailed technical
+record follows below.
+
+## Data protection measures in place
+
+**National ID numbers** are encrypted in the database at all times. Only
+staff with an appropriate role and permission can view a person's ID
+number, and only for people within their own area of responsibility
+(branch or division). No other part of the system — including reports,
+exports, or messaging tools — can access or expose this information.
+
+**Photographs** (profile, passport, signature) are stored privately, not
+publicly accessible. Every request to view a photo is checked against the
+requester's actual permissions at that moment — access cannot be gained
+by guessing a web address or link.
+
+**Financial records** (donations and membership payments) correctly
+distinguish between personal and organisational contributions throughout
+the system, including in reports, so totals and attributions are accurate.
+
+**Staff access** is role-based and scoped by area of responsibility
+(national, branch, or division). Staff cannot grant themselves or others
+more access than they are authorized to grant, and cannot modify their
+own role or permissions. A staff member cannot approve their own
+submissions — every donation, payment, training record, and volunteering
+activity requires review by a different, authorized person before it
+takes effect, and any later edit to an approved record requires a fresh
+review.
+
+**Staff data-handling policy acknowledgement** is required of every staff
+member with system access before they can use it, with no exceptions —
+including anyone brought into the system from historical records.
+
+**Member/volunteer consent** is recorded at the time of registration for
+everyone entering the system going forward. Historical consent status for
+members transferred from the previous system has not yet been formally
+addressed and is pending further guidance from NRCS.
+
+## Automated verification
+
+The system has 109 automated tests that check the above protections every
+time the software is changed, so that any future modification which would
+weaken one of these protections is caught immediately rather than going
+unnoticed.
+
+## Open items requiring NRCS input
+
+- Formal policy on consent status for members/volunteers transferred from
+  the previous system.
+- Data Protection Officer designation, NDPC registration, and other
+  organisational (non-technical) compliance requirements — see below.
+
+---
+
+# NDPA Compliance — NRCS db - techncical history
 
 ---
 
@@ -20,8 +75,6 @@ Last updated: 2026-06-25
 ### Encryption at rest (FAIL → FIXED)
 - app/Models/User.php: encrypted cast added for national_id_number and
   personal_info
-- app/Legacy/ComposerController.php: national_id_number removed from all LIKE
-  search queries (lines 86, 570) — encrypted fields cannot be queried with LIKE
 - database/migrations/: column widened from VARCHAR(255) to TEXT to accommodate
   ciphertext length
 - app/Console/Commands/EncryptExistingNationalIds.php: one-off Artisan command
