@@ -156,8 +156,8 @@
                         <div class="lg:col-span-5 " data-panel="sms">
                             <h3 class="text-lg font-bold text-gray-900 border-b pb-2">SMS Content</h3>
                             <div class="flex justify-between items-end">
-                                <label class="wizard-label">SMS message</label>
-                                <div class="text-xs text-gray-500"><span id="smsCharCount">0</span> chars • <span id="smsPartsHint">~1 SMS</span></div>
+
+                                <div class="text-base text-gray-700"><span id="smsCharCount">0</span> chars • <span class="text-green-700 font-semibold" id="smsPartsHint">~1 SMS</span></div>
                             </div>
                             <textarea id="sms_body" name="sms_body" rows="12" class="wizard-input mt-2">{{ old('sms_body', data_get($content, 'sms_body', '')) }}</textarea>
                             @if($showSms)

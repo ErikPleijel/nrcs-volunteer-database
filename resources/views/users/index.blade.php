@@ -595,6 +595,13 @@
             <div class="text-lg text-gray-700 font-medium">
                 {!! $filterDescriptionHtml !!}
             </div>
+
+            @if (request()->filled('search') && request('archived_filter', 'operational') === 'operational' && $users->total() === 0)
+                <div class="mt-2 rounded-md bg-amber-50 border border-amber-200 px-3 py-2 text-lg text-amber-800">
+                    <i class="text-amber-400 fas fa-lightbulb mr-1"></i>
+                    Don´t find person? Tip: Set <strong>Lifecycle → All</strong>.
+                </div>
+            @endif
         </div>
 
         {{-- Display preference: show profile photos (per-browser cookie, set via JS) --}}
