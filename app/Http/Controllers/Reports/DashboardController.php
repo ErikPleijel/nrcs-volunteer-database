@@ -240,6 +240,20 @@ class DashboardController extends Controller
             ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
             ->count();
 
+        $dbMigrationDate = config('housekeeping.db_migration_date');
+        $hangingRegistrationCount = null;
+        if ($dbMigrationDate) {
+            $hangingRegistrationCount = User::adminRegistered()
+                ->where('lifecycle_status', 'pending_engagement')
+                ->whereNull('red_cross_unit_id')
+                ->where('created_at', '>=', $dbMigrationDate)
+                ->whereDoesntHave('membershipPayments', function ($q) {
+                    $q->where('approval_status', \App\Models\MembershipPayment::APPROVED);
+                })
+                ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
+                ->count();
+        }
+
         $selfSubmittedPayments = \App\Models\MembershipPayment::pendingApproval()
             ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
             ->where('submitted_by_user_id', $user->id)->count();
@@ -306,6 +320,8 @@ class DashboardController extends Controller
             'lifecycleDormant'                         => $lifecycleDormant,
             'lifecycleArchived'                        => $lifecycleArchived,
             'unassignedGhostCount'                     => $unassignedGhostCount,
+            'hangingRegistrationCount'                 => $hangingRegistrationCount,
+            'hangingRegistrationConfigured'             => (bool) $dbMigrationDate,
 
             'messagesSentLast7'       => $messagesSentLast7,
             'idCardsPrintedLast7'     => $idCardsPrintedLast7,

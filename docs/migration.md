@@ -2,8 +2,6 @@ Migration procedure
 
 ## Pre-flight
 - [ ] Back up production DB
-- [ ] Confirm old_db connection configured in .env
-- [ ] Confirm super_admin_emails set in .env
 
 PREPARE OLD DB:
 - php artisan debug:duplicate-emails          # diagnostic
@@ -20,26 +18,17 @@ Migration, seeding
 NOTES while migrating: 
  - You have to type "Yes" when it reaches Migrate Branches (the second step)
  - When migrating users, Check users phpMyAdmin to see progress.
- - migrate:organisations now runs automatically as part of this step. It
-   imports real Organisation records (name, address, email, branch) from the
-   old persons table (IsOrganisation=1). It does NOT create a linked "user" for
-   each organisation's old contact person anymore — organisation contacts are
-   re-registered fresh by NRCS admins after migration (link a person to the
-   org via the Organisations screen). As a consequence, old donations and
-   membership payments made by an organisation (rather than a person) are
-   skipped on import by migrate:donations / migrate:membership-payments —
-   check the "Excluded (Organisation-Attributed)" row in each command's
-   summary table to see how many rows this dropped.
+ - migrate:organisations now runs automatically as part of this step. 
 --> SELECT * FROM `users` where division_id is null; the migration might have missed some division_id; if not too many set manually. 
 
 
 --> php artisan fix:userdata  (VARIOUS SQL RUN)
 --> php artisan db:seed --class=UserTokenSeeder (may need to run several times, CHECK: SELECT * FROM `users` where id_check_token is null; should be 0)
 
---> Photo migration (check file first and run a small batch to test): php artisan images:migrate
---> Close the old database picture and signature folders from public access!
+--> Photo migration (check file first and run a small batch to test, this will need some prep before running, since it has never been tested on nrcs vps): php artisan images:migrate
+--> Close the old nrcs database picture and signature folders from public access!
 migrate (runs all pending migrations including the column widen)
-→ ndpa:encrypt-national-ids  (NOT needed since no nin in old db, )
+(→ ndpa:encrypt-national-ids  (NOT needed since no nin in old db, ))
 
 --> Backfill historical stats data: php artisan stats:backfill --from=2018-06-01
 Check Membership & Volunteers graphs on dashboard if straight lines do this step later. 
@@ -57,7 +46,12 @@ php -v
 crontab -e
 * * * * * cd /var/www/your-app && /usr/bin/php artisan schedule:run >> /var/log/laravel-scheduler.log 2>&1
 
--->Uncomment cron job for emails in console.php
+
+[ ] What is the maximum file size of uploaded images on VPS?
+[ ] super_admin_emails set in .env
+[ ] set NRCS_DB_MIGRATION_DATE=2026-08-01 in .env
+
+
 
 ## Active - Dormant reconciliation
 --> php artisan lifecycle:reconcile (dry-run) — eyeball the volunteer/member/neither breakdown. The key sanity check: volunteers should not be mass-flagged → dormant. If they are, it's the null-last_activity_at problem from step 4, not the policy.

@@ -1557,6 +1557,62 @@
             </h3>
             <div class="flex flex-wrap justify-center gap-4">
                 <div class="bg-white rounded-lg shadow p-4 w-64 text-center">
+                    @if($dashboardData['hangingRegistrationCount'] === null)
+                        <div class="block">
+                            <p class="text-3xl font-bold text-gray-400">—</p>
+                            <p class="mt-1 text-sm text-gray-600">Hanging Registrations</p>
+                            <p class="mt-1 text-xs text-gray-400">Not configured — set NRCS_DB_MIGRATION_DATE in .env</p>
+                        </div>
+                    @else
+                        <a href="{{ route('users.index', array_filter([
+                            'registration_filter' => 'admin',
+                            'archived_filter' => 'pending_engagement',
+                            'branch_id' => $dashboardData['branchId'],
+                        ])) }}" class="block hover:opacity-80 transition">
+                            <p class="text-3xl font-bold text-orange-600">{{ number_format($dashboardData['hangingRegistrationCount']) }}</p>
+                            <p class="mt-1 text-sm text-gray-600">Hanging Registrations</p>
+                        </a>
+                    @endif
+                    <div class="mt-2">
+                        <x-help-popup trigger-class="help-btn">
+                            <x-slot:trigger><i class="fas fa-question-circle mr-1"></i> What is this?</x-slot:trigger>
+
+                            <div class="-mt-8 mb-4 text-center">
+                                <i class="fas fa-hourglass-half text-3xl text-orange-500"></i>
+                                <h3 class="mt-1 text-base font-semibold text-gray-900">Hanging Registrations</h3>
+                            </div>
+
+                            <p class="text-sm text-gray-700 mb-4">
+                                When an admin registers a person, that registration must always end in one of
+                                two outcomes: the person is assigned to an RC Unit (becoming a volunteer), or
+                                the person completes an approved membership payment (becoming a member). This
+                                count tracks people, registered after the new database's launch date, who are
+                                still stuck in pending lifecycle with neither outcome — no RC Unit and no
+                                approved payment.
+                            </p>
+
+                            <p class="text-sm text-gray-700 mb-4">
+                                Payment approval can take a little time, so this number won't always sit at
+                                exactly 0 — that's expected. What matters is that it isn't growing over time.
+                            </p>
+
+                            <p class="text-sm font-semibold text-gray-800 mb-2">How to find them:</p>
+                            <p class="text-sm text-gray-700 mb-4">
+                                <span class="font-semibold">Persons</span> → set filter to
+                                <span class="font-semibold">Registered by Admin</span> →
+                                <span class="font-semibold">Life-cycle = Pending</span>.
+                            </p>
+
+                            <p class="text-sm text-gray-700">
+                                Note: this filter has no "registered after date X" option yet, so it will also
+                                show some older hanging registrations from before the new database's launch.
+                                That's a known minor limitation, not a bug.
+                            </p>
+                        </x-help-popup>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-lg shadow p-4 w-64 text-center">
                     <a href="{{ route('users.index', array_filter(['person_type' => 'unassigned', 'branch_id' => $dashboardData['branchId']])) }}" class="block hover:opacity-80 transition">
                         <p class="text-3xl font-bold text-orange-600">{{ number_format($dashboardData['unassignedGhostCount']) }}</p>
                         <p class="mt-1 text-sm text-gray-600">Volunteers in Limbo</p>
@@ -1591,14 +1647,14 @@
                         </x-help-popup>
                     </div>
                 </div>
-
-                <div class="bg-white rounded-lg shadow p-4 w-64 text-center">
-                    <a href="{{ route('reports.policies') }}" class="block hover:opacity-80 transition">
-                        <i class="fas fa-scale-balanced text-3xl text-indigo-600"></i>
-                        <p class="mt-1 text-sm text-gray-600">Policies &amp; Rules</p>
-                    </a>
-                </div>
             </div>
+        </div>
+
+        <div class="mt-4 flex justify-center">
+            <a href="{{ route('reports.policies') }}"
+               class="inline-flex items-center gap-2 px-5 py-2.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                <i class="fas fa-scale-balanced text-indigo-600"></i> Policies &amp; Rules
+            </a>
         </div>
     </section>
 
