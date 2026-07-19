@@ -161,6 +161,171 @@
                 </div>
             </div>
         </div>
+
+        <div class="w-full sm:px-6 lg:px-8">
+            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg mt-8">
+                <div class="p-6 text-gray-900">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-medium text-gray-900">Recent Payments Registered by {{ auth()->user()->full_name }}</h3>
+                        <span class="text-sm text-gray-500">Latest first</span>
+                    </div>
+
+                        @php
+                            // Show ALL approval statuses so the submitter can withdraw pending
+                            // entries and see rejection reasons (default scope is approved-only).
+                            $myRecentOrgPayments = \App\Models\MembershipPayment::withAnyApprovalStatus()
+                                ->with(['user', 'membershipFee', 'organisation'])
+                                ->organisational()
+                                ->where('submitted_by_user_id', auth()->id())
+                                ->where('is_deleted', false)
+                                ->whereHas('user')
+                                ->whereHas('membershipFee')
+                                ->orderBy('created_at', 'desc')
+                                ->orderBy('payment_date', 'desc')
+                                ->paginate(10, ['*'], 'my_org_payments');
+                        @endphp
+
+                        @if($myRecentOrgPayments->count() > 0)
+                            <!-- Mobile Card List -->
+                            <div class="md:hidden space-y-3">
+                                @foreach($myRecentOrgPayments as $payment)
+                                    @php
+                                        $membershipFeeAmount = $payment->membershipFee->amount ?? 0;
+                                        $totalAmount = $membershipFeeAmount;
+                                    @endphp
+                                    <div class="border border-gray-200 rounded-lg bg-white p-4">
+                                        <div class="flex justify-between items-start gap-2">
+                                            <div class="min-w-0">
+                                                <div class="font-medium text-gray-900 truncate">{{ $payment->user->full_name ?? 'No Name' }}</div>
+                                                <div class="text-xs text-gray-500">{!! $payment->user->getUserIdReferenceLinkAttribute() !!}</div>
+                                            </div>
+                                        </div>
+                                        <dl class="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+                                            <div>
+                                                <dt class="text-xs uppercase text-gray-400">Organisation</dt>
+                                                <dd class="text-gray-900">{{ $payment->organisation->name ?? 'N/A' }}</dd>
+                                            </div>
+                                            <div>
+                                                <dt class="text-xs uppercase text-gray-400">Payment Date</dt>
+                                                <dd class="text-gray-900">{{ \Carbon\Carbon::parse($payment->payment_date)->format('M d, Y') }}</dd>
+                                            </div>
+                                            <div>
+                                                <dt class="text-xs uppercase text-gray-400">Fee</dt>
+                                                <dd class="text-gray-900">{{ $payment->membershipFee->name ?? 'N/A' }} <span class="text-xs text-gray-500">(₦{{ number_format($totalAmount, 2) }})</span></dd>
+                                            </div>
+                                            <div>
+                                                <dt class="text-xs uppercase text-gray-400">Reference</dt>
+                                                <dd class="text-gray-900">
+                                                    <div>{{ $payment->getPaymentReferenceAttribute() }}</div>
+                                                    @if($payment->reference)
+                                                        <div class="text-xs text-gray-500"><i class="fas fa-hashtag mr-1"></i>{{ $payment->reference }}</div>
+                                                    @endif
+                                                </dd>
+                                            </div>
+                                        </dl>
+                                        <div class="mt-3">
+                                            <x-recent-log-actions
+                                                :status="$payment->approval_status"
+                                                :rejection-reason="$payment->rejection_reason"
+                                                :review-url="route('membership-payments.review', $payment->id)"
+                                                :withdraw-url="route('membership-payments.withdraw', $payment->id)" />
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+
+                            <!-- Desktop Table -->
+                            <div class="hidden md:block bg-white border border-gray-200 rounded-lg shadow-sm overflow-x-auto">
+                                <table class="min-w-full divide-y divide-gray-200">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payer</th>
+                                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">DB-Number</th>
+                                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Organisation</th>
+                                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment Date</th>
+                                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Membership Fee</th>
+                                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reference</th>
+                                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="bg-white divide-y divide-gray-200">
+                                        @foreach($myRecentOrgPayments as $payment)
+                                            @php
+                                                $branchCode = $payment->user->branch && $payment->user->branch->code
+                                                    ? $payment->user->branch->code
+                                                    : ($payment->user->branch && $payment->user->branch->name
+                                                        ? strtoupper(substr($payment->user->branch->name, 0, 3))
+                                                        : 'UNK');
+                                                // Calculate total amount
+                                                $membershipFeeAmount = $payment->membershipFee->amount ?? 0;
+                                                $totalAmount = $membershipFeeAmount;
+                                            @endphp
+                                            <tr class="hover:bg-gray-50">
+                                                <td class="px-3 py-2 text-sm text-gray-900">
+                                                    {{ $payment->user->full_name ?? 'No Name' }}
+                                                </td>
+                                                <td class="px-3 py-2 text-sm">
+                                                    {!! $payment->user->getUserIdReferenceLinkAttribute() !!}
+                                                </td>
+                                                <td class="px-3 py-2 text-sm text-gray-900">
+                                                    {{ $payment->organisation->name ?? 'N/A' }}
+                                                </td>
+                                                <td class="px-3 py-2 text-sm text-gray-900">
+                                                    {{ \Carbon\Carbon::parse($payment->payment_date)->format('M d, Y') }}
+                                                </td>
+                                                <td class="px-3 py-2 text-sm text-gray-900">
+                                                    <div class="font-medium">{{ $payment->membershipFee->name ?? 'N/A' }}</div>
+                                                    <div class="text-xs text-gray-500">₦{{ number_format($totalAmount, 2) }}</div>
+                                                </td>
+                                                <td class="px-3 py-2 text-sm text-gray-900">
+                                                    <div>{{ $payment->getPaymentReferenceAttribute() }}</div>
+                                                    @if($payment->reference)
+                                                        <div class="text-xs text-gray-500"><i class="fas fa-hashtag mr-1"></i>{{ $payment->reference }}</div>
+                                                    @endif
+                                                </td>
+                                                <td class="px-3 py-2 text-sm">
+                                                    <x-approval-status-badge :status="$payment->approval_status" />
+                                                    @if($payment->approval_status === 'rejected' && $payment->rejection_reason)
+                                                        <div class="text-xs text-red-600 mt-1"><i class="fas fa-comment-dots mr-1"></i>{{ $payment->rejection_reason }}</div>
+                                                    @endif
+                                                </td>
+                                                <td class="px-3 py-2 text-sm text-gray-900">
+                                                    <div class="flex items-center gap-3">
+                                                        <a href="{{ route('membership-payments.review', $payment->id) }}"
+                                                           class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-xs font-medium transition-colors">
+                                                            View
+                                                        </a>
+                                                        @if($payment->approval_status === 'pending')
+                                                            <x-withdraw-button :url="route('membership-payments.withdraw', $payment->id)" />
+                                                        @endif
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- Pagination -->
+                            @if($myRecentOrgPayments->hasPages())
+                                <div class="mt-4">
+                                    {{ $myRecentOrgPayments->links() }}
+                                </div>
+                            @endif
+                        @else
+                            <div class="bg-gray-50 border border-gray-200 rounded-lg p-6 text-center">
+                                <div class="text-gray-400 mb-2">
+                                    <svg class="mx-auto h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                </div>
+                                <p class="text-gray-600 text-sm">No organisation payments registered by you yet.</p>
+                            </div>
+                        @endif
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>

@@ -418,9 +418,7 @@
                     </h3>
                     @if($status === 'active')
                         <p class="text-gray-500 mb-4">Try adjusting your search or filter criteria.</p>
-                        <a href="{{ route('organisations.create') }}" class="btn-add">
-                            Add First Organisation
-                        </a>
+
                     @endif
                 </div>
             @endif
