@@ -154,15 +154,17 @@
     @endif
 
     {{-- Total volunteering hours --}}
-    <div class="mt-8 mb-4">
-        <div class="p-4 bg-white rounded-lg shadow-xl flex items-center justify-between">
-            <h3 class="text-lg font-semibold text-gray-800 flex items-center">
-                <i class="fas fa-hands-helping mr-3 text-red-600"></i>
-                Total Volunteering Hours
-            </h3>
-            <span class="text-2xl font-extrabold text-gray-900">{{ $user['total_volunteering_hours'] ?: 0 }}</span>
+    @if($user['total_volunteering_hours'])
+        <div class="mt-8 mb-4">
+            <div class="p-4 bg-white rounded-lg shadow-xl flex items-center justify-between">
+                <h3 class="text-lg font-semibold text-gray-800 flex items-center">
+                    <i class="fas fa-hands-helping mr-3 text-red-600"></i>
+                    Total Volunteering Hours
+                </h3>
+                <span class="text-2xl font-extrabold text-gray-900">{{ $user['total_volunteering_hours'] }}</span>
+            </div>
         </div>
-    </div>
+    @endif
 </div>
 </body>
 </html>
