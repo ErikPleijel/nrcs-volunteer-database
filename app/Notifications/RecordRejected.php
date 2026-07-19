@@ -9,7 +9,6 @@ use Illuminate\Notifications\Notification;
  * In-app (database channel only) notification sent to the submitter of a record
  * when an approver rejects it. Carries the module, the record id, and the reason.
  *
- * Deliberately NOT emailed — see docs/campaign_notes.md for the mail story.
  */
 class RecordRejected extends Notification
 {

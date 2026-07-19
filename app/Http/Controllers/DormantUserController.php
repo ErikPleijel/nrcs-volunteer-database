@@ -21,10 +21,7 @@ class DormantUserController extends Controller
 
         $years = (int) $request->input('years', 4);
 
-        //TODO Change to this in production
-        /*if (!in_array($years, [4, 5, 6, 7])) {
-            $years = 4;
-        }*/
+
 
         if (!in_array($years, [2, 3, 4, 5, 6, 7])) {
             $years = 2;

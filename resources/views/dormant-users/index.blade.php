@@ -146,9 +146,9 @@
                         <div>
                             <label for="years" class="filter-label">Inactivity Threshold</label>
 
-                            {{-- TODO change to $years != 4 in production--}}
+
                             <select name="years" id="years" class="filter-select {{ $years != 2 ? 'filter-active' : '' }}">
-                                {{-- TODO Remove 2, 3 in production --}}
+
                                 @foreach([2, 3, 4, 5, 6, 7] as $y)
                                     <option value="{{ $y }}" {{ $years == $y ? 'selected' : '' }}>
                                         {{ $y }} years

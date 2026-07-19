@@ -1,5 +1,8 @@
 # NRCS Laravel — Deployment Checklist
 
+## Pre-flight Check 
+[ ] Check any outstanding issues in PRE_DEPLOYMENT.md
+[ ] Check any outstanding issues in one note
 
 ## Take the old system offline
 CLARIFY 1: Is the new db going to be hosted on same VPS as the old?

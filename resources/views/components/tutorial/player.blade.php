@@ -410,8 +410,7 @@ function tutorialPlayerData(completeUrl) {
                 <i class="fas fa-arrow-left"></i> Previous
             </button>
 
-            {{-- Next --}}
-            {{-- TODO: Optional "now you may proceed" glow — add a ring/pulse to this button after the user has heard the narration; not yet implemented --}}
+
             <button type="button"
                     @click="next()"
                     :disabled="isLast()"
