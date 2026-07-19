@@ -324,7 +324,7 @@ class DonationController extends Controller
         // Submitter's own recent entries — show ALL statuses (pending/approved/rejected)
         // so they can withdraw pending ones and see why rejected ones were declined.
         $myRecentDonations = Donation::withAnyApprovalStatus()
-            ->with(['user.branch', 'branch', 'division'])
+            ->with(['user.branch', 'branch', 'division', 'organisation'])
             ->where('entered_by_user_id', Auth::id())
             ->where('is_deleted', false)
             ->whereHas('user')

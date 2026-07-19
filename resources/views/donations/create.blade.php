@@ -239,6 +239,13 @@
                                             <div class="min-w-0">
                                                 <div class="font-medium text-gray-900 truncate">{{ $donation->user->full_name ?? 'No Name' }}</div>
                                                 <div class="text-xs text-gray-500">{!! $donation->user->getUserIdReferenceLinkAttribute() !!}</div>
+                                                @if($donation->organisation)
+                                                    <div class="mt-1">
+                                                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                                            {{ $donation->organisation->name }}
+                                                        </span>
+                                                    </div>
+                                                @endif
                                             </div>
                                         </div>
                                         <dl class="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
@@ -291,6 +298,13 @@
                                         <tr class="hover:bg-gray-50">
                                             <td class="px-3 py-2 text-sm text-gray-900">
                                                 {{ $donation->user->full_name ?? 'No Name' }}
+                                                @if($donation->organisation)
+                                                    <div class="mt-1">
+                                                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                                            {{ $donation->organisation->name }}
+                                                        </span>
+                                                    </div>
+                                                @endif
                                             </td>
                                             <td class="px-3 py-2 text-sm">
                                                 {!! $donation->user->getUserIdReferenceLinkAttribute() !!}
