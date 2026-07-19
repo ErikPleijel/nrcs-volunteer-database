@@ -164,6 +164,13 @@ Route::get('/red-cross-units/by-division', [RedCrossUnitController::class, 'getR
 // Public ID card verification
 Route::get('/idcheck/{token}', [IdCardController::class, 'verifyId'])->name('id.verify');
 
+// Public certificate verification (scanned from a physical certificate's QR code).
+// Protected by the `signed` middleware (tamper-proof URL) plus an opaque
+// id_check_token lookup in the controller — no login/permission required.
+Route::get('/certificates/verify', [CertificateController::class, 'verify'])
+    ->name('certificates.verify')
+    ->middleware('signed');
+
 // Public unsubscribe / communication preference routes
 Route::get('/u/{token}/email', [UnsubscribeController::class, 'showEmail'])->name('unsubscribe.email.show');
 Route::post('/u/{token}/email', [UnsubscribeController::class, 'handleEmail'])->name('unsubscribe.email.handle');
@@ -367,10 +374,6 @@ Route::middleware('auth')->group(function () {
                 ->name('certificates.bulk-delete-prints');
 
             Route::post('/certificates/mark-as-printed', [App\Http\Controllers\CertificateController::class, 'markAsPrinted'])->name('certificates.mark-as-printed');
-
-            Route::get('/certificates/verify', [CertificateController::class, 'verify'])
-                ->name('certificates.verify')
-                ->middleware('signed');
         });
 
         // Membership Fees Management (settings area — requires recent password confirmation)
