@@ -122,7 +122,7 @@
                     <table class="info-table">
                         <tr>
                             <td class="label">Course</td>
-                            <td class="value">{{ $certificate['training']->title ?? 'N/A' }}</td>
+                            <td class="value">{{ $certificate['training']->trainingType->name ?? 'N/A' }}</td>
                         </tr>
                         <tr>
                             <td class="label">Training ID</td>
@@ -131,10 +131,7 @@
                         <tr>
                             <td class="label">Date</td>
                             <td class="value">
-                                {{ $certificate['training']->start_date ?? '' }}
-                                @if($certificate['training']->end_date)
-                                    – {{ $certificate['training']->end_date }}
-                                @endif
+                                {{ $certificate['training']->training_date ? \Carbon\Carbon::parse($certificate['training']->training_date)->format('d M Y') : 'N/A' }}
                             </td>
                         </tr>
                     </table>
@@ -142,11 +139,10 @@
             @endif
 
             <div class="section">
-                <div class="label">Branch / Division / Unit</div>
+                <div class="label">Branch / Division</div>
                 <div class="value">
                     {{ $user->branch->name ?? 'N/A' }} /
-                    {{ $user->division->name ?? 'N/A' }} /
-                    {{ $user->redCrossUnit->name ?? 'N/A' }}
+                    {{ $user->division->name ?? 'N/A' }}
                 </div>
             </div>
 
