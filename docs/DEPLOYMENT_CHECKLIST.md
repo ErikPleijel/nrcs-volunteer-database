@@ -1,99 +1,63 @@
 # NRCS Laravel — Deployment Checklist
 
-Generated from the pre-deployment audit (all 7 categories complete).
-Work top to bottom within each phase.
 
-> **dates:shift is dev-only.** Never run on production data. Production
-> data has real 2016–2019 dates; no shift is needed or wanted.
+## Take the old system offline
+CLARIFY 1: Is the new db going to be hosted on same VPS as the old?
+CLARIFY 2: Does VPS run Apache or Nginx.
+ADAPT procedure accordingly. This might need changes: 
+- [ ] Locate the old system's document root on the VPS (the folder the
+  domain currently points to)
+- [ ] Create a simple static holding page there, e.g. `maintenance.html`,
+  with a "Back soon, we're migrating" message
+- [ ] Add an `.htaccess` rule in that document root redirecting all traffic
+  to the holding page — except your own IP, if you want to keep testing
+  the old system briefly (e.g. to re-verify data before wiping it)
+- [ ] Confirm: visit the domain in a normal browser tab — should show the
+  holding page, not the old app
+- [ ] Leave this in place for the entire migration + deploy process below
 
----
+## Database
 
-## PHASE 0 — Before the migration run (verify in VPS checkout)
-
-### Code fixes confirmed in repo
-- [x] `certificatesPrintedLast7` uses `printed_at`, not `created_at`
-      (DashboardController.php ~L205)
-- [x] `BackfillStatsSnapshots` membership_payments query includes
-      `->where('mp.approval_status', 'approved')` (~L75)
-- [x] `UserTokenSeeder` — CASE-based bulk UPDATE, no upsert/INSERT,
-      chunked at 500
-- [x] Fix 5 (FixUserDataCommand) — `whereDoesntHave` guards for
-      membershipPayments, activities, trainings added; hard-delete only
-      hits true orphans
-- [x] RCU dropdown + validation scoped to active units; edit path retains
-      current inactive unit and exempts it from the `is_active,1` rule
-- [x] `selectableForEntry()` added to 6 user-selection queries:
-      ActivityController:470, TrainingController:484,
-      TaskForceController:115, RedCrossUnitController:540,
-      UserController:1208, BranchController:94
-- [x] Permission whitelist — `UserController::DIRECT_PERMISSION_NAMES`
-      constant; `updateRoles()` intersects incoming permissions against
-      it before `syncPermissions()`
-- [x] Branch-move destination scope — branch admins blocked from moving
-      a non-roled user to an out-of-scope branch (UserController::update())
-- [x] `DECISIONS.md` — fix:userdata placement after restore pass documented
-- [x] `docs/migration.md` — updated with rehearsal findings, production
-      tail sequence, restore-pass note, stats:backfill limitation,
-      reconcile vs update-from-activity distinction
-
-### Pre-run environment checks
-- [ ] VPS git checkout is current: `git log --oneline -5`
-- [ ] **php -l sweep** on all files edited this audit cycle — tooling has
-      been observed silently converting `"` to curly quotes in PHP strings
-      (fatal syntax error): php -l on every recently-changed file
-- [ ] `APP_DEBUG=false` and `APP_ENV=production` in VPS `.env`
-- [ ] Diff VPS `.env` against local: MAIL_*, APP_KEY,
-      IMAGE_MIGRATION_SOURCE, ElevenLabs/analytics keys, queue driver
-
-### Pre-go-live decisions (not blocking migration)
-- [ ] **`send_bulk_messages`** — dead permission (gates no action; real
-      gate is `campaign_request_create`). Decide: remove from permissions
-      table + `DIRECT_PERMISSION_NAMES` constant, or add a code comment
-      marking it reserved. Clean up before go-live.
-- [ ] **Campaign CLI opt-out gap** — `campaigns:build-recipients` (CLI)
-      writes unmasked email/phone with no opt-out check. For live
-      campaigns on `both`/`email_fallback_sms` channels, always use the
-      HTTP build path (CampaignAdminController::buildRecipients), not
-      the CLI command.
-
----
-
-## PHASE 1 — After `migrate:old-db --table=all`
-
-Run all queries before touching anything else. Record every number.
+### Migration
+- [ ] Download old database to local environment
+- [ ] Do data migration procedure in MIGRATION.md
 
 ### Data integrity checks
 
-- [ ] **division_id NULL count** — expect 0 (373 in rehearsal; restore
-      pass recovers all):
-      ```sql
+- [ ] **`division_id` NULL count** — expect 0. In rehearsal, 373 users had
+  NULL `division_id` after `migrate:users`; a built-in restore pass
+  inside `migrate:users` recovered all of them, so 0 is expected on a
+  clean production run.
+```sql
       SELECT COUNT(*) FROM users
       WHERE division_id IS NULL
         AND is_super_admin = 0
         AND lifecycle_status != 'pending_engagement';
-      ```
-      If non-zero: investigate before proceeding. Do NOT run fix:userdata
-      until source of nulls is identified — Fix 5 will hard-delete them.
+```
+      Non-zero: **do not** run `fix:userdata` — Fix 5 hard-deletes users
+      with NULL `division_id` AND `organisation_id` unconditionally.
+      Identify the source of NULLs first; the restore pass must complete
+      before Fix 5 runs.
 
-- [ ] **Orphaned red_cross_unit_id** — users pointing to inactive units:
-      ```sql
+- [ ] **Orphaned `red_cross_unit_id`** (users pointing to inactive units):
+```sql
       SELECT COUNT(*) FROM users u
       LEFT JOIN red_cross_units rcu ON rcu.id = u.red_cross_unit_id
       WHERE u.red_cross_unit_id IS NOT NULL
         AND (rcu.id IS NULL OR rcu.is_active = 0);
-      ```
-      Non-zero: note count; users can still save edits (edit exemption
-      in place) but unit is invisible in active-unit reporting.
+```
+      Non-zero: users can still edit (exemption in place) but the unit is
+      invisible in active-unit reporting.
 
-- [ ] **Orphaned membership_payments**:
-      ```sql
+- [ ] **Orphaned `membership_payments`**:
+```sql
       SELECT COUNT(*) FROM membership_payments mp
       LEFT JOIN users u ON u.id = mp.user_id
       WHERE u.id IS NULL AND mp.is_deleted = 0;
-      ```
+```
 
-- [ ] **Orphaned activities / trainings** (should be 0 — Fix 5 guarded):
-      ```sql
+- [ ] **Orphaned activities / trainings** (expect 0 — Fix 5 guarded):
+```sql
       SELECT COUNT(*) FROM activities a
       LEFT JOIN users u ON u.id = a.user_id
       WHERE u.id IS NULL AND a.is_deleted = 0;
@@ -101,155 +65,91 @@ Run all queries before touching anything else. Record every number.
       SELECT COUNT(*) FROM trainings t
       LEFT JOIN users u ON u.id = t.user_id
       WHERE u.id IS NULL AND t.is_deleted = 0;
-      ```
+```
 
-- [ ] **Campaign recipients pointing to missing users**:
-      ```sql
-      SELECT COUNT(*) FROM messaging_recipients mr
-      LEFT JOIN users u ON u.id = mr.user_id
-      WHERE u.id IS NULL;
-      ```
-
-- [ ] **created_at integrity** — only seeded admins should carry today's
-      date; everyone else 2016–2019:
-      ```sql
+- [ ] **`created_at` integrity** — only seeded admins should carry today's
+  date; everyone else 2016–2019:
+```sql
       SELECT DATE(created_at) as d, COUNT(*) as n
-      FROM users
-      GROUP BY DATE(created_at)
-      ORDER BY n DESC LIMIT 10;
-      ```
+      FROM users GROUP BY DATE(created_at) ORDER BY n DESC LIMIT 10;
+```
+### Upload DB to VPS
+- [ ] Upload the migrated database to NRCS VPS
+- [ ] Spot-check a few row counts (users, activities, trainings) — confirm
+  nothing got lost or truncated in transfer
 
-- [ ] **Four-eyes integrity** — no super-admin self-approved records
-      (all four should return 0):
-      ```sql
-      SELECT COUNT(*) FROM activities
-      WHERE approved_by = entered_by
-        AND approved_by IN (SELECT id FROM users WHERE is_super_admin = 1);
+## Laravel files
 
-      SELECT COUNT(*) FROM trainings
-      WHERE approved_by = entered_by
-        AND approved_by IN (SELECT id FROM users WHERE is_super_admin = 1);
-
-      SELECT COUNT(*) FROM donations
-      WHERE approved_by = entered_by
-        AND approved_by IN (SELECT id FROM users WHERE is_super_admin = 1);
-
-      SELECT COUNT(*) FROM membership_payments
-      WHERE approved_by = entered_by
-        AND approved_by IN (SELECT id FROM users WHERE is_super_admin = 1);
-      ```
-
-### Lifecycle baseline
-
-- [ ] **`lifecycle:reconcile --dry-run`** — record output. Non-zero
-      discrepancies here are expected (pre-reconcile state). Document count.
-
-- [ ] **`lifecycle_status` distribution**:
-      ```sql
-      SELECT lifecycle_status, COUNT(*) as n
-      FROM users GROUP BY lifecycle_status;
-      ```
-      Record numbers — compare against post-reconcile.
-
----
-
-## PHASE 2 — After `lifecycle:reconcile --apply`
-
-- [ ] **Re-run `lifecycle:reconcile --dry-run`** — expect 0 discrepancies
-      (real dates, no shift applied). Non-zero = investigate.
-- [ ] **Re-check `lifecycle_status` distribution** — confirm meaningful
-      active population. If large numbers remain `pending_engagement`,
-      note that reconcile does not scan that status — decide if a separate
-      pass is needed.
-- [ ] **x-time-ago sanity** — spot-check 10–15 user profiles for future
-      dates or absurd elapsed times. Production dates are real 2016–2019.
-- [ ] **Stats snapshot consistency** — run `stats:backfill` and spot-check
-      2–3 historical months. Note: lifecycle scope evaluates current state,
-      not point-in-time — any delta is a known limitation, not a migration
-      error. Document but do not treat as blocking.
-
----
-
-## PHASE 3 — Final pre-go-live (VPS environment)
-
-- [ ] **`APP_DEBUG=false`** live — hit a 404, confirm clean error page
-      (no stack trace)
-- [ ] **GD extension**: `php -m | grep gd`
-- [ ] **images:migrate smoke test**: `php artisan images:migrate --limit=10`
-- [ ] **Scheduled commands** in `routes/console.php`:
-      - `lifecycle:reconcile --apply` at 03:00
-      - `stats:snapshot` at 02:00
-      - `firstaid:recalculate` at 02:30
-      - Campaign send schedule (if applicable)
-- [ ] **VPS crontab**: `crontab -l | grep artisan` — fires every minute
-- [ ] **Queue worker** under Supervisor (if jobs queued):
-      `supervisorctl status`
-- [ ] **FirstAidTrainingTypesSeeder** — confirm `is_first_aid` flagged:
-      ```sql
-      SELECT COUNT(*) FROM training_types WHERE is_first_aid = 1;
-      ```
-      Expected: 10. Zero = seeder did not run; run before go-live.
+### Deploy files 
+- [ ] Deploy the new Laravel app files to a NEW folder on the VPS
+- [ ] Copy the app code to the VPS
+- [ ] Install dependencies (`composer install`)
+- [ ] Set correct file/folder permissions (`storage/`, `bootstrap/cache/`)
+- [ ] Run Laravel schema migrations: `php artisan migrate`
 
 
-⚠️  APP_KEY must never be rotated after ndpa:encrypt-national-ids has run
-without first decrypting and re-encrypting all rows.
-Back up APP_KEY separately from the .env file.
+### Set .env VPS
+- [ ] APP_ENV=production
+- [ ] Diff VPS `.env` against local: MAIL_*, APP_KEY, IMAGE_MIGRATION_SOURCE,
+  ElevenLabs/analytics keys, queue driver
+- [ ] `super_admin_emails` set in `.env`
+- [ ] `NRCS_DB_MIGRATION_DATE=2026-08-01` set in `.env`
+- [ ] **APP_KEY**:
+    - Generate fresh per environment: `php artisan key:generate` — never
+      copy a key from sandbox or local into production.
+    - ⚠️ This key protects more than national IDs. Once real data exists,
+      rotating it will:
+        - Make `national_id_number` and `personal_info` unreadable
+          (encrypted columns) unless decrypted and re-encrypted first
+        - Log out every active user and break in-flight CSRF tokens
+        - Permanently invalidate the QR code on any certificate already
+          printed or exported as PDF (signed verification links can't be
+          regenerated for a document that's already out the door)
+    - [ ] Back up APP_KEY in a secure password manager, separate from `.env`.
+- php artisan config:clear
+- php artisan config:cache
 
-OBS OBS!! NRCS must review COMPLIANCE.md 
----
+### Other
+  [ ] Set cron jobs (as www-data user):
+  `* * * * * cd /var/www/[actual-path] && /usr/bin/php artisan schedule:run >> /var/log/laravel-scheduler.log 2>&1`
 
-## PHASE 4 — Post-go-live (first 48 hours)
 
-- [ ] **Next-morning stats snapshot** — confirm `stats:snapshot` ran and
-      produced a row for today with plausible numbers
-- [ ] **First scheduled reconcile** — confirm
-      `lifecycle:reconcile --apply` ran cleanly
-      (`storage/logs/laravel.log`)
-- [ ] **Notification smoke test** — reject a test record; confirm bell
-      dropdown shows notification with correct type (not falling through
-      to generic fallback)
-- [ ] **Mail delivery** — trigger one real notification; confirm arrival
-      (validates MAIL_* end-to-end)
-- [ ] **Delete UserTokenSeeder** — if re-run accidentally, all printed
-      QR codes become invalid. Once production tokens are set, delete:
-      `database/seeders/UserTokenSeeder.php`
-      Add entry to DECISIONS.md when done.
 
----
+## Point the domain at the new Laravel app
+- [ ] Update the web server's virtual host / site config so the domain's
+  document root points at the new Laravel app's `public/` folder
+  (not the app root — Laravel's entry point is always inside `public/`)
+- [ ] Reload the web server config (e.g. `sudo systemctl reload apache2`
+  or `nginx`, whichever this VPS runs)
+- [ ] Visit the domain in a normal browser tab — should now show the new
+  Laravel app, not the old PHP site or the holding page
+- [ ] Confirm the old holding-page redirect no longer intercepts anything
 
-## FUTURE FEATURE GATES
+## Retire the old system
+- [ ] Close the old NRCS database's picture and signature folders from
+  public access
+- [ ] Confirm a safety copy of the old database exists on localhost (or
+  elsewhere) BEFORE deleting anything on the VPS
+- [ ] Delete the old database on the VPS
+- [ ] Archive the old PHP code folder somewhere for reference — low risk,
+  fine to keep long-term
 
-Complete before shipping the named feature — not blocking for go-live.
+## Housekeeping
 
-- [ ] **Delete-user UI** — before any UI action that hard-deletes users,
-      implement a `deleting` observer on User that cleans up
-      `taskforce_members` rows. FK constraints are commented out; no DB
-      cascade exists. Failing to do this leaves dangling rows that corrupt
-      taskforce stats and may block re-adds if IDs are reused.
-- [ ] **Campaign archived-users warning** — add a yellow banner in the
-      campaign review step when `archived_filter` is `'all'` or
-      `'archived'`, alerting staff they are targeting lapsed users.
+### On the new database site
+[ ] Training types. Check is_first_aid is applied correctly
+[ ] Training types. Check if expiry dates are set correctly. Probably change 1 year to 3 years for first aid training. 
+[ ] NRCS must review `COMPLIANCE.md`
 
----
+- [ ] Zero users with >1 role (check Database Team report, or query).
+- [ ] Set fees for Organisations.
+- [ ] What is the maximum upload file size for images on the VPS? (had problem with itacenmu.org treeplanting app, when user uploaded selfie)
+- [ ] Check e.g. heat map and see if any division has missing coordinates
 
-## Appendix — audit summary
 
-All 7 categories complete.
+### 24 & 36 hours after deployment
+[ ] Check laravel log and see if cron job is working.
+[ ] Delete `UserTokenSeeder` once production tokens are set — if re-run
+accidentally, all printed QR codes become invalid.
+`database/seeders/UserTokenSeeder.php`
 
-| Category | Items | Fixes applied |
-|---|---|---|
-| 1. Data integrity | 7 | 2 (stat columns, BackfillStatsSnapshots approval filter) |
-| 2. Migration sequence | 6 | 0 (all verified correct or N/A) |
-| 3. Security | 5 | 3 (selectableForEntry ×6, permission whitelist, Fix 5 guard) |
-| 4. Authorization | 3 | 2 (RCU active scope, branch-move destination) |
-| 5. UI/UX regression | 3 | 0 (all verified correct) |
-| 6. Environment/deployment | 5 | 0 (captured in Phase 3 above) |
-| 7. Docs/runbook | 3 | 1 (docs/migration.md updated) |
-
-**Deferred (not blocking go-live):**
-- Stats snapshot consistency (Cat 1.4) — Phase 2 checklist item
-- send_bulk_messages cleanup — Phase 0 decision item
-- Campaign archived-users UI warning — future feature gate
-- Delete-user observer — future feature gate
-- Settings area restructure — consciously deferred
-- Migration report refinements — consciously deferred
