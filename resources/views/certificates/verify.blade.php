@@ -106,9 +106,8 @@
                 <div class="label">Holder</div>
                 <div class="value">{{ $user->full_name }}</div>
                 <div class="label">ID</div>
-                <div class="value">{{ $user->user_id_reference ?? $user->id }}</div>
+                <div class="value">{{ $user->user_id_reference_short ?? $user->id }}</div>
             </div>
-
             <div class="section">
                 <div class="label">Certificate Type</div>
                 <div class="value" style="text-transform: capitalize;">
@@ -118,7 +117,7 @@
 
             @if($certificate['training'])
                 <div class="section">
-                    <div class="label">Training</div>
+
                     <table class="info-table">
                         <tr>
                             <td class="label">Course</td>
