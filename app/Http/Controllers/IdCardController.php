@@ -423,6 +423,7 @@ class IdCardController extends Controller
         // Prepare the data for the view
         $data = [
             'full_name' => $user->full_name,
+            'user_id_reference_short' => $user->user_id_reference_short,
             'branch' => $user->branch ? $user->branch->name : 'N/A',
             'division' => $user->division ? $user->division->name : 'N/A',
             'membership_type' => $payment && $payment->membershipFee ? $payment->membershipFee->name : 'Member',

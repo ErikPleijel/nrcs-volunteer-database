@@ -62,6 +62,13 @@
 
                     <div>
                         <dt class="text-sm font-medium text-gray-500">
+                            <i class="fas fa-id-card mr-2 text-gray-400"></i>ID Reference
+                        </dt>
+                        <dd class="mt-1 text-lg text-gray-900">{{ $user['user_id_reference_short'] ?? 'N/A' }}</dd>
+                    </div>
+
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500">
                             <i class="fas fa-layer-group mr-2 text-gray-400"></i>Membership Type
                         </dt>
                         <dd class="mt-1 text-lg text-gray-900">{{ $user['membership_type'] }}</dd>
