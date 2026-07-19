@@ -321,12 +321,15 @@
                                                     @endif
                                                 </dd>
                                             </div>
-                                            @if($activity->reference)
-                                                <div>
-                                                    <dt class="text-xs uppercase text-gray-400">Reference</dt>
-                                                    <dd class="text-gray-900">{{ $activity->reference }}</dd>
-                                                </div>
-                                            @endif
+                                            <div>
+                                                <dt class="text-xs uppercase text-gray-400">Reference</dt>
+                                                <dd class="text-gray-900">
+                                                    <div>{{ $activity->activity_reference }}</div>
+                                                    @if($activity->reference)
+                                                        <div class="text-xs text-gray-500"><i class="fas fa-hashtag mr-1"></i>{{ $activity->reference }}</div>
+                                                    @endif
+                                                </dd>
+                                            </div>
                                         </dl>
                                         <div class="mt-3">
                                             <x-recent-log-actions
