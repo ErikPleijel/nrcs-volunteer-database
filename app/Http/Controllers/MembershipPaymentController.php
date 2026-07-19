@@ -551,7 +551,7 @@ class MembershipPaymentController extends Controller
         }
 
         if ($isOrgPayment) {
-            return redirect()->route('organisations.show', $request->organisation_id)
+            return redirect()->route('organisations.payments.create', $request->organisation_id)
                 ->with('success', 'Membership payment added successfully.');
         }
 

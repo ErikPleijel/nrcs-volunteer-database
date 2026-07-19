@@ -163,6 +163,155 @@
                 </div>
             </div>
         </div>
+
+        <div class="w-full sm:px-6 lg:px-8">
+            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg mt-8">
+                <div class="p-6 text-gray-900">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-medium text-gray-900">Recent Donations Registered by {{ auth()->user()->full_name }}</h3>
+                        <span class="text-sm text-gray-500">Latest first</span>
+                    </div>
+
+                        @php
+                            // Show ALL approval statuses so the submitter can withdraw pending
+                            // entries and see rejection reasons (default scope is approved-only).
+                            $myRecentOrgDonations = \App\Models\Donation::withAnyApprovalStatus()
+                                ->with(['user', 'organisation'])
+                                ->organisational()
+                                ->where('entered_by_user_id', auth()->id())
+                                ->where('is_deleted', false)
+                                ->whereHas('user')
+                                ->orderBy('created_at', 'desc')
+                                ->orderBy('date_donation', 'desc')
+                                ->paginate(10, ['*'], 'my_org_donations');
+                        @endphp
+
+                        @if($myRecentOrgDonations->count() > 0)
+                            <!-- Mobile Card List -->
+                            <div class="md:hidden space-y-3">
+                                @foreach($myRecentOrgDonations as $donation)
+                                    <div class="border border-gray-200 rounded-lg bg-white p-4">
+                                        <div class="flex justify-between items-start gap-2">
+                                            <div class="min-w-0">
+                                                <div class="font-medium text-gray-900 truncate">{{ $donation->user->full_name ?? 'No Name' }}</div>
+                                                <div class="text-xs text-gray-500">{!! $donation->user->getUserIdReferenceLinkAttribute() !!}</div>
+                                            </div>
+                                        </div>
+                                        <dl class="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+                                            <div>
+                                                <dt class="text-xs uppercase text-gray-400">Organisation</dt>
+                                                <dd class="text-gray-900">{{ $donation->organisation->name ?? 'N/A' }}</dd>
+                                            </div>
+                                            <div>
+                                                <dt class="text-xs uppercase text-gray-400">Date</dt>
+                                                <dd class="text-gray-900">{{ \Carbon\Carbon::parse($donation->date_donation)->format('M d, Y') }}</dd>
+                                            </div>
+                                            <div>
+                                                <dt class="text-xs uppercase text-gray-400">Amount / Item</dt>
+                                                <dd class="{{ $donation->in_kind_donation ? 'text-blue-600' : 'text-gray-900' }}">{{ $donation->formatted_donation }}</dd>
+                                            </div>
+                                            <div>
+                                                <dt class="text-xs uppercase text-gray-400">Reference</dt>
+                                                <dd class="text-gray-900">
+                                                    <div>{{ $donation->donation_reference }}</div>
+                                                    @if($donation->reference)
+                                                        <div class="text-xs text-gray-500"><i class="fas fa-hashtag mr-1"></i>{{ $donation->reference }}</div>
+                                                    @endif
+                                                </dd>
+                                            </div>
+                                        </dl>
+                                        <div class="mt-3">
+                                            <x-recent-log-actions
+                                                :status="$donation->approval_status"
+                                                :rejection-reason="$donation->rejection_reason"
+                                                :review-url="route('donations.review', $donation->id)"
+                                                :withdraw-url="route('donations.withdraw', $donation->id)" />
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+
+                            <!-- Desktop Table -->
+                            <div class="hidden md:block bg-white border border-gray-200 rounded-lg shadow-sm overflow-x-auto">
+                                <table class="min-w-full divide-y divide-gray-200">
+                                    <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Donor</th>
+                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">DB-Number</th>
+                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Organisation</th>
+                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount / Item</th>
+                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reference</th>
+                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody class="bg-white divide-y divide-gray-200">
+                                    @foreach($myRecentOrgDonations as $donation)
+                                        <tr class="hover:bg-gray-50">
+                                            <td class="px-3 py-2 text-sm text-gray-900">
+                                                {{ $donation->user->full_name ?? 'No Name' }}
+                                            </td>
+                                            <td class="px-3 py-2 text-sm">
+                                                {!! $donation->user->getUserIdReferenceLinkAttribute() !!}
+                                            </td>
+                                            <td class="px-3 py-2 text-sm text-gray-900">
+                                                {{ $donation->organisation->name ?? 'N/A' }}
+                                            </td>
+                                            <td class="px-3 py-2 text-sm text-gray-900">
+                                                {{ \Carbon\Carbon::parse($donation->date_donation)->format('M d, Y') }}
+                                            </td>
+                                            <td class="px-3 py-2 text-sm @if($donation->in_kind_donation) text-blue-600 @else text-gray-900 @endif">
+                                                {{ $donation->formatted_donation }}
+                                            </td>
+                                            <td class="px-3 py-2 text-sm text-gray-900">
+                                                <div>{{ $donation->donation_reference }}</div>
+                                                @if($donation->reference)
+                                                    <div class="text-xs text-gray-500"><i class="fas fa-hashtag mr-1"></i>{{ $donation->reference }}</div>
+                                                @endif
+                                            </td>
+                                            <td class="px-3 py-2 text-sm">
+                                                <x-approval-status-badge :status="$donation->approval_status" />
+                                                @if($donation->approval_status === 'rejected' && $donation->rejection_reason)
+                                                    <div class="text-xs text-red-600 mt-1"><i class="fas fa-comment-dots mr-1"></i>{{ $donation->rejection_reason }}</div>
+                                                @endif
+                                            </td>
+                                            <td class="px-3 py-2 text-sm text-gray-900">
+                                                <div class="flex items-center gap-3">
+                                                    <a href="{{ route('donations.review', $donation->id) }}"
+                                                       class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-xs font-medium transition-colors">
+                                                        View
+                                                    </a>
+                                                    @if($donation->approval_status === 'pending')
+                                                        <x-withdraw-button :url="route('donations.withdraw', $donation->id)" />
+                                                    @endif
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- Pagination -->
+                            @if($myRecentOrgDonations->hasPages())
+                                <div class="mt-4">
+                                    {{ $myRecentOrgDonations->links() }}
+                                </div>
+                            @endif
+                        @else
+                            <div class="bg-gray-50 border border-gray-200 rounded-lg p-6 text-center">
+                                <div class="text-gray-400 mb-2">
+                                    <svg class="mx-auto h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                </div>
+                                <p class="text-gray-600 text-sm">No organisation donations registered by you yet.</p>
+                            </div>
+                        @endif
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>

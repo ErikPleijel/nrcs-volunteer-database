@@ -371,7 +371,7 @@ class DonationController extends Controller
         }
 
         if ($request->filled('organisation_id')) {
-            return redirect()->route('organisations.show', $request->organisation_id)
+            return redirect()->route('organisations.donations.create', $request->organisation_id)
                 ->with('success', 'Donation recorded successfully.');
         }
 
