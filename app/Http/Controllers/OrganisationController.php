@@ -21,9 +21,26 @@ class OrganisationController extends Controller
         $membership = $request->input('membership', 'all');
         $sortBy     = $request->input('sort_by', 'name_asc');
 
+        // --------------------------------------------------
+        // View mode
+        // --------------------------------------------------
+        $viewMode = $request->input('view_mode', 'standard');
+
+        $with = ['branch', 'activeMembership.membershipFee', 'latestMembership'];
+        if ($viewMode === 'donations') {
+            $with[] = 'donations';
+        } elseif ($viewMode === 'certificates') {
+            $with[] = 'certificatePrints';
+        }
+
+        $validViewModes = ['standard', 'donations', 'campaigns', 'certificates'];
+        if (! in_array($viewMode, $validViewModes)) {
+            $viewMode = 'standard';
+        }
+
         $query = $status === 'archived'
             ? Organisation::onlyTrashed()->with('branch')->withCount('users')
-            : Organisation::with(['branch', 'activeMembership.membershipFee', 'latestMembership'])->withCount(['users', 'donations']);
+            : Organisation::with($with)->withCount(['users', 'donations']);
 
         if ($request->filled('search')) {
             $search = $request->search;
@@ -99,11 +116,22 @@ class OrganisationController extends Controller
 
         $organisations = $query->paginate(20)->withQueryString();
 
+        if ($viewMode === 'campaigns') {
+            $organisations->each(function ($organisation) {
+                $organisation->setRelation('campaignRecipients',
+                    $organisation->campaignRecipients()
+                        ->with('campaign')
+                        ->latest()
+                        ->limit(8)
+                        ->get());
+            });
+        }
+
         $hasFilters = $request->anyFilled(['search', 'branch_id'])
             || ($status === 'active' && $membership !== 'all')
             || $sortBy !== 'name_asc';
 
-        return view('organisations.index', compact('organisations', 'branches', 'accessLevel', 'status', 'membership', 'sortBy', 'hasFilters'));
+        return view('organisations.index', compact('organisations', 'branches', 'accessLevel', 'status', 'membership', 'sortBy', 'hasFilters', 'viewMode'));
     }
 
     public function create()

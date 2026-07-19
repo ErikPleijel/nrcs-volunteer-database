@@ -1416,7 +1416,7 @@
             @endif
         </div>
 
-        {{-- 7-day activity cards --}}
+        {{-- Rolling-window activity cards --}}
         <div class="mt-8 flex flex-wrap justify-center gap-4">
             <div class="bg-white rounded-lg shadow p-4 text-center w-44">
                 <p class="text-3xl font-bold text-indigo-600">{{ number_format($dashboardData['messagesSentLast7']) }}</p>
@@ -1432,6 +1432,11 @@
                 <p class="text-3xl font-bold text-purple-600">{{ number_format($dashboardData['certificatesPrintedLast7']) }}</p>
                 <p class="mt-1 text-sm text-gray-600">Certificates printed</p>
                 <p class="text-xs text-gray-400 mt-0.5">last 7 days</p>
+            </div>
+            <div class="bg-white rounded-lg shadow p-4 text-center w-44">
+                <p class="text-3xl font-bold text-teal-600">{{ number_format($dashboardData['loggedInLast24h']) }}</p>
+                <p class="mt-1 text-sm text-gray-600">Logged in</p>
+                <p class="text-xs text-gray-400 mt-0.5">last 24h</p>
             </div>
         </div>
 

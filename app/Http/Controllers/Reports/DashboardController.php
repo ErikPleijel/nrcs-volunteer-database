@@ -235,6 +235,11 @@ class DashboardController extends Controller
             ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
             ->count();
 
+        // Rolling 24h window, computed live at request time — no snapshot/cron involved.
+        $loggedInLast24h = User::where('last_login_at', '>=', now()->subHours(24))
+            ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
+            ->count();
+
         $unassignedGhostCount = User::unassignedGhost()
             ->whereIn('lifecycle_status', User::OPERATIONAL_STATUSES)
             ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
@@ -319,6 +324,7 @@ class DashboardController extends Controller
             'activeMembers'                            => $activeMembers,
             'lifecycleDormant'                         => $lifecycleDormant,
             'lifecycleArchived'                        => $lifecycleArchived,
+            'loggedInLast24h'                          => $loggedInLast24h,
             'unassignedGhostCount'                     => $unassignedGhostCount,
             'hangingRegistrationCount'                 => $hangingRegistrationCount,
             'hangingRegistrationConfigured'             => (bool) $dbMigrationDate,

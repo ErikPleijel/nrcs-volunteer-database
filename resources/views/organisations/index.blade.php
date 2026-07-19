@@ -228,6 +228,8 @@
                         </div>
                     </div>
 
+                    <input type="hidden" name="view_mode" value="{{ $viewMode }}">
+
                     <div class="filter-actions">
                         <div class="filter-button-group">
                             <button type="submit" class="filter-btn-primary">
@@ -271,6 +273,29 @@
             Found {{ $organisations->total() }} {{ $status === 'archived' ? 'archived' : '' }} organisation{{ $organisations->total() === 1 ? '' : 's' }}
         </div>
 
+        {{-- View Mode Tabs --}}
+        @php
+            $toggleBase = array_merge(request()->query(), []);
+            $tabs = [
+                'standard'     => ['label' => 'Standard View', 'icon' => 'fa-table-list'],
+                'donations'    => ['label' => 'Donations',      'icon' => 'fa-hand-holding-heart'],
+                'campaigns'    => ['label' => 'Campaigns',       'icon' => 'fa-envelope'],
+                'certificates' => ['label' => 'Certificates',    'icon' => 'fa-certificate'],
+            ];
+        @endphp
+        <div class="flex gap-0 px-6 border-b border-gray-200 mt-2">
+            @foreach($tabs as $mode => $tab)
+                <a href="{{ route('organisations.index', array_merge($toggleBase, ['view_mode' => $mode])) }}"
+                   class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium border border-b-0 transition-colors whitespace-nowrap
+                       {{ $viewMode === $mode
+                           ? 'bg-white border-gray-200 text-indigo-700 font-semibold rounded-t-md -mb-px'
+                           : 'bg-gray-50 border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-t-md' }}">
+                    <i class="fas {{ $tab['icon'] }} text-xs"></i>
+                    {{ $tab['label'] }}
+                </a>
+            @endforeach
+        </div>
+
         <!-- Table -->
         <div class="table-container">
             @if($organisations->count() > 0)
@@ -281,11 +306,19 @@
                             <tr class="table-header-row">
                                 <th class="table-header-cell">Name</th>
                                 <th class="table-header-cell">Branch</th>
-                                <th class="table-header-cell">Contact</th>
-                                <th class="table-header-cell">Reg. Number</th>
-                                <th class="table-header-cell">Persons</th>
-                                @if($status === 'active')
-                                    <th class="table-header-cell">Contributions</th>
+                                @if($viewMode === 'donations')
+                                    <th colspan="3" class="table-header-cell">Donations</th>
+                                @elseif($viewMode === 'campaigns')
+                                    <th colspan="3" class="table-header-cell">Campaigns</th>
+                                @elseif($viewMode === 'certificates')
+                                    <th colspan="3" class="table-header-cell">Certificates</th>
+                                @else
+                                    <th class="table-header-cell">Contact</th>
+                                    <th class="table-header-cell">Reg. Number</th>
+                                    <th class="table-header-cell">Persons</th>
+                                    @if($status === 'active')
+                                        <th class="table-header-cell">Contributions</th>
+                                    @endif
                                 @endif
                                 @if($status === 'archived')
                                     <th class="table-header-cell">Archived On</th>
@@ -309,64 +342,116 @@
                                         <div class="table-field-main">{{ $organisation->branch->name ?? '—' }}</div>
                                     </td>
 
-                                    <td class="table-body-cell">
-                                        @if($organisation->email)
-                                            <div class="table-field-main">{{ $organisation->email }}</div>
-                                        @endif
-                                        @if($organisation->phone)
-                                            <div class="table-field-sub">{{ $organisation->phone }}</div>
-                                        @endif
-                                        @if(!$organisation->email && !$organisation->phone)
-                                            <span class="table-field-sub italic">—</span>
-                                        @endif
-                                    </td>
-
-                                    <td class="table-body-cell">
-                                        <div class="table-field-main">{{ $organisation->registration_number ?? '—' }}</div>
-                                    </td>
-
-                                    <td class="table-body-cell">
-                                        @if($organisation->users_count > 0)
-                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
-                                                {{ $organisation->users_count }}
-                                            </span>
-                                        @else
-                                            <span class="text-xs font-medium text-orange-600">⚠️ No persons</span>
-                                        @endif
-                                    </td>
-
-                                    @if($status === 'active')
-                                        <td class="table-body-cell">
-                                            <div class="flex flex-col gap-1">
-                                                @if($organisation->activeMembership)
-                                                    <span class="badge-style bg-green-100 text-green-800 whitespace-nowrap">
-                                                        <i class="fas fa-id-card mr-2"></i>
-                                                        <span class="flex flex-col leading-tight text-left">
-                                                            <span class="font-semibold">Member</span>
-                                                            @if($organisation->activeMembership->membershipFee)
-                                                                <span class="text-[10px] opacity-80">{{ $organisation->activeMembership->membershipFee->name }}</span>
-                                                            @endif
-                                                        </span>
-                                                    </span>
-                                                @elseif($organisation->latestMembership)
-                                                    <span class="badge-style bg-red-100 text-red-800 whitespace-nowrap">
-                                                        <i class="fas fa-id-card mr-2"></i>
-                                                        <span class="flex flex-col leading-tight text-left">
-                                                            <span class="font-semibold">Membership</span>
-                                                            <span class="text-[10px] opacity-80">Expired</span>
-                                                        </span>
-                                                    </span>
-                                                @else
-                                                    <span class="text-gray-400 text-xs">—</span>
-                                                @endif
-                                                @if($organisation->donations_count > 0)
-                                                    <span class="badge-style bg-green-100 text-green-800 whitespace-nowrap">
-                                                        <i class="fas fa-hand-holding-heart mr-2"></i>
-                                                        <span class="font-semibold">{{ $organisation->donations_count }} {{ $organisation->donations_count === 1 ? 'Donation' : 'Donations' }}</span>
+                                    @if($viewMode === 'donations')
+                                        <td colspan="3" class="table-body-cell align-top text-sm">
+                                            @if($organisation->donations->isEmpty())
+                                                <span class="text-gray-400 italic text-xs">No donations recorded.</span>
+                                            @else
+                                                @foreach($organisation->donations->take(8) as $donation)
+                                                    <div class="leading-snug py-0.5">
+                                                        {{ $donation->formatted_donation }} — <x-time-ago :date="$donation->date_donation" placeholder="—" />
+                                                    </div>
+                                                @endforeach
+                                                @if($organisation->donations->count() > 8)
+                                                    <span class="text-gray-400 text-xs italic">
+                                                        …and {{ $organisation->donations->count() - 8 }} more. View organisation for full list.
                                                     </span>
                                                 @endif
-                                            </div>
+                                            @endif
                                         </td>
+                                    @elseif($viewMode === 'campaigns')
+                                        <td colspan="3" class="table-body-cell align-top text-sm">
+                                            @if($organisation->campaignRecipients->isEmpty())
+                                                <span class="text-gray-400 italic text-xs">No campaigns sent.</span>
+                                            @else
+                                                @foreach($organisation->campaignRecipients as $recipient)
+                                                    <div class="leading-snug py-0.5">
+                                                        {{ $recipient->campaign?->title ?? '—' }}
+                                                        —
+                                                        <x-time-ago :date="$recipient->sent_at ?? $recipient->campaign?->send_completed_at ?? $recipient->campaign?->created_at" placeholder="—" />
+                                                    </div>
+                                                @endforeach
+                                            @endif
+                                        </td>
+                                    @elseif($viewMode === 'certificates')
+                                        @php
+                                            $orgCertTypeLabels = [
+                                                'organisation_membership' => 'Organisation – Membership',
+                                                'organisation_donation'   => 'Organisation – Donation',
+                                            ];
+                                        @endphp
+                                        <td colspan="3" class="table-body-cell align-top text-sm">
+                                            @if($organisation->certificatePrints->isEmpty())
+                                                <span class="text-gray-400 italic text-xs">No certificates printed.</span>
+                                            @else
+                                                @foreach($organisation->certificatePrints as $cert)
+                                                    <div class="leading-snug py-0.5">
+                                                        <span class="font-medium">{{ $orgCertTypeLabels[$cert->certificate_type] ?? ucwords(str_replace('_', ' ', $cert->certificate_type)) }}</span>
+                                                        <span class="text-gray-400 text-xs ml-1"><x-time-ago :date="$cert->printed_at" placeholder="" /></span>
+                                                    </div>
+                                                @endforeach
+                                            @endif
+                                        </td>
+                                    @else
+                                        <td class="table-body-cell">
+                                            @if($organisation->email)
+                                                <div class="table-field-main">{{ $organisation->email }}</div>
+                                            @endif
+                                            @if($organisation->phone)
+                                                <div class="table-field-sub">{{ $organisation->phone }}</div>
+                                            @endif
+                                            @if(!$organisation->email && !$organisation->phone)
+                                                <span class="table-field-sub italic">—</span>
+                                            @endif
+                                        </td>
+
+                                        <td class="table-body-cell">
+                                            <div class="table-field-main">{{ $organisation->registration_number ?? '—' }}</div>
+                                        </td>
+
+                                        <td class="table-body-cell">
+                                            @if($organisation->users_count > 0)
+                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                                                    {{ $organisation->users_count }}
+                                                </span>
+                                            @else
+                                                <span class="text-xs font-medium text-orange-600">⚠️ No persons</span>
+                                            @endif
+                                        </td>
+
+                                        @if($status === 'active')
+                                            <td class="table-body-cell">
+                                                <div class="flex flex-col gap-1">
+                                                    @if($organisation->activeMembership)
+                                                        <span class="badge-style bg-green-100 text-green-800 whitespace-nowrap">
+                                                            <i class="fas fa-id-card mr-2"></i>
+                                                            <span class="flex flex-col leading-tight text-left">
+                                                                <span class="font-semibold">Member</span>
+                                                                @if($organisation->activeMembership->membershipFee)
+                                                                    <span class="text-[10px] opacity-80">{{ $organisation->activeMembership->membershipFee->name }}</span>
+                                                                @endif
+                                                            </span>
+                                                        </span>
+                                                    @elseif($organisation->latestMembership)
+                                                        <span class="badge-style bg-red-100 text-red-800 whitespace-nowrap">
+                                                            <i class="fas fa-id-card mr-2"></i>
+                                                            <span class="flex flex-col leading-tight text-left">
+                                                                <span class="font-semibold">Membership</span>
+                                                                <span class="text-[10px] opacity-80">Expired</span>
+                                                            </span>
+                                                        </span>
+                                                    @else
+                                                        <span class="text-gray-400 text-xs">—</span>
+                                                    @endif
+                                                    @if($organisation->donations_count > 0)
+                                                        <span class="badge-style bg-green-100 text-green-800 whitespace-nowrap">
+                                                            <i class="fas fa-hand-holding-heart mr-2"></i>
+                                                            <span class="font-semibold">{{ $organisation->donations_count }} {{ $organisation->donations_count === 1 ? 'Donation' : 'Donations' }}</span>
+                                                        </span>
+                                                    @endif
+                                                </div>
+                                            </td>
+                                        @endif
                                     @endif
 
                                     @if($status === 'archived')

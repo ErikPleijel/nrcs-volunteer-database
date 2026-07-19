@@ -16,7 +16,7 @@ class RegistrationStatsService
      * During dev, you can set this to 1 (or even 0 to disable caching).
      * In production, 3600 (1 hour) is a reasonable default.
      */
-    private int $cacheTtl = 1;
+    private int $cacheTtl = 3600;
 
     /**
      * Cache key prefix so we keep things grouped.
