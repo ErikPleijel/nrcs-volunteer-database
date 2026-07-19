@@ -41,7 +41,9 @@ class TaskForceStatsService
      */
     public function getTotalTaskForces()
     {
-        return TaskForce::count();
+        return Cache::remember($this->cachePrefix . 'total_task_forces', $this->cacheTtl, function () {
+            return TaskForce::count();
+        });
     }
 
     /**

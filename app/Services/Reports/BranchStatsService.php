@@ -2,15 +2,13 @@
 
 namespace App\Services\Reports;
 
-use App\Models\Activity;
 use App\Models\Branch;
 use App\Models\Membership;
 use App\Models\MembershipPayment;
 use App\Models\RedCrossUnit;
-use App\Models\TaskForce;
 use App\Models\User;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 
 class BranchStatsService
 {
@@ -27,17 +25,68 @@ class BranchStatsService
     public function getAllBranchesStats(): array
     {
         return Cache::remember('all_branches_stats_direct', 1800, function () {
-            $branchStats = [];
-
             $branches = Branch::active()->withCoordinates()->get();
+            $branchIds = $branches->pluck('id');
 
+            // Looser "volunteer" definition than User::scopeVolunteers() —
+            // no is_active check on the RC unit, no lifecycle_status filter —
+            // preserved as-is from the original per-branch primary query.
+            $volunteerCounts = DB::table('users')
+                ->join('red_cross_units', 'users.red_cross_unit_id', '=', 'red_cross_units.id')
+                ->join('divisions', 'red_cross_units.division_id', '=', 'divisions.id')
+                ->whereIn('divisions.branch_id', $branchIds)
+                ->groupBy('divisions.branch_id')
+                ->selectRaw('divisions.branch_id, COUNT(*) as cnt')
+                ->pluck('cnt', 'branch_id');
+
+            $rcuCounts = DB::table('red_cross_units')
+                ->join('divisions', 'red_cross_units.division_id', '=', 'divisions.id')
+                ->whereIn('divisions.branch_id', $branchIds)
+                ->groupBy('divisions.branch_id')
+                ->selectRaw('divisions.branch_id, COUNT(*) as cnt')
+                ->pluck('cnt', 'branch_id');
+
+            $taskForceCounts = DB::table('task_forces')
+                ->whereIn('branch_id', $branchIds)
+                ->where('inactive', false)
+                ->groupBy('branch_id')
+                ->selectRaw('branch_id, COUNT(*) as cnt')
+                ->pluck('cnt', 'branch_id');
+
+            // Activity carries the Approvable trait's ApprovedScope global scope
+            // (approval_status = 'approved'), applied automatically whenever queried
+            // through Eloquent. Raw DB::table() bypasses that, so it's added explicitly
+            // here to match what Activity::where(...) actually produces.
+            $activityHours = DB::table('activities')
+                ->whereIn('branch_id', $branchIds)
+                ->where('is_deleted', false)
+                ->where('approval_status', 'approved')
+                ->groupBy('branch_id')
+                ->selectRaw('branch_id, SUM(hours) as total_hours')
+                ->pluck('total_hours', 'branch_id');
+
+            // Matches MembershipPayment::scopeValid() (expiry_date >= today, is_deleted
+            // = false) PLUS the Approvable trait's ApprovedScope global scope
+            // (approval_status = 'approved') that MembershipPayment::valid() gets for
+            // free through Eloquent — added explicitly here since DB::table() bypasses
+            // Eloquent's global scopes entirely.
+            $memberCounts = DB::table('membership_payments')
+                ->whereIn('branch_id', $branchIds)
+                ->where('expiry_date', '>=', now()->toDateString())
+                ->where('is_deleted', false)
+                ->where('approval_status', 'approved')
+                ->groupBy('branch_id')
+                ->selectRaw('branch_id, COUNT(DISTINCT user_id) as cnt')
+                ->pluck('cnt', 'branch_id');
+
+            $branchStats = [];
             foreach ($branches as $branch) {
                 $branchStats[$branch->id] = [
-                    'volunteers' => $this->getVolunteersForBranch($branch->id),
-                    'red_cross_units' => $this->getRedCrossUnitsForBranch($branch->id),
-                    'task_forces' => $this->getTaskForcesForBranch($branch->id),
-                    'activity_hours' => $this->getActivityHoursForBranch($branch->id),
-                    'members' => $this->getMembersForBranch($branch->id),
+                    'volunteers' => (int) ($volunteerCounts[$branch->id] ?? 0),
+                    'red_cross_units' => (int) ($rcuCounts[$branch->id] ?? 0),
+                    'task_forces' => (int) ($taskForceCounts[$branch->id] ?? 0),
+                    'activity_hours' => (int) ($activityHours[$branch->id] ?? 0),
+                    'members' => (int) ($memberCounts[$branch->id] ?? 0),
                 ];
             }
 
@@ -60,126 +109,6 @@ class BranchStatsService
             'members' => 0,
         ];
     }
-
-    /**
-     * Get volunteers count for a specific branch
-     */
-    private function getVolunteersForBranch(int $branchId): int
-    {
-        try {
-            // Try to get volunteers through red cross units relationship
-            $count = User::whereHas('redCrossUnit.division.branch', function ($query) use ($branchId) {
-                $query->where('branches.id', $branchId);
-            })->count();
-
-            // If no volunteers found through red cross units, try direct branch assignment
-            if ($count == 0) {
-                $count = User::where('branch_id', $branchId)->count();
-            }
-
-            return $count;
-        } catch (\Exception $e) {
-            Log::warning("Error getting volunteers for branch {$branchId}: " . $e->getMessage());
-            return 0;
-        }
-    }
-
-    /**
-     * Get Red Cross units count for a specific branch
-     */
-    private function getRedCrossUnitsForBranch(int $branchId): int
-    {
-        try {
-            $count = RedCrossUnit::whereHas('division.branch', function ($query) use ($branchId) {
-                $query->where('branches.id', $branchId);
-            })->count();
-
-            // If no units found through division relationship, try direct branch assignment
-            if ($count == 0) {
-                $count = RedCrossUnit::where('branch_id', $branchId)->count();
-            }
-
-            return $count;
-        } catch (\Exception $e) {
-            Log::warning("Error getting red cross units for branch {$branchId}: " . $e->getMessage());
-            return 0;
-        }
-    }
-
-    /**
-     * Get task forces count for a specific branch
-     */
-    private function getTaskForcesForBranch(int $branchId): int
-    {
-        try {
-            $count = TaskForce::where('branch_id', $branchId)
-                ->where('inactive', false)
-                ->count();
-
-            return $count;
-        } catch (\Exception $e) {
-            Log::warning("Error getting task forces for branch {$branchId}: " . $e->getMessage());
-            return 0;
-        }
-    }
-
-    /**
-     * Get total activity hours for a specific branch
-     */
-    private function getActivityHoursForBranch(int $branchId): int
-    {
-        try {
-            $hours = Activity::where('branch_id', $branchId)
-                ->where('is_deleted', false)
-                ->sum('hours') ?? 0;
-
-            return (int) $hours;
-        } catch (\Exception $e) {
-            Log::warning("Error getting activity hours for branch {$branchId}: " . $e->getMessage());
-            return 0;
-        }
-    }
-
-    /**
-     * Get members count for a specific branch - using the same logic as MembershipStatsService
-     */
-    private function getMembersForBranch(int $branchId): int
-    {
-        try {
-            // Use the same valid() scope that MembershipStatsService uses
-            $count = MembershipPayment::valid()
-                ->where('branch_id', $branchId)
-                ->distinct('user_id')
-                ->count('user_id');
-
-            // If no branch_id on membership_payments, try through division_id
-            if ($count == 0) {
-                $count = MembershipPayment::valid()
-                    ->whereHas('division.branch', function ($query) use ($branchId) {
-                        $query->where('branches.id', $branchId);
-                    })
-                    ->distinct('user_id')
-                    ->count('user_id');
-            }
-
-            // If still 0, try through user's branch_id
-            if ($count == 0) {
-                $count = MembershipPayment::valid()
-                    ->whereHas('user', function ($query) use ($branchId) {
-                        $query->where('branch_id', $branchId);
-                    })
-                    ->distinct('user_id')
-                    ->count('user_id');
-            }
-
-            return $count;
-        } catch (\Exception $e) {
-            Log::warning("Error getting members for branch {$branchId}: " . $e->getMessage());
-            return 0;
-        }
-    }
-
-
 
     /**
      * Get detailed volunteers count by method
