@@ -1654,13 +1654,6 @@
                 </div>
             </div>
         </div>
-
-        <div class="mt-4 flex justify-center">
-            <a href="{{ route('reports.policies') }}"
-               class="inline-flex items-center gap-2 px-5 py-2.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition">
-                <i class="fas fa-scale-balanced text-indigo-600"></i> Policies &amp; Rules
-            </a>
-        </div>
     </section>
 
     @if(auth()->user()->primary_role_name)

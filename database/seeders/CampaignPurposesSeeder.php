@@ -82,7 +82,7 @@ class CampaignPurposesSeeder extends Seeder
 <p>We look forward to seeing you there.</p>
 <p>Warm regards,<br>Nigerian Red Cross Society</p>
 ',
-                'default_sms_body' => 'Dear {{user.first_name}}, you\'re invited to an upcoming Red Cross training at {{user.branch}} Branch. Contact your branch coordinator to register.',
+                'default_sms_body' => 'Dear {{user.first_name}}, you\'re invited to an upcoming Red Cross training at {{user.branch}} Branch.  Contact [telephone number] to register',
             ],
             [
                 'name' => 'First Aid Refresher',
