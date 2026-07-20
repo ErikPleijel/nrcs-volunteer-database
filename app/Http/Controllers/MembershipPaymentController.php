@@ -490,7 +490,28 @@ class MembershipPaymentController extends Controller
         $request->validate([
             'user_id' => 'required|exists:users,id',
             'organisation_id' => $isOrgPayment ? 'required|exists:organisations,id' : 'nullable|exists:organisations,id',
-            'membership_fee_id' => 'required|exists:membership_fees,id',
+            'membership_fee_id' => [
+                'required',
+                'exists:membership_fees,id',
+                function ($attribute, $value, $fail) use ($request) {
+                    $fee = MembershipFee::find($value);
+                    $targetUser = User::find($request->user_id);
+
+                    if (! $fee || ! $targetUser) {
+                        return; // let the other rules handle missing records
+                    }
+
+                    $hasActiveRcu = $targetUser->red_cross_unit_id !== null
+                        && $targetUser->redCrossUnit?->is_active === true;
+
+                    if ($fee->is_volunteer_fee && ! $hasActiveRcu) {
+                        $fail('This fee type requires the member to be assigned to an active Red Cross Unit.');
+                    }
+                    if (! $fee->is_volunteer_fee && $hasActiveRcu) {
+                        $fail('This fee type is not applicable to members assigned to a Red Cross Unit.');
+                    }
+                },
+            ],
             'payment_date' => 'required|date',
             'reference' => 'nullable|string|max:255',
             'branch_id' => 'nullable|exists:branches,id',
@@ -616,7 +637,28 @@ class MembershipPaymentController extends Controller
 
         $validated = $request->validate([
             'user_id' => 'required|exists:users,id',
-            'membership_fee_id' => 'required|exists:membership_fees,id',
+            'membership_fee_id' => [
+                'required',
+                'exists:membership_fees,id',
+                function ($attribute, $value, $fail) use ($request) {
+                    $fee = MembershipFee::find($value);
+                    $targetUser = User::find($request->user_id);
+
+                    if (! $fee || ! $targetUser) {
+                        return; // let the other rules handle missing records
+                    }
+
+                    $hasActiveRcu = $targetUser->red_cross_unit_id !== null
+                        && $targetUser->redCrossUnit?->is_active === true;
+
+                    if ($fee->is_volunteer_fee && ! $hasActiveRcu) {
+                        $fail('This fee type requires the member to be assigned to an active Red Cross Unit.');
+                    }
+                    if (! $fee->is_volunteer_fee && $hasActiveRcu) {
+                        $fail('This fee type is not applicable to members assigned to a Red Cross Unit.');
+                    }
+                },
+            ],
             'payment_date' => 'required|date',
             'expiry_date' => 'required|date|after:payment_date',
             'reference' => 'nullable|string|max:255',

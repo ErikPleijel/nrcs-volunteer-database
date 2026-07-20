@@ -1,8 +1,9 @@
 Let's look at National Database Settings.
 <break time="0.6s" />
-Under Membership, you can set how many months of inactivity pass before a user becomes Dormant.
+Under Membership, you can set how many months of inactivity pass before a volunteer becomes Dormant.
 <break time="0.6s" />
-
+Members with a paid fee work differently — they become Dormant when their payment expires, not from this setting.
+<break time="0.6s" />
 Under Site, you can set the Site Motto, shown in the footer and on public pages.
 <break time="0.6s" />
 Under Social, you can set the Social Share Snippet — the H-T-M-L used for social sharing meta tags.

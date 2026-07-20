@@ -159,17 +159,18 @@ class CampaignPurposesSeeder extends Seeder
                 'slug' => 'onboarding',
                 'default_channel' => 'email_fallback_sms',
                 'default_call_window' => true,
-                'default_subject' => 'Welcome to the Nigerian Red Cross Society',
+                'default_subject' => 'Your Nigerian Red Cross Society Account',
                 'default_email_body' => '
 <p>Dear {{user.first_name}},</p>
-<p>Welcome to the Nigerian Red Cross Society! We\'re delighted to have you with us as part of the <strong>{{user.branch}}</strong> Branch.</p>
-<p>Your next step is ready and waiting for you. Visit our website and log in to your account to see exactly what to do next:</p>
+<p>You are registered with the Nigerian Red Cross Society as part of the <strong>{{user.branch}}</strong> Branch — whether you joined recently or some time ago, we are glad to have you with us.</p>
+<p>We are reaching out because we have upgraded our membership system, and we want to make sure you can access your account and stay informed about branch activities.</p>
+<p>Visit our website and log in to your account to see exactly what to do next:</p>
 <p>{{app.url}}</p>
 <p>We will never ask you to enter your password after clicking a link — if a page asks for your password, close it and open the app directly.</p>
-<p>If you have any questions, your branch coordinator is happy to help.</p>
+<p>If you have any questions, or if you believe you are receiving this message in error, your branch coordinator is happy to help.</p>
 <p>Warm regards,<br>Nigerian Red Cross Society</p>
 ',
-                'default_sms_body' => 'Welcome to the Nigerian Red Cross, {{user.first_name}}! Please call {{user.branch}} Branch at [Telephone number] to learn your next step.',
+                'default_sms_body' => 'This is the Nigerian Red Cross Society. Our records show you as a {{user.branch}} Branch member. We have upgraded our system — please call [Telephone number] with any questions.',
                 'sort_order' => 60,
             ],
             [

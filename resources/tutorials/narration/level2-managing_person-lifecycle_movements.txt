@@ -1,0 +1,15 @@
+Let's recap how lifecycle status actually changes.
+<break time="0.6s" />
+There are two ways a person leaves Pending Engagement.
+<break time="0.6s" />
+The first is assigning them to a Red Cross Unit — covered on the last slide.
+<break time="0.6s" />
+The second is a qualifying membership payment. When you enter a payment, the fee dropdown only shows the fee types that count for that person — just pick from what's shown.
+<break time="0.7s" />
+Once someone is Active or Dormant, their status can change again.
+<break time="0.6s" />
+If a person goes quiet for a long time, they move from Active to Dormant. This is checked automatically overnight, so it doesn't need any action from you.
+<break time="0.6s" />
+And moving back from Dormant to Active is simple — entering any new record for that person, like a training, an activity, a donation, or a payment, brings them back to Active.
+<break time="0.6s" />
+So to sum up: two ways in from Pending, an automatic overnight check moves someone to Dormant, and any new record brings them back to Active.

@@ -1004,8 +1004,10 @@ class UserController extends Controller
         }
         $user->save();
 
-        // 👉 Mark user active if unit changed
-        if ($unitChanged && $user->lifecycle_status !== 'archived') {
+        // 👉 Mark user active if assigned to a unit (not on unassignment — removing
+        // a unit should not force-promote lifecycle_status with no unit and no
+        // payment basis behind it)
+        if ($unitChanged && $newUnitId !== null && $user->lifecycle_status !== 'archived') {
             $user->markActive();
         }
 

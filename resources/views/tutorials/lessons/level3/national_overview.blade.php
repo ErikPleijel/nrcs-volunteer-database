@@ -270,10 +270,12 @@
                         A few of the general settings you can change here.
                     </p>
 
+
+
                     <div class="grid grid-cols-1 gap-4 text-left mb-4">
                         <div class="rounded-xl bg-gray-50 border border-gray-100 p-5" data-reveal>
                             <p class="font-semibold text-gray-800 mb-1"><i class="fas fa-user-clock text-indigo-400 mr-1"></i> Membership — Months of inactivity before dormant</p>
-                            <p class="text-sm text-gray-600">Controls how long a user must be inactive before becoming Dormant. </p>
+                            <p class="text-sm text-gray-600">Controls how long a volunteer can go without activity before becoming Dormant. Members with a paid fee are handled differently — they become Dormant when their payment expires, not from this setting.</p>
                         </div>
                         <div class="rounded-xl bg-gray-50 border border-gray-100 p-5" data-reveal>
                             <p class="font-semibold text-gray-800 mb-1"><i class="fas fa-quote-left text-indigo-400 mr-1"></i> Site Motto</p>

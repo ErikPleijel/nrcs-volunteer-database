@@ -8,6 +8,6 @@ If you can't find the right unit, you may need to change the Division first.
 <break time="0.6s" />
 Scroll down, and click Update Person.
 <break time="0.6s" />
-Once assigned, the person automatically moves out of Pending Engagement, and becomes Active.
+Once assigned, the person automatically moves out of Pending Engagement, and becomes Active. This is one of two ways a person leaves Pending Engagement — the other is a qualifying membership payment, covered later in this lesson.
 <break time="0.6s" />
 This is the defining step. Assigning someone to a Red Cross Unit is what makes them a volunteer in the system.

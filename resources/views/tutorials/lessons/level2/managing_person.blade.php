@@ -25,7 +25,7 @@
                     <div class="rounded-xl bg-green-50 border border-green-200 p-4 flex items-start gap-3" data-reveal>
                         <i class="fas fa-arrow-up-right-dots text-green-500 mt-1"></i>
                         <p class="text-sm text-green-900">
-                            Once assigned, the person automatically moves out of <strong>Pending Engagement</strong> and becomes <strong>Active</strong>.
+                            Once assigned, the person automatically moves out of <strong>Pending Engagement</strong> and becomes <strong>Active</strong>. This is one of two ways a person leaves Pending Engagement — the other is a qualifying membership payment, covered later in this lesson.
                         </p>
                     </div>
 
@@ -37,6 +37,40 @@
                     </div>
                 </div>
             </x-tutorial.split-slide>
+
+            {{-- Slide — How lifecycle status changes --}}
+            <x-tutorial.slide audio="tutorials/audio/level2-managing_person-lifecycle_movements.mp3" heading="How lifecycle status changes">
+                <div class="max-w-2xl mx-auto space-y-4">
+                    <p class="text-center text-gray-600" data-reveal>
+                        A quick recap of what actually moves a person between <strong>Pending</strong>, <strong>Active</strong>, and <strong>Dormant</strong>.
+                    </p>
+
+                    <div class="rounded-xl bg-green-50 border border-green-200 p-4 flex items-start gap-3" data-reveal>
+                        <i class="fas fa-route text-green-500 mt-1"></i>
+                        <div class="text-sm text-green-900">
+                            <strong>Out of Pending:</strong>
+                            <ul class="list-decimal list-inside mt-1 space-y-0.5">
+                                <li>Assigning them to a Red Cross Unit</li>
+                                <li>A qualifying membership payment</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="rounded-xl bg-amber-50 border border-amber-200 p-4 flex items-start gap-3" data-reveal>
+                        <i class="fas fa-moon text-amber-500 mt-1"></i>
+                        <p class="text-sm text-amber-900">
+                            <strong>Active → Dormant:</strong> no activity for a long time — checked automatically overnight.
+                        </p>
+                    </div>
+
+                    <div class="rounded-xl bg-indigo-50/60 border border-indigo-100 p-4 flex items-start gap-3" data-reveal>
+                        <i class="fas fa-rotate text-indigo-400 mt-1"></i>
+                        <p class="text-sm text-gray-700">
+                            <strong>Dormant → Active:</strong> entering any record for that person.
+                        </p>
+                    </div>
+                </div>
+            </x-tutorial.slide>
 
             {{-- Slide — Move a person to another branch or division --}}
             <x-tutorial.split-slide
@@ -166,6 +200,9 @@
                     <div class="flex flex-wrap justify-center gap-3 mb-8" data-reveal>
             <span class="inline-flex items-center gap-2 rounded-full bg-gray-50 border border-gray-100 px-4 py-2 text-sm text-gray-700">
                 <i class="fas fa-shield-alt text-green-500"></i> Assign to a unit
+            </span>
+                        <span class="inline-flex items-center gap-2 rounded-full bg-gray-50 border border-gray-100 px-4 py-2 text-sm text-gray-700">
+                <i class="fas fa-arrows-rotate text-green-500"></i> How status changes
             </span>
                         <span class="inline-flex items-center gap-2 rounded-full bg-gray-50 border border-gray-100 px-4 py-2 text-sm text-gray-700">
                 <i class="fas fa-sitemap text-green-500"></i> Move branch/division

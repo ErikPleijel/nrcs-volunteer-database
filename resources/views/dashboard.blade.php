@@ -933,6 +933,23 @@
                             {{-- Accordion --}}
                             <div x-data="{ open: null }" class="space-y-1 text-sm mb-4">
 
+                                {{-- How people leave Pending --}}
+                                <div class="rounded-md border border-gray-200 overflow-hidden">
+                                    <button type="button"
+                                            @click="open = open === 'howitworks' ? null : 'howitworks'"
+                                            class="w-full flex items-center justify-between px-3 py-2 bg-gray-50 hover:bg-gray-100 text-left font-semibold text-gray-700 text-sm">
+                                        <span><i class="fas fa-route mr-2 text-sky-400"></i>How people leave Pending</span>
+                                        <i class="fas fa-chevron-down text-xs text-gray-400 transition-transform"
+                                           :class="open === 'howitworks' ? 'rotate-180' : ''"></i>
+                                    </button>
+                                    <div x-show="open === 'howitworks'" x-collapse class="px-4 py-3 bg-white">
+                                        <ul class="space-y-1 text-gray-700 list-disc pl-4">
+                                            <li>Assigning them to a <span class="font-semibold">Red Cross Unit</span> — they become Active right away.</li>
+                                            <li>A qualifying <span class="font-semibold">membership payment</span> — once it's approved, they become Active.</li>
+                                        </ul>
+                                    </div>
+                                </div>
+
                                 {{-- One by one --}}
                                 <div class="rounded-md border border-gray-200 overflow-hidden">
                                     <button type="button"
@@ -1050,6 +1067,21 @@
 
                             {{-- Accordion sections --}}
                             <div x-data="{ open: null }" class="space-y-1 text-sm">
+
+                                {{-- How status changes --}}
+                                <div class="rounded-md border border-gray-200 overflow-hidden">
+                                    <button type="button"
+                                            @click="open = open === 'howitworks' ? null : 'howitworks'"
+                                            class="w-full flex items-center justify-between px-3 py-2 bg-gray-50 hover:bg-gray-100 text-left font-semibold text-gray-700 text-sm">
+                                        <span><i class="fas fa-route mr-2 text-green-500"></i>How status changes</span>
+                                        <i class="fas fa-chevron-down text-xs text-gray-400 transition-transform"
+                                           :class="open === 'howitworks' ? 'rotate-180' : ''"></i>
+                                    </button>
+                                    <div x-show="open === 'howitworks'" x-collapse class="px-4 py-3 bg-white space-y-2">
+                                        <p class="text-gray-700">Any new record — training, membership, volunteering, or a donation — keeps a person Active.</p>
+                                        <p class="text-gray-700"><i class="fas fa-moon text-amber-500 mr-1"></i>Go quiet too long, and the overnight check moves them to Dormant automatically.</p>
+                                    </div>
+                                </div>
 
                                 {{-- Newsletters --}}
                                 <div class="rounded-md border border-gray-200 overflow-hidden">
@@ -1250,6 +1282,23 @@
                             {{-- Accordion --}}
                             <div x-data="{ open: null }" class="space-y-1 text-sm mb-4">
 
+                                {{-- How to bring someone back --}}
+                                <div class="rounded-md border border-gray-200 overflow-hidden">
+                                    <button type="button"
+                                            @click="open = open === 'howitworks' ? null : 'howitworks'"
+                                            class="w-full flex items-center justify-between px-3 py-2 bg-gray-50 hover:bg-gray-100 text-left font-semibold text-gray-700 text-sm">
+                                        <span><i class="fas fa-route mr-2 text-amber-500"></i>How to bring someone back</span>
+                                        <i class="fas fa-chevron-down text-xs text-gray-400 transition-transform"
+                                           :class="open === 'howitworks' ? 'rotate-180' : ''"></i>
+                                    </button>
+                                    <div x-show="open === 'howitworks'" x-collapse class="px-4 py-3 bg-white">
+                                        <ul class="space-y-1 text-gray-700 list-disc pl-4">
+                                            <li>Entering and approving a new record — training, activity, donation, or payment — moves them back to Active.</li>
+                                            <li>For members, a renewed and approved payment does the same.</li>
+                                        </ul>
+                                    </div>
+                                </div>
+
 
 
                                 {{-- Membership renewal --}}
@@ -1314,6 +1363,36 @@
 
 
 
+            </div>
+        </div>
+    </section>
+
+    <section class="mt-8 flex flex-col items-center" x-data="{ lifecycleImageOpen: false }">
+        <img src="{{ asset('images/lifecycle_illustration.png') }}"
+             alt="Diagram of how a person moves between lifecycle statuses"
+             class="w-56 rounded-lg shadow-sm border border-gray-200 cursor-pointer hover:opacity-90 transition"
+             @click="lifecycleImageOpen = true">
+        <button type="button"
+                @click="lifecycleImageOpen = true"
+                class="mt-2 text-sm text-indigo-600 hover:text-indigo-800 font-medium">
+            <i class="fas fa-expand mr-1"></i> View larger
+        </button>
+
+        {{-- Popup / lightbox --}}
+        <div x-show="lifecycleImageOpen"
+             x-cloak
+             @keydown.escape.window="lifecycleImageOpen = false"
+             class="fixed inset-0 lg:left-[272px] z-50 flex items-center justify-center bg-black/60 p-4"
+             style="display: none;">
+            <div @click.outside="lifecycleImageOpen = false" class="relative max-w-3xl bg-white rounded-lg shadow-xl p-4">
+                <button type="button"
+                        @click="lifecycleImageOpen = false"
+                        class="absolute -top-3 -right-3 bg-white rounded-full shadow p-2 text-gray-600 hover:text-gray-900">
+                    <i class="fas fa-times"></i>
+                </button>
+                <img src="{{ asset('images/lifecycle_illustration.png') }}"
+                     alt="Diagram of how a person moves between lifecycle statuses"
+                     class="rounded max-h-[85vh] w-auto block">
             </div>
         </div>
     </section>

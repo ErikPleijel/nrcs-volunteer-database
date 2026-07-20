@@ -226,10 +226,13 @@ class MigrateOldDatabase extends Command
         Artisan::call('migrate:last-admin-activity');
         $this->line(Artisan::output());
 
-        $this->info('Marking dormant users from activity. This is slow!');
-        Artisan::call('users:mark-dormant-from-activity');
-        $this->line(Artisan::output());
-
+        // users:mark-dormant-from-activity used to run here. Removed 2026-07-20:
+        // it read the raw, not-yet-corrected last_activity_at, unconditionally
+        // included pending_engagement in its scope (an undocumented pending ->
+        // dormant transition, bypassing the RCU/membership-fee promotion gate),
+        // and ignored the 'member' policy branch entirely. Its job is now done
+        // correctly by fix:userdata's steps 5 & 6 below plus the two
+        // lifecycle:reconcile --apply calls. See Decisions.md.
         $this->info('Promoting active users via lifecycle:reconcile...');
         Artisan::call('lifecycle:reconcile', ['--apply' => true]);
         $this->line(Artisan::output());
@@ -238,7 +241,7 @@ class MigrateOldDatabase extends Command
         Artisan::call('fix:userdata');
         $this->line(Artisan::output());
 
-        // fix:userdata's raw-SQL activity patches (steps 2 & 4) are blind to
+        // fix:userdata's raw-SQL activity patch (step 4) is blind to
         // membership/unit/ghost status and can overwrite what the reconcile pass
         // above just got right. Run it again, last, so the shared, policy-aware
         // classification (lifecyclePolicyType()/isDormantByPolicy()) has the final word.

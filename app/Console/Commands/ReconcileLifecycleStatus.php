@@ -26,16 +26,27 @@ class ReconcileLifecycleStatus extends Command
 
         User::query()
             ->whereIn('lifecycle_status', ['active','dormant'])
-            ->whereDoesntHave('organisations')
+            ->withCount('organisations')
             ->orderBy('id')
             ->chunkById(500, function ($users) use (&$stats,&$samples,&$changes,&$scanned) {
                 foreach ($users as $u) {
+                    $type = $u->lifecyclePolicyType();
+
+                    // Genuine organisation-only contacts (no RCU, no personal
+                    // membership — type 'neither') are exempt from the sweep. A
+                    // user who ALSO has an RCU assignment or a personal membership
+                    // payment is a real volunteer/member and must not be skipped
+                    // just for carrying an organisation link too — see Decisions.md
+                    // "Organisation-linked persons" entry.
+                    if ($u->organisations_count > 0 && $type === 'neither') {
+                        continue;
+                    }
+
                     $scanned++;
                     $current = $u->lifecycle_status;
                     $target  = $u->isDormantByPolicy() ? 'dormant' : 'active';
                     if ($target === $current) continue;
 
-                    $type = $u->lifecyclePolicyType();
                     $key  = $current === 'active' ? 'active->dormant' : 'dormant->active';
                     $stats[$key][$type]++;
                     if (count($samples[$key]) < 15) {

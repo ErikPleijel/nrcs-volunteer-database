@@ -546,9 +546,12 @@ users rather than the single genuine orphan it is intended to remove.
 
 The safe run order is:
 1. `migrate:users` — imports users; restore pass recovers nulled division_ids
-2. `users:mark-dormant-from-activity` — demotes inactive users
-3. `lifecycle:reconcile --apply` — promotes recently active users to active
-4. `fix:userdata` — Fix 5 now safely deletes only genuinely unresolvable users
+2. `lifecycle:reconcile --apply` — reconciles active/dormant users (no-op at
+   this point in a clean run; nothing is active/dormant yet before fix:userdata's
+   step 6 promotes the first users out of pending_engagement — see the
+   2026-07-20 entry below)
+3. `fix:userdata` — Fix 5 (now Fix 7, see the 2026-07-20 entry below) safely
+   deletes only genuinely unresolvable users
 
 **During rehearsal migration:** 373 users had valid division_ids temporarily
 nulled by the reconciliation block due to stale state from prior dev runs.
@@ -564,6 +567,63 @@ re-run `migrate:users` — the restore pass will recover them before
 
 **Do not** move `fix:userdata` earlier in the sequence or run it standalone
 before `migrate:users` has completed its restore pass.
+
+---
+
+## 2026-07-20 — Removed users:mark-dormant-from-activity from migrateAllTables()
+
+**Decision:** `users:mark-dormant-from-activity` no longer runs as part of
+`migrateAllTables()` (it previously ran as step 2 in the run order above,
+before `lifecycle:reconcile --apply`). The command file itself is untouched
+and can still be run standalone if ever needed; it is simply no longer
+wired into the automated pipeline.
+
+**Rationale:** The command demoted users to `dormant` based solely on
+`last_activity_at` being null or older than `membership.dormant_after_months`,
+scoped to `lifecycle_status IN ('pending_engagement', 'active')`. Three
+problems, discovered together:
+
+1. It ran *before* `fix:userdata`'s recompute step (see below), so it read
+   the raw, not-yet-corrected `last_activity_at` seeded from legacy
+   `persons.LastActivity` during `migrate:users` — not the value derived
+   from actually-imported training/activity/donation/payment records.
+2. It included `pending_engagement` in its own scope, so it could demote a
+   still-pending user straight to `dormant` — a transition that doesn't
+   exist anywhere else in the lifecycle state machine (there is no
+   documented `pending → dormant` path) — bypassing the RCU-assignment /
+   non-volunteer-fee-payment gate that decides whether a user should leave
+   `pending_engagement` at all.
+3. It applied the `last_activity_at` threshold uniformly, with no branch
+   for the `member` policy type, whose dormancy (per
+   `User::isDormantByPolicy()`) is decided by current payment validity,
+   not activity recency — so it could wrongly demote a member with a
+   still-valid multi-year payment but an old `payment_date`.
+
+Because it ran before `fix:userdata`, and `fix:userdata`'s pending-promotion
+logic (step 6) only touches users still at `lifecycle_status =
+'pending_engagement'`, any user this command wrongly pushed to `dormant`
+using stale data was permanently unreachable by the corrected logic —
+`fix:userdata` step 5 only recomputes `last_activity_at` for users still
+pending, so a user demoted here never had it corrected, even by the
+second, "final word" `lifecycle:reconcile --apply` call.
+
+Simply reordering it to run after `fix:userdata` was considered and
+rejected: it would still touch `pending_engagement` (undoing step 6's
+gate for every non-qualifying user with old/no activity) and would still
+ignore the `member` branch. Its function is fully and more precisely
+covered by `fix:userdata` steps 5 (recompute `last_activity_at` from
+imported records) and 6 (RCU/fee-gated promotion, classified via the real
+`User::lifecyclePolicyType()`/`isDormantByPolicy()`), plus the two
+`lifecycle:reconcile --apply` calls that already reconcile every
+active/dormant user against the same canonical, type-aware policy.
+
+**Consequence:** the first `lifecycle:reconcile --apply` call (step 2 in
+the run order above) is now a guaranteed no-op in a clean migration run —
+nothing is `active`/`dormant` yet at that point, since `fix:userdata` step
+6 is the first thing in the pipeline that promotes anyone out of
+`pending_engagement`. Left in place as harmless (0 rows matched); not
+removed, since a later change to the run order could make it meaningful
+again.
 
 Show the appended entry. Do not change anything else.
 
@@ -600,6 +660,87 @@ manual bulk correction tool.
 **Do not add a promotion path to recalculateLifecycle().** It is intentionally
 demote-only. Adding promotion there would cause dormant users to be silently
 re-activated whenever any record is touched, including edits and removals.
+
+**2026-07-20 update:** the `pending → active` line above is incomplete —
+`Approvable::approve()` also silently promotes `pending_engagement` →
+`active` for `Activity`/`MembershipPayment` approvals, ungated at the trait
+level (see the "Closed two runtime gaps..." entry below for the details,
+the two backend guards added against invalid inputs to that path, and the
+accepted gap that remains).
+
+---
+
+## 2026-07-20 — Closed two runtime gaps feeding Approvable's ungated pending_engagement promotion
+
+**Context:** `Approvable::approve()` (`app/Models/Concerns/Approvable.php:230-232`)
+unconditionally promotes a `pending_engagement` user to `active` when an
+approved record's `promotesFromPendingEngagement()` returns true — the
+default for every module except `Training` and `Donation` (which correctly
+override it to `false`). So `Activity` and `MembershipPayment` approvals
+promote a `pending_engagement` user with **no check on RCU status or
+`is_volunteer_fee`** — the two conditions that are supposed to gate leaving
+`pending_engagement` in the first place (see the migration-time equivalent
+gate in `fix:userdata`, documented in the entry above).
+
+An audit of every live-runtime write path to `lifecycle_status` (excluding
+`OldDbMigration` commands) confirmed this is still exactly the current
+code — no drift since the trait was written. Rewriting `Approvable` itself
+(e.g. adding an RCU/fee-type check inside `approve()`, or inside
+`promotesFromPendingEngagement()`) was judged too broad a change for the
+risk today — it's shared by all four approvable modules and touches every
+approval in the system. Instead, the audit found and closed the two
+concrete paths that could hand `Approvable` invalid data to promote on:
+
+1. `MembershipPaymentController` had no backend check that a payment's fee
+   type (`is_volunteer_fee`) matched the target user's RCU status — only
+   client-side dropdown filtering in `membership-payments/create.blade.php`
+   (DOM `hidden`/`disabled` on `<option>` elements), trivially bypassed via
+   devtools, a direct POST, or any future API/import path.
+2. `UserController`'s RCU-assignment save path called `User::markActive()`
+   (force-promoting to `active`) on **any** `red_cross_unit_id` change,
+   including unassignment (setting it to `null`) — so removing a user's
+   unit still left them incorrectly `active`, with no unit and no
+   membership payment basis behind it.
+
+**What changed:**
+- `MembershipPaymentController::store()` and `::update()`
+  (`app/Http/Controllers/MembershipPaymentController.php`): added a
+  closure-based `Validator` rule on `membership_fee_id` (same pattern as
+  the existing `red_cross_unit_id` closure rule in
+  `UserController.php:803-824`) checking `$fee->is_volunteer_fee` against
+  the target user's `red_cross_unit_id` + `redCrossUnit->is_active`,
+  rejecting mismatches with a validation error, in both the create and
+  edit flows. Applies uniformly to personal and organisational payments —
+  no exemption was carved out for organisational payments; that's a
+  deliberate choice, not an oversight, since organisational payments are
+  handled manually going forward.
+- `UserController`'s unit-change handler (`UserController.php:1008-1009`):
+  changed `if ($unitChanged && $user->lifecycle_status !== 'archived')` to
+  also require `$newUnitId !== null` before calling `markActive()` — so
+  unassignment no longer force-promotes. Deliberately does **not** add any
+  demotion/recompute on unassignment — the user's `lifecycle_status` is
+  simply left unchanged in that case. Whether unassignment should trigger
+  a fresh `recalculateLifecycle()` is an open follow-up, not decided today.
+
+**Deliberately not changed:**
+- `Approvable::approve()`'s generic promotion logic itself remains ungated
+  at the trait level. `Activity` and `MembershipPayment` still have no
+  override of `promotesFromPendingEngagement()` (unlike `Training`/
+  `Donation`, which correctly return `false`). This means: if any future
+  code path creates/approves an `Activity` or `MembershipPayment` for a
+  `pending_engagement` user **without** going through the two guarded
+  controllers above (a new API endpoint, a bulk-import script, a future
+  admin tool, tinker/artisan), the ungated promotion reopens. This is a
+  known, accepted gap — not fixed today.
+- `RedCrossUnitController::destroy()`'s existing hard block on
+  deactivating a unit that still has assigned users (`->users()->count() >
+  0` check) was confirmed safe during the same audit and left untouched.
+
+**Consequence:** the two most common real-world routes to feeding
+`Approvable` an invalid `pending_engagement` promotion (a mismatched
+membership payment, or an RCU unassignment) are now closed. The trait-level
+gap itself is unchanged and remains reachable from any path that bypasses
+these two controllers.
 
 
 
@@ -648,9 +789,55 @@ disproportionate to the actual risk — chosen the minimal exemption instead. If
 org contacts ever need their own richer lifecycle treatment, revisit here first
 rather than special-casing further in the nightly command.
 
-**Note:** if a linked person also pays personal membership, they're already
-classified `member` (not `neither`) and follow normal membership-expiry-based
-dormancy — this scenario was already handled correctly before this fix.
+**Note (corrected 2026-07-20 — see below):** ~~if a linked person also pays
+personal membership, they're already classified `member` (not `neither`) and
+follow normal membership-expiry-based dormancy — this scenario was already
+handled correctly before this fix.~~ This was only half true. `lifecyclePolicyType()`
+did (and does) correctly classify such a person as `member`, not `neither` — but
+that classification was never being *reached* for them: the `whereDoesntHave('organisations')`
+exclusion above filtered them out of the `ReconcileLifecycleStatus` query entirely,
+before any per-user classification ever ran. A real, currently-active RCU
+volunteer or dues-paying member who also happened to carry an organisation
+link was excluded from the nightly sweep just as completely as a
+contact-only person — indefinitely, since the org link is sticky (only
+removable via `OrganisationController::unlinkUser()`, a separate manual
+admin action with no automatic trigger tied to RCU/membership status).
+Fixed below.
+
+---
+
+## 2026-07-20 — Narrowed the organisation-contact exemption in ReconcileLifecycleStatus
+
+**Decision:** `ReconcileLifecycleStatus`'s query-level `whereDoesntHave('organisations')`
+(described above) is replaced with a per-user check inside the existing
+chunked loop: a user is skipped **only** if they are organisation-linked
+**and** `lifecyclePolicyType() === 'neither'`. Everyone else — including an
+organisation-linked user who is also RCU-assigned or a dues-paying personal
+member — now goes through the normal `isDormantByPolicy()` evaluation like
+any other user.
+
+**Why:** per the corrected note above, the original blanket exclusion was
+broader than its own stated purpose. It was meant to protect genuine
+organisation-only contacts from being wrongly auto-dormanted for lacking
+`last_activity_at`, but it also silently and permanently exempted real
+volunteers/members from the passive nightly correction mechanism for as
+long as they carried an org link — which, being sticky, could be forever.
+
+**Implementation:** the main query keeps `whereIn('lifecycle_status', ['active','dormant'])`
+and adds `withCount('organisations')` (a single joined subquery per chunk,
+not eager-loading the related rows — avoids N+1 without fetching data
+that's never used). `lifecyclePolicyType()` is computed once per user at
+the top of the loop and reused for both the skip decision and the existing
+stats/sample reporting (previously computed twice — once implicitly via
+the removed query filter's intent, once explicitly for stats).
+
+**Known follow-up, not fixed today:** `DormantUserController::bulkArchive()`
+still uses the original blanket `whereDoesntHave('organisations')` exclusion
+(unchanged). That action only ever writes `lifecycle_status = 'archived'`
+via an explicit admin bulk-selection, not a passive sweep, so the risk
+profile is different — but the same "org-linked real volunteer/member gets
+permanently skipped" gap technically still applies there. Revisit if this
+matters for that action too.
 
 
 ## 2026-07-05 — Photo view logging removed
