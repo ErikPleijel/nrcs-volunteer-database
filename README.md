@@ -129,15 +129,7 @@ If you adapt this for your national society, contributions back to the main repo
 
 ---
 
-## Migration Notes (for NRCS or similar legacy data imports)
 
-The application includes a migration command suite for importing from legacy databases:
-
-```bash
-php artisan migrate:fresh
-php artisan migrate:old-db --table=all
-php artisan lifecycle:reconcile --dry-run
-php artisan lifecycle:reconcile --apply
 ```
 
 > ⚠️ The `dates:shift` command is for development/testing only and must never be run against production data.

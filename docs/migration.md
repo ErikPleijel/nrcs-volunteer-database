@@ -19,11 +19,11 @@ NOTES while migrating:
  - You have to type "Yes" when it reaches Migrate Branches (the second step)
  - When migrating users, Check users phpMyAdmin to see progress.
  - migrate:organisations now runs automatically as part of this step. 
---> SELECT * FROM `users` where division_id is null; the migration might have missed some division_id; if not too many set manually. 
+--> SELECT * FROM `users` where division_id is null; the migration might have missed some division_id; if not too many set manually. Probably a non-issue just double check. 
 
 
---> php artisan fix:userdata  (VARIOUS SQL RUN)
---> php artisan db:seed --class=UserTokenSeeder (may need to run several times, CHECK: SELECT * FROM `users` where id_check_token is null; should be 0)
+(((--> php artisan fix:userdata  (VARIOUS SQL RUN)))) this is now in migrate old orchestrator.
+--> php artisan db:seed --class=UserTokenSeeder (, CHECK: SELECT * FROM `users` where id_check_token is null; should be 0)
 
 --> Photo migration (check file first and run a small batch to test, this will need some prep before running, since it has never been tested on nrcs vps): php artisan images:migrate
 --> Close the old nrcs database picture and signature folders from public access!
@@ -38,5 +38,6 @@ Check Membership & Volunteers graphs on dashboard if straight lines do this step
 
 TODO IMPORTANT, after final production migration, go to UserTokenSeeder, and delete file. If seeder run accidentally, the printed ID cards will be useless!
 
-
-
+ONLY ON DEV, not real migration! php artisan dates:shift 2360 + days from 1 jan 2026
+php artisan dates:shift 2560
+?? run   php artisan lifecycle:reconcile --apply

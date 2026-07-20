@@ -109,7 +109,16 @@ class DashboardController extends Controller
         $volunteerBase = fn() => \App\Models\User::volunteers()
             ->when($branchId, fn($q) => $q->where('branch_id', $branchId));
 
-        $volunteersCount = $volunteerBase()->count();
+        $volunteerGenderCounts = $volunteerBase()
+            ->selectRaw("
+                COUNT(*) as total,
+                SUM(CASE WHEN gender = 'male' THEN 1 ELSE 0 END) as men,
+                SUM(CASE WHEN gender = 'female' THEN 1 ELSE 0 END) as women,
+                SUM(CASE WHEN gender IS NULL OR gender NOT IN ('male','female') THEN 1 ELSE 0 END) as unknown
+            ")
+            ->first();
+
+        $volunteersCount = (int) ($volunteerGenderCounts->total ?? 0);
 
         // Reuse the same snapshot rows fetched for members above
         $volunteersOneMonthAgo     = $snapMonth?->volunteers_total !== null ? (int) $snapMonth->volunteers_total : null;
@@ -122,14 +131,6 @@ class DashboardController extends Controller
         $volunteersChangeYear = ($volunteersTwelveMonthsAgo !== null && $volunteersTwelveMonthsAgo > 0)
             ? round((($volunteersCount - $volunteersTwelveMonthsAgo) / $volunteersTwelveMonthsAgo) * 100, 1)
             : null;
-
-        $volunteerGenderCounts = $volunteerBase()
-            ->selectRaw("
-                SUM(CASE WHEN gender = 'male' THEN 1 ELSE 0 END) as men,
-                SUM(CASE WHEN gender = 'female' THEN 1 ELSE 0 END) as women,
-                SUM(CASE WHEN gender IS NULL OR gender NOT IN ('male','female') THEN 1 ELSE 0 END) as unknown
-            ")
-            ->first();
 
         // --- Extended: remaining 6 cards ---
         if ($extended) {
@@ -203,6 +204,10 @@ class DashboardController extends Controller
             ->where('printed_at', '>=', $sevenDaysAgo)
             ->count();
         $certificatesPrintedLast7 = DB::table('certificates_print')->whereNull('deleted_at')->where('printed_at', '>=', $sevenDaysAgo)->count();
+        $loggedInLast24h = User::query()
+            ->where('last_login_at', '>=', now()->subDay())
+            ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
+            ->count();
 
         // Lifecycle counts filtered by branch (always shown)
         $lifecycleAwaitingEngagement = User::query()->awaitingEngagement()
@@ -326,6 +331,7 @@ class DashboardController extends Controller
             'messagesSentLast7'       => $messagesSentLast7,
             'idCardsPrintedLast7'     => $idCardsPrintedLast7,
             'certificatesPrintedLast7' => $certificatesPrintedLast7,
+            'loggedInLast24h'         => $loggedInLast24h,
 
             // Pending approvals — always national, always shown
             'pendingPayments'    => \App\Models\MembershipPayment::pendingApproval()
