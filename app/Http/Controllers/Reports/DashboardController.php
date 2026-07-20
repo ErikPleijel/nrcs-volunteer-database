@@ -205,32 +205,20 @@ class DashboardController extends Controller
         $certificatesPrintedLast7 = DB::table('certificates_print')->whereNull('deleted_at')->where('printed_at', '>=', $sevenDaysAgo)->count();
 
         // Lifecycle counts filtered by branch (always shown)
-        // 6 simple lifecycle_status-only counts consolidated into 1 round trip
-        // (same pattern as genderCounts/volunteerGenderCounts above). The 3 counts
-        // requiring a correlated whereHas() subquery (activeVolunteers,
-        // dormantVolunteers, activeMembers) stay as separate scope-based calls
-        // below — merging those would mean duplicating the volunteer/member
-        // business definitions from User::scopeVolunteers()/scopeMembers() as
-        // raw SQL, which risks drifting out of sync if those scopes change.
-        $lifecycleCounts = User::query()
+        $lifecycleAwaitingEngagement = User::query()->awaitingEngagement()
             ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
-            ->selectRaw("
-                SUM(CASE WHEN lifecycle_status = 'pending_engagement' THEN 1 ELSE 0 END) as awaiting_engagement,
-                SUM(CASE WHEN lifecycle_status = 'pending_engagement' AND can_contribute_volunteering = 1 THEN 1 ELSE 0 END) as pending_volunteers,
-                SUM(CASE WHEN lifecycle_status = 'pending_engagement' AND can_contribute_member = 1 THEN 1 ELSE 0 END) as pending_members,
-                SUM(CASE WHEN lifecycle_status = 'active' THEN 1 ELSE 0 END) as active,
-                SUM(CASE WHEN lifecycle_status = 'dormant' THEN 1 ELSE 0 END) as dormant,
-                SUM(CASE WHEN lifecycle_status = 'archived' THEN 1 ELSE 0 END) as archived
-            ")
-            ->first();
-
-        $lifecycleAwaitingEngagement = (int) ($lifecycleCounts->awaiting_engagement ?? 0);
-        $pendingVolunteers           = (int) ($lifecycleCounts->pending_volunteers ?? 0);
-        $pendingMembers              = (int) ($lifecycleCounts->pending_members ?? 0);
-        $lifecycleActive             = (int) ($lifecycleCounts->active ?? 0);
-        $lifecycleDormant            = (int) ($lifecycleCounts->dormant ?? 0);
-        $lifecycleArchived           = (int) ($lifecycleCounts->archived ?? 0);
-
+            ->count();
+        $pendingVolunteers = User::query()->awaitingEngagement()
+            ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
+            ->where('can_contribute_volunteering', true)
+            ->count();
+        $pendingMembers = User::query()->awaitingEngagement()
+            ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
+            ->where('can_contribute_member', true)
+            ->count();
+        $lifecycleActive = User::query()->active()
+            ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
+            ->count();
         $activeVolunteers = User::query()->volunteers()->active()
             ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
             ->count();
@@ -240,9 +228,10 @@ class DashboardController extends Controller
         $activeMembers = User::query()->members()->active()
             ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
             ->count();
-
-        // Rolling 24h window, computed live at request time — no snapshot/cron involved.
-        $loggedInLast24h = User::where('last_login_at', '>=', now()->subHours(24))
+        $lifecycleDormant = User::query()->dormant()
+            ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
+            ->count();
+        $lifecycleArchived = User::query()->archived()
             ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
             ->count();
 
@@ -265,66 +254,23 @@ class DashboardController extends Controller
                 ->count();
         }
 
-        // Total-pending + own-pending merged per table (submitterColumn() kept
-        // dynamic via the Approvable trait so Donation's entered_by_user_id
-        // override still applies; pendingApproval() stays a scope call so the
-        // approval-status definition itself stays in one place).
-        $membershipPaymentSubmitterColumn = (new \App\Models\MembershipPayment)->submitterColumn();
-        $membershipPaymentApproval = \App\Models\MembershipPayment::pendingApproval()
+        $selfSubmittedPayments = \App\Models\MembershipPayment::pendingApproval()
             ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
-            ->selectRaw("
-                COUNT(*) as total,
-                SUM(CASE WHEN {$membershipPaymentSubmitterColumn} = ? THEN 1 ELSE 0 END) as own
-            ", [$user->id])
-            ->first();
-        $pendingPayments       = (int) ($membershipPaymentApproval->total ?? 0);
-        $selfSubmittedPayments = (int) ($membershipPaymentApproval->own ?? 0);
-
-        $donationSubmitterColumn = (new \App\Models\Donation)->submitterColumn();
-        $donationApproval = \App\Models\Donation::pendingApproval()
+            ->where('submitted_by_user_id', $user->id)->count();
+        $selfSubmittedDonations = \App\Models\Donation::pendingApproval()
             ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
-            ->selectRaw("
-                COUNT(*) as total,
-                SUM(CASE WHEN {$donationSubmitterColumn} = ? THEN 1 ELSE 0 END) as own
-            ", [$user->id])
-            ->first();
-        $pendingDonations       = (int) ($donationApproval->total ?? 0);
-        $selfSubmittedDonations = (int) ($donationApproval->own ?? 0);
-
-        $trainingSubmitterColumn = (new \App\Models\Training)->submitterColumn();
-        $trainingApproval = \App\Models\Training::pendingApproval()
+            ->where('entered_by_user_id', $user->id)->count();
+        $selfSubmittedTrainings = \App\Models\Training::pendingApproval()
             ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
-            ->selectRaw("
-                COUNT(*) as total,
-                SUM(CASE WHEN {$trainingSubmitterColumn} = ? THEN 1 ELSE 0 END) as own
-            ", [$user->id])
-            ->first();
-        $pendingTrainings       = (int) ($trainingApproval->total ?? 0);
-        $selfSubmittedTrainings = (int) ($trainingApproval->own ?? 0);
-
-        $activitySubmitterColumn = (new \App\Models\Activity)->submitterColumn();
-        $activityApproval = \App\Models\Activity::pendingApproval()
+            ->where('submitted_by_user_id', $user->id)->count();
+        $selfSubmittedActivities = \App\Models\Activity::pendingApproval()
             ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
-            ->selectRaw("
-                COUNT(*) as total,
-                SUM(CASE WHEN {$activitySubmitterColumn} = ? THEN 1 ELSE 0 END) as own
-            ", [$user->id])
-            ->first();
-        $pendingActivities       = (int) ($activityApproval->total ?? 0);
-        $selfSubmittedActivities = (int) ($activityApproval->own ?? 0);
+            ->where('submitted_by_user_id', $user->id)->count();
 
         // Campaign approval is national-only (messaging_campaigns has no branch_id;
         // no branch-level role holds campaign_request_approve), so no branch filter here.
-        // submitted_by is a plain column (MessagingCampaign doesn't use Approvable),
-        // so no submitterColumn() indirection is needed.
-        $campaignApproval = \App\Models\MessagingCampaign::where('status', 'proposed')
-            ->selectRaw("
-                COUNT(*) as total,
-                SUM(CASE WHEN submitted_by = ? THEN 1 ELSE 0 END) as own
-            ", [$user->id])
-            ->first();
-        $pendingCampaigns       = (int) ($campaignApproval->total ?? 0);
-        $selfSubmittedCampaigns = (int) ($campaignApproval->own ?? 0);
+        $selfSubmittedCampaigns = \App\Models\MessagingCampaign::where('status', 'proposed')
+            ->where('submitted_by', $user->id)->count();
 
         $dashboardData = [
             'numberOfMembers'                          => $current,
@@ -373,7 +319,6 @@ class DashboardController extends Controller
             'activeMembers'                            => $activeMembers,
             'lifecycleDormant'                         => $lifecycleDormant,
             'lifecycleArchived'                        => $lifecycleArchived,
-            'loggedInLast24h'                          => $loggedInLast24h,
             'unassignedGhostCount'                     => $unassignedGhostCount,
             'hangingRegistrationCount'                 => $hangingRegistrationCount,
             'hangingRegistrationConfigured'             => (bool) $dbMigrationDate,
@@ -383,11 +328,15 @@ class DashboardController extends Controller
             'certificatesPrintedLast7' => $certificatesPrintedLast7,
 
             // Pending approvals — always national, always shown
-            'pendingPayments'    => $pendingPayments,
-            'pendingDonations'   => $pendingDonations,
-            'pendingTrainings'   => $pendingTrainings,
-            'pendingActivities'  => $pendingActivities,
-            'pendingCampaigns'   => $pendingCampaigns,
+            'pendingPayments'    => \App\Models\MembershipPayment::pendingApproval()
+                ->when($branchId, fn($q) => $q->where('branch_id', $branchId))->count(),
+            'pendingDonations'   => \App\Models\Donation::pendingApproval()
+                ->when($branchId, fn($q) => $q->where('branch_id', $branchId))->count(),
+            'pendingTrainings'   => \App\Models\Training::pendingApproval()
+                ->when($branchId, fn($q) => $q->where('branch_id', $branchId))->count(),
+            'pendingActivities'  => \App\Models\Activity::pendingApproval()
+                ->when($branchId, fn($q) => $q->where('branch_id', $branchId))->count(),
+            'pendingCampaigns'   => \App\Models\MessagingCampaign::where('status', 'proposed')->count(),
             'selfSubmittedPayments'   => $selfSubmittedPayments,
             'selfSubmittedDonations'  => $selfSubmittedDonations,
             'selfSubmittedTrainings'  => $selfSubmittedTrainings,
