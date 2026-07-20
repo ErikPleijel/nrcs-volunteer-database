@@ -56,7 +56,7 @@
             </div>
         </div>
 
-        <div class="max-w-xl mx-auto my-6 px-6 py-4 bg-amber-50 border border-amber-300 rounded-lg text-center">
+        <div class="max-w-xl mx-auto mt-10 mb-6 px-6 py-4 bg-amber-50 border border-amber-300 rounded-lg text-center">
             <p class="flex items-center justify-center gap-2 text-amber-900 font-semibold">
                 <i class="fas fa-lock text-amber-600"></i>
                 This database holds confidential personal data. Do not share it with anyone outside the administrative team.

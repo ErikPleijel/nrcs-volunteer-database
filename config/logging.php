@@ -135,6 +135,13 @@ return [
             'replace_placeholders' => true,
         ],
 
+        'scheduler' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/scheduler.log'),
+            'level' => env('LOG_SCHEDULER_LEVEL', 'info'),
+            'days' => env('LOG_SCHEDULER_DAYS', 14),
+        ],
+
     ],
 
 ];

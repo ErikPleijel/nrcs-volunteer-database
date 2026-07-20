@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class RecalculateHeatScores extends Command
 {
@@ -26,6 +27,11 @@ class RecalculateHeatScores extends Command
 
         $elapsed = round(microtime(true) - $startTime, 2);
         $this->info("Elapsed: {$elapsed}s");
+
+        Log::channel('scheduler')->info('heat:recalculate completed', [
+            'dry_run' => $dryRun,
+            'elapsed_seconds' => $elapsed,
+        ]);
 
         return self::SUCCESS;
     }
@@ -112,6 +118,14 @@ class RecalculateHeatScores extends Command
             $name = $names[$id] ?? "ID {$id}";
             $this->line("    [{$score}] {$name}");
         }
+
+        Log::channel('scheduler')->info('heat:recalculate level processed', [
+            'level' => $level,
+            'processed' => count($allAreaIds),
+            'max_hours_per_volunteer' => round($maxHpv, 2),
+            'max_trainings_per_volunteer' => round($maxTpv, 4),
+            'dry_run' => $dryRun,
+        ]);
 
         if ($dryRun) {
             return;

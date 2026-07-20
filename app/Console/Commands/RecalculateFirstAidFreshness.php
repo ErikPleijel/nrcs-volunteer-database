@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class RecalculateFirstAidFreshness extends Command
 {
@@ -31,6 +32,11 @@ class RecalculateFirstAidFreshness extends Command
 
         $elapsed = round(microtime(true) - $startTime, 2);
         $this->info("Elapsed: {$elapsed}s");
+
+        Log::channel('scheduler')->info('firstaid:recalculate completed', [
+            'dry_run' => $dryRun,
+            'elapsed_seconds' => $elapsed,
+        ]);
 
         return self::SUCCESS;
     }
@@ -65,6 +71,13 @@ class RecalculateFirstAidFreshness extends Command
         $withFirstAiders = count(array_filter($values, fn ($v) => $v['cnt'] > 0));
 
         $this->info("{$label}: ".count($allAreaIds)." processed, {$withFirstAiders} with first-aiders");
+
+        Log::channel('scheduler')->info('firstaid:recalculate level processed', [
+            'level' => $level,
+            'processed' => count($allAreaIds),
+            'with_first_aiders' => $withFirstAiders,
+            'dry_run' => $dryRun,
+        ]);
 
         // Areas with at least one first-aider, ranked by avg_days
         $ranked = array_filter($values, fn ($v) => $v['avg_days'] !== null);

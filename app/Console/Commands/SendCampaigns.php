@@ -27,7 +27,7 @@ class SendCampaigns extends Command
         $lock = \Illuminate\Support\Facades\Cache::lock('campaigns:send', 55);
 
         if (!$lock->get()) {
-            $this->info('Another campaigns:send is already running. Exiting.');
+            \Illuminate\Support\Facades\Log::channel('scheduler')->warning('campaigns:send skipped — already running');
             return self::SUCCESS;
         }
 
@@ -50,13 +50,10 @@ class SendCampaigns extends Command
 
             if ($campaigns->isEmpty()) {
                 \Illuminate\Support\Facades\Log::channel('campaign_deliveries')->info('campaigns:send: no sending campaigns');
-                $this->info('No sending campaigns found.');
                 return self::SUCCESS;
             }
 
             foreach ($campaigns as $campaign) {
-                $this->line("Campaign #{$campaign->id} ({$campaign->title}) channel={$campaign->channel}");
-
                 $result = $runner->runOneBatch(
                     campaign: $campaign,
                     batch: $batch,
@@ -75,13 +72,6 @@ class SendCampaigns extends Command
                     'force' => $force,
                     'batch' => $batch,
                 ]);
-
-                $this->info(sprintf(
-                    'Run done. Processed=%d, Sent=%d, Failed=%d',
-                    $result['processed'],
-                    $result['sent'],
-                    $result['failed'],
-                ));
             }
 
             return self::SUCCESS;

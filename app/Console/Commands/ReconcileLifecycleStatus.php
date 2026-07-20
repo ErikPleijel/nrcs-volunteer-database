@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\User;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class ReconcileLifecycleStatus extends Command
 {
@@ -58,6 +59,12 @@ class ReconcileLifecycleStatus extends Command
 
         if (! $apply) {
             $this->info('Dry-run complete. Re-run with --apply to write these changes.');
+            Log::channel('scheduler')->info('lifecycle:reconcile completed', [
+                'apply' => false,
+                'scanned' => $scanned,
+                'active_to_dormant' => array_sum($stats['active->dormant']),
+                'dormant_to_active' => array_sum($stats['dormant->active']),
+            ]);
             return self::SUCCESS;
         }
 
@@ -68,6 +75,12 @@ class ReconcileLifecycleStatus extends Command
             foreach (array_chunk($toActive,  1000) as $ids) User::whereIn('id',$ids)->update(['lifecycle_status'=>'active']);
         });
         $this->info('Applied: '.count($toDormant).' → dormant, '.count($toActive).' → active.');
+        Log::channel('scheduler')->info('lifecycle:reconcile completed', [
+            'apply' => true,
+            'scanned' => $scanned,
+            'to_dormant' => count($toDormant),
+            'to_active' => count($toActive),
+        ]);
         return self::SUCCESS;
     }
 

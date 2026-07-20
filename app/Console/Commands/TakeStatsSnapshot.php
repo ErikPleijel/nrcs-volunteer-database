@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\StatsSnapshot;
 use App\Models\User;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
 
 class TakeStatsSnapshot extends Command
 {
@@ -115,6 +116,12 @@ class TakeStatsSnapshot extends Command
         $elapsed = round(microtime(true) - $startedAt, 2);
 
         $this->info("Snapshot {$date}: {$written} rows written in {$elapsed}s.");
+
+        Log::channel('scheduler')->info('stats:snapshot completed', [
+            'date' => $date,
+            'written' => $written,
+            'elapsed_seconds' => $elapsed,
+        ]);
 
         return self::SUCCESS;
     }
