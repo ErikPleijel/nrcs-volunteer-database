@@ -50,12 +50,12 @@
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
                                         <label class="wizard-label">From name</label>
-                                        <input name="from_name" value="{{ old('from_name', $campaign->from_name) }}" class="wizard-input mt-2" placeholder="NRCS – Your Branch" required>
+                                        <input name="from_name" value="{{ old('from_name', $campaign->from_name ?? $defaultFromName) }}" class="wizard-input mt-2" placeholder="NRCS – Your Branch" required>
                                         @error('from_name') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                                     </div>
                                     <div>
                                         <label class="wizard-label">Reply-to email</label>
-                                        <input name="reply_to_email" value="{{ old('reply_to_email', $campaign->reply_to_email) }}" class="wizard-input mt-2" placeholder="your.branch@nrcs.org" required>
+                                        <input name="reply_to_email" value="{{ old('reply_to_email', $campaign->reply_to_email ?? $defaultReplyToEmail) }}" class="wizard-input mt-2" placeholder="your.branch@nrcs.org" required>
                                         @error('reply_to_email') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                                     </div>
                                 </div>
@@ -209,9 +209,9 @@
 
                 {{-- Actions --}}
                 <div class="flex justify-between mt-10 pt-6 border-t border-gray-100">
-                    <a href="{{ route('campaigns.wizard.step3', $campaign) }}" class="wizard-btn-back">
+                    <button type="submit" name="_direction" value="back" formnovalidate class="wizard-btn-back">
                         <i class="fas fa-arrow-left mr-2 text-xs"></i> Back
-                    </a>
+                    </button>
                     <button class="wizard-btn-continue">
                         Continue <i class="fas fa-arrow-right ml-2 text-xs"></i>
                     </button>
@@ -397,6 +397,7 @@
                     'user.red_cross_unit', 'user.db_code_short', 'user.db_code_long',
                     'user.lifecycle', 'user.donations_summary', 'user.current_membership',
                     'user.membership_expiry', 'user.time_since_last_first_aid',
+                    'app.url',
                 ]);
 
                 function findUnresolvedTags(text) {

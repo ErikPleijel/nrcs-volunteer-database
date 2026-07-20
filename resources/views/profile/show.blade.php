@@ -177,6 +177,7 @@
                                     <div class="text-sm text-blue-900">
                                         <p><strong>Your membership has expired.</strong> Pay your membership fee to activate it.</p>
                                         <p class="mt-1 text-blue-700 italic">Online payment via Paystack — to be implemented.</p>
+
                                     </div>
                                 </div>
                             </div>
@@ -187,6 +188,7 @@
                                     <div class="text-sm text-blue-900">
                                         <p><strong>Membership expires in {{ $currentMembership['days_until_expiry'] }} days</strong> ({{ $currentMembership['expiry_date'] }}).</p>
                                         <p class="mt-1 text-blue-700 italic">Online renewal via Paystack — to be implemented.</p>
+                                        {{-- Note for implementation of Paystack: For persons linke to an organisation(s), list payments to organisation if renewal needed, and also show if the payment was recently done; there might be a conflict since 2 or more persons might be linked to an org, all of them got a reminder by renewal membership campaigns, and we have do make sure they pay again to same org, but get a msg, that X already did a payment --}}
                                     </div>
                                 </div>
                             </div>
@@ -195,7 +197,8 @@
                                 <div class="flex items-start gap-3">
                                     <i class="fas fa-seedling text-sky-500 mt-1"></i>
                                     <div class="text-lg text-sky-900">
-                                        <p>Please update your contribution preference below so we can guide your next step.</p>
+                                        <p>Please update your contribution preference below so we can guide your next step. </p>
+
                                     </div>
                                 </div>
                             </div>

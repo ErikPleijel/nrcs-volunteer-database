@@ -79,9 +79,9 @@
             </div>
 
             <div class="flex justify-between pt-2">
-                <a href="{{ route('campaigns.wizard.step2', $campaign) }}" class="wizard-btn-back">
+                <button type="submit" name="_direction" value="back" class="wizard-btn-back">
                     <i class="fas fa-arrow-left mr-2 text-xs"></i> Back
-                </a>
+                </button>
                 <button class="wizard-btn-continue">
                     Continue <i class="fas fa-arrow-right ml-2 text-xs"></i>
                 </button>

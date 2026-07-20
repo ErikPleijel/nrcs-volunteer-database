@@ -121,9 +121,9 @@
 
                 {{-- Navigation buttons --}}
                 <div class="flex justify-between pt-4">
-                    <a href="{{ route('campaigns.wizard.step1', $campaign) }}" class="wizard-btn-back">
+                    <button type="submit" name="_direction" value="back" class="wizard-btn-back">
                         <i class="fas fa-arrow-left mr-2 text-xs"></i> Back
-                    </a>
+                    </button>
 
                     <button type="submit" class="wizard-btn-continue">
                         Continue <i class="fas fa-arrow-right ml-2 text-xs"></i>

@@ -233,7 +233,7 @@
                     </div>
                 @else
                     <div class="mt-3 rounded-md border border-emerald-200 bg-emerald-50 p-4">
-                        <div class="text-sm font-semibold text-emerald-800">Looks good</div>
+
                         <div class="mt-1 text-sm text-emerald-800/90">No major warnings detected.</div>
                     </div>
                 @endif
@@ -265,7 +265,7 @@
                     <div>
                         <label class="flex items-start gap-3 text-sm text-gray-700">
                             <input type="checkbox" name="confirm_audience" value="1" class="mt-1 rounded border-gray-300 @error('confirm_audience') border-red-500 @enderror">
-                            <span>I have selected AUDIENCE, CHANNEL, SEND WINDOW and DAILY CAP carefully.</span>
+                            <span>I have selected AUDIENCE (and filter), CHANNEL (email/sms), SEND WINDOW and DAILY CAP carefully.</span>
                         </label>
                         @error('confirm_audience')
                             <p class="mt-1 text-xs text-red-600 pl-7">{{ $message }}</p>
@@ -286,7 +286,7 @@
                         <div>
                             <label class="flex items-start gap-3 text-sm text-gray-700">
                                 <input type="checkbox" name="confirm_calls" value="1" class="mt-1 rounded border-gray-300 @error('confirm_calls') border-red-500 @enderror">
-                                <span>I included a clear call window.</span>
+                                <span>I have considered the call window (call times) and confirm it's appropriate.</span>
                             </label>
                             @error('confirm_calls')
                                 <p class="mt-1 text-xs text-red-600 pl-7">{{ $message }}</p>

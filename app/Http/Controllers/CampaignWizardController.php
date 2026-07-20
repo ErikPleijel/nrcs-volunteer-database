@@ -239,6 +239,10 @@ class CampaignWizardController extends Controller
 
         $campaign->update(['filter_json' => $filter]);
 
+        if ($request->input('_direction') === 'back') {
+            return redirect()->route('campaigns.wizard.step1', $campaign);
+        }
+
         return redirect()->route('campaigns.wizard.step3', $campaign);
     }
 
@@ -268,6 +272,8 @@ class CampaignWizardController extends Controller
     {
         $this->authorizeWizardAccess($campaign);
 
+        $direction = $request->input('_direction');
+
         // Normalize single-digit hours: "8:00" → "08:00"
         foreach (['send_window_start', 'send_window_end'] as $field) {
             $val = trim((string) $request->input($field, ''));
@@ -289,44 +295,47 @@ class CampaignWizardController extends Controller
             ]
         );
 
-        // --------------------------------------------------
-        // Custom validation: send window logic
-        // --------------------------------------------------
         $start = $data['send_window_start'] ?? null;
         $end = $data['send_window_end'] ?? null;
-        $callsExpected = ! empty($data['encourages_phone_calls']);
 
-        // If phone calls expected, both window times are required
-        if ($callsExpected && (! $start || ! $end)) {
-            $errors = [];
-            if (! $start) {
-                $errors['send_window_start'] = 'A send window start time is required when phone calls are expected.';
+        if ($direction !== 'back') {
+            // --------------------------------------------------
+            // Custom validation: send window logic
+            // --------------------------------------------------
+            $callsExpected = ! empty($data['encourages_phone_calls']);
+
+            // If phone calls expected, both window times are required
+            if ($callsExpected && (! $start || ! $end)) {
+                $errors = [];
+                if (! $start) {
+                    $errors['send_window_start'] = 'A send window start time is required when phone calls are expected.';
+                }
+                if (! $end) {
+                    $errors['send_window_end'] = 'A send window end time is required when phone calls are expected.';
+                }
+
+                return back()->withErrors($errors)->withInput();
             }
-            if (! $end) {
-                $errors['send_window_end'] = 'A send window end time is required when phone calls are expected.';
+
+            // If only one is set → error
+            if (($start && ! $end) || (! $start && $end)) {
+                return back()
+                    ->withErrors([
+                        'send_window_start' => 'Please set both start and end times, or leave both empty.',
+                        'send_window_end' => 'Please set both start and end times, or leave both empty.',
+                    ])
+                    ->withInput();
             }
 
-            return back()->withErrors($errors)->withInput();
-        }
-
-        // If only one is set → error
-        if (($start && ! $end) || (! $start && $end)) {
-            return back()
-                ->withErrors([
-                    'send_window_start' => 'Please set both start and end times, or leave both empty.',
-                    'send_window_end' => 'Please set both start and end times, or leave both empty.',
-                ])
-                ->withInput();
-        }
-
-        // If both are set, start must be before end
-        if ($start && $end && $start >= $end) {
-            return back()
-                ->withErrors([
-                    'send_window_start' => 'Start time must be earlier than end time.',
-                    'send_window_end' => 'End time must be later than start time.',
-                ])
-                ->withInput();
+            // If both are set, start must be before end
+            if ($start && $end && $start >= $end) {
+                return back()
+                    ->withErrors([
+                        'send_window_start' => 'Start time must be earlier than end time.',
+                        'send_window_end' => 'End time must be later than start time.',
+                    ])
+                    ->withInput();
+            }
         }
 
         // --------------------------------------------------
@@ -343,6 +352,10 @@ class CampaignWizardController extends Controller
         $campaign->update([
             'filter_json' => $filter,
         ]);
+
+        if ($direction === 'back') {
+            return redirect()->route('campaigns.wizard.step2', $campaign);
+        }
 
         return redirect()->route('campaigns.wizard.step4', $campaign);
     }
@@ -365,12 +378,17 @@ class CampaignWizardController extends Controller
             '{{user.donations_summary}}' => 'Donations summary',
             '{{user.current_membership}}' => 'Current membership',
             '{{user.time_since_last_first_aid}}' => 'Time since last first aid',
+            '{{app.url}}' => 'Website link',
+            '{{user.db_code_long}}' => 'DB-Code (long)',
+            '{{user.membership_expiry}}' => 'Membership expiry',
 
         ];
 
         return view('campaigns.wizard.step-4-message', [
             'campaign' => $campaign,
             'placeholders' => $placeholders,
+            'defaultFromName' => config('campaigns.default_from_name'),
+            'defaultReplyToEmail' => config('campaigns.default_reply_to_email'),
         ]);
     }
 
@@ -378,136 +396,155 @@ class CampaignWizardController extends Controller
     {
         $this->authorizeWizardAccess($campaign);
 
+        $direction = $request->input('_direction');
+
         $channel = $campaign->channel ?? 'both'; // email | sms | both | email_fallback_sms
 
         // IMPORTANT: keep channel logic consistent with the Blade (Step 4 tabs)
         $hasEmail = in_array($channel, ['email', 'both', 'email_fallback_sms'], true);
         $hasSms = in_array($channel, ['sms', 'both', 'email_fallback_sms'], true);
 
-        $rules = [
-            'from_name' => $hasEmail ? ['required', 'string', 'max:255'] : ['nullable', 'string', 'max:255'],
-            'reply_to_email' => $hasEmail ? ['required', 'email', 'max:255'] : ['nullable', 'email', 'max:255'],
-            'from_phone' => ['nullable', 'string', 'max:255'],
-            '_tab' => ['nullable', 'in:email,sms'],
-        ];
-
-        // Content rules based on channel
-        if ($hasEmail) {
-            $rules['subject'] = ['required', 'string', 'max:255'];
-            $rules['email_body'] = ['required', 'string', 'min:20', 'max:8000'];
+        if ($direction === 'back') {
+            // Going back: save whatever was entered, format-checked only —
+            // never block navigation on required/min-length rules.
+            $rules = [
+                'from_name' => ['nullable', 'string', 'max:255'],
+                'reply_to_email' => ['nullable', 'email', 'max:255'],
+                'from_phone' => ['nullable', 'string', 'max:255'],
+                '_tab' => ['nullable', 'in:email,sms'],
+                'subject' => ['nullable', 'string', 'max:255'],
+                'email_body' => ['nullable', 'string', 'max:8000'],
+                'sms_body' => ['nullable', 'string', 'max:800'],
+            ];
         } else {
-            $rules['subject'] = ['nullable', 'string', 'max:255'];
-            $rules['email_body'] = ['nullable', 'string', 'max:8000'];
-        }
+            $rules = [
+                'from_name' => $hasEmail ? ['required', 'string', 'max:255'] : ['nullable', 'string', 'max:255'],
+                'reply_to_email' => $hasEmail ? ['required', 'email', 'max:255'] : ['nullable', 'email', 'max:255'],
+                'from_phone' => ['nullable', 'string', 'max:255'],
+                '_tab' => ['nullable', 'in:email,sms'],
+            ];
 
-        if ($hasSms) {
-            $rules['sms_body'] = ['required', 'string', 'min:10', 'max:800'];
-        } else {
-            $rules['sms_body'] = ['nullable', 'string', 'max:800'];
+            // Content rules based on channel
+            if ($hasEmail) {
+                $rules['subject'] = ['required', 'string', 'max:255'];
+                $rules['email_body'] = ['required', 'string', 'min:20', 'max:8000'];
+            } else {
+                $rules['subject'] = ['nullable', 'string', 'max:255'];
+                $rules['email_body'] = ['nullable', 'string', 'max:8000'];
+            }
+
+            if ($hasSms) {
+                $rules['sms_body'] = ['required', 'string', 'min:10', 'max:800'];
+            } else {
+                $rules['sms_body'] = ['nullable', 'string', 'max:800'];
+            }
         }
 
         $data = $request->validate($rules);
 
-        // -------------------------------------------
-        // Unresolved placeholder warning (non-blocking)
-        // Returns back with warning messages but does NOT
-        // prevent saving — user must fix or consciously proceed.
-        // -------------------------------------------
-        $unresolvedErrors = [];
-        $tagPattern = '/@?\{\{\s*([^}]*?)\s*\}\}/';
+        if ($direction !== 'back') {
+            // -------------------------------------------
+            // Unresolved placeholder warning (non-blocking)
+            // Returns back with warning messages but does NOT
+            // prevent saving — user must fix or consciously proceed.
+            // -------------------------------------------
+            $unresolvedErrors = [];
+            $tagPattern = '/@?\{\{\s*([^}]*?)\s*\}\}/';
 
-        $knownPlaceholders = [
-            'user.first_name', 'user.last_name', 'user.full_name',
-            'user.email', 'user.phone', 'user.branch', 'user.division',
-            'user.red_cross_unit', 'user.db_code_short', 'user.db_code_long',
-            'user.lifecycle', 'user.donations_summary', 'user.current_membership',
-            'user.membership_expiry', 'user.time_since_last_first_aid',
-        ];
+            $knownPlaceholders = [
+                'user.first_name', 'user.last_name', 'user.full_name',
+                'user.email', 'user.phone', 'user.branch', 'user.division',
+                'user.red_cross_unit', 'user.db_code_short', 'user.db_code_long',
+                'user.lifecycle', 'user.donations_summary', 'user.current_membership',
+                'user.membership_expiry', 'user.time_since_last_first_aid',
+                'app.url',
+            ];
 
-        $findUnknownTags = function (string $text) use ($knownPlaceholders): array {
-            preg_match_all('/@?\{\{\s*([^}]*?)\s*\}\}/', $text, $m, PREG_SET_ORDER);
-            $unknown = [];
-            foreach ($m as $match) {
-                $key = trim($match[1]);
-                if (! in_array($key, $knownPlaceholders, true)) {
-                    $unknown[] = $match[0];
+            $findUnknownTags = function (string $text) use ($knownPlaceholders): array {
+                preg_match_all('/@?\{\{\s*([^}]*?)\s*\}\}/', $text, $m, PREG_SET_ORDER);
+                $unknown = [];
+                foreach ($m as $match) {
+                    $key = trim($match[1]);
+                    if (! in_array($key, $knownPlaceholders, true)) {
+                        $unknown[] = $match[0];
+                    }
+                }
+
+                return array_unique($unknown);
+            };
+
+            if ($hasEmail) {
+                $unknown = $findUnknownTags((string) ($data['email_body'] ?? ''));
+                if (! empty($unknown)) {
+                    $unresolvedErrors['unresolved_email_body'] =
+                        'Email body contains unknown placeholders: '.implode(', ', $unknown).'. Check for typos.';
+                }
+                $unknown = $findUnknownTags((string) ($data['subject'] ?? ''));
+                if (! empty($unknown)) {
+                    $unresolvedErrors['unresolved_email_subject'] =
+                        'Email subject contains unknown placeholders: '.implode(', ', $unknown).'.';
                 }
             }
 
-            return array_unique($unknown);
-        };
-
-        if ($hasEmail) {
-            $unknown = $findUnknownTags((string) ($data['email_body'] ?? ''));
-            if (! empty($unknown)) {
-                $unresolvedErrors['unresolved_email_body'] =
-                    'Email body contains unknown placeholders: '.implode(', ', $unknown).'. Check for typos.';
-            }
-            $unknown = $findUnknownTags((string) ($data['subject'] ?? ''));
-            if (! empty($unknown)) {
-                $unresolvedErrors['unresolved_email_subject'] =
-                    'Email subject contains unknown placeholders: '.implode(', ', $unknown).'.';
-            }
-        }
-
-        if ($hasSms) {
-            $unknown = $findUnknownTags((string) ($data['sms_body'] ?? ''));
-            if (! empty($unknown)) {
-                $unresolvedErrors['unresolved_sms_body'] =
-                    'SMS body contains unknown placeholders: '.implode(', ', $unknown).'. Check for typos.';
-            }
-        }
-
-        if (! empty($unresolvedErrors) && ! $request->boolean('confirm_unresolved')) {
-            return back()
-                ->withErrors($unresolvedErrors)
-                ->withInput();
-        }
-
-        // -------------------------------------------
-        // Custom URL domain validation (simple allow-list)
-        // -------------------------------------------
-        $domainValidator = app(UrlDomainValidator::class);
-        $bodiesToCheck = [];
-
-        if ($hasEmail) {
-            $bodiesToCheck['email_body'] = (string) ($data['email_body'] ?? '');
-        }
-        if ($hasSms) {
-            $bodiesToCheck['sms_body'] = (string) ($data['sms_body'] ?? '');
-        }
-
-        $disallowedByField = $domainValidator->findDisallowedDomainsByField($bodiesToCheck);
-
-        if (! empty($disallowedByField)) {
-            $allowList = $domainValidator->allowedDomains();
-            $allowListText = empty($allowList)
-                ? 'no approved domains configured'
-                : implode(', ', $allowList);
-            $errors = [];
-
-            foreach ($disallowedByField as $field => $domains) {
-                $errors[$field] = 'Links must use approved domains ('.$allowListText.'). NOT ALLOWED: '.implode(', ', $domains).'.';
+            if ($hasSms) {
+                $unknown = $findUnknownTags((string) ($data['sms_body'] ?? ''));
+                if (! empty($unknown)) {
+                    $unresolvedErrors['unresolved_sms_body'] =
+                        'SMS body contains unknown placeholders: '.implode(', ', $unknown).'. Check for typos.';
+                }
             }
 
-            return back()->withErrors($errors)->withInput();
-        }
-
-        // -------------------------------------------
-        // Placeholder bracket validation ('[' / ']' left unfilled)
-        // -------------------------------------------
-        $bracketValidator = app(PlaceholderBracketValidator::class);
-        $bracketFields = $bracketValidator->findBracketPlaceholders($bodiesToCheck);
-
-        if (! empty($bracketFields)) {
-            $errors = [];
-
-            foreach ($bracketFields as $field) {
-                $label = $field === 'sms_body' ? 'SMS body' : 'Email body';
-                $errors[$field] = "{$label} still contains a placeholder marker ([...]). Please replace the bracketed text with your actual content before submitting.";
+            if (! empty($unresolvedErrors) && ! $request->boolean('confirm_unresolved')) {
+                return back()
+                    ->withErrors($unresolvedErrors)
+                    ->withInput();
             }
 
-            return back()->withErrors($errors)->withInput();
+            // -------------------------------------------
+            // Custom URL domain validation (simple allow-list)
+            // -------------------------------------------
+            $domainValidator = app(UrlDomainValidator::class);
+            $bodiesToCheck = [];
+
+            if ($hasEmail) {
+                $bodiesToCheck['email_body'] = (string) ($data['email_body'] ?? '');
+            }
+            if ($hasSms) {
+                $bodiesToCheck['sms_body'] = (string) ($data['sms_body'] ?? '');
+            }
+
+            $disallowedByField = $domainValidator->findDisallowedDomainsByField($bodiesToCheck);
+
+            if (! empty($disallowedByField)) {
+                $allowList = $domainValidator->allowedDomains();
+                $allowListText = empty($allowList)
+                    ? 'no approved domains configured'
+                    : implode(', ', $allowList);
+                $errors = [];
+
+                foreach ($disallowedByField as $field => $domains) {
+                    $errors[$field] = 'Links must use approved domains ('.$allowListText.'). NOT ALLOWED: '.implode(', ', $domains).'.';
+                }
+
+                return back()->withErrors($errors)->withInput();
+            }
+
+            // -------------------------------------------
+            // Placeholder bracket validation ('[' / ']' left unfilled)
+            // -------------------------------------------
+            $bracketValidator = app(PlaceholderBracketValidator::class);
+            $bracketFields = $bracketValidator->findBracketPlaceholders($bodiesToCheck);
+
+            if (! empty($bracketFields)) {
+                $errors = [];
+
+                foreach ($bracketFields as $field) {
+                    $label = $field === 'sms_body' ? 'SMS body' : 'Email body';
+                    $errors[$field] = "{$label} still contains a placeholder marker ([...]). Please replace the bracketed text with your actual content before submitting.";
+                }
+
+                return back()->withErrors($errors)->withInput();
+            }
         }
 
         // Locked sender email (do NOT accept from request)
@@ -553,6 +590,10 @@ class CampaignWizardController extends Controller
             // Store canonical content in filter_json
             'filter_json' => $filter,
         ]);
+
+        if ($direction === 'back') {
+            return redirect()->route('campaigns.wizard.step3', $campaign);
+        }
 
         return redirect()->route('campaigns.wizard.step5', $campaign);
     }

@@ -13,4 +13,7 @@ return [
 
         'mail_from_email' => env('CAMPAIGNS_FROM_EMAIL', 'info@nrcs.org'),
     ],
+
+    'default_from_name' => env('CAMPAIGN_FROM_NAME', 'Nigerian Red Cross Society'),
+    'default_reply_to_email' => env('CAMPAIGN_REPLY_TO_EMAIL', 'no-reply@nrcs.org'),
 ];
