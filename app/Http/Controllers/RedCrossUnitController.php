@@ -764,13 +764,8 @@ class RedCrossUnitController extends Controller
             $assistantTeamLeaderOptions = $unitMembers->concat([$redCrossUnit->assistantTeamLeader]);
         }
 
-        // For clarifying the deactivation-blocked message — how many of the
-        // unit's (unfiltered) assigned members are archived, so the count
-        // shown there can be explained rather than just left as a raw number.
-        $archivedMembersCount = $redCrossUnit->users()->where('lifecycle_status', 'archived')->count();
-
         // 'divisions' variable is no longer passed as the dropdown is removed, but we still need redCrossUnit->division loaded.
-        return view('red-cross-units.edit', compact('redCrossUnit', 'unitMembers', 'teamLeaderOptions', 'assistantTeamLeaderOptions', 'archivedMembersCount'));
+        return view('red-cross-units.edit', compact('redCrossUnit', 'unitMembers', 'teamLeaderOptions', 'assistantTeamLeaderOptions'));
     }
 
     /**
@@ -868,8 +863,9 @@ class RedCrossUnitController extends Controller
             abort(403, 'You are not authorized to delete this Red Cross Unit.');
         }
 
-        // Check if unit has any members
-        if ($redCrossUnit->users()->count() > 0) {
+        // Check if unit has any non-archived members — archived users are
+        // already inert in the system and shouldn't block deactivation.
+        if ($redCrossUnit->users()->where('lifecycle_status', '!=', 'archived')->count() > 0) {
             return redirect()->route('red-cross-units.index')
                 ->with('error', 'Cannot deactivate Red Cross Unit that has members. Please reassign members first.');
         }

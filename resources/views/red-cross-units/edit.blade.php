@@ -187,9 +187,9 @@
             <div class="border-t pt-6 px-6 pb-6 flex flex-wrap items-center justify-between gap-4">
                 <div class="flex items-center gap-3">
                     @php
-                        // Unfiltered member count — matches RedCrossUnitController::destroy()'s
-                        // FK-integrity guard exactly (archived users still block deactivation there).
-                        $allMembersCount = $redCrossUnit->users()->count();
+                        // Non-archived member count — matches RedCrossUnitController::destroy()'s
+                        // guard exactly (archived users no longer block deactivation there).
+                        $allMembersCount = $redCrossUnit->users()->where('lifecycle_status', '!=', 'archived')->count();
                     @endphp
                     @if(! $redCrossUnit->is_active)
                         <form action="{{ route('red-cross-units.reactivate', $redCrossUnit) }}"
@@ -225,11 +225,7 @@
                             <i class="fas fa-trash-alt mr-2"></i>Deactivate Unit
                         </button>
                         <span class="text-sm text-red-400">
-                            Cannot deactivate — {{ $allMembersCount }} {{ $allMembersCount === 1 ? 'person is' : 'persons are' }} still assigned to this unit
-                            @if($archivedMembersCount > 0)
-                                (including {{ $archivedMembersCount }} archived)
-                            @endif
-                            . Reassign or update them first.
+                            Cannot deactivate — {{ $allMembersCount }} {{ $allMembersCount === 1 ? 'person is' : 'persons are' }} still assigned to this unit. Reassign or update them first.
                         </span>
                     @endif
                 </div>
