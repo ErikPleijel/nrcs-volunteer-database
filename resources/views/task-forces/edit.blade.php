@@ -7,6 +7,12 @@
         EDIT TASKFORCE
     </x-slot>
 
+    <x-slot name="button1">
+        <a href="{{ route('task-forces.show', $taskForce) }}" class="btn-primary">
+            <i class="fas fa-eye mr-2"></i>Show Task Force
+        </a>
+    </x-slot>
+
     <div class="py-12">
         <div class="max-w-4xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
@@ -77,7 +83,7 @@
                                     <option value="">No Team Leader</option> {{-- Added "No Team Leader" option --}}
                                     @foreach($teamLeaderOptions as $user)
                                         <option value="{{ $user->id }}" {{ old('team_leader_user_id', $currentTeamLeaderId) == $user->id ? 'selected' : '' }}>
-                                            {{ $user->full_name }} ({{ $user->getUserIdReferenceShortAttribute() }})
+                                            {{ $user->full_name }} ({{ $user->getUserIdReferenceShortAttribute() }}){{ $user->lifecycle_status === 'archived' ? ' (Archived)' : '' }}
                                         </option>
                                     @endforeach
                                 </select>
@@ -95,7 +101,7 @@
                                     <option value="">No Assistant Team Leader</option> {{-- Added "No Assistant Team Leader" option --}}
                                     @foreach($assistantTeamLeaderOptions as $user)
                                         <option value="{{ $user->id }}" {{ old('assist_team_leader_user_id', $currentAssistantTeamLeaderId) == $user->id ? 'selected' : '' }}>
-                                            {{ $user->full_name }} ({{ $user->getUserIdReferenceShortAttribute() }})
+                                            {{ $user->full_name }} ({{ $user->getUserIdReferenceShortAttribute() }}){{ $user->lifecycle_status === 'archived' ? ' (Archived)' : '' }}
                                         </option>
                                     @endforeach
                                 </select>
@@ -147,7 +153,12 @@
                             <ul id="current-members-list" class="border border-gray-200 rounded-md divide-y divide-gray-200">
                                 @forelse($taskForce->users->sortBy('first_name') as $user)
                                     <li class="p-3 flex items-center justify-between" data-user-id="{{ $user->id }}" data-archived="{{ $user->lifecycle_status === 'archived' ? 'true' : 'false' }}">
-                                        <span>{{ $user->full_name }} ({{ $user->getUserIdReferenceShortAttribute() }})</span>
+                                        <div class="flex items-center gap-2">
+                                            <span>{{ $user->full_name }} ({{ $user->getUserIdReferenceShortAttribute() }})</span>
+                                            @if($user->lifecycle_status === 'archived')
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">Archived</span>
+                                            @endif
+                                        </div>
                                         <button type="button"
                                                 class="remove-member-btn text-red-600 hover:text-red-900 text-sm font-medium"
                                                 data-user-id="{{ $user->id }}">
@@ -241,19 +252,19 @@
                     // unassigned by a rebuild triggered by an unrelated member change.
                     memberOptions
                         .filter(({ userId, archived }) => !archived || userId === currentSelectedLeader)
-                        .forEach(({ userId, userName }) => {
+                        .forEach(({ userId, userName, archived }) => {
                             const optionLeader = document.createElement('option');
                             optionLeader.value = userId;
-                            optionLeader.textContent = userName;
+                            optionLeader.textContent = userName + (archived ? ' (Archived)' : '');
                             teamLeaderSelect.appendChild(optionLeader);
                         });
 
                     memberOptions
                         .filter(({ userId, archived }) => !archived || userId === currentSelectedAssistant)
-                        .forEach(({ userId, userName }) => {
+                        .forEach(({ userId, userName, archived }) => {
                             const optionAssistant = document.createElement('option');
                             optionAssistant.value = userId;
-                            optionAssistant.textContent = userName;
+                            optionAssistant.textContent = userName + (archived ? ' (Archived)' : '');
                             assistantTeamLeaderSelect.appendChild(optionAssistant);
                     });
 
