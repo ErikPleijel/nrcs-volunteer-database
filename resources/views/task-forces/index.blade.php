@@ -68,7 +68,7 @@
                         <div x-show="open === 'add_edit'" x-collapse class="px-4 py-3 bg-white">
                             <ul class="space-y-1 text-gray-700 list-disc pl-4">
                                 <li>Press <span class="font-semibold">Add New Task Force</span> to create one.</li>
-                                <li>Press <span class="font-semibold">Edit</span> on an existing task force to change its details.</li>
+                                <li>Press <span class="font-semibold">>View → Edit</span> on an existing task force to change its details.</li>
                                 <li>Use clear names and descriptions so others understand the team's purpose.</li>
                             </ul>
                         </div>
@@ -85,7 +85,7 @@
                         </button>
                         <div x-show="open === 'members'" x-collapse class="px-4 py-3 bg-white">
                             <ul class="space-y-1 text-gray-700 list-disc pl-4">
-                                <li>Open the task force's <span class="font-semibold">Edit</span> page.</li>
+                                <li>Open the task force's <span class="font-semibold">>View → Edit</span> page.</li>
                                 <li>Use the search box to find and add a person as a member.</li>
                                 <li>Only active volunteers show up in search — persons assigned to an active Red Cross Unit. Members who haven't been assigned to a unit, or whose unit is inactive, won't appear.</li>
                                 <li>Click <span class="font-semibold">Remove</span> next to a member's name to take them off the task force.</li>
@@ -104,7 +104,7 @@
                         </button>
                         <div x-show="open === 'leadership'" x-collapse class="px-4 py-3 bg-white">
                             <ul class="space-y-1 text-gray-700 list-disc pl-4">
-                                <li>Open the task force's <span class="font-semibold">Edit</span> page.</li>
+                                <li>Open the task force's <span class="font-semibold">>View → Edit</span> page.</li>
                                 <li>Set the <span class="font-semibold">Team Leader</span> and <span class="font-semibold">Assistant Team Leader</span> from the members already assigned.</li>
                                 <li>Only members of the task force can be set as leaders.</li>
                             </ul>
@@ -116,16 +116,16 @@
                         <button type="button"
                                 @click="open = open === 'archive' ? null : 'archive'"
                                 class="w-full flex items-center justify-between px-3 py-2 bg-gray-50 hover:bg-gray-100 text-left font-semibold text-gray-700 text-sm">
-                            <span><i class="fas fa-box-archive mr-2 text-red-400"></i>Archive / reactivate</span>
+                            <span><i class="fas fa-box-archive mr-2 text-red-400"></i>Archive / Reactivate</span>
                             <i class="fas fa-chevron-down text-xs text-gray-400 transition-transform"
                                :class="open === 'archive' ? 'rotate-180' : ''"></i>
                         </button>
                         <div x-show="open === 'archive'" x-collapse class="px-4 py-3 bg-white">
                             <ul class="space-y-1 text-gray-700 list-disc pl-4">
 
-                                <li>Deactivate task forces that are inactive. Use the 'Deactivate' button. </li>
-                                <li>A deactivated task force can be reactivated at any time. Set filter  <span class="font-semibold">Status → Archived </span> to find them. </li>
-                                <li>Deactivate inactive team members to keep the database organised. Use  <span class="font-semibold">Edit → Task Force Members → Remove.</span>  </li>
+                                <li>Archive task forces that are inactive. Use the 'Archive' button. </li>
+                                <li>An archived task force can be reactivated at any time. Set filter  <span class="font-semibold">Status → Archived </span> to find them. </li>
+                                <li>Deactivate inactive team members to keep the database organised. Use  <span class="font-semibold">>View → Edit → Task Force Members → Remove.</span>  </li>
                             </ul>
                         </div>
                     </div>
@@ -270,12 +270,8 @@
                                     <div class="flex gap-2 items-center">
                                         <a href="{{ route('task-forces.show', $taskForce) }}"
                                            class="btn-primary whitespace-nowrap">
-                                            View
+                                            <i class="fas fa-eye mr-1"></i>View
                                         </a>
-                                        @can('edit_task_force')
-                                            <a href="{{ route('task-forces.edit', $taskForce) }}"
-                                               class="btn-edit whitespace-nowrap">Edit</a>
-                                        @endcan
 
                                         @can('campaign_request_create')
                                             @if(! $taskForce->inactive)
@@ -298,7 +294,7 @@
                                                     @method('PUT')
                                                     <button type="submit"
                                                             class="inline-flex items-center px-3 py-1.5 rounded text-sm font-medium bg-yellow-100 text-yellow-800 hover:bg-yellow-200">
-                                                        Re-activate
+                                                        Reactivate
                                                     </button>
                                                 </form>
                                             @endcan

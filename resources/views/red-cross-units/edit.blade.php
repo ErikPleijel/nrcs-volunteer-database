@@ -9,8 +9,8 @@
     </x-slot>
 
     <x-slot name="button1">
-        <a href="{{ route('red-cross-units.show', $redCrossUnit) }}" class="btn-primary">
-            <i class="fas fa-eye mr-2"></i>Show Red Cross Unit
+        <a href="{{ route('red-cross-units.show', $redCrossUnit) }}" class="btn-cancel">
+            <i class="fas fa-arrow-left mr-1"></i> Back to Unit
         </a>
     </x-slot>
 
@@ -166,10 +166,7 @@
 
                 <div class="border-t pt-6 flex items-center justify-end gap-3">
 
-                    {{-- Cancel / Save --}}
-                    <a href="{{ route('red-cross-units.show', $redCrossUnit) }}" class="btn-cancel">
-                        Cancel
-                    </a>
+                    {{-- Save --}}
                     <button type="submit" class="btn-primary">
                         Update Unit
                     </button>
@@ -203,29 +200,29 @@
                             </button>
                         </form>
                         <span class="text-sm text-gray-500">
-                            This unit is currently deactivated.
+                            This unit is currently archived.
                         </span>
                     @elseif($allMembersCount === 0)
                         <form action="{{ route('red-cross-units.destroy', $redCrossUnit) }}"
                               method="POST"
-                              onsubmit="return confirm('Deactivate this Red Cross Unit?\n\nIt will be hidden from the active list and can no longer be assigned to new members until it is reactivated. Its existing history and records are kept.')">
+                              onsubmit="return confirm('Archive this Red Cross Unit?\n\nIt will be hidden from the active list and can no longer be assigned to new members until it is reactivated. Its existing history and records are kept.')">
                             @csrf
                             @method('DELETE')
                             <button type="submit" class="btn-delete">
-                                <i class="fas fa-trash-alt mr-2"></i>Deactivate Unit
+                                <i class="fas fa-trash-alt mr-2"></i>Archive Unit
                             </button>
                         </form>
                         <span class="text-sm text-gray-500">
-                            Want to deactivate this Red Cross Unit? Ensure there are no persons assigned to it.
+                            Want to archive this Red Cross Unit? Ensure there are no persons assigned to it.
                         </span>
                     @else
                         <button type="button"
                                 disabled
                                 class="inline-flex items-center px-4 py-2 rounded-md text-sm font-medium bg-red-50 text-red-300 border border-red-200 cursor-not-allowed">
-                            <i class="fas fa-trash-alt mr-2"></i>Deactivate Unit
+                            <i class="fas fa-trash-alt mr-2"></i>Archive Unit
                         </button>
                         <span class="text-sm text-red-400">
-                            Cannot deactivate — {{ $allMembersCount }} {{ $allMembersCount === 1 ? 'person is' : 'persons are' }} still assigned to this unit. Reassign or update them first.
+                            Cannot archive — {{ $allMembersCount }} {{ $allMembersCount === 1 ? 'person is' : 'persons are' }} still assigned to this unit. Reassign or update them first.
                         </span>
                     @endif
                 </div>

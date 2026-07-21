@@ -6,6 +6,12 @@
         Create New Red Cross Unit
     </x-slot>
 
+    <x-slot name="button1">
+        <a href="{{ route('red-cross-units.index') }}" class="btn-cancel">
+            <i class="fas fa-arrow-left mr-1"></i> Back to List
+        </a>
+    </x-slot>
+
 
     <div class="py-12">
         <div class="max-w-4xl mx-auto sm:px-6 lg:px-8">

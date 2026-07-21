@@ -8,8 +8,8 @@
     </x-slot>
 
     <x-slot name="button1">
-        <a href="{{ route('task-forces.show', $taskForce) }}" class="btn-primary">
-            <i class="fas fa-eye mr-2"></i>Show Task Force
+        <a href="{{ route('task-forces.show', $taskForce) }}" class="btn-cancel">
+            <i class="fas fa-arrow-left mr-1"></i> Back to Task Force
         </a>
     </x-slot>
 
@@ -127,10 +127,6 @@
                         <div id="leader-status-message" class="mb-4 p-3 rounded text-sm hidden"></div>
 
                         <div class="flex justify-end space-x-4 mb-6">
-                            <a href="{{ route('task-forces.index') }}"
-                               class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">
-                                Cancel
-                            </a>
                             <button type="submit"
                                     class="btn-primary">
                                 Save Changes

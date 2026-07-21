@@ -4,6 +4,12 @@
     </x-slot>
 
     <x-slot name="button1">
+        <a href="{{ route('organisations.index') }}" class="btn-cancel">
+            <i class="fas fa-arrow-left mr-2"></i>Back to List
+        </a>
+    </x-slot>
+
+    <x-slot name="button2">
         <a href="{{ route('organisations.edit', $organisation) }}" class="btn-edit">
             <i class="fas fa-edit mr-1"></i>Edit
         </a>
@@ -156,8 +162,8 @@
 
                             <div class="flex items-center gap-2">
                                 <a href="{{ route('users.show', $user) }}"
-                                   class="text-blue-600 hover:text-blue-800 text-sm"
-                                   target="_blank">View</a>
+                                   class="btn-primary"
+                                   target="_blank"><i class="fas fa-eye mr-1"></i>View</a>
 
                                 @if(!$user->pivot->is_primary_contact)
                                     <form action="{{ route('organisations.set-primary-contact', [$organisation, $user]) }}"

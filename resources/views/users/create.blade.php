@@ -7,6 +7,12 @@
         Registration of New User
     </x-slot>
 
+    <x-slot name="button1">
+        <a href="{{ route('users.index') }}" class="btn-cancel">
+            <i class="fas fa-arrow-left mr-1"></i> Back to List
+        </a>
+    </x-slot>
+
     <div class="container mx-auto px-4 py-6">
         <div class="max-w-4xl mx-auto">
             <div class="bg-white shadow-md rounded-lg">

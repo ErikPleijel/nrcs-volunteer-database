@@ -7,6 +7,12 @@
         ADD NEW TASKFORCE
     </x-slot>
 
+    <x-slot name="button1">
+        <a href="{{ route('task-forces.index') }}" class="btn-cancel">
+            <i class="fas fa-arrow-left mr-1"></i> Back to List
+        </a>
+    </x-slot>
+
 
 
     <div class="py-12">

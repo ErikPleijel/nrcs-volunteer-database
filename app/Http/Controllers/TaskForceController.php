@@ -441,24 +441,24 @@ class TaskForceController extends Controller
     }
 
     /**
-     * Deactivate the specified resource from storage.
+     * Archive the specified resource from storage.
      */
     public function destroy(TaskForce $taskForce)
     {
         // Authorization check
         if (!$taskForce->isViewableBy(Auth::user())) {
-            abort(403, 'You are not authorized to deactivate this Task Force.');
+            abort(403, 'You are not authorized to archive this Task Force.');
         }
 
         // Also restrict deactivation to national and branch admins
         if (!in_array(Auth::user()->getAccessLevel(), ['national', 'branch'])) {
-            abort(403, 'You are not authorized to deactivate this Task Force.');
+            abort(403, 'You are not authorized to archive this Task Force.');
         }
 
         $taskForce->update(['inactive' => true]);
 
         return redirect()->route('task-forces.index')
-            ->with('success', 'Task Force deactivated successfully.');
+            ->with('success', 'Task Force archived successfully.');
     }
 
     /**

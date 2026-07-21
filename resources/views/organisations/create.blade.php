@@ -3,6 +3,11 @@
         <i class="fas fa-industry mr-3 mb-6"></i> Add Organisation
     </x-slot>
 
+    <x-slot name="button1">
+        <a href="{{ route('organisations.index') }}" class="btn-cancel">
+            <i class="fas fa-arrow-left mr-1"></i> Back to List
+        </a>
+    </x-slot>
 
     <div class="container mx-auto px-4 py-6">
         <div class="max-w-2xl">

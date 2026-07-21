@@ -932,12 +932,8 @@
                                     <div class="flex gap-2">
                                         <a href="{{ route('users.show', $user) }}"
                                            class="btn-primary whitespace-nowrap">
-                                            View
+                                            <i class="fas fa-eye mr-1"></i>View
                                         </a>
-                                        @can('edit_user')
-                                            <a href="{{ route('users.edit', $user) }}"
-                                               class="btn-edit whitespace-nowrap">Edit</a>
-                                        @endcan
                                     </div>
                                 </td>
 

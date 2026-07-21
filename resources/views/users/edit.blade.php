@@ -13,6 +13,13 @@
     <x-slot name="pageHeader">
         <i class="fas fa-user mr-3"></i>Edit Person
     </x-slot>
+
+    <x-slot name="button1">
+        <a href="{{ route('users.show', $user) }}" class="btn-cancel">
+            <i class="fas fa-arrow-left mr-1"></i> Back to Person
+        </a>
+    </x-slot>
+
     <x-slot name="subHeader">
         {{ $user->full_name }} {{ $user->getUserIdReferenceShortAttribute() ?? 'Unknown User' }}
     </x-slot>
@@ -838,10 +845,6 @@
                         <!-- Form Actions -->
                         <div class="flex justify-end items-center pt-6 border-t border-gray-200">
                             <div class="space-x-3">
-                                <a href="{{ route('users.show', $user) }}"
-                                   class="tn-cancel">
-                                    Cancel
-                                </a>
                                 <button type="submit"
                                         class="btn-primary">
                                     Update Person

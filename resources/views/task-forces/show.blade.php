@@ -38,7 +38,7 @@
             @can('edit_task_force')
             <x-slot name="button2">
                 <a href="{{  route('task-forces.edit', $taskForce)  }}"
-                   class="btn-primary">
+                   class="btn-edit">
                     <i class="fas fa-cog mr-2"></i>Edit Task Force
                 </a>
             </x-slot>
@@ -90,7 +90,7 @@
                                     <p class="font-semibold text-gray-900">
                                         {{ $taskForce->teamLeader->full_name }}
                                         @if($taskForce->teamLeader->lifecycle_status === 'archived')
-                                            <span class="text-xs font-semibold text-red-700 tracking-wide ml-1">(Archived)</span>
+                                            <span class="text-lg font-semibold text-red-700 tracking-wide ml-1 uppercase">(Archived)</span>
                                         @endif
                                     </p>
                                     <p class="text-sm text-gray-600">{{ $taskForce->teamLeader->email }}</p>
@@ -135,7 +135,7 @@
                                     <p class="font-semibold text-gray-900">
                                         {{ $taskForce->assistantTeamLeader->full_name }}
                                         @if($taskForce->assistantTeamLeader->lifecycle_status === 'archived')
-                                            <span class="text-xs font-semibold text-red-700 tracking-wide ml-1">(Archived)</span>
+                                            <span class="text-lg font-semibold text-red-700 tracking-wide ml-1 uppercase">(Archived)</span>
                                         @endif
                                     </p>
                                     <p class="text-sm text-gray-600">{{ $taskForce->assistantTeamLeader->email }}</p>

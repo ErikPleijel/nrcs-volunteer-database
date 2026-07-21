@@ -17,7 +17,7 @@
             @can('edit_red_cross_unit')
                 <x-slot name="button2">
                     <a href="{{ route('red-cross-units.edit', $redCrossUnit) }}"
-                       class="btn-primary">
+                       class="btn-edit">
                         <i class="fas fa-cog mr-2"></i>Edit Unit
                     </a>
                 </x-slot>
@@ -75,7 +75,7 @@
                                     <p class="font-semibold text-gray-900">
                                         {{ $redCrossUnit->teamLeader->full_name }}
                                         @if($redCrossUnit->teamLeader->lifecycle_status === 'archived')
-                                            <span class="text-xs font-semibold text-red-700 tracking-wide ml-1">(Archived)</span>
+                                            <span class="text-lg font-semibold text-red-700 tracking-wide ml-1 uppercase">(Archived)</span>
                                         @endif
                                     </p>
                                     <p class="text-sm text-gray-600">{{ $redCrossUnit->teamLeader->email }}</p>
@@ -114,7 +114,7 @@
                                     <p class="font-semibold text-gray-900">
                                         {{ $redCrossUnit->assistantTeamLeader->full_name }}
                                         @if($redCrossUnit->assistantTeamLeader->lifecycle_status === 'archived')
-                                            <span class="text-xs font-semibold text-red-700 tracking-wide ml-1">(Archived)</span>
+                                            <span class="text-lg font-semibold text-red-700 tracking-wide ml-1 uppercase">(Archived)</span>
                                         @endif
                                     </p>
                                     <p class="text-sm text-gray-600">{{ $redCrossUnit->assistantTeamLeader->email }}</p>

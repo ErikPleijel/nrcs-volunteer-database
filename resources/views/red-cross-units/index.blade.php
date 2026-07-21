@@ -66,7 +66,7 @@
                         <div x-show="open === 'add_edit'" x-collapse class="px-4 py-3 bg-white">
                             <ul class="space-y-1 text-gray-700 list-disc pl-4">
                                 <li>Press <span class="font-semibold">Add New Unit</span> to create one.</li>
-                                <li>Press <span class="font-semibold">Edit</span> on an existing unit to change its details.</li>
+                                <li>Press <span class="font-semibold">View → Edit</span> on an existing unit to change its details.</li>
                             </ul>
                         </div>
                     </div>
@@ -102,7 +102,7 @@
                         </button>
                         <div x-show="open === 'leadership'" x-collapse class="px-4 py-3 bg-white">
                             <ul class="space-y-1 text-gray-700 list-disc pl-4">
-                                <li>Open the unit's <span class="font-semibold">Edit</span> page.</li>
+                                <li>Open the unit's <span class="font-semibold">View → Edit</span> page.</li>
                                 <li>Under <span class="font-semibold">Leadership Assignment</span>, set the Team Leader and Assistant Team Leader.</li>
                                 <li>Only persons already assigned to the unit can be set as leaders.</li>
                             </ul>
@@ -114,13 +114,13 @@
                         <button type="button"
                                 @click="open = open === 'archive' ? null : 'archive'"
                                 class="w-full flex items-center justify-between px-3 py-2 bg-gray-50 hover:bg-gray-100 text-left font-semibold text-gray-700 text-sm">
-                            <span><i class="fas fa-box-archive mr-2 text-red-400"></i>Archive / reactivate</span>
+                            <span><i class="fas fa-box-archive mr-2 text-red-400"></i>Archive / Reactivate</span>
                             <i class="fas fa-chevron-down text-xs text-gray-400 transition-transform"
                                :class="open === 'archive' ? 'rotate-180' : ''"></i>
                         </button>
                         <div x-show="open === 'archive'" x-collapse class="px-4 py-3 bg-white">
                             <ul class="space-y-1 text-gray-700 list-disc pl-4">
-                                <li>A unit no longer in use can be archived from its <span class="font-semibold">Edit</span> page.</li>
+                                <li>A unit no longer in use can be archived from its <span class="font-semibold">View → Edit</span> page.</li>
                                 <li>An archived unit can be reactivated later from the same page, if needed.</li>
                             </ul>
                         </div>
@@ -236,7 +236,12 @@
                         <tr class="table-body-row {{ !$unit->is_active ? 'bg-gray-50' : '' }}">
 
                             <td class="table-body-cell">
-                                <div class="table-field-main">{{ $unit->name }}</div>
+                                <div class="table-field-main">
+                                    {{ $unit->name }}
+                                    @if(! $unit->is_active)
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 ml-1">Archived</span>
+                                    @endif
+                                </div>
                             </td>
 
                             <td class="table-body-cell">
@@ -271,12 +276,8 @@
                                 <div class="flex gap-2 items-center">
                                     <a href="{{ route('red-cross-units.show', $unit) }}"
                                        class="btn-primary whitespace-nowrap">
-                                        View
+                                        <i class="fas fa-eye mr-1"></i>View
                                     </a>
-                                    @can('edit_red_cross_unit')
-                                        <a href="{{ route('red-cross-units.edit', $unit) }}"
-                                           class="btn-edit whitespace-nowrap">Edit</a>
-                                    @endcan
                                 </div>
                             </td>
 

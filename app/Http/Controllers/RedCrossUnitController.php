@@ -867,13 +867,13 @@ class RedCrossUnitController extends Controller
         // already inert in the system and shouldn't block deactivation.
         if ($redCrossUnit->users()->where('lifecycle_status', '!=', 'archived')->count() > 0) {
             return redirect()->route('red-cross-units.index')
-                ->with('error', 'Cannot deactivate Red Cross Unit that has members. Please reassign members first.');
+                ->with('error', 'Cannot archive Red Cross Unit that has members. Please reassign members first.');
         }
 
         $redCrossUnit->update(['is_active' => false]);
 
         return redirect()->route('red-cross-units.index')
-            ->with('success', 'Red Cross Unit deactivated successfully.');
+            ->with('success', 'Red Cross Unit archived successfully.');
     }
 
     /**

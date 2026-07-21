@@ -6,8 +6,14 @@
 
 
 
+    <x-slot name="button1">
+        <a href="{{ route('users.index') }}" class="btn-cancel">
+            <i class="fas fa-arrow-left mr-2"></i>Back to List
+        </a>
+    </x-slot>
+
     @can('edit_user')
-        <x-slot name="button1">
+        <x-slot name="button2">
             <a href="{{ route('users.edit', $user) }}"
                class="btn-edit">
                 <i class="fas fa-edit mr-1"></i>Edit Person
@@ -326,8 +332,8 @@
                                         <span class="text-xs text-center font-medium text-gray-700 rounded px-1 mt-0.5" style="background-color: #DCB9B9;">{{ str_replace('Assistant', 'Asst.', $rcuRole) }}</span>
                                     </div>
                                     <a href="{{ route('red-cross-units.show', $rcu->id) }}"
-                                       class="btn-view">
-                                        View
+                                       class="btn-primary">
+                                        <i class="fas fa-eye mr-1"></i>View
                                     </a>
                                 </div>
                             @else
@@ -364,7 +370,7 @@
                                         </span>
                                     </div>
                                     @if(auth()->user()->getAccessLevel() === 'national' || (auth()->user()->branch && $taskForce->branch->code === auth()->user()->branch->code))
-                                        <a href="{{ route('task-forces.show', $taskForce) }}" class="btn-view w-fit">View</a>
+                                        <a href="{{ route('task-forces.show', $taskForce) }}" class="btn-primary w-fit"><i class="fas fa-eye mr-1"></i>View</a>
                                     @endif
                                 </div>
                             @empty
@@ -385,7 +391,7 @@
                                             <span class="text-xs font-semibold text-amber-700">Primary contact</span>
                                         @endif
                                     </div>
-                                    <a href="{{ route('organisations.show', $organisation) }}" class="btn-view w-fit">View</a>
+                                    <a href="{{ route('organisations.show', $organisation) }}" class="btn-primary w-fit"><i class="fas fa-eye mr-1"></i>View</a>
                                 </div>
                             @empty
                                 <span class="text-sm italic text-gray-400">No linked organisations</span>

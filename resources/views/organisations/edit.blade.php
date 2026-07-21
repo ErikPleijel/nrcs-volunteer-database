@@ -3,7 +3,11 @@
         <i class="fas fa-industry mr-3 mb-6"></i> Edit Organisation
     </x-slot>
 
-
+    <x-slot name="button1">
+        <a href="{{ route('organisations.show', $organisation) }}" class="btn-cancel">
+            <i class="fas fa-arrow-left mr-1"></i> Back to Organisation
+        </a>
+    </x-slot>
 
     <div class="show-page-container">
         <div class="bg-white rounded-lg shadow overflow-hidden">
@@ -129,9 +133,6 @@
                         </div>
 
                         <div class="flex justify-end items-center gap-3 pt-6 border-t border-gray-200">
-                            <a href="{{ route('organisations.show', $organisation) }}" class="btn-cancel">
-                                Cancel
-                            </a>
                             <button type="submit" class="btn-primary">
                                 Save Changes
                             </button>

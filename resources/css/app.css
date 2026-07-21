@@ -86,9 +86,15 @@ dialog.help-popup-dialog::backdrop {
     @apply bg-green-600 hover:bg-green-700 text-white text-xs font-bold py-1 px-2 font-normal rounded;
 }
 
+.btn-edit {
+    @apply bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 px-4 rounded;
+}
+
 .btn-backlink {
     @apply bg-gray-500 hover:bg-gray-700 text-white font-medium py-1 px-2 rounded text-sm;
 }
+
+
 .btn-certificates {
     @apply rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-indigo-400;
 }
@@ -168,9 +174,6 @@ dialog.help-popup-dialog::backdrop {
     @apply text-blue-600 hover:text-blue-800;
 }
 
-.btn-edit {
-    @apply bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded;
-}
 
 .btn-success {
     @apply bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded;

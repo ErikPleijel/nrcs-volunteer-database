@@ -472,14 +472,11 @@
                                                 <a href="{{ route('organisations.show', $organisation) }}"
                                                    class="btn-primary inline-flex flex-col items-center justify-center py-1 px-3 leading-tight text-center">
                                                     <span class="font-semibold">
-                                                        View
+                                                        <i class="fas fa-eye mr-1"></i>View
                                                     </span>
                                                     <span class="text-xs -mt-1 font-normal opacity-90">
                                                         Link persons
                                                     </span>
-                                                </a>
-                                                <a href="{{ route('organisations.edit', $organisation) }}"
-                                                   class="btn-edit">Edit
                                                 </a>
                                             </div>
                                         @endif
