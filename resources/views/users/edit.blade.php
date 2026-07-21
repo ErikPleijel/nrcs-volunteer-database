@@ -275,7 +275,7 @@
                                     @error('branch_id')
                                     <p class="form-error">{{ $message }}</p>
                                     @enderror
-                                    @if($user->roles()->exists())
+                                    @if($user->hasAnyRole(array_merge(\App\Models\User::BRANCH_ROLES, \App\Models\User::DIVISION_ROLES)))
                                         <div class="mt-2 rounded-md bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
                                             <i class="fas fa-triangle-exclamation mr-1 text-amber-500"></i>
                                             This person has the role
