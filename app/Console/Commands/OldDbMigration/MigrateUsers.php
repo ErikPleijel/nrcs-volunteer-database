@@ -5,6 +5,7 @@
 namespace App\Console\Commands\OldDbMigration;
 
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
@@ -309,7 +310,7 @@ class MigrateUsers extends Command
                     'is_account_activated' => (bool) ($record->AccountActivated ?? false),
                     'is_public_contact' => $this->normalizeBool($record->Public_contact),
                     'public_contact_position' => !empty($record->Public_contacts_position) ? trim($record->Public_contacts_position) : null,
-                    'personal_info' => !empty($record->Personal_info) ? trim($record->Personal_info) : null,
+                    'personal_info' => !empty($record->Personal_info) ? Crypt::encryptString(trim($record->Personal_info)) : null,
                     'can_contribute_volunteering' => $this->normalizeBool($record->Contribute_volunteering),
 
                     'can_contribute_member' => $this->normalizeBool($record->Contribute_member),
