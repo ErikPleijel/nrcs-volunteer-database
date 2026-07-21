@@ -64,7 +64,12 @@
                                     </div>
                                 @endif
                                 <div>
-                                    <p class="font-semibold text-gray-900">{{ $redCrossUnit->teamLeader->full_name }}</p>
+                                    <p class="font-semibold text-gray-900">
+                                        {{ $redCrossUnit->teamLeader->full_name }}
+                                        @if($redCrossUnit->teamLeader->lifecycle_status === 'archived')
+                                            <span class="text-xs font-semibold text-red-700 tracking-wide ml-1">(Archived)</span>
+                                        @endif
+                                    </p>
                                     <p class="text-sm text-gray-600">{{ $redCrossUnit->teamLeader->email }}</p>
                                     @if($redCrossUnit->teamLeader->telephone1)
                                         <p class="text-sm text-gray-600">{{ $redCrossUnit->teamLeader->telephone1 }}</p>
@@ -98,7 +103,12 @@
                                     </div>
                                 @endif
                                 <div>
-                                    <p class="font-semibold text-gray-900">{{ $redCrossUnit->assistantTeamLeader->full_name }}</p>
+                                    <p class="font-semibold text-gray-900">
+                                        {{ $redCrossUnit->assistantTeamLeader->full_name }}
+                                        @if($redCrossUnit->assistantTeamLeader->lifecycle_status === 'archived')
+                                            <span class="text-xs font-semibold text-red-700 tracking-wide ml-1">(Archived)</span>
+                                        @endif
+                                    </p>
                                     <p class="text-sm text-gray-600">{{ $redCrossUnit->assistantTeamLeader->email }}</p>
                                     @if($redCrossUnit->assistantTeamLeader->telephone1)
                                         <p class="text-sm text-gray-600">{{ $redCrossUnit->assistantTeamLeader->telephone1 }}</p>
@@ -124,7 +134,7 @@
                                 $teamLeaderId = $redCrossUnit->teamLeader->id ?? null;
                                 $assistantTeamLeaderId = $redCrossUnit->assistantTeamLeader->id ?? null;
 
-                                $filteredMembers = $redCrossUnit->users->filter(function ($member) use ($teamLeaderId, $assistantTeamLeaderId) {
+                                $filteredMembers = $redCrossUnit->activeUsers->filter(function ($member) use ($teamLeaderId, $assistantTeamLeaderId) {
                                     return $member->id !== $teamLeaderId && $member->id !== $assistantTeamLeaderId;
                                 });
                             @endphp
