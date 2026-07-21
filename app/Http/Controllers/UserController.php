@@ -851,8 +851,9 @@ class UserController extends Controller
         // ---------------------------------------------------------
         $wasArchived = ($user->lifecycle_status === 'archived');
         $wantsArchived = $request->boolean('is_inactive'); // checkbox = "Archived"
+        $lifecycleChanging = ($wantsArchived !== $wasArchived);
 
-        if ($wantsArchived !== $wasArchived) {
+        if ($lifecycleChanging) {
 
             // Safety: prevent archiving yourself
             if ($wantsArchived && Auth::id() === $user->id) {
@@ -861,7 +862,12 @@ class UserController extends Controller
                     ->withErrors(['is_inactive' => 'You cannot archive your own account.']);
             }
 
-            $user->lifecycle_status = $wantsArchived ? 'archived' : 'active';
+            if ($wantsArchived) {
+                $user->lifecycle_status = 'archived';
+            }
+            // Reactivation target is decided below, once $newUnitId (this
+            // request's RCU assignment) is known — see "Red Cross Unit
+            // assignment logic".
         }
 
         // Never mass-assign archive controls through $validated
@@ -907,6 +913,34 @@ class UserController extends Controller
 
             // Always track who assigned
             $validated['assigned_rcu_by_id'] = Auth::id();
+        }
+
+        // -------------------------------
+        // Reactivation target status
+        // -------------------------------
+        // Decided here (not above) so a same-request RCU change is judged on
+        // $newUnitId, not a stale $user->red_cross_unit_id. Mirrors the
+        // qualifying-for-promotion rule from the original data migration
+        // (FixUserDataCommand::handle(), "Promote eligible pending_engagement
+        // users"): an active RCU assignment or a genuine (non-volunteer-fee)
+        // membership payment. $newUnitId is already validated as an active
+        // unit above, so its presence alone is sufficient. Neither basis →
+        // back to pending_engagement instead of being blindly marked active.
+        $reactivatingToActive = false;
+
+        if ($lifecycleChanging && ! $wantsArchived) {
+            $hasActiveRcu = $newUnitId !== null;
+            $hasQualifyingPayment = $user->membershipPayments()
+                ->where('is_deleted', false)
+                ->whereHas('membershipFee', fn ($q) => $q->where('is_volunteer_fee', false))
+                ->exists();
+
+            if ($hasActiveRcu || $hasQualifyingPayment) {
+                $user->lifecycle_status = 'active';
+                $reactivatingToActive = true;
+            } else {
+                $user->lifecycle_status = 'pending_engagement';
+            }
         }
 
         // -------------------------------
@@ -1003,6 +1037,16 @@ class UserController extends Controller
             $user->sms_opt_out_at = null;
         }
         $user->save();
+
+        // Reactivated straight to 'active' above? Re-check staleness now
+        // (activity recency / membership validity) instead of leaving a
+        // possibly-stale user sitting as active until the next 03:00
+        // lifecycle:reconcile run. Mirrors the lift-then-recompute pattern
+        // used for archived-member reactivation via record approval
+        // (Approvable::approve()).
+        if ($reactivatingToActive) {
+            $user->recalculateLifecycle();
+        }
 
         // 👉 Mark user active if assigned to a unit (not on unassignment — removing
         // a unit should not force-promote lifecycle_status with no unit and no
