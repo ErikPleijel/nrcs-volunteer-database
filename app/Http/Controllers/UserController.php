@@ -992,9 +992,11 @@ class UserController extends Controller
             );
         }
 
-        // Block branch change if user has any role — role must be
-        // removed first to avoid branch/role mismatch.
-        if ($branchChanged && $user->roles()->exists()) {
+        // Block branch change if user holds a branch- or division-scoped role
+        // — role must be removed first to avoid branch/role mismatch. National
+        // roles are exempt: their authority isn't derived from branch_id/
+        // division_id (see User::getScopedId()), so moving them is harmless.
+        if ($branchChanged && $user->hasAnyRole(array_merge(User::BRANCH_ROLES, User::DIVISION_ROLES))) {
             return back()
                 ->withInput()
                 ->withErrors([

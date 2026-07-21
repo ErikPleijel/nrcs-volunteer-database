@@ -909,3 +909,55 @@ session, leaving no remaining reproduction case. Re-verify this properly
 the next time a user with a stale/placeholder photo is available, ideally
 by checking actual browser Network tab behavior (is a conditional request
 even being sent?) rather than relying on the automated test alone.
+
+---
+
+## 2026-07-20 — Narrowed the branch-move role restriction to scoped roles only
+
+**Context:** `UserController.php`'s branch-move restriction blocked any
+branch change if the target user held any role at all — the condition was
+`$branchChanged && $user->roles()->exists()`, with an error telling the
+admin to remove the role via Authorizations first. This was overly broad:
+it also fired for `User::NATIONAL_ROLES` (National DB Administrator,
+National DB Assistant, Observer — national level), even though national
+roles derive their authority independently of `branch_id`/`division_id`
+(`User::getScopedId()` returns `null` for national users). Moving a
+national role holder's branch has no bearing on their access, so the
+"branch/role mismatch" this check exists to prevent cannot structurally
+occur for them.
+
+**What changed:** The role-block condition (`UserController.php:995-1009`)
+was narrowed to only fire for `User::BRANCH_ROLES` and
+`User::DIVISION_ROLES`:
+```php
+$user->hasAnyRole(array_merge(User::BRANCH_ROLES, User::DIVISION_ROLES))
+```
+National role holders can now be moved between branches without first
+having their role removed. Branch/division-scoped role holders are still
+blocked from moving to a different branch, exactly as before.
+
+**Confirmed unchanged, working as intended:** The role-block condition has
+always been gated on `$branchChanged` only (never `$divisionChanged`) —
+true before this fix too, and intentional. Branch-scoped role holders
+(Branch Secretary, Branch DB Administrator, Branch DB Assistant) can
+already move between divisions within their own branch with no
+restriction, since a division-only move never triggers the role check at
+all. No change was needed for this — confirmed by investigation, not by
+new code. Also confirmed structurally impossible to route around: a
+division belonging to a different branch can never be assigned while
+`branch_id` is reported unchanged — enforced both at controller
+validation (`UserController.php`'s `division_id` closure rule, which fails
+if the division's `branch_id` doesn't match the submitted `branch_id`) and
+at the model level (`User::booted()`'s `saving` hook, which throws
+`InvalidArgumentException` on a division/branch mismatch on any save path,
+not just this controller).
+
+**Known gap — not fixed, logged for awareness:** Division-scoped roles
+(Division Assistant — Finance, Division Assistant — Operations) have no
+equivalent protection against within-branch division moves. A
+division-role holder can currently be moved to a different division
+within the same branch with zero restriction — unlike branch roles, which
+are protected from cross-branch moves by the check above. This asymmetry
+was identified during investigation but deliberately not fixed, since it
+wasn't part of the reported problem and no operational issue has been
+observed from it. Revisit if this becomes a real problem in practice.

@@ -204,7 +204,7 @@
                                 This person is still in <span class="font-semibold">Pending Engagement</span> — not yet an
                                 active volunteer or member. They won't appear in the default Persons filter until they're
                                 assigned to a Red Cross Unit or make a membership payment (set Lifecycle Status to "All" or
-                                "Pending" to find them again later). Consider assigning them to a unit first.
+                                "Pending" to find them again later). <strong>Consider assigning them to a unit first.</strong>
                             </div>
                         @endif
 
