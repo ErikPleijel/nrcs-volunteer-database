@@ -100,8 +100,8 @@
         {{-- Related Units (optional) --}}
         @if(isset($division->redCrossUnits) && $division->redCrossUnits->count())
             @php
-                $unitsWithMembers = $division->redCrossUnits->filter(fn($u) => $u->users_count > 0);
-                $emptyUnits = $division->redCrossUnits->filter(fn($u) => $u->users_count === 0);
+                $unitsWithMembers = $division->redCrossUnits->filter(fn($u) => $u->active_users_count > 0);
+                $emptyUnits = $division->redCrossUnits->filter(fn($u) => $u->active_users_count === 0);
             @endphp
 
             <div class="bg-white rounded-lg shadow-lg p-6">
@@ -122,7 +122,7 @@
                                     <div class="py-1 border-b border-gray-100">
                                         <a href="{{ route('red-cross-units.show', $unit) }}"
                                            class="text-base underline text-gray-700 hover:text-blue-600">{{ $unit->name }}</a>
-                                        <span class="text-base text-gray-500">({{ $unit->users_count }})</span>
+                                        <span class="text-base text-gray-500">({{ $unit->active_users_count }})</span>
                                     </div>
                                 @endforeach
                             </div>

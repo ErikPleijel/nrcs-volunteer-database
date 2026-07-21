@@ -75,6 +75,14 @@ ADAPT procedure accordingly. This might need changes:
 ```sql
       SELECT DATE(created_at) as d, COUNT(*) as n
       FROM users GROUP BY DATE(created_at) ORDER BY n DESC LIMIT 10;
+
+- [ ] mysql -u root -e "USE redcross_volunteer; SELECT
+  SUM(CASE WHEN personal_info IS NOT NULL AND personal_info NOT LIKE 'eyJpdiI6%' THEN 1 ELSE 0 END) AS personal_info_unencrypted,
+  SUM(CASE WHEN national_id_number IS NOT NULL AND national_id_number NOT LIKE 'eyJpdiI6%' THEN 1 ELSE 0 END) AS national_id_unencrypted
+FROM users;"
+Expected result: both columns show 0.
+
+
 ```
 ### Upload DB to VPS
 - [ ] Upload the migrated database to NRCS VPS

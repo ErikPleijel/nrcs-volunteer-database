@@ -2,11 +2,7 @@
 
     <div class="min-h-screen bg-gray-50 py-8">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            {{-- The activity and summary queries are now handled in the controller. --}}
-            @php
-                $totalMembers = $taskForce->users->count();
-            @endphp
-
+            {{-- The activity and summary queries, and $totalMembers, are handled in the controller (myShow(), via activeUsers()). --}}
 
             {{-- New Header Section for Task Force Details (similar to my-unit) --}}
             <div class="flex flex-col md:flex-row justify-between items-start mb-4">
@@ -130,7 +126,7 @@
                                 $teamLeaderId = $taskForce->teamLeader->id ?? null;
                                 $assistantTeamLeaderId = $taskForce->assistantTeamLeader->id ?? null;
 
-                                $filteredMembers = $taskForce->users->filter(function ($member) use ($teamLeaderId, $assistantTeamLeaderId) {
+                                $filteredMembers = $taskForce->activeUsers->filter(function ($member) use ($teamLeaderId, $assistantTeamLeaderId) {
                                     return $member->id !== $teamLeaderId && $member->id !== $assistantTeamLeaderId;
                                 });
                             @endphp

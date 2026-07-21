@@ -36,7 +36,9 @@ class TaskForceController extends Controller
         }
 
 
-        $query = TaskForce::with(['taskForceType', 'users', 'branch', 'teamLeader', 'assistantTeamLeader'])->orderBy('name');
+        $query = TaskForce::with(['taskForceType', 'branch', 'teamLeader', 'assistantTeamLeader'])
+            ->withCount('activeUsers')
+            ->orderBy('name');
 
         // Apply global access level filters FIRST to the query
         if ($accessLevel === 'branch' && $scopedId) {
@@ -173,10 +175,10 @@ class TaskForceController extends Controller
         // Display preference: show profile photos (per-browser cookie, off by default)
         $showPhotos = $request->cookie('users_show_photos') === '1';
 
-        // Load relationships - use 'users' (belongsToMany) instead of 'members' (hasMany)
+        // Load relationships - use 'activeUsers' (belongsToMany, excludes archived) instead of 'members' (hasMany)
         $taskForce->load([
             'taskForceType',
-            'users' // This is the belongsToMany relationship with pivot data
+            'activeUsers' // This is the belongsToMany relationship with pivot data
         ]);
 
         // Fetch recent activities assigned to this Task Force using the scope
@@ -217,7 +219,7 @@ class TaskForceController extends Controller
             abort(403, 'Unauthorized action.');
         }
 
-        $totalMembers = $taskForce->users->count();
+        $totalMembers = $taskForce->activeUsers->count();
 
         // Fetch recent activities assigned to this Task Force using the scope
         $recentActivities = Activity::forTaskForce($taskForce->id)
@@ -227,7 +229,7 @@ class TaskForceController extends Controller
             ->paginate(15);
 
         // Fetch all members of the task force with their current membership payments and activities
-        $taskForceUserIds = $taskForce->users->pluck('id'); // Still needed for member-specific data
+        $taskForceUserIds = $taskForce->activeUsers->pluck('id'); // Still needed for member-specific data
         $unitMembersData = User::whereIn('id', $taskForceUserIds)
             ->with([
                 'currentMembershipPayment' => fn ($q) => $q->personal(),
@@ -336,19 +338,35 @@ class TaskForceController extends Controller
         }
 
         $taskForceTypes = TaskForceType::orderByLevel()->orderByName()->get();
-        // Eager load users (members), team leader, assistant team leader, and branch (display only)
+        // Eager load users (members) — kept unfiltered (not activeUsers) because the
+        // member checklist below drives sync() via hidden inputs; excluding archived
+        // members here would silently detach them on the next unrelated save.
+        // Team leader, assistant team leader, and branch (display only) also loaded.
         $taskForce->load(['users', 'teamLeader', 'assistantTeamLeader', 'branch']);
 
         // Pass the currently selected team leader IDs to the view
         $currentTeamLeaderId = $taskForce->teamLeader ? $taskForce->teamLeader->id : null;
         $currentAssistantTeamLeaderId = $taskForce->assistantTeamLeader ? $taskForce->assistantTeamLeader->id : null;
 
+        // Leadership dropdown candidates: active members only, but always keep the
+        // currently-assigned leader/assistant even if archived, so an untouched save
+        // doesn't silently clear their assignment. (This is the no-JS fallback list —
+        // the live page immediately rebuilds these dropdowns via JS on load; see
+        // updateTeamLeaderDropdowns() in the view, which applies the same rule.)
+        $teamLeaderOptions = $taskForce->users
+            ->filter(fn ($u) => $u->lifecycle_status !== 'archived' || $u->id === $currentTeamLeaderId)
+            ->sortBy('full_name');
+        $assistantTeamLeaderOptions = $taskForce->users
+            ->filter(fn ($u) => $u->lifecycle_status !== 'archived' || $u->id === $currentAssistantTeamLeaderId)
+            ->sortBy('full_name');
 
         return view('task-forces.edit', compact(
             'taskForce',
             'taskForceTypes',
             'currentTeamLeaderId', // Pass this
-            'currentAssistantTeamLeaderId' // Pass this
+            'currentAssistantTeamLeaderId', // Pass this
+            'teamLeaderOptions',
+            'assistantTeamLeaderOptions'
         ));
     }
 

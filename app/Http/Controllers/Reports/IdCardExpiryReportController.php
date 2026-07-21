@@ -171,7 +171,7 @@ class IdCardExpiryReportController extends Controller
         $units = RedCrossUnit::where('division_id', $division->id)->orderBy('name')->get();
 
         $rows = $units->map(function ($unit) use ($columns) {
-            $userIds = $unit->users()->pluck('id');
+            $userIds = $unit->activeUsers()->pluck('id');
             $counts = [];
             foreach ($columns as $i => $col) {
                 $counts[$i] = $this->countExpiring($userIds, $col['from'], $col['to']);
@@ -185,8 +185,10 @@ class IdCardExpiryReportController extends Controller
         });
 
         // Also count division users not in any RC unit
-        $usersWithUnit = $units->flatMap(fn($u) => $u->users()->pluck('id'));
-        $allDivisionUserIds = User::where('division_id', $division->id)->pluck('id');
+        $usersWithUnit = $units->flatMap(fn($u) => $u->activeUsers()->pluck('id'));
+        $allDivisionUserIds = User::where('division_id', $division->id)
+            ->where('lifecycle_status', '!=', 'archived')
+            ->pluck('id');
         $unassignedIds = $allDivisionUserIds->diff($usersWithUnit);
         if ($unassignedIds->isNotEmpty()) {
             $counts = [];

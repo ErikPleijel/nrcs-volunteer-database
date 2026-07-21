@@ -36,6 +36,14 @@ Check Membership & Volunteers graphs on dashboard if straight lines do this step
 
 [ ] Run php artisan lifecycle:reconcile --apply
 
+
+Encrypt check: - [ ] mysql -u root -e "USE redcross_volunteer; SELECT
+SUM(CASE WHEN personal_info IS NOT NULL AND personal_info NOT LIKE 'eyJpdiI6%' THEN 1 ELSE 0 END) AS personal_info_unencrypted,
+SUM(CASE WHEN national_id_number IS NOT NULL AND national_id_number NOT LIKE 'eyJpdiI6%' THEN 1 ELSE 0 END) AS national_id_unencrypted
+FROM users;"
+Expected result: both columns show 0.
+
+
 TODO IMPORTANT, after final production migration, go to UserTokenSeeder, and delete file. If seeder run accidentally, the printed ID cards will be useless!
 
 ONLY ON DEV, not real migration! php artisan dates:shift 2360 + days from 1 jan 2026

@@ -4,7 +4,7 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             {{-- The activity and summary queries are now handled in the controller. --}}
             @php
-                $totalMembers = $taskForce->users->count();
+                $totalMembers = $taskForce->activeUsers->count();
 
                 $adminUser     = auth()->user();
                 $adminAccess   = $adminUser->getAccessLevel();
@@ -151,7 +151,7 @@
                                 $teamLeaderId = $taskForce->teamLeader->id ?? null;
                                 $assistantTeamLeaderId = $taskForce->assistantTeamLeader->id ?? null;
 
-                                $filteredMembers = $taskForce->users->filter(function ($member) use ($teamLeaderId, $assistantTeamLeaderId) {
+                                $filteredMembers = $taskForce->activeUsers->filter(function ($member) use ($teamLeaderId, $assistantTeamLeaderId) {
                                     return $member->id !== $teamLeaderId && $member->id !== $assistantTeamLeaderId;
                                 })->sortBy('first_name');
                             @endphp

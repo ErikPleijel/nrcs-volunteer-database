@@ -30,14 +30,14 @@ class RedCrossUnitController extends Controller
             'division.branch',
             'teamLeader',
             'assistantTeamLeader',
-            'users' => function ($query) {
+            'activeUsers' => function ($query) {
                 $query->orderBy('first_name')->orderBy('last_name');
             },
         ]);
 
         // Get some statistics for this unit
-        $totalMembers = $redCrossUnit->users()->count();
-        $activeMembers = $redCrossUnit->users()->whereNotNull('email_verified_at')->count();
+        $totalMembers = $redCrossUnit->activeUsers()->count();
+        $activeMembers = $redCrossUnit->activeUsers()->whereNotNull('email_verified_at')->count();
 
         // Fetch recent activities assigned to this Red Cross Unit using the scope
         $recentActivities = Activity::forRedCrossUnit($redCrossUnit->id)
@@ -62,8 +62,8 @@ class RedCrossUnitController extends Controller
             ->sortByDesc('total_hours');
 
         // Fetch all members of the unit with their current membership payments and activities (for existing table)
-        // Note: $redCrossUnit->users() already has orderBy('first_name')->orderBy('last_name') from the load() call above.
-        $unitMembersData = $redCrossUnit->users
+        // Note: $redCrossUnit->activeUsers() already has orderBy('first_name')->orderBy('last_name') from the load() call above.
+        $unitMembersData = $redCrossUnit->activeUsers
             ->map(function ($user) {
                 $user->loadMissing([
                     'currentMembershipPayment' => fn ($q) => $q->personal(),
@@ -93,8 +93,8 @@ class RedCrossUnitController extends Controller
             });
 
         // Fetch all members of the unit with their trainings for the new table, sorted by first name
-        // Note: $redCrossUnit->users() already has orderBy('first_name')->orderBy('last_name') from the load() call above.
-        $membersWithTrainingsDetails = $redCrossUnit->users
+        // Note: $redCrossUnit->activeUsers() already has orderBy('first_name')->orderBy('last_name') from the load() call above.
+        $membersWithTrainingsDetails = $redCrossUnit->activeUsers
             ->map(function ($user) {
                 $user->loadMissing(['trainings.trainingType']); // Eager load trainings and their types
 
@@ -451,7 +451,7 @@ class RedCrossUnitController extends Controller
         $status = $request->input('status', 'active');
 
         $query = RedCrossUnit::with(['division.branch', 'teamLeader', 'assistantTeamLeader'])
-            ->withCount('users')
+            ->withCount('activeUsers')
             ->where('is_active', $status === 'archived' ? false : true);
 
         // Apply global access level filters FIRST to the query
@@ -615,14 +615,14 @@ class RedCrossUnitController extends Controller
             'division.branch',
             'teamLeader',
             'assistantTeamLeader',
-            'users' => function ($query) {
+            'activeUsers' => function ($query) {
                 $query->orderBy('first_name')->orderBy('last_name');
             },
         ]);
 
         // Get some statistics for this unit
-        $totalMembers = $redCrossUnit->users()->count();
-        $activeMembers = $redCrossUnit->users()->whereNotNull('email_verified_at')->count();
+        $totalMembers = $redCrossUnit->activeUsers()->count();
+        $activeMembers = $redCrossUnit->activeUsers()->whereNotNull('email_verified_at')->count();
 
         // Fetch recent activities assigned to this Red Cross Unit using the scope
         $recentActivities = Activity::forRedCrossUnit($redCrossUnit->id)
@@ -647,7 +647,7 @@ class RedCrossUnitController extends Controller
             ->sortByDesc('total_hours');
 
         // Fetch all members of the unit with their current membership payments and activities (for existing table)
-        $unitMembersData = $redCrossUnit->users()
+        $unitMembersData = $redCrossUnit->activeUsers()
             ->with([
                 'currentMembershipPayment' => fn ($q) => $q->personal(),
                 'currentMembershipPayment.membershipFee',
@@ -678,7 +678,7 @@ class RedCrossUnitController extends Controller
             });
 
         // Fetch all members of the unit with their trainings for the new table, sorted by first name
-        $membersWithTrainingsDetails = $redCrossUnit->users()
+        $membersWithTrainingsDetails = $redCrossUnit->activeUsers()
             ->with(['trainings.trainingType']) // Eager load trainings and their types
             ->orderBy('first_name')
             ->get()
@@ -746,7 +746,7 @@ class RedCrossUnitController extends Controller
         $redCrossUnit->load(['division.branch']);
 
         // Only get users who are members of this specific unit for leadership selection
-        $unitMembers = $redCrossUnit->users()
+        $unitMembers = $redCrossUnit->activeUsers()
             ->orderBy('first_name')
             ->orderBy('last_name')
             ->get();

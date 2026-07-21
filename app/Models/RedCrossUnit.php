@@ -54,6 +54,16 @@ class RedCrossUnit extends Model
     }
 
     /**
+     * A red cross unit has many users, excluding archived ones. Use this
+     * instead of users() for member lists/counts shown in the UI.
+     */
+    public function activeUsers()
+    {
+        return $this->hasMany(User::class, 'red_cross_unit_id')
+            ->where('lifecycle_status', '!=', 'archived');
+    }
+
+    /**
      * Scope for active red cross units
      */
     public function scopeActive($query)
@@ -82,7 +92,7 @@ class RedCrossUnit extends Model
      */
     public function getUsersCountAttribute()
     {
-        return $this->users()->count();
+        return $this->activeUsers()->count();
     }
 
     /**

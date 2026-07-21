@@ -41,6 +41,17 @@ class TaskForce extends Model
                     ->withTimestamps(); // Useful for tracking when a member was added
     }
 
+    /**
+     * Task force members, excluding archived users. Use this instead of
+     * users() for member lists/counts/dropdowns shown in the UI.
+     */
+    public function activeUsers()
+    {
+        return $this->belongsToMany(User::class, 'task_force_members', 'task_force_id', 'user_id')
+            ->withTimestamps()
+            ->where('lifecycle_status', '!=', 'archived');
+    }
+
     // Define relationship for the team leader
     public function teamLeader()
     {

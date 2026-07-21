@@ -247,7 +247,7 @@
                             </td>
 
                             <td class="table-body-cell">
-                                <div class="table-field-main">{{ $unit->users_count }} {{ $unit->users_count != 1 ? 'members' : 'member' }}</div>
+                                <div class="table-field-main">{{ $unit->active_users_count }} {{ $unit->active_users_count != 1 ? 'members' : 'member' }}</div>
                             </td>
 
                             <td class="table-body-cell">

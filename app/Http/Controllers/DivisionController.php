@@ -127,7 +127,7 @@ class DivisionController extends Controller
     public function show(Division $division): View
     {
         $division->load(['branch', 'redCrossUnits' => function ($query) {
-            $query->withCount('users')->orderBy('name');
+            $query->withCount('activeUsers')->orderBy('name');
         }])->loadCount('redCrossUnits');
 
         return view('divisions.show', compact('division'));
@@ -211,9 +211,9 @@ class DivisionController extends Controller
         $division->load([
             'redCrossUnits' => function ($query) {
                 $query->select('id', 'name', 'division_id')
-                    ->withCount('users')                // adds users_count
-                    ->having('users_count', '>', 0)     // exclude units with 0 members
-                    ->orderByDesc('users_count');       // order by count desc
+                    ->withCount('activeUsers')                // adds active_users_count
+                    ->having('active_users_count', '>', 0)     // exclude units with 0 members
+                    ->orderByDesc('active_users_count');       // order by count desc
             },
         ]);
 
@@ -225,7 +225,7 @@ class DivisionController extends Controller
                 return [
                     'id'            => $unit->id,
                     'name'          => $unit->name,
-                    'members_count' => $unit->users_count,   // this is the sorted, non-zero count
+                    'members_count' => $unit->active_users_count,   // this is the sorted, non-zero count
                 ];
             })->values(), // reindex array
         ]);

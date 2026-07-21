@@ -246,7 +246,7 @@
                                 </td>
 
                                 <td class="table-body-cell">
-                                    <div class="table-field-main">{{ $taskForce->users->count() }}</div>
+                                    <div class="table-field-main">{{ $taskForce->active_users_count }}</div>
                                 </td>
 
                                 <td class="table-body-cell">
