@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Encryption\DecryptException;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 
 class EncryptExistingNationalIds extends Command
@@ -35,11 +36,11 @@ class EncryptExistingNationalIds extends Command
                     $updates = [];
 
                     if ($row->national_id_number !== null && ! $this->isEncrypted($row->national_id_number)) {
-                        $updates['national_id_number'] = encrypt($row->national_id_number);
+                        $updates['national_id_number'] = Crypt::encryptString($row->national_id_number);
                     }
 
                     if ($row->personal_info !== null && ! $this->isEncrypted($row->personal_info)) {
-                        $updates['personal_info'] = encrypt($row->personal_info);
+                        $updates['personal_info'] = Crypt::encryptString($row->personal_info);
                     }
 
                     if (empty($updates)) {
@@ -66,7 +67,7 @@ class EncryptExistingNationalIds extends Command
     private function isEncrypted(string $value): bool
     {
         try {
-            decrypt($value);
+            Crypt::decryptString($value);
 
             return true;
         } catch (DecryptException) {

@@ -1474,7 +1474,7 @@ class UserController extends Controller
         } elseif ($payment->expiry_date && Carbon::parse($payment->expiry_date)->isPast()) {
             return [
                 'type' => 'expired',
-                'text' => 'Archived payment',
+                'text' => 'Expired '.Carbon::parse($payment->expiry_date)->format('M d, Y'),
                 'class' => 'bg-red-100 text-red-800',
             ];
         } else {

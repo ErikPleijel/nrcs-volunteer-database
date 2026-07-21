@@ -125,7 +125,7 @@
                                                 <label class="flex items-center">
                                                     <input type="checkbox" name="in_kind_donation" value="1"
                                                            id="in_kind_donation" {{ old('in_kind_donation') ? 'checked' : '' }}
-                                                           class="w-5 h-5 rounded border-gray-300 text-blue-600 shadow-sm focus:ring-blue-500">
+                                                           class="rounded border-gray-300 text-blue-600 shadow-sm focus:ring-blue-500">
                                                     <span class="ml-2 text-sm text-gray-700">In-Kind Donation</span>
                                                 </label>
 
