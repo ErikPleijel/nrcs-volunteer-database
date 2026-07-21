@@ -37,6 +37,12 @@
             </x-slot>
             @endcan
 
+            <x-slot name="button2">
+                <a href="{{ route('task-forces.index') }}" class="btn-cancel">
+                    <i class="fas fa-arrow-left mr-2"></i>Back to List
+                </a>
+            </x-slot>
+
             <!-- Task force identity -->
             <div class="mb-6">
                 <h2 class="text-2xl font-bold text-gray-900">{{ $taskForce->name }}</h2>

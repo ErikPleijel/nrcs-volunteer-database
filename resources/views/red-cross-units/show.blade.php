@@ -17,6 +17,12 @@
                 </x-slot>
             @endcan
 
+            <x-slot name="button2">
+                <a href="{{ route('red-cross-units.index') }}" class="btn-cancel">
+                    <i class="fas fa-arrow-left mr-2"></i>Back to List
+                </a>
+            </x-slot>
+
             <!-- Unit identity -->
             <div class="mb-6">
                 <h2 class="text-2xl font-bold text-gray-900">{{ $redCrossUnit->name }}</h2>

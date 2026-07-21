@@ -253,10 +253,16 @@
                             <td class="table-body-cell">
                                 <div class="table-field-main">
                                     {{ $unit->teamLeader->full_name ?? '—' }}
+                                    @if($unit->teamLeader && $unit->teamLeader->lifecycle_status === 'archived')
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 ml-1">Archived</span>
+                                    @endif
                                 </div>
                                 @if($unit->assistantTeamLeader)
                                     <div class="table-field-sub">
                                         {{ $unit->assistantTeamLeader->full_name }}
+                                        @if($unit->assistantTeamLeader->lifecycle_status === 'archived')
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 ml-1">Archived</span>
+                                        @endif
                                     </div>
                                 @endif
                             </td>
