@@ -358,7 +358,7 @@
                                     <div class="taskforce-style w-fit flex flex-col">
                                         <span>{{ $taskForce->name }}</span>
                                         <span>{{ $taskForce->branch->code }}</span>
-                                        <span class="text-xs text-center">{{ $taskForce->users->count() }} members</span>
+                                        <span class="text-xs text-center">{{ $taskForce->activeUsers->count() }} members</span>
                                         <span class="text-xs text-center font-medium text-gray-700 rounded px-1 mt-0.5" style="background-color: #cce3ff;">
                                             {{  $tfRole }}
                                         </span>
