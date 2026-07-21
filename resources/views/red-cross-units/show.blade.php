@@ -5,7 +5,11 @@
             {{-- All variables are now passed from the controller --}}
 
             <x-slot name="pageHeader">
-                <i class="fas fa-shield-alt mr-3 mb-4"></i> Red Cross Unit
+                <i class="fas fa-shield-alt mr-3"></i> Red Cross Units
+            </x-slot>
+
+            <x-slot name="subHeader">
+                Viewing {{ $redCrossUnit->name }}
             </x-slot>
 
             <x-slot name="button1">

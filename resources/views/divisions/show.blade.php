@@ -6,12 +6,21 @@
 <x-layouts.admin :title="'Division: ' . $division->name">
 
     <x-slot name="pageHeader">
-        <i class="fas fa-layer-group mr-3 mb-6"></i> Division Details
+        <i class="fas fa-layer-group mr-3"></i> Divisions
     </x-slot>
 
+    <x-slot name="subHeader">
+        Viewing {{ $division->name }}
+    </x-slot>
+
+    <x-slot name="button1">
+        <a href="{{ route('divisions.index') }}" class="btn-cancel">
+            <i class="fas fa-arrow-left mr-1"></i> Back to List
+        </a>
+    </x-slot>
 
     @can('edit_division_information')
-        <x-slot name="button1">
+        <x-slot name="button2">
             <a href="{{ route('divisions.edit', $division) }}" class="btn-edit">
                 <i class="fas fa-edit mr-1"></i>Edit Division
             </a>

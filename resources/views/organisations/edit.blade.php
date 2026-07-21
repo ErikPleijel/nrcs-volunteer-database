@@ -1,6 +1,10 @@
 <x-layouts.admin title="Edit Organisation">
     <x-slot name="pageHeader">
-        <i class="fas fa-industry mr-3 mb-6"></i> Edit Organisation
+        <i class="fas fa-industry mr-3"></i> Organisations
+    </x-slot>
+
+    <x-slot name="subHeader">
+        Editing {{ $organisation->name }}
     </x-slot>
 
     <x-slot name="button1">
@@ -134,7 +138,7 @@
 
                         <div class="flex justify-end items-center gap-3 pt-6 border-t border-gray-200">
                             <button type="submit" class="btn-primary">
-                                Save Changes
+                                <i class="fas fa-check mr-1"></i>Update Organisation
                             </button>
                         </div>
                     </form>

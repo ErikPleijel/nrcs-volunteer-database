@@ -1,7 +1,11 @@
 <x-layouts.admin title="Branches">
 
     <x-slot name="pageHeader">
-        <i class="fas fa-sitemap mr-3 mb-6"></i> Branches
+        <i class="fas fa-sitemap mr-3"></i> Branches
+    </x-slot>
+
+    <x-slot name="subHeader">
+        Find & Filter
     </x-slot>
 
     <div class="flex justify-center mb-4">
@@ -104,11 +108,6 @@
                             </tr>
                         </thead>
                         <tbody class="table-body">
-                            @php
-                                $authUser = auth()->user();
-                                $canEditAnyBranch = $authUser->getAccessLevel() === 'national';
-                                $editableBranchId = $canEditAnyBranch ? null : $authUser->getScopedBranchId();
-                            @endphp
                             @foreach($branches as $branch)
                                 <tr class="table-body-row">
 
@@ -182,13 +181,8 @@
                                                 <a href="{{ route('branches.show', $branch) }}"
                                                    class="btn-primary inline-flex items-center gap-1"
                                                   >
-                                                    View
+                                                    <i class="fas fa-eye mr-1"></i>View
                                                 </a>
-                                            @endcan
-                                            @can('edit_branch_information')
-                                                @if($canEditAnyBranch || (int) $branch->id === (int) $editableBranchId)
-                                                    <a href="{{ route('branches.edit', $branch) }}" class="btn-edit">Edit</a>
-                                                @endif
                                             @endcan
                                         </div>
                                     </td>

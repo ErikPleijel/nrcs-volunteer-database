@@ -4,7 +4,7 @@
     </x-slot>
 
     <x-slot name="subHeader">
-        EDIT TASKFORCE
+        Editing {{ $taskForce->name }}
     </x-slot>
 
     <x-slot name="button1">
@@ -126,10 +126,10 @@
                         {{-- Error message for team leader selection --}}
                         <div id="leader-status-message" class="mb-4 p-3 rounded text-sm hidden"></div>
 
-                        <div class="flex justify-end space-x-4 mb-6">
+                        <div class="border-t pt-6 flex items-center justify-end gap-3">
                             <button type="submit"
                                     class="btn-primary">
-                                Save Changes
+                                <i class="fas fa-check mr-1"></i>Update Task Force
                             </button>
                         </div>
 

@@ -1,6 +1,10 @@
 <x-layouts.admin title="Divisions">
     <x-slot name="pageHeader">
-        <i class="fas fa-layer-group mr-3 mb-6"></i> Divisions
+        <i class="fas fa-layer-group mr-3"></i> Divisions
+    </x-slot>
+
+    <x-slot name="subHeader">
+        Find & Filter
     </x-slot>
 
 
@@ -184,11 +188,8 @@
                                     <div class="flex gap-2 items-center">
                                         <a href="{{ route('divisions.show', $division) }}"
                                            class="btn-primary inline-flex items-center gap-1">
-                                            View
+                                            <i class="fas fa-eye mr-1"></i>View
                                         </a>
-                                        @can('edit_division_information')
-                                            <a href="{{ route('divisions.edit', $division) }}" class="btn-edit">Edit</a>
-                                        @endcan
                                     </div>
                                 </td>
 

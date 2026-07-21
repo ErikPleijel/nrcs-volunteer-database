@@ -3,7 +3,7 @@
         <i class="fas fa-hand-holding-dollar mr-3"></i> Payments
     </x-slot>
     <x-slot name="subHeader">
-        ADD PAYMENTS<br>Your entries
+        Register a new payment
     </x-slot>
 
 

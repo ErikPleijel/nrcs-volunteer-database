@@ -1,10 +1,10 @@
 <x-layouts.admin>
     <x-slot name="pageHeader">
-        <i class="fas fa-users-gear mr-3"></i>  Task Forces
+        <i class="fas fa-users-gear mr-3"></i> Task Forces
     </x-slot>
 
     <x-slot name="subHeader">
-        ADD NEW TASKFORCE
+        Register a new task force
     </x-slot>
 
     <x-slot name="button1">
@@ -82,14 +82,10 @@
                             </div>
                         </div>
 
-                        <div class="flex justify-end space-x-4">
-                            <a href="{{ route('task-forces.index') }}"
-                               class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">
-                                Cancel
-                            </a>
+                        <div class="border-t pt-6 flex items-center justify-end gap-3">
                             <button type="submit"
-                                    class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                                Create Task Force
+                                    class="btn-primary">
+                                <i class="fas fa-plus mr-1"></i>Create Task Force
                             </button>
                         </div>
                     </form>

@@ -1,6 +1,10 @@
 <x-layouts.admin title="Organisation">
     <x-slot name="pageHeader">
-        <i class="fas fa-industry mr-3 mb-6"></i> Organisation Details
+        <i class="fas fa-industry mr-3"></i> Organisations
+    </x-slot>
+
+    <x-slot name="subHeader">
+        Viewing {{ $organisation->name }}
     </x-slot>
 
     <x-slot name="button1">

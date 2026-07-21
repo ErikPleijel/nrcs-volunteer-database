@@ -1,7 +1,7 @@
 <x-layouts.admin title="Donation Details">
 
     <x-slot name="pageHeader">
-        <i class="fas fa-hand-holding-heart mr-3"></i> Donations
+        <i class="fas fa-heart mr-3"></i> Donations
     </x-slot>
     <x-slot name="subHeader">
         Donation details

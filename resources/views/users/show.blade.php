@@ -1,7 +1,11 @@
 <x-layouts.admin :title="'User: ' . ($user->full_name ?? 'Unknown User')">
 
     <x-slot name="pageHeader">
-        <i class="fas fa-user mr-3 mb-4"></i>Personal Details
+        <i class="fas fa-user mr-3"></i> Persons
+    </x-slot>
+
+    <x-slot name="subHeader">
+        Viewing {{ $user->full_name }}
     </x-slot>
 
 

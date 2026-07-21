@@ -1,6 +1,10 @@
 <x-layouts.admin title="Organisations">
     <x-slot name="pageHeader">
-        <i class="fas fa-industry mr-3 mb-6"></i> Organisations
+        <i class="fas fa-industry mr-3"></i> Organisations
+    </x-slot>
+
+    <x-slot name="subHeader">
+        Find & Filter
     </x-slot>
 
     @if($status === 'active')

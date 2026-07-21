@@ -1,9 +1,9 @@
 <x-layouts.admin title="Donations Log Management">
     <x-slot name="pageHeader">
-        <i class="fas fa-graduation-cap mr-3"></i> Donations
+        <i class="fas fa-heart mr-3"></i> Donations
     </x-slot>
     <x-slot name="subHeader">
-        LOG NEW DONATIONS
+        Register a new donation
     </x-slot>
 
 

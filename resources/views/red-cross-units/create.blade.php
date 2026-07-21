@@ -1,9 +1,9 @@
 <x-layouts.admin title="Create Red Cross Unit">
     <x-slot name="pageHeader">
-        <i class="fas fa-shield-alt mr-3"></i>  Red Cross Unit
+        <i class="fas fa-shield-alt mr-3"></i> Red Cross Units
     </x-slot>
     <x-slot name="subHeader">
-        Create New Red Cross Unit
+        Register a new Red Cross unit
     </x-slot>
 
     <x-slot name="button1">
@@ -63,14 +63,10 @@
                             </div>
                         </div>
 
-                        <div class="flex justify-end space-x-4 mt-8">
-                            <a href="{{ route('red-cross-units.index') }}"
-                               class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">
-                                Cancel
-                            </a>
+                        <div class="border-t pt-6 flex items-center justify-end gap-3">
                             <button type="submit"
                                     class="btn-primary">
-                                Create Red Cross Unit
+                                <i class="fas fa-plus mr-1"></i>Create Red Cross Unit
                             </button>
                         </div>
                     </form>

@@ -1,7 +1,7 @@
 <x-layouts.admin title="Training Details">
 
     <x-slot name="pageHeader">
-        <i class="fas fa-graduation-cap mr-3"></i>Trainings
+        <i class="fas fa-graduation-cap mr-3"></i> Trainings
     </x-slot>
     <x-slot name="subHeader">
         Training details

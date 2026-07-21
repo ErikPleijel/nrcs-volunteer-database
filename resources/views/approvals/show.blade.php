@@ -3,6 +3,10 @@
         <i class="fas fa-magnifying-glass mr-3"></i>Review {{ $moduleLabel }}
     </x-slot>
 
+    <x-slot name="subHeader">
+        Reviewing {{ $record->user?->full_name ?? 'N/A' }}
+    </x-slot>
+
     @push('styles')
         <style>[x-cloak]{ display:none !important; }</style>
     @endpush

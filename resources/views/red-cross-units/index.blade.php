@@ -2,11 +2,11 @@
 
 
     <x-slot name="pageHeader">
-        <i class="fas fa-shield-alt mr-3"></i>  Red Cross Unit
+        <i class="fas fa-shield-alt mr-3"></i> Red Cross Units
     </x-slot>
 
     <x-slot name="subHeader">
-        FIND & FILTER
+        Find & Filter
     </x-slot>
 
     @can('add_red_cross_unit')

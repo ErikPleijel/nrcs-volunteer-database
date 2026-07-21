@@ -1,6 +1,10 @@
 <x-layouts.admin title="Add Organisation">
     <x-slot name="pageHeader">
-        <i class="fas fa-industry mr-3 mb-6"></i> Add Organisation
+        <i class="fas fa-industry mr-3"></i> Organisations
+    </x-slot>
+
+    <x-slot name="subHeader">
+        Register a new organisation
     </x-slot>
 
     <x-slot name="button1">
@@ -10,7 +14,7 @@
     </x-slot>
 
     <div class="container mx-auto px-4 py-6">
-        <div class="max-w-2xl">
+        <div class="max-w-2xl mx-auto">
             <div class="bg-white rounded-lg shadow overflow-hidden">
                 <div class="px-6 py-4 bg-gray-50 border-b">
                     <h3 class="text-base font-semibold text-gray-800">Organisation Details</h3>
@@ -159,14 +163,10 @@
                             @enderror
                         </div>
 
-                        <div class="flex justify-end space-x-4">
-                            <a href="{{ route('organisations.index') }}"
-                               class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">
-                                Cancel
-                            </a>
+                        <div class="border-t pt-6 flex items-center justify-end gap-3">
                             <button type="submit"
-                                    class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                                Create Organisation
+                                    class="btn-primary">
+                                <i class="fas fa-plus mr-1"></i>Create Organisation
                             </button>
                         </div>
                     </form>

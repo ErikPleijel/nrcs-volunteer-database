@@ -1,13 +1,21 @@
 <x-layouts.admin :title="'Branch: ' . $branch->name">
 
     <x-slot name="pageHeader">
-        <i class="fas fa-sitemap mr-3 mb-6"></i> Branch Details
+        <i class="fas fa-sitemap mr-3"></i> Branches
     </x-slot>
 
+    <x-slot name="subHeader">
+        Viewing {{ $branch->name }}
+    </x-slot>
 
+    <x-slot name="button1">
+        <a href="{{ route('branches.index') }}" class="btn-cancel">
+            <i class="fas fa-arrow-left mr-1"></i> Back to List
+        </a>
+    </x-slot>
 
     @can('edit_branch_information')
-        <x-slot name="button1">
+        <x-slot name="button2">
             <a href="{{ route('branches.edit', $branch) }}" class="btn-edit">
                 <i class="fas fa-edit mr-1"></i>Edit Branch
             </a>

@@ -5,7 +5,7 @@
         <i class="fas fa-user mr-3"></i> Persons
     </x-slot>
     <x-slot name="subHeader">
-        FIND & FILTER
+        Find & Filter
     </x-slot>
 
     {{-- ── HOW TO BUTTON ───────────────────────────────────────────── --}}

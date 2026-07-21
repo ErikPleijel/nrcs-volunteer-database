@@ -2,11 +2,11 @@
 
 
     <x-slot name="pageHeader">
-        <i class="fas fa-users-gear mr-3"></i>  Task Forces
+        <i class="fas fa-users-gear mr-3"></i> Task Forces
     </x-slot>
 
     <x-slot name="subHeader">
-        FIND & FILTER
+        Find & Filter
     </x-slot>
 
 

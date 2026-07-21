@@ -26,7 +26,11 @@
             @endphp
 
             <x-slot name="pageHeader">
-                <i class="fas fa-users-gear mr-3 mb-4"></i> Task Force
+                <i class="fas fa-users-gear mr-3"></i> Task Forces
+            </x-slot>
+
+            <x-slot name="subHeader">
+                Viewing {{ $taskForce->name }}
             </x-slot>
 
             <x-slot name="button1">

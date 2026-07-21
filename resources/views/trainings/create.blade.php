@@ -1,9 +1,9 @@
 <x-layouts.admin title="Training Log Management">
     <x-slot name="pageHeader">
-        <i class="fas fa-graduation-cap mr-3"></i>Trainings
+        <i class="fas fa-graduation-cap mr-3"></i> Trainings
     </x-slot>
     <x-slot name="subHeader">
-        LOG NEW TRAINING
+        Register a new training
     </x-slot>
 
 

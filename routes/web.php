@@ -401,8 +401,6 @@ Route::middleware('auth')->group(function () {
 
             Route::post('/', [MembershipPaymentController::class, 'store'])->name('store')->middleware('can:add_payments');
             Route::get('/{membership_payment}', [MembershipPaymentController::class, 'show'])->name('show')->middleware('can:view_payments');
-            Route::get('/{membership_payment}/edit', [MembershipPaymentController::class, 'edit'])->name('edit')->middleware('can:edit_payments');
-            Route::put('/{membership_payment}', [MembershipPaymentController::class, 'update'])->name('update')->middleware('can:edit_payments');
             Route::delete('/{membership_payment}', [MembershipPaymentController::class, 'destroy'])->name('destroy')->middleware('can:remove_payments');
 
             // Approval workflow (Phase 2). Approve/reject gated by approve permission;
@@ -427,8 +425,6 @@ Route::middleware('auth')->group(function () {
             Route::get('/create/{user?}', [ActivityController::class, 'create'])->name('create')->middleware('can:add_volunteering');
             Route::post('/', [ActivityController::class, 'store'])->name('store')->middleware('can:add_volunteering');
             Route::get('/{activity}', [ActivityController::class, 'show'])->name('show')->middleware('can:view_volunteering');
-            Route::get('/{activity}/edit', [ActivityController::class, 'edit'])->name('edit')->middleware('can:edit_volunteering');
-            Route::put('/{activity}', [ActivityController::class, 'update'])->name('update')->middleware('can:edit_volunteering');
             Route::delete('/{activity}', [ActivityController::class, 'destroy'])->name('destroy')->middleware('can:remove_volunteering');
 
             // Approval workflow (Phase 2).
@@ -455,8 +451,6 @@ Route::middleware('auth')->group(function () {
             Route::get('/create/{user?}', [TrainingController::class, 'create'])->name('create')->middleware('can:add_trainings');
             Route::post('/', [TrainingController::class, 'store'])->name('store')->middleware('can:add_trainings');
             Route::get('/{training}', [TrainingController::class, 'show'])->name('show')->middleware('can:view_trainings');
-            Route::get('/{training}/edit', [TrainingController::class, 'edit'])->name('edit')->middleware('can:edit_trainings');
-            Route::put('/{training}', [TrainingController::class, 'update'])->name('update')->middleware('can:edit_trainings');
             Route::delete('/{training}', [TrainingController::class, 'destroy'])->name('destroy')->middleware('can:remove_trainings');
 
             // Approval workflow (Phase 2).
@@ -484,8 +478,6 @@ Route::middleware('auth')->group(function () {
             Route::get('/create/{user?}', [DonationController::class, 'create'])->name('create')->middleware('can:add_donations');
             Route::post('/', [DonationController::class, 'store'])->name('store')->middleware('can:add_donations');
             Route::get('/{donation}', [DonationController::class, 'show'])->name('show')->middleware('can:view_donations');
-            Route::get('/{donation}/edit', [DonationController::class, 'edit'])->name('edit')->middleware('can:edit_donations');
-            Route::put('/{donation}', [DonationController::class, 'update'])->name('update')->middleware('can:edit_donations');
             Route::delete('/{donation}', [DonationController::class, 'destroy'])->name('destroy')->middleware('can:remove_donations');
 
             // Approval workflow (Phase 2/3).

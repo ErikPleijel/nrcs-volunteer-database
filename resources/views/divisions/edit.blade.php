@@ -1,7 +1,17 @@
 <x-layouts.admin :title="'Edit Division: ' . $division->name">
 
     <x-slot name="pageHeader">
-        <i class="fas fa-layer-group mr-3 mb-6"></i> Edit Division
+        <i class="fas fa-layer-group mr-3"></i> Divisions
+    </x-slot>
+
+    <x-slot name="subHeader">
+        Editing {{ $division->name }}
+    </x-slot>
+
+    <x-slot name="button1">
+        <a href="{{ route('divisions.show', $division) }}" class="btn-cancel">
+            <i class="fas fa-arrow-left mr-1"></i> Back to Division
+        </a>
     </x-slot>
 
     <div class="container mx-auto px-4 py-6">
@@ -106,16 +116,10 @@
 
                 <!-- Form Actions -->
                 <div class="flex justify-end items-center mt-8 pt-6 border-t border-gray-200">
-                    <div class="space-x-3">
-                        <a href="{{ route('divisions.show', $division) }}"
-                           class="bg-gray-300 hover:bg-gray-400 text-gray-700 font-bold py-2 px-4 rounded">
-                            Cancel
-                        </a>
-                        <button type="submit"
-                                class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                            Update Division
-                        </button>
-                    </div>
+                    <button type="submit"
+                            class="btn-primary">
+                        <i class="fas fa-check mr-1"></i>Update Division
+                    </button>
                 </div>
             </form>
         </div>

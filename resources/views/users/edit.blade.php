@@ -11,7 +11,7 @@
     </style>
 
     <x-slot name="pageHeader">
-        <i class="fas fa-user mr-3"></i>Edit Person
+        <i class="fas fa-user mr-3"></i> Persons
     </x-slot>
 
     <x-slot name="button1">
@@ -21,7 +21,7 @@
     </x-slot>
 
     <x-slot name="subHeader">
-        {{ $user->full_name }} {{ $user->getUserIdReferenceShortAttribute() ?? 'Unknown User' }}
+        Editing {{ $user->full_name }}
     </x-slot>
 
     @if($user->isArchived())
@@ -844,12 +844,10 @@
 
                         <!-- Form Actions -->
                         <div class="flex justify-end items-center pt-6 border-t border-gray-200">
-                            <div class="space-x-3">
-                                <button type="submit"
-                                        class="btn-primary">
-                                    Update Person
-                                </button>
-                            </div>
+                            <button type="submit"
+                                    class="btn-primary">
+                                <i class="fas fa-check mr-1"></i>Update Person
+                            </button>
                         </div>
                     </form>
                 </div>

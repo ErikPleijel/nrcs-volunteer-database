@@ -1,10 +1,10 @@
 <x-layouts.admin title="Registration Form (Admin)">
     <x-slot name="pageHeader">
-        Registration Form (Admin)
+        <i class="fas fa-user mr-3"></i> Persons
     </x-slot>
 
     <x-slot name="subHeader">
-        Registration of New User
+        Register a new person
     </x-slot>
 
     <x-slot name="button1">
@@ -555,12 +555,9 @@
                     </div>
 
                     <!-- Submit Buttons -->
-                    <div class="flex justify-between items-center pt-6 border-t">
-                        <a href="{{ route('users.index') }}" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded">
-                            Cancel
-                        </a>
-                        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                            Create User
+                    <div class="border-t pt-6 flex items-center justify-end gap-3">
+                        <button type="submit" class="btn-primary">
+                            <i class="fas fa-plus mr-1"></i>Create User
                         </button>
                     </div>
                 </form>

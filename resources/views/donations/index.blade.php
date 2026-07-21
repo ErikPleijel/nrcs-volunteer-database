@@ -1,6 +1,6 @@
 <x-layouts.admin title="Donations Management">
     <x-slot name="pageHeader">
-        <i class="fas fa-heart mr-3"></i> Donation Records
+        <i class="fas fa-heart mr-3"></i> Donations
     </x-slot>
     <x-slot name="subHeader">
         List of recorded donations

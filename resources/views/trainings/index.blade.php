@@ -1,6 +1,6 @@
 <x-layouts.admin title="Trainings Management">
     <x-slot name="pageHeader">
-        <i class="fas fa-graduation-cap mr-3"></i> Training Records
+        <i class="fas fa-graduation-cap mr-3"></i> Trainings
     </x-slot>
     <x-slot name="subHeader">
         List of recorded trainings

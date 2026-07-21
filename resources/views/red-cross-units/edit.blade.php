@@ -2,10 +2,10 @@
     <x-slot name="title">Edit Red Cross Unit - {{ $redCrossUnit->name }}</x-slot>
 
     <x-slot name="pageHeader">
-        <i class="fas fa-shield-alt mr-3"></i>  Red Cross Unit
+        <i class="fas fa-shield-alt mr-3"></i> Red Cross Units
     </x-slot>
     <x-slot name="subHeader">
-        EDIT
+        Editing {{ $redCrossUnit->name }}
     </x-slot>
 
     <x-slot name="button1">
@@ -168,7 +168,7 @@
 
                     {{-- Save --}}
                     <button type="submit" class="btn-primary">
-                        Update Unit
+                        <i class="fas fa-check mr-1"></i>Update Unit
                     </button>
 
                 </div>
