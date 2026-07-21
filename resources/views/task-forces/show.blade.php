@@ -29,14 +29,14 @@
                 <i class="fas fa-users-gear mr-3 mb-4"></i> Task Force
             </x-slot>
 
-            <x-slot name="button2">
+            <x-slot name="button1">
                 <a href="{{ route('task-forces.index') }}" class="btn-cancel">
                     <i class="fas fa-arrow-left mr-2"></i>Back to List
                 </a>
             </x-slot>
 
             @can('edit_task_force')
-            <x-slot name="button1">
+            <x-slot name="button2">
                 <a href="{{  route('task-forces.edit', $taskForce)  }}"
                    class="btn-primary">
                     <i class="fas fa-cog mr-2"></i>Edit Task Force
