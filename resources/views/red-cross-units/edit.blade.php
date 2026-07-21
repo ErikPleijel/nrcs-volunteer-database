@@ -225,7 +225,11 @@
                             <i class="fas fa-trash-alt mr-2"></i>Deactivate Unit
                         </button>
                         <span class="text-sm text-red-400">
-                            Cannot deactivate — {{ $allMembersCount }} {{ $allMembersCount === 1 ? 'person is' : 'persons are' }} still assigned to this unit.
+                            Cannot deactivate — {{ $allMembersCount }} {{ $allMembersCount === 1 ? 'person is' : 'persons are' }} still assigned to this unit
+                            @if($archivedMembersCount > 0)
+                                (including {{ $archivedMembersCount }} archived)
+                            @endif
+                            . Reassign or update them first.
                         </span>
                     @endif
                 </div>

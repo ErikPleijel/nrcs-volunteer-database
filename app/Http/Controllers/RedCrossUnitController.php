@@ -764,8 +764,13 @@ class RedCrossUnitController extends Controller
             $assistantTeamLeaderOptions = $unitMembers->concat([$redCrossUnit->assistantTeamLeader]);
         }
 
+        // For clarifying the deactivation-blocked message — how many of the
+        // unit's (unfiltered) assigned members are archived, so the count
+        // shown there can be explained rather than just left as a raw number.
+        $archivedMembersCount = $redCrossUnit->users()->where('lifecycle_status', 'archived')->count();
+
         // 'divisions' variable is no longer passed as the dropdown is removed, but we still need redCrossUnit->division loaded.
-        return view('red-cross-units.edit', compact('redCrossUnit', 'unitMembers', 'teamLeaderOptions', 'assistantTeamLeaderOptions'));
+        return view('red-cross-units.edit', compact('redCrossUnit', 'unitMembers', 'teamLeaderOptions', 'assistantTeamLeaderOptions', 'archivedMembersCount'));
     }
 
     /**
