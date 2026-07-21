@@ -90,6 +90,12 @@
                                 @error('team_leader_user_id')
                                 <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
                                 @enderror
+                                @if($taskForce->teamLeader && $taskForce->teamLeader->lifecycle_status === 'archived')
+                                    <div class="mt-2 rounded-md bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
+                                        <i class="fas fa-triangle-exclamation mr-1 text-amber-500"></i>
+                                        {{ $taskForce->teamLeader->full_name }} is archived — please select a new Team Leader.
+                                    </div>
+                                @endif
                             </div>
                             <div>
                                 <label for="assist_team_leader_user_id" class="block text-sm font-medium text-gray-700 mb-2">
@@ -108,6 +114,12 @@
                                 @error('assist_team_leader_user_id')
                                 <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
                                 @enderror
+                                @if($taskForce->assistantTeamLeader && $taskForce->assistantTeamLeader->lifecycle_status === 'archived')
+                                    <div class="mt-2 rounded-md bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
+                                        <i class="fas fa-triangle-exclamation mr-1 text-amber-500"></i>
+                                        {{ $taskForce->assistantTeamLeader->full_name }} is archived — please select a new Assistant Team Leader.
+                                    </div>
+                                @endif
                             </div>
                         </div>
 

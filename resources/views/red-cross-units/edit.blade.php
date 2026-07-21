@@ -8,6 +8,12 @@
         EDIT
     </x-slot>
 
+    <x-slot name="button1">
+        <a href="{{ route('red-cross-units.show', $redCrossUnit) }}" class="btn-primary">
+            <i class="fas fa-eye mr-2"></i>Show Red Cross Unit
+        </a>
+    </x-slot>
+
 
 
     <div class="container mx-auto px-4 py-6">
@@ -82,7 +88,7 @@
 
                     <h3 class="form-section-header">Leadership Assignment</h3>
 
-                    @if($unitMembers->count() > 0)
+                    @if($teamLeaderOptions->count() > 0 || $assistantTeamLeaderOptions->count() > 0)
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <!-- Team Leader -->
                             <div>
@@ -93,16 +99,22 @@
                                         id="team_leader_user_id"
                                         class="form-select @error('team_leader_user_id') form-select-error @enderror">
                                     <option value="">Select Team Leader</option>
-                                    @foreach($unitMembers as $member)
+                                    @foreach($teamLeaderOptions as $member)
                                         <option value="{{ $member->id }}"
                                             {{ old('team_leader_user_id', $redCrossUnit->team_leader_user_id) == $member->id ? 'selected' : '' }}>
-                                            {{ $member->full_name }}
+                                            {{ $member->full_name }}{{ $member->lifecycle_status === 'archived' ? ' (Archived)' : '' }}
                                         </option>
                                     @endforeach
                                 </select>
                                 @error('team_leader_user_id')
                                 <p class="form-error">{{ $message }}</p>
                                 @enderror
+                                @if($redCrossUnit->teamLeader && $redCrossUnit->teamLeader->lifecycle_status === 'archived')
+                                    <div class="mt-2 rounded-md bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
+                                        <i class="fas fa-triangle-exclamation mr-1 text-amber-500"></i>
+                                        {{ $redCrossUnit->teamLeader->full_name }} is archived — please select a new Team Leader.
+                                    </div>
+                                @endif
                             </div>
 
                             <!-- Assistant Team Leader -->
@@ -114,16 +126,22 @@
                                         id="assistant_team_leader_user_id"
                                         class="form-select @error('assistant_team_leader_user_id') form-select-error @enderror">
                                     <option value="">Select Assistant Team Leader</option>
-                                    @foreach($unitMembers as $member)
+                                    @foreach($assistantTeamLeaderOptions as $member)
                                         <option value="{{ $member->id }}"
                                             {{ old('assistant_team_leader_user_id', $redCrossUnit->assistant_team_leader_user_id) == $member->id ? 'selected' : '' }}>
-                                            {{ $member->full_name }}
+                                            {{ $member->full_name }}{{ $member->lifecycle_status === 'archived' ? ' (Archived)' : '' }}
                                         </option>
                                     @endforeach
                                 </select>
                                 @error('assistant_team_leader_user_id')
                                 <p class="form-error">{{ $message }}</p>
                                 @enderror
+                                @if($redCrossUnit->assistantTeamLeader && $redCrossUnit->assistantTeamLeader->lifecycle_status === 'archived')
+                                    <div class="mt-2 rounded-md bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
+                                        <i class="fas fa-triangle-exclamation mr-1 text-amber-500"></i>
+                                        {{ $redCrossUnit->assistantTeamLeader->full_name }} is archived — please select a new Assistant Team Leader.
+                                    </div>
+                                @endif
                             </div>
                         </div>
                     @else
@@ -168,6 +186,11 @@
                  forms. --}}
             <div class="border-t pt-6 px-6 pb-6 flex flex-wrap items-center justify-between gap-4">
                 <div class="flex items-center gap-3">
+                    @php
+                        // Unfiltered member count — matches RedCrossUnitController::destroy()'s
+                        // FK-integrity guard exactly (archived users still block deactivation there).
+                        $allMembersCount = $redCrossUnit->users()->count();
+                    @endphp
                     @if(! $redCrossUnit->is_active)
                         <form action="{{ route('red-cross-units.reactivate', $redCrossUnit) }}"
                               method="POST"
@@ -182,7 +205,7 @@
                         <span class="text-sm text-gray-500">
                             This unit is currently deactivated.
                         </span>
-                    @elseif($unitMembers->count() === 0)
+                    @elseif($allMembersCount === 0)
                         <form action="{{ route('red-cross-units.destroy', $redCrossUnit) }}"
                               method="POST"
                               onsubmit="return confirm('Deactivate this Red Cross Unit?\n\nIt will be hidden from the active list and can no longer be assigned to new members until it is reactivated. Its existing history and records are kept.')">
@@ -202,7 +225,7 @@
                             <i class="fas fa-trash-alt mr-2"></i>Deactivate Unit
                         </button>
                         <span class="text-sm text-red-400">
-                            Cannot deactivate — {{ $unitMembers->count() }} {{ $unitMembers->count() === 1 ? 'person is' : 'persons are' }} still assigned to this unit.
+                            Cannot deactivate — {{ $allMembersCount }} {{ $allMembersCount === 1 ? 'person is' : 'persons are' }} still assigned to this unit.
                         </span>
                     @endif
                 </div>

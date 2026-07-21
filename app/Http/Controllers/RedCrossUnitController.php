@@ -742,8 +742,8 @@ class RedCrossUnitController extends Controller
             abort(403, 'You are not authorized to edit this Red Cross Unit.');
         }
 
-        // Ensure division.branch is loaded for display purposes
-        $redCrossUnit->load(['division.branch']);
+        // Ensure division.branch, current team leader and assistant are loaded for display purposes
+        $redCrossUnit->load(['division.branch', 'teamLeader', 'assistantTeamLeader']);
 
         // Only get users who are members of this specific unit for leadership selection
         $unitMembers = $redCrossUnit->activeUsers()
@@ -751,8 +751,21 @@ class RedCrossUnitController extends Controller
             ->orderBy('last_name')
             ->get();
 
+        // Leadership dropdown candidates: active members only, but always keep the
+        // currently-assigned leader/assistant even if archived, so an untouched
+        // save doesn't silently clear their assignment.
+        $teamLeaderOptions = $unitMembers;
+        if ($redCrossUnit->teamLeader && ! $unitMembers->contains('id', $redCrossUnit->teamLeader->id)) {
+            $teamLeaderOptions = $unitMembers->concat([$redCrossUnit->teamLeader]);
+        }
+
+        $assistantTeamLeaderOptions = $unitMembers;
+        if ($redCrossUnit->assistantTeamLeader && ! $unitMembers->contains('id', $redCrossUnit->assistantTeamLeader->id)) {
+            $assistantTeamLeaderOptions = $unitMembers->concat([$redCrossUnit->assistantTeamLeader]);
+        }
+
         // 'divisions' variable is no longer passed as the dropdown is removed, but we still need redCrossUnit->division loaded.
-        return view('red-cross-units.edit', compact('redCrossUnit', 'unitMembers'));
+        return view('red-cross-units.edit', compact('redCrossUnit', 'unitMembers', 'teamLeaderOptions', 'assistantTeamLeaderOptions'));
     }
 
     /**
