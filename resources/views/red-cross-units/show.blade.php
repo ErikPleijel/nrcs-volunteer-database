@@ -8,6 +8,12 @@
                 <i class="fas fa-shield-alt mr-3 mb-4"></i> Red Cross Unit
             </x-slot>
 
+            <x-slot name="button2">
+                <a href="{{ route('red-cross-units.index') }}" class="btn-cancel">
+                    <i class="fas fa-arrow-left mr-2"></i>Back to List
+                </a>
+            </x-slot>
+
             @can('edit_red_cross_unit')
                 <x-slot name="button1">
                     <a href="{{ route('red-cross-units.edit', $redCrossUnit) }}"
@@ -17,11 +23,7 @@
                 </x-slot>
             @endcan
 
-            <x-slot name="button2">
-                <a href="{{ route('red-cross-units.index') }}" class="btn-cancel">
-                    <i class="fas fa-arrow-left mr-2"></i>Back to List
-                </a>
-            </x-slot>
+
 
             <!-- Unit identity -->
             <div class="mb-6">
