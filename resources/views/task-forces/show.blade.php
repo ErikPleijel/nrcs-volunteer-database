@@ -80,7 +80,12 @@
                                     </div>
                                 @endif
                                 <div>
-                                    <p class="font-semibold text-gray-900">{{ $taskForce->teamLeader->full_name }}</p>
+                                    <p class="font-semibold text-gray-900">
+                                        {{ $taskForce->teamLeader->full_name }}
+                                        @if($taskForce->teamLeader->lifecycle_status === 'archived')
+                                            <span class="text-xs font-semibold text-red-700 tracking-wide ml-1">(Archived)</span>
+                                        @endif
+                                    </p>
                                     <p class="text-sm text-gray-600">{{ $taskForce->teamLeader->email }}</p>
                                     @if($taskForce->teamLeader->telephone1)
                                         <p class="text-sm text-gray-600">{{ $taskForce->teamLeader->telephone1 }}</p>
@@ -120,7 +125,12 @@
                                     </div>
                                 @endif
                                 <div>
-                                    <p class="font-semibold text-gray-900">{{ $taskForce->assistantTeamLeader->full_name }}</p>
+                                    <p class="font-semibold text-gray-900">
+                                        {{ $taskForce->assistantTeamLeader->full_name }}
+                                        @if($taskForce->assistantTeamLeader->lifecycle_status === 'archived')
+                                            <span class="text-xs font-semibold text-red-700 tracking-wide ml-1">(Archived)</span>
+                                        @endif
+                                    </p>
                                     <p class="text-sm text-gray-600">{{ $taskForce->assistantTeamLeader->email }}</p>
                                     @if($taskForce->assistantTeamLeader->telephone1)
                                         <p class="text-sm text-gray-600">{{ $taskForce->assistantTeamLeader->telephone1 }}</p>
