@@ -735,8 +735,7 @@
                                                class="form-input">
                                     </div>
                                 </div>
-                                <p class="form-hint">Leave blank if you don't want to provide the
-                                    password.</p>
+                                <p class="form-hint"><strong>Leave blank</strong> if you don't want to change the password.</p>
 
                             </div>
                             @else
