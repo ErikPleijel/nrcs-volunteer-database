@@ -407,7 +407,7 @@
                             <!-- Password -->
                             <div>
                                 <label for="password" class="block text-sm font-medium text-gray-700 mb-1">
-                                    Password
+                                    Password <span class="text-red-500">*</span>
                                 </label>
                                 <input type="password" id="password" name="password"
                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 @error('password') border-red-500 @enderror" required>
@@ -436,6 +436,10 @@
                                 <i class="fas fa-eye mr-2"></i><span id="toggle-password-visibility-label">Show Password</span>
                             </button>
                         </div>
+
+                        <p id="password-generated-note" class="hidden mb-4 text-sm text-yellow-900 bg-yellow-50 border-l-4 border-yellow-500 rounded px-3 py-2">
+                            <i class="fas fa-circle-info mr-1"></i>Password generated — make sure to share it with the person before they leave.
+                        </p>
 
                         <div class="mb-4 rounded bg-yellow-50 border-l-4 border-yellow-500 p-4 text-sm text-yellow-900">
                             <p class="font-semibold">
@@ -630,6 +634,7 @@
             const togglePasswordLabel = document.getElementById('toggle-password-visibility-label');
             const passwordField = document.getElementById('password');
             const passwordConfirmField = document.getElementById('password_confirmation');
+            const passwordGeneratedNote = document.getElementById('password-generated-note');
 
             function generateEasyPassword(length = 8) {
                 // Lowercase only (no case-sensitivity confusion on a phone keyboard),
@@ -662,6 +667,7 @@
                     passwordField.type = 'text';
                     passwordConfirmField.type = 'text';
                     if (togglePasswordLabel) togglePasswordLabel.textContent = 'Hide Password';
+                    if (passwordGeneratedNote) passwordGeneratedNote.classList.remove('hidden');
                 });
             }
 
