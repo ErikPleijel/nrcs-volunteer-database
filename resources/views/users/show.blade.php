@@ -36,6 +36,26 @@
 
     <div class="w-full px-4 py-6">
 
+        @if (session('success'))
+            <div class="mb-5 flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+                <i class="fas fa-check-circle text-green-500"></i>
+                {{ session('success') }}
+            </div>
+        @endif
+
+        @if(session('just_registered') && $user->wantsMembership())
+            <div class="max-w-4xl mx-auto mb-6">
+                <div class="bg-amber-50 border-2 border-amber-300 rounded-lg py-4 px-6 text-center">
+                    <div class="flex items-center justify-center gap-3">
+                        <i class="fas fa-triangle-exclamation text-amber-500 text-2xl"></i>
+                        <span class="text-lg text-amber-800">
+                            {{ $user->full_name }}'s membership isn't active yet — a payment needs to be recorded before it takes effect.
+                        </span>
+                    </div>
+                </div>
+            </div>
+        @endif
+
         @if($user->isUnassignedGhost())
             <div class="max-w-4xl mx-auto mb-6">
                 <div class="bg-amber-50 border-2 border-amber-300 rounded-lg py-4 px-6 text-center">

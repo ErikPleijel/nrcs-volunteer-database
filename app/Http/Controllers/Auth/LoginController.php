@@ -52,14 +52,21 @@ class LoginController extends Controller
         }
 
         if ($loginType === 'phone') {
-            $digitsOnly = preg_replace('/\D/', '', $loginRaw);
+            $normalizedLogin = $this->normalizePhone($loginRaw);
 
-            // Normalised LIKE match handles format variation:
-            // 08012345678, +2348012345678, 2348012345678 all resolve to the same suffix.
+            // SQL suffix match is only a cheap pre-filter here: any row that
+            // truly matches must end with $normalizedLogin once its own
+            // spacing/dashes/plus are stripped, so this can only return a
+            // superset. The exact decision is made below by comparing both
+            // sides through the SAME bounded normalisation, so a number that
+            // merely shares a digit suffix with another (e.g. '0123456789'
+            // vs '080123456789') can no longer be mistaken for a match.
             $candidates = User::whereRaw(
                 "REPLACE(REPLACE(REPLACE(telephone1, ' ', ''), '-', ''), '+', '') LIKE ?",
-                ['%' . ltrim($digitsOnly, '0')]
-            )->get();
+                ['%' . $normalizedLogin]
+            )->get()->filter(
+                fn (User $user) => $this->normalizePhone((string) $user->telephone1) === $normalizedLogin
+            )->values();
 
             if ($candidates->count() === 0) {
                 throw ValidationException::withMessages([
@@ -170,6 +177,29 @@ class LoginController extends Controller
         $request->session()->regenerateToken();
 
         return redirect('/');
+    }
+
+    /**
+     * Canonicalise a phone number for exact comparison: strip formatting,
+     * then strip AT MOST ONE of a leading '234' country code or a single
+     * leading '0' trunk prefix. Deliberately not repeated/unbounded —
+     * unlike ltrim($digits, '0'), this won't eat digits that just happen
+     * to start with zero, and won't let a longer/unrelated number collide
+     * on a shared digit suffix.
+     */
+    private function normalizePhone(string $raw): string
+    {
+        $digits = preg_replace('/\D/', '', $raw);
+
+        if (str_starts_with($digits, '234')) {
+            return substr($digits, 3);
+        }
+
+        if (str_starts_with($digits, '0')) {
+            return substr($digits, 1);
+        }
+
+        return $digits;
     }
 
     /**

@@ -2,21 +2,16 @@
 
 /**
  * Regression coverage for the membership-payment overlap-protection feature
- * added to MembershipPaymentController::store()/update() and the
- * ->personal() fix on getCurrentMembership().
+ * on MembershipPaymentController::store() and the ->personal() fix on
+ * getCurrentMembership().
+ *
+ * update()/edit() were intentionally removed from this module — see
+ * tests/Feature/Approval/UpdateRoutesRemovedTest.php for the regression
+ * guard against their accidental reintroduction.
  *
  * The acting user throughout is a national_db_administrator: store() has no
  * per-target authorize() call (route middleware `can:add_payments` is
- * enough), but update()/show()/edit() call
- * $this->authorize('view', $membershipPayment->user), which (per
- * UserPolicy::view()) requires either 'national' access or being the target
- * themselves. A national role sidesteps needing to match branch/division
- * scope for every test's target member.
- *
- * membership-payments.update is exercised directly via a real HTTP PUT to
- * the route (no Blade form submits to it yet — resources/views/membership-
- * payments/edit.blade.php is currently an empty file — but the route and
- * controller method are fully wired and reachable).
+ * enough).
  */
 
 use App\Models\MembershipPayment;
@@ -155,7 +150,7 @@ test('an organisational submission is exempt from the overlap check even when it
         'payment_date' => now()->toDateString(),
     ]);
 
-    $response->assertRedirect(route('organisations.show', $organisation->id));
+    $response->assertRedirect(route('organisations.payments.create', $organisation->id));
     $response->assertSessionHas('success');
     $response->assertSessionMissing('overlap_confirmation_needed');
 });
@@ -198,84 +193,7 @@ test('getCurrentMembership only considers personal payments, ignoring a more rec
 
 /*
 |--------------------------------------------------------------------------
-| 6 — update(): overlap check, confirmation override, self-exclusion
-|--------------------------------------------------------------------------
-*/
-
-test('update() blocks a genuine overlap with a different payment, and confirm_overlap=1 allows it through', function () {
-    $member = User::factory()->create();
-    $fee = MembershipFeeFactory::new()->create(['is_volunteer_fee' => false]);
-
-    MembershipPayment::factory()->approved()->create([
-        'user_id' => $member->id,
-        'membership_fee_id' => $fee->id,
-        'payment_date' => '2020-01-01',
-        'expiry_date' => '2021-01-01',
-    ]);
-
-    $paymentB = MembershipPayment::factory()->approved()->create([
-        'user_id' => $member->id,
-        'membership_fee_id' => $fee->id,
-        'payment_date' => '2022-01-01',
-        'expiry_date' => '2023-01-01',
-    ]);
-
-    // Edit payment B into payment A's range.
-    $response = $this->actingAs($this->actor)->put(route('membership-payments.update', $paymentB), [
-        'user_id' => $member->id,
-        'membership_fee_id' => $fee->id,
-        'payment_date' => '2020-06-01',
-        'expiry_date' => '2021-06-01',
-    ]);
-
-    $response->assertRedirect();
-    $response->assertSessionHas('warning');
-    $response->assertSessionHas('overlap_confirmation_needed', true);
-    expect($paymentB->fresh()->payment_date->toDateString())->toBe('2022-01-01');
-
-    // Same edit, now confirmed.
-    $response = $this->actingAs($this->actor)->put(route('membership-payments.update', $paymentB), [
-        'user_id' => $member->id,
-        'membership_fee_id' => $fee->id,
-        'payment_date' => '2020-06-01',
-        'expiry_date' => '2021-06-01',
-        'confirm_overlap' => '1',
-    ]);
-
-    $response->assertRedirect(route('membership-payments.show', $paymentB));
-    $response->assertSessionHas('success');
-    expect($paymentB->fresh()->payment_date->toDateString())->toBe('2020-06-01');
-});
-
-test('update() excludes the record being edited from its own overlap check', function () {
-    $member = User::factory()->create();
-    $fee = MembershipFeeFactory::new()->create(['is_volunteer_fee' => false]);
-
-    $payment = MembershipPayment::factory()->approved()->create([
-        'user_id' => $member->id,
-        'membership_fee_id' => $fee->id,
-        'payment_date' => '2024-01-01',
-        'expiry_date' => '2025-01-01',
-    ]);
-
-    // A one-day shift still overlaps the record's OWN original range, which
-    // would false-positive if the record weren't excluded from its own check.
-    $response = $this->actingAs($this->actor)->put(route('membership-payments.update', $payment), [
-        'user_id' => $member->id,
-        'membership_fee_id' => $fee->id,
-        'payment_date' => '2024-01-02',
-        'expiry_date' => '2025-01-02',
-    ]);
-
-    $response->assertRedirect(route('membership-payments.show', $payment));
-    $response->assertSessionHas('success');
-    $response->assertSessionMissing('overlap_confirmation_needed');
-    expect($payment->fresh()->payment_date->toDateString())->toBe('2024-01-02');
-});
-
-/*
-|--------------------------------------------------------------------------
-| 7 — regression lock: deleting a superseded payment doesn't change
+| 6 — regression lock: deleting a superseded payment doesn't change
 |     currentMembershipPayment()
 |--------------------------------------------------------------------------
 */

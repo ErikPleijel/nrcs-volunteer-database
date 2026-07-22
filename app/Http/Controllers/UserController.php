@@ -358,7 +358,7 @@ class UserController extends Controller
             'last_name' => 'required|string|max:255',
             'title' => 'nullable|in:Mr,Mrs,Ms,Miss,Prof.,Chief,Dr.,Hon.',
             'email' => 'nullable|string|email|max:255|unique:users',
-            'password' => 'nullable|string|min:8|confirmed',
+            'password' => 'required|string|min:8|confirmed',
             'gender' => 'required|in:male,female', // Changed to required
             'birth_year' => 'required|integer|min:1900|max:'.date('Y'),
             'marital_status' => 'nullable|in:single,married,other', // Changed allowed values
@@ -384,7 +384,19 @@ class UserController extends Controller
                     }
                 },
             ],
-            'red_cross_unit_id' => 'nullable|exists:red_cross_units,id,is_active,1',
+            'red_cross_unit_id' => [
+                'nullable',
+                'exists:red_cross_units,id,is_active,1',
+                function ($attribute, $value, $fail) use ($request) {
+                    $contributionType = $request->input('contribution_type');
+                    if ($contributionType === 'volunteering' && empty($value)) {
+                        $fail('A Red Cross Unit must be selected for volunteers.');
+                    }
+                    if ($contributionType === 'member' && ! empty($value)) {
+                        $fail('Members should not be assigned to a Red Cross Unit.');
+                    }
+                },
+            ],
             'contribution_type' => 'required|in:volunteering,member',
             'picture' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif', 'max:2048'],
             'captured_photo' => ['nullable', 'string'],
@@ -408,12 +420,8 @@ class UserController extends Controller
         $validated['can_contribute_member'] = $request->input('contribution_type') === 'member';
         $validated['title'] = $request->input('title');
 
-        // Hash password (only when one was actually submitted; it's optional)
-        if (! empty($validated['password'])) {
-            $validated['password'] = Hash::make($validated['password']);
-        } else {
-            unset($validated['password']);
-        }
+        // Hash password
+        $validated['password'] = Hash::make($validated['password']);
 
         // Mark email as verified since admin is creating this user
         $validated['email_verified_at'] = now();
@@ -449,7 +457,8 @@ class UserController extends Controller
 
         return redirect()
             ->route('users.show', $user)
-            ->with('success', 'User created successfully.');
+            ->with('success', 'User created successfully.')
+            ->with('just_registered', true);
     }
 
     /**
@@ -932,6 +941,7 @@ class UserController extends Controller
             $hasActiveRcu = $newUnitId !== null;
             $hasQualifyingPayment = $user->membershipPayments()
                 ->where('is_deleted', false)
+                ->personal()
                 ->whereHas('membershipFee', fn ($q) => $q->where('is_volunteer_fee', false))
                 ->exists();
 
@@ -1050,10 +1060,11 @@ class UserController extends Controller
             $user->recalculateLifecycle();
         }
 
-        // 👉 Mark user active if assigned to a unit (not on unassignment — removing
-        // a unit should not force-promote lifecycle_status with no unit and no
-        // payment basis behind it)
-        if ($unitChanged && $newUnitId !== null && $user->lifecycle_status !== 'archived') {
+        // 👉 Mark user active if assigned to a unit while pending_engagement (not on
+        // unassignment, and not for an already-active/dormant user being reassigned —
+        // that would silently override a dormant user's staleness status with no
+        // real activity signal behind it)
+        if ($unitChanged && $newUnitId !== null && $user->lifecycle_status === 'pending_engagement') {
             $user->markActive();
         }
 

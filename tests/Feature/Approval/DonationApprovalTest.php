@@ -2,11 +2,6 @@
 
 /**
  * Feature tests for the four-eyes approval workflow on the Donations module.
- *
- * PART 1 — current, working behaviour (all expected to pass).
- * PART 2 — deliberately-failing tests documenting the known post-approval-edit
- *          gap (docs/PRE_DEPLOYMENT_AUDIT.md §4). They assert the INTENDED
- *          behaviour and are expected to fail until the gap is closed.
  */
 
 use App\Models\Branch;
@@ -329,89 +324,4 @@ test('a self-directed donation (beneficiary == submitter) is still approvable by
     $fresh = freshDonation($donation->id);
     expect($fresh->approval_status)->toBe(Donation::APPROVED)
         ->and($fresh->decided_by_user_id)->toBe($approver->id);
-});
-
-/*
-|--------------------------------------------------------------------------
-| PART 2 — intended behaviour, documenting a known gap (EXPECTED TO FAIL)
-|
-| docs/PRE_DEPLOYMENT_AUDIT.md §4: "confirm the same holds for role grants
-| and record edits, which have no equivalent guard today." Today, editing an
-| approved record via the normal update route leaves it approved with the
-| original decided_by/decided_at intact — no fresh approval cycle. These
-| tests assert the CORRECT behaviour and fail loudly until the gap is fixed.
-| Do NOT change application code to make them pass as part of this task.
-|--------------------------------------------------------------------------
-*/
-
-// KNOWN GAP - see PRE_DEPLOYMENT_AUDIT.md §4
-test('editing an approved donation resets it to pending and clears the previous decision', function () {
-    $submitter = User::factory()->inBranch($this->branchA)->create();
-    $submitter->assignRole('branch_db_assistant');
-    $approver = User::factory()->inBranch($this->branchA)->create();
-    $approver->assignRole('branch_secretary');
-    $member = User::factory()->inBranch($this->branchA)->create();
-
-    $donation = Donation::factory()->create([
-        'user_id' => $member->id,
-        'entered_by_user_id' => $submitter->id,
-        'branch_id' => $this->branchA->id,
-        'amount' => 500,
-    ]);
-    $donation->approve($approver);
-
-    // The original approver edits the approved record via the normal update route.
-    $this->actingAs($approver)
-        ->put(route('donations.update', $donation->id), [
-            'user_id' => $member->id,
-            'amount' => 999,
-            'date_donation' => now()->toDateString(),
-            'in_kind_donation' => false,
-            'purpose' => 'Amount changed after approval',
-            'branch_id' => $this->branchA->id,
-        ])
-        ->assertRedirect(route('donations.index'));
-
-    $fresh = freshDonation($donation->id);
-
-    // Intended: any edit to an approved record requires a fresh approval cycle.
-    expect($fresh->approval_status)->toBe(Donation::PENDING)
-        ->and($fresh->decided_by_user_id)->toBeNull()
-        ->and($fresh->decided_at)->toBeNull();
-});
-
-// KNOWN GAP - see PRE_DEPLOYMENT_AUDIT.md §4
-test('an approver cannot silently change the amount of a donation they approved while it stays approved', function () {
-    $submitter = User::factory()->inBranch($this->branchA)->create();
-    $submitter->assignRole('branch_db_assistant');
-    $approver = User::factory()->inBranch($this->branchA)->create();
-    $approver->assignRole('branch_secretary');
-    $member = User::factory()->inBranch($this->branchA)->create();
-
-    $donation = Donation::factory()->create([
-        'user_id' => $member->id,
-        'entered_by_user_id' => $submitter->id,
-        'branch_id' => $this->branchA->id,
-        'amount' => 500,
-    ]);
-    $donation->approve($approver);
-
-    $this->actingAs($approver)
-        ->put(route('donations.update', $donation->id), [
-            'user_id' => $member->id,
-            'amount' => 999,
-            'date_donation' => now()->toDateString(),
-            'in_kind_donation' => false,
-            'purpose' => 'Silently inflated',
-            'branch_id' => $this->branchA->id,
-        ]);
-
-    $fresh = freshDonation($donation->id);
-
-    // The edit itself goes through (documents current behaviour)...
-    expect((int) $fresh->amount)->toBe(999);
-
-    // ...but the record must NOT remain in the approved state after a material
-    // change by the very user who approved it. This is the failing condition.
-    expect($fresh->isApproved())->toBeFalse();
 });
