@@ -1167,7 +1167,12 @@
                     </div>
 
                     <!-- Archive My Account -->
-                    <div class="bg-white rounded-lg shadow-lg p-6 border border-red-200">
+                    <button type="button" id="archiveAccountRevealBtn"
+                            class="inline-flex items-center px-3 py-1.5 rounded-md border border-gray-300 text-sm text-gray-500 hover:text-red-600 hover:border-red-300 focus:outline-none">
+                        <i class="fas fa-user-slash mr-2"></i>Archive My Account
+                    </button>
+
+                    <div id="archiveAccountCard" class="hidden mt-4 bg-white rounded-lg shadow-lg p-6 border border-red-200">
                         <div class="flex items-center mb-4">
                             <div class="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center mr-4">
                                 <i class="fas fa-user-slash text-red-600 text-xl"></i>
@@ -1201,4 +1206,15 @@
             </div>
         </div>
     </div>
+    <script>
+        (function () {
+            const revealBtn = document.getElementById('archiveAccountRevealBtn');
+            const card = document.getElementById('archiveAccountCard');
+            if (!revealBtn || !card) return;
+            revealBtn.addEventListener('click', function () {
+                revealBtn.classList.add('hidden');
+                card.classList.remove('hidden');
+            });
+        })();
+    </script>
 </x-layouts.app>

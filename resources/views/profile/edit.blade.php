@@ -462,11 +462,18 @@
                                 <label for="password" class="block text-sm font-medium text-gray-700 mb-2">
                                     New Password
                                 </label>
-                                <input type="password"
-                                       id="password"
-                                       name="password"
-                                       autocomplete="new-password"
-                                       class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 @error('password') border-red-500 @enderror">
+                                <div class="relative">
+                                    <input type="password"
+                                           id="password"
+                                           name="password"
+                                           autocomplete="new-password"
+                                           class="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 @error('password') border-red-500 @enderror">
+                                    <button type="button" id="toggleProfilePassword"
+                                            aria-label="Show password"
+                                            class="absolute inset-y-0 right-0 flex items-center px-3 text-gray-400 hover:text-gray-600 focus:outline-none">
+                                        <i class="fas fa-eye" id="toggleProfilePasswordIcon"></i>
+                                    </button>
+                                </div>
                                 @error('password')
                                 <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                                 @enderror
@@ -477,11 +484,13 @@
                                 <label for="password_confirmation" class="block text-sm font-medium text-gray-700 mb-2">
                                     Confirm New Password
                                 </label>
-                                <input type="password"
-                                       id="password_confirmation"
-                                       name="password_confirmation"
-                                       autocomplete="new-password"
-                                       class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 @error('password_confirmation') border-red-500 @enderror">
+                                <div class="relative">
+                                    <input type="password"
+                                           id="password_confirmation"
+                                           name="password_confirmation"
+                                           autocomplete="new-password"
+                                           class="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 @error('password_confirmation') border-red-500 @enderror">
+                                </div>
                                 @error('password_confirmation')
                                 <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                                 @enderror
@@ -581,5 +590,23 @@
                 resetAndDisableSelect(divisionSelect, 'Select a Branch first');
             }
         });
+    </script>
+    <script>
+        (function () {
+            const passwordInput = document.getElementById('password');
+            const confirmInput  = document.getElementById('password_confirmation');
+            const btn           = document.getElementById('toggleProfilePassword');
+            const icon          = document.getElementById('toggleProfilePasswordIcon');
+            if (!passwordInput || !confirmInput || !btn) return;
+            btn.addEventListener('click', function () {
+                const show = passwordInput.type === 'password';
+                const type = show ? 'text' : 'password';
+                passwordInput.type = type;
+                confirmInput.type = type;
+                icon.classList.toggle('fa-eye', !show);
+                icon.classList.toggle('fa-eye-slash', show);
+                btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+            });
+        })();
     </script>
 </x-layouts.app>
