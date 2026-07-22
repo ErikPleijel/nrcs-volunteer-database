@@ -170,7 +170,18 @@
                                     </div>
                                 </div>
                             </div>
-                        @elseif($wantsMember && !$currentMembership)
+                        @elseif($wantsMember && !$currentMembership && !$hasEverHadPersonalPayment)
+                            <div class="mt-6 p-5 bg-blue-50 border border-blue-200 rounded-lg">
+                                <div class="flex items-start gap-3">
+                                    <i class="fas fa-id-card text-blue-500 mt-1"></i>
+                                    <div class="text-sm text-blue-900">
+                                        <p><strong>Pay your membership fee to activate your membership.</strong></p>
+                                        <p class="mt-1 text-blue-700 italic">Online payment via Paystack — to be implemented.</p>
+
+                                    </div>
+                                </div>
+                            </div>
+                        @elseif($wantsMember && !$currentMembership && $hasEverHadPersonalPayment)
                             <div class="mt-6 p-5 bg-blue-50 border border-blue-200 rounded-lg">
                                 <div class="flex items-start gap-3">
                                     <i class="fas fa-id-card text-blue-500 mt-1"></i>

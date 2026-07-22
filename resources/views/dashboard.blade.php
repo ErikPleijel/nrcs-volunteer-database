@@ -1667,12 +1667,7 @@
                             </div>
 
                             <p class="text-sm text-gray-700 mb-4">
-                                When an admin registers a person, that registration must always end in one of
-                                two outcomes: the person is assigned to an RC Unit (becoming a volunteer), or
-                                the person completes an approved membership payment (becoming a member). This
-                                count tracks people, registered after the new database's launch date, who are
-                                still stuck in pending lifecycle with neither outcome — no RC Unit and no
-                                approved payment.
+                                When an admin registers a prospective member, the registration must be followed by payment. If payment is not completed, it becomes a 'hanging registration.' Payment should be made as soon as possible.
                             </p>
 
                             <p class="text-sm text-gray-700 mb-4">
@@ -1687,11 +1682,7 @@
                                 <span class="font-semibold">Life-cycle = Pending</span>.
                             </p>
 
-                            <p class="text-sm text-gray-700">
-                                Note: this filter has no "registered after date X" option yet, so it will also
-                                show some older hanging registrations from before the new database's launch.
-                                That's a known minor limitation, not a bug.
-                            </p>
+
                         </x-help-popup>
                     </div>
                 </div>

@@ -300,7 +300,7 @@
                             <div class="flex flex-col space-y-0.5">
                                 <label for="archived_filter" class="text-xs font-medium text-gray-700">Lifecycle Status</label>
                                 <select name="archived_filter" id="archived_filter" class="filter-select-small {{ request('archived_filter', 'operational') !== 'operational' ? 'filter-active' : '' }}">
-                                    <option value="operational"     {{ request('archived_filter', 'operational') == 'operational'     ? 'selected' : '' }}>Operational Users (default)</option>
+                                    <option value="operational"     {{ request('archived_filter', 'operational') == 'operational'     ? 'selected' : '' }}>Operational (Active+Dormant)</option>
                                     <option value="pending_engagement" {{ request('archived_filter') == 'pending_engagement' ? 'selected' : '' }}>Pending Engagement</option>
                                     <option value="active"          {{ request('archived_filter') == 'active'          ? 'selected' : '' }}>Active</option>
                                     <option value="dormant"         {{ request('archived_filter') == 'dormant'         ? 'selected' : '' }}>Dormant</option>

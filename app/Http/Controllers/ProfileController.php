@@ -42,6 +42,7 @@ class ProfileController extends Controller
         // Initialize variables
         $membershipPayments = collect();
         $currentMembership = null;
+        $hasEverHadPersonalPayment = false;
         $showingLimitMessage = false;
         $donations = collect();
         $donationsLimitMessage = false;
@@ -103,6 +104,11 @@ class ProfileController extends Controller
                 'expiring_soon' => $personalCurrentPayment?->expiresSoon(28) ?? false,
                 'days_until_expiry' => $personalCurrentPayment?->days_until_expiry,
             ] : null;
+
+            // Distinguishes "never paid" from "paid once, now lapsed" for the
+            // member CTA on profile/show.blade.php — $currentMembership alone
+            // can't tell those apart, since both resolve to null.
+            $hasEverHadPersonalPayment = $user->membershipPayments()->personal()->exists();
 
             // Process Donations. Same rule as membership payments above:
             // organisation-linked donations stay visible, labeled.
@@ -220,6 +226,7 @@ class ProfileController extends Controller
             'user',
             'membershipPayments',
             'currentMembership',
+            'hasEverHadPersonalPayment',
             'showingLimitMessage',
             'donations',
             'donationsLimitMessage',
