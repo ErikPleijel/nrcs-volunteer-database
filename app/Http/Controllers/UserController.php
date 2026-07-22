@@ -451,6 +451,10 @@ class UserController extends Controller
         $user->consent_notes = $request->input('consent_notes') ?? 'admin-registered, consent attested via form checkboxes';
         $user->save();
 
+        if ($user->red_cross_unit_id !== null) {
+            $user->markActive();
+        }
+
         if ($admin = Auth::user()) {
             $admin->touchLastAdminActivity();
         }
