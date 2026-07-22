@@ -37,7 +37,7 @@ test('a phone number is not falsely matched against an unrelated number sharing 
         'password' => 'password',
     ]);
 
-    $response->assertRedirect('/');
+    $response->assertRedirect('/profile');
     $this->assertAuthenticatedAs($user);
 });
 
@@ -61,7 +61,7 @@ test('a country-code variant of a phone number still resolves to the correct sin
         'password' => 'password',
     ]);
 
-    $response->assertRedirect('/');
+    $response->assertRedirect('/profile');
     $this->assertAuthenticatedAs($other);
 });
 

@@ -13,8 +13,15 @@ class LoginController extends Controller
 {
     /**
      * Where to redirect users after login.
+     *
+     * '/profile' — the resolved path of route('profile.show') (routes/web.php:232).
+     * Not called via route() here: PHP property defaults must be constant
+     * expressions, and this controller doesn't use AuthenticatesUsers, so
+     * there's no redirectTo() method hook feeding the four
+     * redirect()->intended($this->redirectTo) call sites — only the literal
+     * property is read.
      */
-    protected $redirectTo = '/';
+    protected $redirectTo = '/profile';
 
     public function __construct()
     {
