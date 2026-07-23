@@ -324,12 +324,6 @@
                             $locationLocked = $isRedCrossUnitMember || $hasScopedRole;
                         @endphp
 
-                        <button type="button" id="branchDivisionRevealBtn"
-                                class="inline-flex items-center px-3 py-1.5 rounded-md border border-gray-300 text-sm text-gray-600 hover:text-blue-600 hover:border-blue-300 focus:outline-none">
-                            <i class="fas fa-sitemap mr-2"></i>Want to change Branch or Division?
-                        </button>
-
-                        <div id="branchDivisionSection" class="hidden mt-4">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <!-- Branch Dropdown -->
                             <div>
@@ -375,13 +369,20 @@
                             </div>
 
                             @if($isRedCrossUnitMember)
-                                <div class="md:col-span-2 mt-2 rounded-md bg-amber-50 border border-amber-200 px-3 py-2 text-sm text-amber-800">
-                                    <i class="fas fa-triangle-exclamation mr-1 text-amber-500"></i>
-                                    You cannot change your Branch or Division because you are assigned to Red Cross Unit:
-                                    <span class="font-semibold">{{ $user->redCrossUnit->name }}</span>.
-                                    <div class="mt-2 space-y-1">
-                                        <p><strong>Changing division:</strong> Contact your branch administrator — they can move you and assign you to a new Red Cross Unit in one step.</p>
-                                        <p><strong>Changing branch:</strong> Ask your administrator to remove your Red Cross Unit assignment first. Once that's done, come back here and select your new branch.</p>
+                                <button type="button" id="branchDivisionHelpRevealBtn"
+                                        class="md:col-span-2 mt-2 inline-flex items-center px-3 py-1.5 rounded-md border border-gray-300 text-sm text-gray-600 hover:text-blue-600 hover:border-blue-300 focus:outline-none w-fit">
+                                    <i class="fas fa-circle-question mr-2"></i>Why can't I change my Branch or Division?
+                                </button>
+
+                                <div id="branchDivisionHelp" class="md:col-span-2 hidden">
+                                    <div class="mt-2 rounded-md bg-amber-50 border border-amber-200 px-3 py-2 text-sm text-amber-800">
+                                        <i class="fas fa-triangle-exclamation mr-1 text-amber-500"></i>
+                                        You cannot change your Branch or Division because you are assigned to Red Cross Unit:
+                                        <span class="font-semibold">{{ $user->redCrossUnit->name }}</span>.
+                                        <div class="mt-2 space-y-1">
+                                            <p><strong>Changing division:</strong> Contact your branch administrator — they can move you and assign you to a new Red Cross Unit in one step.</p>
+                                            <p><strong>Changing branch:</strong> Ask your administrator to remove your Red Cross Unit assignment first. Once that's done, come back here and select your new branch.</p>
+                                        </div>
                                     </div>
                                 </div>
                             @endif
@@ -400,7 +401,6 @@
                             @endif
 
                             {{-- Red Cross Unit dropdown removed as per requirement --}}
-                        </div>
                         </div>
                     </div>
 
@@ -622,8 +622,8 @@
     </script>
     <script>
         (function () {
-            const revealBtn = document.getElementById('branchDivisionRevealBtn');
-            const section = document.getElementById('branchDivisionSection');
+            const revealBtn = document.getElementById('branchDivisionHelpRevealBtn');
+            const section = document.getElementById('branchDivisionHelp');
             if (!revealBtn || !section) return;
             revealBtn.addEventListener('click', function () {
                 revealBtn.classList.add('hidden');
