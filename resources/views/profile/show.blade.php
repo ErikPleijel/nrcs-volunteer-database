@@ -90,7 +90,7 @@
     <div class="py-8">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <!-- Header Section -->
-            <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+            <div class="bg-white rounded-lg shadow-lg p-4 sm:p-6 mb-8">
                 <div class="flex flex-col md:flex-row justify-around items-start md:items-center">
                     <div class="flex items-start space-x-4">
                         <div class="flex flex-col items-center">
@@ -148,7 +148,7 @@
                 </div>
 
                 <!-- Mission Statement -->
-                <div class="mt-6 p-6 bg-gray-50 rounded-lg">
+                <div class="mt-6 p-4 sm:p-6 bg-gray-50 rounded-lg">
                     <div class="max-w-2xl mx-auto"> {{-- Limits width and centers the container --}}
                         <p class="text-sm text-gray-700 italic text-left leading-relaxed"> {{-- text-center fixes the stretching --}}
                             Your primary responsibility as a member or volunteer of the Nigerian Red Cross Society is to serve those most at risk. We encourage you to actively participate in our core activities, including first aid and emergency preparedness and response.

@@ -6,9 +6,9 @@
 @endphp
 
 @if($roleInfo)
-    <div class="p-5 bg-blue-50 border border-blue-200 rounded-lg">
-        <div class="flex items-start gap-3">
-            <div class="flex-shrink-0 w-9 h-9 bg-blue-100 rounded-lg flex items-center justify-center">
+    <div class="p-3 sm:p-5 bg-blue-50 border border-blue-200 rounded-lg">
+        <div class="flex items-start gap-2 sm:gap-3">
+            <div class="flex-shrink-0 w-8 h-8 sm:w-9 sm:h-9 bg-blue-100 rounded-lg flex items-center justify-center">
                 <i class="fas fa-shield-alt text-blue-600 text-sm"></i>
             </div>
             <div class="flex-1">
