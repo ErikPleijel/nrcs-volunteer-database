@@ -372,7 +372,10 @@
                                     <i class="fas fa-triangle-exclamation mr-1 text-amber-500"></i>
                                     You cannot change your Branch or Division because you are assigned to Red Cross Unit:
                                     <span class="font-semibold">{{ $user->redCrossUnit->name }}</span>.
-                                    Contact your branch administrator if you need to move.
+                                    <div class="mt-2 space-y-1">
+                                        <p><strong>Changing division:</strong> Contact your branch administrator — they can move you and assign you to a new Red Cross Unit in one step.</p>
+                                        <p><strong>Changing branch:</strong> Ask your administrator to remove your Red Cross Unit assignment first. Once that's done, come back here and select your new branch.</p>
+                                    </div>
                                 </div>
                             @endif
 

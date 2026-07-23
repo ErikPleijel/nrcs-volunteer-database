@@ -437,7 +437,7 @@
                             </button>
                         </div>
 
-                        <p id="password-generated-note" class="hidden mb-4 text-sm text-yellow-900 bg-yellow-50 border-l-4 border-yellow-500 rounded px-3 py-2">
+                        <p id="password-generated-note" class="hidden mb-4 text-sm text-yellow-900 bg-blue-200 border-l-4 border-blue-300 rounded px-3 py-2">
                             <i class="fas fa-circle-info mr-1"></i>Password generated — make sure to share it with the person before they leave.
                         </p>
 
