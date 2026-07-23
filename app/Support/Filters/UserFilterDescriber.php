@@ -98,6 +98,16 @@ class UserFilterDescriber
         }
 
         // --------------------------------------------------
+        // Verification
+        // --------------------------------------------------
+        if ($vf = $get('verification_filter')) {
+            $labels[] = match ($vf) {
+                'unverified' => 'Unverified email',
+                default => null,
+            };
+        }
+
+        // --------------------------------------------------
         // Lifecycle (archived_filter)
         // --------------------------------------------------
         $labels[] = match ($get('archived_filter', 'operational')) {

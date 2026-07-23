@@ -245,6 +245,11 @@ class DashboardController extends Controller
             ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
             ->count();
 
+        $unverifiedRegistrationsCount = User::whereNotNull('email')
+            ->whereNull('email_verified_at')
+            ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
+            ->count();
+
         $dbMigrationDate = config('housekeeping.db_migration_date');
         $hangingRegistrationCount = null;
         if ($dbMigrationDate) {
@@ -325,6 +330,7 @@ class DashboardController extends Controller
             'lifecycleDormant'                         => $lifecycleDormant,
             'lifecycleArchived'                        => $lifecycleArchived,
             'unassignedGhostCount'                     => $unassignedGhostCount,
+            'unverifiedRegistrationsCount'             => $unverifiedRegistrationsCount,
             'hangingRegistrationCount'                 => $hangingRegistrationCount,
             'hangingRegistrationConfigured'             => (bool) $dbMigrationDate,
 

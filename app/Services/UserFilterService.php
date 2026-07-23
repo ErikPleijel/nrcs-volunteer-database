@@ -357,6 +357,32 @@ class UserFilterService
         }
 
         // ----------------------------
+        // Email status filter
+        // ----------------------------
+        if ($this->filled($filters, 'email_status')) {
+            $emailStatus = $filters['email_status'];
+
+            if ($emailStatus === 'with') {
+                $query->whereNotNull('email')->where('email', '!=', '');
+            } elseif ($emailStatus === 'without') {
+                $query->where(function ($q) {
+                    $q->whereNull('email')->orWhere('email', '');
+                });
+            }
+        }
+
+        // ----------------------------
+        // Verification filter
+        // ----------------------------
+        if ($this->filled($filters, 'verification_filter')) {
+            $verificationFilter = $filters['verification_filter'];
+
+            if ($verificationFilter === 'unverified') {
+                $query->whereNotNull('email')->whereNull('email_verified_at');
+            }
+        }
+
+        // ----------------------------
         // Photo / signature filter
         // (Fixed grouping so OR doesn't escape other filters)
         // ----------------------------

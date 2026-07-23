@@ -252,6 +252,7 @@ class UserController extends Controller
                 'registration_filter',
                 'dormancy_filter',
                 'email_status',
+                'verification_filter',
                 'training_filter',
                 'training_expiry',
                 'first_aid_refresher',

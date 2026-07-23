@@ -383,12 +383,18 @@ class ProfileController extends Controller
             }
 
             // If email changes, set email_verified_at to null
-            if ($request->email !== $user->email) {
+            $emailChanged = $request->email !== $user->email;
+            if ($emailChanged) {
                 $updateData['email_verified_at'] = null;
             }
 
             // Perform update
             $user->update($updateData);
+
+            // Send a fresh verification email now that the address has changed
+            if ($emailChanged) {
+                $user->sendEmailVerificationNotification();
+            }
 
             return redirect()->route('profile.show')
                 ->with('success', 'Profile updated successfully!');

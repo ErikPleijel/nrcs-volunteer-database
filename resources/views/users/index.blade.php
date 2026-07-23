@@ -216,6 +216,7 @@
                 'registration_filter',
                 'dormancy_filter',
                 'email_status',
+                'verification_filter',
                 'training_filter',
                 'training_expiry',
                 'first_aid_refresher',
@@ -380,6 +381,16 @@
                                     <option value="1" {{ request('org_representatives') === '1' ? 'selected' : '' }}>Org representatives only</option>
                                 </select>
                             </div>
+
+                            <div>
+                                <label for="team_leader_filter" class="filter-label-small">Team Leaders</label>
+                                <select name="team_leader_filter" id="team_leader_filter" class="filter-select-small {{ request('team_leader_filter') ? 'filter-active' : '' }}">
+                                    <option value="" {{ request('team_leader_filter', '') === '' ? 'selected' : '' }}>All</option>
+                                    <option value="rc_unit" {{ request('team_leader_filter') === 'rc_unit' ? 'selected' : '' }}>RC Unit Team Leaders</option>
+                                    <option value="task_force" {{ request('team_leader_filter') === 'task_force' ? 'selected' : '' }}>Task Force Team Leaders</option>
+                                    <option value="all" {{ request('team_leader_filter') === 'all' ? 'selected' : '' }}>All Team Leaders</option>
+                                </select>
+                            </div>
                         </div>
 
                         {{-- Column 2: Digital Activity + Email + Registration + Database Roles + Team Leaders --}}
@@ -404,6 +415,14 @@
                             </div>
 
                             <div>
+                                <label for="verification_filter" class="filter-label-small">Email Verification</label>
+                                <select name="verification_filter" id="verification_filter" class="filter-select-small {{ request('verification_filter') ? 'filter-active' : '' }}">
+                                    <option value="" {{ request('verification_filter', '') === '' ? 'selected' : '' }}>All</option>
+                                    <option value="unverified" {{ request('verification_filter') === 'unverified' ? 'selected' : '' }}>Unverified email</option>
+                                </select>
+                            </div>
+
+                            <div>
                                 <label for="registration_filter" class="filter-label-small">Registration Source</label>
                                 <select name="registration_filter" id="registration_filter" class="filter-select-small {{ request('registration_filter') ? 'filter-active' : '' }}">
                                     <option value=""      {{ request('registration_filter') === null  ? 'selected' : '' }}>All</option>
@@ -421,15 +440,7 @@
                                 </select>
                             </div>
 
-                            <div>
-                                <label for="team_leader_filter" class="filter-label-small">Team Leaders</label>
-                                <select name="team_leader_filter" id="team_leader_filter" class="filter-select-small {{ request('team_leader_filter') ? 'filter-active' : '' }}">
-                                    <option value="" {{ request('team_leader_filter', '') === '' ? 'selected' : '' }}>All</option>
-                                    <option value="rc_unit" {{ request('team_leader_filter') === 'rc_unit' ? 'selected' : '' }}>RC Unit Team Leaders</option>
-                                    <option value="task_force" {{ request('team_leader_filter') === 'task_force' ? 'selected' : '' }}>Task Force Team Leaders</option>
-                                    <option value="all" {{ request('team_leader_filter') === 'all' ? 'selected' : '' }}>All Team Leaders</option>
-                                </select>
-                            </div>
+
                         </div>
 
                         {{-- Column 3: Trainings + First Aid + Donations + Campaign Messages --}}

@@ -1722,6 +1722,38 @@
                         </x-help-popup>
                     </div>
                 </div>
+
+                <div class="bg-white rounded-lg shadow p-4 w-64 text-center">
+                    <a href="{{ route('users.index', array_filter(['verification_filter' => 'unverified', 'branch_id' => $dashboardData['branchId']])) }}" class="block hover:opacity-80 transition">
+                        <p class="text-3xl font-bold text-orange-600">{{ number_format($dashboardData['unverifiedRegistrationsCount']) }}</p>
+                        <p class="mt-1 text-sm text-gray-600">Unverified Registrations</p>
+                    </a>
+                    <div class="mt-2">
+                        <x-help-popup trigger-class="help-btn">
+                            <x-slot:trigger><i class="fas fa-question-circle mr-1"></i> What is this?</x-slot:trigger>
+
+                            <div class="-mt-8 mb-4 text-center">
+                                <i class="fas fa-envelope-circle-check text-3xl text-orange-500"></i>
+                                <h3 class="mt-1 text-base font-semibold text-gray-900">Unverified Registrations</h3>
+                            </div>
+
+                            <p class="text-sm text-gray-700 mb-4">
+                                These are self-registered persons who haven't confirmed their email address yet. This doesn't currently block them from using the system — it's just a signal that their email might be mistyped or their confirmation email may have gone to spam.
+                            </p>
+
+                            <p class="text-sm font-semibold text-gray-800 mb-2">How to find them:</p>
+                            <p class="text-sm text-gray-700 mb-4">
+                                <span class="font-semibold">Persons</span> → filter by <span class="font-semibold">Unverified email</span>.
+                            </p>
+
+                            <p class="text-sm font-semibold text-gray-800 mb-2">What to do:</p>
+                            <ul class="space-y-1 text-sm text-gray-700 list-disc pl-4">
+                                <li>If this is a recent registration, it may just need time — some people don't check their inbox right away.</li>
+                                <li>If it's been a while, consider reaching out to confirm their email is correct. They can update it and re-confirm from their own profile.</li>
+                            </ul>
+                        </x-help-popup>
+                    </div>
+                </div>
             </div>
         </div>
     </section>
