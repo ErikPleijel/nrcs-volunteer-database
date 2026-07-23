@@ -1515,7 +1515,7 @@
             <div class="bg-white rounded-lg shadow p-4 text-center w-44">
                 <p class="text-3xl font-bold text-teal-600">{{ number_format($dashboardData['loggedInLast24h']) }}</p>
                 <p class="mt-1 text-sm text-gray-600">Logged in</p>
-                <p class="text-xs text-gray-400 mt-0.5">last 24h</p>
+                <p class="text-xs text-gray-400 mt-0.5">last 3h</p>
             </div>
         </div>
 
@@ -1738,18 +1738,21 @@
                             </div>
 
                             <p class="text-sm text-gray-700 mb-4">
-                                These are self-registered persons who haven't confirmed their email address yet. This doesn't currently block them from using the system — it's just a signal that their email might be mistyped or their confirmation email may have gone to spam.
+                                These are persons who <strong>haven't confirmed their email address yet.</strong> This doesn't currently block them from using the system — it's just a signal that their email might be mistyped or their confirmation email may have gone to spam.
                             </p>
 
                             <p class="text-sm font-semibold text-gray-800 mb-2">How to find them:</p>
                             <p class="text-sm text-gray-700 mb-4">
                                 <span class="font-semibold">Persons</span> → filter by <span class="font-semibold">Unverified email</span>.
                             </p>
+                            <p class="text-sm text-gray-700 mb-4">
+                                &#x1F4A1; Tip: set <span class="font-semibold">Lifecycle → All</span> to make sure you see everyone.
+                            </p>
 
                             <p class="text-sm font-semibold text-gray-800 mb-2">What to do:</p>
                             <ul class="space-y-1 text-sm text-gray-700 list-disc pl-4">
                                 <li>If this is a recent registration, it may just need time — some people don't check their inbox right away.</li>
-                                <li>If it's been a while, consider reaching out to confirm their email is correct. They can update it and re-confirm from their own profile.</li>
+                                <li>If it's been a while, <strong>consider reaching out</strong> to confirm their email is correct. They can update it and re-confirm from their own profile.</li>
                             </ul>
                         </x-help-popup>
                     </div>

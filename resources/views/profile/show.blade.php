@@ -21,37 +21,40 @@
                 </div>
             </div>
         @endif
-        @if(!auth()->user()->hasVerifiedEmail() && auth()->user()->email)
-            <div class="flex justify-center mb-6">
-                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mx-4 sm:mx-6 lg:mx-8 max-w-2xl">
-                    <div class="flex items-center">
-                        <div class="flex-shrink-0">
-                            <i class="fas fa-exclamation-triangle !text-yellow-400 text-xl"></i>
-                        </div>
-
-                        <div class="ml-3">
-                            <h3 class="text-sm font-medium text-yellow-800">
-                                Email Verification Required
-                            </h3>
-                            <div class="mt-2 text-sm text-yellow-700">
-                                <p>Please check your email and click the verification link to activate your account.</p>
-                                <p class="mt-1 text-xs text-yellow-600">Can't find the email? Check your spam or junk folder.</p>
+            @if(!auth()->user()->hasVerifiedEmail() && auth()->user()->email)
+                <div class="flex justify-center mb-6">
+                    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mx-4 sm:mx-6 lg:mx-8 max-w-2xl">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-exclamation-triangle !text-yellow-400 text-xl"></i>
                             </div>
-                            <div class="mt-3">
-                                <form method="POST" action="{{ route('verification.resend') }}">
-                                    @csrf
-                                    <button type="submit"
-                                            class="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-medium bg-yellow-100 hover:bg-yellow-200 text-yellow-800 border border-yellow-300 transition">
-                                        <i class="fas fa-envelope mr-1"></i>
-                                        Resend verification email
-                                    </button>
-                                </form>
+
+                            <div class="ml-3">
+                                <h3 class="text-sm font-medium text-yellow-800">
+                                    Email Verification Required
+                                </h3>
+                                <div class="mt-2 text-sm text-yellow-700">
+                                    <p>Please check your email and click the verification link to activate your account.</p>
+                                    <p class="mt-2 text-base font-semibold text-yellow-900">{{ auth()->user()->email }}</p>
+                                    <p class="mt-1 text-xs text-yellow-600"><strong>Can't find the email?</strong> Check your spam or junk folder.</p>
+                                    <p class="mt-1 text-xs text-yellow-600"><strong>Not the right address?</strong> You can update it below, click 'Update personal details' button </p>
+
+                                </div>
+                                <div class="mt-3">
+                                    <form method="POST" action="{{ route('verification.resend') }}">
+                                        @csrf
+                                        <button type="submit"
+                                                class="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-medium bg-yellow-100 hover:bg-yellow-200 text-yellow-800 border border-yellow-300 transition">
+                                            <i class="fas fa-envelope mr-1"></i>
+                                            Resend verification email
+                                        </button>
+                                    </form>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
-        @endif
+            @endif
 
             @if (blank(auth()->user()->email))
                 <div class="mb-6 flex justify-center">

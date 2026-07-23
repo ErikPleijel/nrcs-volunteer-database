@@ -205,7 +205,7 @@ class DashboardController extends Controller
             ->count();
         $certificatesPrintedLast7 = DB::table('certificates_print')->whereNull('deleted_at')->where('printed_at', '>=', $sevenDaysAgo)->count();
         $loggedInLast24h = User::query()
-            ->where('last_login_at', '>=', now()->subDay())
+            ->where('last_login_at', '>=', now()->subHours(3))
             ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
             ->count();
 
