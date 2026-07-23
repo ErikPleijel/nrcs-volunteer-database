@@ -141,7 +141,8 @@
 
     /* Small screens */
     @media (max-width: 640px) {
-        .coc-card { padding: 20px 16px; }
+        .coc-wrap { padding: 16px 8px 32px; }
+        .coc-card { padding: 16px 10px; }
         .coc-logo img { height: 72px; }
         .coc-header h1 { font-size: 24px; }
     }

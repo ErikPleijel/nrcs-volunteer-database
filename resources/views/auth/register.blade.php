@@ -36,7 +36,7 @@
                     </div>
                 @endif
 
-                <form method="POST" action="{{ route('register') }}" enctype="multipart/form-data" class="p-6 space-y-8">
+                <form method="POST" action="{{ route('register') }}" enctype="multipart/form-data" class="p-4 sm:p-6 space-y-8">
                     @csrf
 
                     <!-- Personal Information Section -->
@@ -347,8 +347,15 @@
                                 <label for="password" class="block text-sm font-medium text-gray-700 mb-1">
                                     Password <span class="text-red-500">*</span>
                                 </label>
-                                <input type="password" id="password" name="password"
-                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 @error('password') border-red-500 @enderror" required>
+                                <div class="relative">
+                                    <input type="password" id="password" name="password"
+                                           class="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 @error('password') border-red-500 @enderror" required>
+                                    <button type="button" id="togglePassword"
+                                            aria-label="Show password"
+                                            class="absolute inset-y-0 right-0 flex items-center px-3 text-gray-400 hover:text-gray-600 focus:outline-none">
+                                        <i class="fas fa-eye" id="togglePasswordIcon"></i>
+                                    </button>
+                                </div>
                                 @error('password')
                                 <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
                                 @enderror
@@ -359,8 +366,15 @@
                                 <label for="password_confirmation" class="block text-sm font-medium text-gray-700 mb-1">
                                     Confirm Password <span class="text-red-500">*</span>
                                 </label>
-                                <input type="password" id="password_confirmation" name="password_confirmation"
-                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                                <div class="relative">
+                                    <input type="password" id="password_confirmation" name="password_confirmation"
+                                           class="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                                    <button type="button" id="togglePasswordConfirmation"
+                                            aria-label="Show password"
+                                            class="absolute inset-y-0 right-0 flex items-center px-3 text-gray-400 hover:text-gray-600 focus:outline-none">
+                                        <i class="fas fa-eye" id="togglePasswordConfirmationIcon"></i>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -443,7 +457,7 @@
 
                         <div
                             id="coc-scroll-container"
-                            class="border border-gray-200 rounded-md bg-gray-50 px-4 py-3 max-h-72 overflow-y-auto focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            class="border border-gray-200 rounded-md bg-gray-50 px-2 sm:px-4 py-3 max-h-72 overflow-y-auto focus:outline-none focus:ring-2 focus:ring-blue-500"
                             tabindex="0"
                             role="region"
                             aria-label="Code of Conduct"
@@ -804,6 +818,24 @@
         window.addEventListener('beforeunload', function() {
             stopCamera();
         });
+
+        // === PASSWORD SHOW/HIDE TOGGLE ===
+        function setupPasswordToggle(inputId, btnId, iconId) {
+            const input = document.getElementById(inputId);
+            const btn = document.getElementById(btnId);
+            const icon = document.getElementById(iconId);
+            if (!input || !btn) return;
+            btn.addEventListener('click', function () {
+                const show = input.type === 'password';
+                input.type = show ? 'text' : 'password';
+                icon.classList.toggle('fa-eye', !show);
+                icon.classList.toggle('fa-eye-slash', show);
+                btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+            });
+        }
+
+        setupPasswordToggle('password', 'togglePassword', 'togglePasswordIcon');
+        setupPasswordToggle('password_confirmation', 'togglePasswordConfirmation', 'togglePasswordConfirmationIcon');
     });
 
     function codeOfConductFlow() {
