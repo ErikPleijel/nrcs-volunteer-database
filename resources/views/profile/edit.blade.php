@@ -310,20 +310,27 @@
                     <!-- Affiliation Section -->
                     <div class="mb-8">
                         <h2 class="text-lg font-medium text-gray-800 mb-4 pb-2 border-b">Affiliation</h2>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            @php
-                                $isRedCrossUnitMember = $user->redCrossUnit !== null;
-                                $redCrossUnitName = $user->redCrossUnit ? $user->redCrossUnit->name : '';
-                                $hasScopedRole = $user->hasAnyRole([
-                                    'branch_secretary',
-                                    'branch_db_administrator',
-                                    'branch_db_assistant',
-                                    'division_db_assistant_finance',
-                                    'division_db_assistant_operations',
-                                ]);
-                                $locationLocked = $isRedCrossUnitMember || $hasScopedRole;
-                            @endphp
 
+                        @php
+                            $isRedCrossUnitMember = $user->redCrossUnit !== null;
+                            $redCrossUnitName = $user->redCrossUnit ? $user->redCrossUnit->name : '';
+                            $hasScopedRole = $user->hasAnyRole([
+                                'branch_secretary',
+                                'branch_db_administrator',
+                                'branch_db_assistant',
+                                'division_db_assistant_finance',
+                                'division_db_assistant_operations',
+                            ]);
+                            $locationLocked = $isRedCrossUnitMember || $hasScopedRole;
+                        @endphp
+
+                        <button type="button" id="branchDivisionRevealBtn"
+                                class="inline-flex items-center px-3 py-1.5 rounded-md border border-gray-300 text-sm text-gray-600 hover:text-blue-600 hover:border-blue-300 focus:outline-none">
+                            <i class="fas fa-sitemap mr-2"></i>Want to change Branch or Division?
+                        </button>
+
+                        <div id="branchDivisionSection" class="hidden mt-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <!-- Branch Dropdown -->
                             <div>
                                 <label for="branch_id" class="block text-sm font-medium text-gray-700 mb-2">
@@ -393,6 +400,7 @@
                             @endif
 
                             {{-- Red Cross Unit dropdown removed as per requirement --}}
+                        </div>
                         </div>
                     </div>
 
@@ -609,6 +617,17 @@
                 icon.classList.toggle('fa-eye', !show);
                 icon.classList.toggle('fa-eye-slash', show);
                 btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+            });
+        })();
+    </script>
+    <script>
+        (function () {
+            const revealBtn = document.getElementById('branchDivisionRevealBtn');
+            const section = document.getElementById('branchDivisionSection');
+            if (!revealBtn || !section) return;
+            revealBtn.addEventListener('click', function () {
+                revealBtn.classList.add('hidden');
+                section.classList.remove('hidden');
             });
         })();
     </script>
