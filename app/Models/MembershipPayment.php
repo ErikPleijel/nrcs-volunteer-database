@@ -168,11 +168,11 @@ class MembershipPayment extends Model
         $isVolunteerFee = (bool) $this->membershipFee->is_volunteer_fee;
 
         if ($wantsVolunteering && ! $isVolunteerFee) {
-            return 'Contribution mismatch — indicated volunteering, this is a membership fee';
+            return 'Note: this person indicated they want to volunteer, but this is a membership fee.';
         }
 
         if ($wantsMember && $isVolunteerFee) {
-            return 'Contribution mismatch — indicated membership, this is a volunteer fee';
+            return 'Note: this person indicated they want to be a member, but this is a volunteer fee.';
         }
 
         return null;

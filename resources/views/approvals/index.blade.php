@@ -159,19 +159,17 @@
                                 <td class="table-body-cell">
                                     <div class="table-field-main">
                                         {{ $record->approvalSummary() }}
-                                        @if($record instanceof \App\Models\MembershipPayment)
-                                            @if($record->extendsPayment())
-                                                <span class="ml-1 inline-flex items-center text-blue-500" title="Extends a previous payment">
-                                                    <i class="fas fa-arrow-right-to-bracket text-xs"></i>
-                                                </span>
-                                            @endif
-                                            @if($record->contributionMismatchNote())
-                                                <span class="ml-1 inline-flex items-center text-amber-500" title="{{ $record->contributionMismatchNote() }}">
-                                                    <i class="fas fa-triangle-exclamation text-xs"></i>
-                                                </span>
-                                            @endif
-                                        @endif
                                     </div>
+                                    @if($record instanceof \App\Models\MembershipPayment && $record->extendsPayment())
+                                        <div class="text-xs text-blue-600 mt-1">
+                                            <i class="fas fa-arrow-right-to-bracket mr-1"></i>Continues previous payment (valid {{ $record->extendsPayment()->payment_date->format('M d, Y') }} – {{ $record->extendsPayment()->expiry_date->format('M d, Y') }})
+                                        </div>
+                                    @endif
+                                    @if($record instanceof \App\Models\MembershipPayment && $mismatchNote = $record->contributionMismatchNote())
+                                        <div class="text-xs text-amber-700 mt-1">
+                                            <i class="fas fa-triangle-exclamation mr-1"></i>{{ $mismatchNote }}
+                                        </div>
+                                    @endif
                                 </td>
                                 <td class="table-body-cell">
                                     <div class="table-field-main">{{ $record->branch->name ?? '—' }}</div>
@@ -219,19 +217,17 @@
                             @endif
                             <div class="text-sm text-gray-700 mb-1">
                                 {{ $record->approvalSummary() }}
-                                @if($record instanceof \App\Models\MembershipPayment)
-                                    @if($record->extendsPayment())
-                                        <span class="ml-1 inline-flex items-center text-blue-500" title="Extends a previous payment">
-                                            <i class="fas fa-arrow-right-to-bracket text-xs"></i>
-                                        </span>
-                                    @endif
-                                    @if($record->contributionMismatchNote())
-                                        <span class="ml-1 inline-flex items-center text-amber-500" title="{{ $record->contributionMismatchNote() }}">
-                                            <i class="fas fa-triangle-exclamation text-xs"></i>
-                                        </span>
-                                    @endif
-                                @endif
                             </div>
+                            @if($record instanceof \App\Models\MembershipPayment && $record->extendsPayment())
+                                <div class="text-xs text-blue-600 mt-1">
+                                    <i class="fas fa-arrow-right-to-bracket mr-1"></i>Continues previous payment (valid {{ $record->extendsPayment()->payment_date->format('M d, Y') }} – {{ $record->extendsPayment()->expiry_date->format('M d, Y') }})
+                                </div>
+                            @endif
+                            @if($record instanceof \App\Models\MembershipPayment && $mismatchNote = $record->contributionMismatchNote())
+                                <div class="text-xs text-amber-700 mt-1">
+                                    <i class="fas fa-triangle-exclamation mr-1"></i>{{ $mismatchNote }}
+                                </div>
+                            @endif
                             <div class="text-xs text-gray-500 mb-3">
                                 {{ $record->branch->name ?? '—' }}@if($record->division) – {{ $record->division->name }}@endif
                                 · by {{ $record->submittedByUser?->full_name ?? 'N/A' }}
