@@ -1682,6 +1682,12 @@
                             </p>
 
                             <p class="text-sm text-gray-700 mb-4">
+                                This count only includes admin registrations made after the date configured in
+                                <span class="font-semibold">NRCS_DB_MIGRATION_DATE</span> (.env) — older admin-registered
+                                pending registrations from before that date are not included, even if they'd otherwise match.
+                            </p>
+
+                            <p class="text-sm text-gray-700 mb-4">
                                 Payment approval can take a little time, so this number won't always sit at
                                 exactly 0 — that's expected. What matters is that it isn't growing over time.
                             </p>
@@ -1738,11 +1744,19 @@
                 </div>
 
                 <div class="bg-white rounded-lg shadow p-4 w-64 text-center">
-                    <a href="{{ route('users.index', array_filter(['verification_filter' => 'unverified', 'branch_id' => $dashboardData['branchId']])) }}" class="block hover:opacity-80 transition">
+                    <a href="{{ route('users.index', array_filter([
+                        'verification_filter' => 'unverified',
+                        'archived_filter' => 'all',
+                        'branch_id' => $dashboardData['branchId'],
+                    ])) }}" class="block hover:opacity-80 transition">
                         <p class="text-3xl font-bold text-orange-600">{{ number_format($dashboardData['unverifiedRegistrationsCount']) }}</p>
                         <p class="mt-1 text-sm text-gray-600">Unverified Registrations</p>
                     </a>
-                    <a href="{{ route('users.index', array_filter(['verification_filter' => 'unverified', 'branch_id' => $dashboardData['branchId']])) }}" class="btn-view mt-2 inline-block">
+                    <a href="{{ route('users.index', array_filter([
+                        'verification_filter' => 'unverified',
+                        'archived_filter' => 'all',
+                        'branch_id' => $dashboardData['branchId'],
+                    ])) }}" class="btn-view mt-2 inline-block">
                         View
                     </a>
                     <div class="mt-2">
