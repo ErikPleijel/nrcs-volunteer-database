@@ -409,8 +409,15 @@
                                 <label for="password" class="block text-sm font-medium text-gray-700 mb-1">
                                     Password <span class="text-red-500">*</span>
                                 </label>
-                                <input type="password" id="password" name="password"
-                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 @error('password') border-red-500 @enderror" required>
+                                <div class="relative">
+                                    <input type="password" id="password" name="password"
+                                           class="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 @error('password') border-red-500 @enderror" required>
+                                    <button type="button" id="toggle-password-visibility-btn"
+                                            aria-label="Show password"
+                                            class="absolute inset-y-0 right-0 flex items-center px-3 text-gray-400 hover:text-gray-600 focus:outline-none">
+                                        <i class="fas fa-eye" id="toggle-password-visibility-icon"></i>
+                                    </button>
+                                </div>
                                 @error('password')
                                 <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
                                 @enderror
@@ -421,8 +428,15 @@
                                 <label for="password_confirmation" class="block text-sm font-medium text-gray-700 mb-1">
                                     Confirm Password
                                 </label>
-                                <input type="password" id="password_confirmation" name="password_confirmation"
-                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" >
+                                <div class="relative">
+                                    <input type="password" id="password_confirmation" name="password_confirmation"
+                                           class="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <button type="button" id="toggle-password-confirmation-visibility-btn"
+                                            aria-label="Show password"
+                                            class="absolute inset-y-0 right-0 flex items-center px-3 text-gray-400 hover:text-gray-600 focus:outline-none">
+                                        <i class="fas fa-eye" id="toggle-password-confirmation-visibility-icon"></i>
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -430,10 +444,6 @@
                             <button type="button" id="generate-password-btn"
                                     class="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
                                 <i class="fas fa-dice mr-2"></i>Generate Password
-                            </button>
-                            <button type="button" id="toggle-password-visibility-btn"
-                                    class="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
-                                <i class="fas fa-eye mr-2"></i><span id="toggle-password-visibility-label">Show Password</span>
                             </button>
                         </div>
 
@@ -631,7 +641,9 @@
             // --- Generate Password / Show-Hide Password ---
             const generatePasswordBtn = document.getElementById('generate-password-btn');
             const togglePasswordBtn = document.getElementById('toggle-password-visibility-btn');
-            const togglePasswordLabel = document.getElementById('toggle-password-visibility-label');
+            const togglePasswordIcon = document.getElementById('toggle-password-visibility-icon');
+            const togglePasswordConfirmBtn = document.getElementById('toggle-password-confirmation-visibility-btn');
+            const togglePasswordConfirmIcon = document.getElementById('toggle-password-confirmation-visibility-icon');
             const passwordField = document.getElementById('password');
             const passwordConfirmField = document.getElementById('password_confirmation');
             const passwordGeneratedNote = document.getElementById('password-generated-note');
@@ -666,17 +678,29 @@
                     // Reveal the password so the admin can read it back to the user
                     passwordField.type = 'text';
                     passwordConfirmField.type = 'text';
-                    if (togglePasswordLabel) togglePasswordLabel.textContent = 'Hide Password';
+                    if (togglePasswordIcon) togglePasswordIcon.classList.replace('fa-eye', 'fa-eye-slash');
+                    if (togglePasswordConfirmIcon) togglePasswordConfirmIcon.classList.replace('fa-eye', 'fa-eye-slash');
+                    if (togglePasswordBtn) togglePasswordBtn.setAttribute('aria-label', 'Hide password');
+                    if (togglePasswordConfirmBtn) togglePasswordConfirmBtn.setAttribute('aria-label', 'Hide password');
                     if (passwordGeneratedNote) passwordGeneratedNote.classList.remove('hidden');
                 });
             }
 
-            if (togglePasswordBtn && passwordField && passwordConfirmField) {
+            if (togglePasswordBtn && passwordField) {
                 togglePasswordBtn.addEventListener('click', () => {
                     const showing = passwordField.type === 'text';
                     passwordField.type = showing ? 'password' : 'text';
+                    if (togglePasswordIcon) togglePasswordIcon.classList.replace(showing ? 'fa-eye-slash' : 'fa-eye', showing ? 'fa-eye' : 'fa-eye-slash');
+                    togglePasswordBtn.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
+                });
+            }
+
+            if (togglePasswordConfirmBtn && passwordConfirmField) {
+                togglePasswordConfirmBtn.addEventListener('click', () => {
+                    const showing = passwordConfirmField.type === 'text';
                     passwordConfirmField.type = showing ? 'password' : 'text';
-                    if (togglePasswordLabel) togglePasswordLabel.textContent = showing ? 'Show Password' : 'Hide Password';
+                    if (togglePasswordConfirmIcon) togglePasswordConfirmIcon.classList.replace(showing ? 'fa-eye-slash' : 'fa-eye', showing ? 'fa-eye' : 'fa-eye-slash');
+                    togglePasswordConfirmBtn.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
                 });
             }
         });
