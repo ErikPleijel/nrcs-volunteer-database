@@ -45,6 +45,8 @@
                         </div>
                     </div>
 
+
+
                     {{-- Why can't I find a person? --}}
                     <div class="rounded-md border border-gray-200 overflow-hidden">
                         <button type="button"
@@ -99,6 +101,25 @@
                                 <li><span class="font-semibold">Branch admins:</span> can only move people within their <span class="font-semibold">own branch</span></li>
 
                                 <li><span class="font-semibold">Admin role?</span> Must be removed first. Contact your Branch or HQ.</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    {{-- What is a Volunteer in Limbo? --}}
+                    <div class="rounded-md border border-gray-200 overflow-hidden">
+                        <button type="button"
+                                @click="open = open === 'volunteer_limbo' ? null : 'volunteer_limbo'"
+                                class="w-full flex items-center justify-between px-3 py-2 bg-gray-50 hover:bg-gray-100 text-left font-semibold text-gray-700 text-sm">
+                            <span><i class="fas fa-user-clock mr-2 text-orange-400"></i>What is a Volunteer in Limbo?</span>
+                            <i class="fas fa-chevron-down text-xs text-gray-400 transition-transform"
+                               :class="open === 'volunteer_limbo' ? 'rotate-180' : ''"></i>
+                        </button>
+                        <div x-show="open === 'volunteer_limbo'" x-collapse class="px-4 py-3 bg-white">
+                            <ul class="space-y-1 text-gray-700 list-disc pl-4">
+                                <li>Someone who was once assigned to a Red Cross Unit, but is no longer assigned to any unit.</li>
+                                <li>This usually happens mid-move — someone was unassigned from their old unit, but the process stalled before a new branch picked them up.</li>
+                                <li>They show up here because <strong>they need to be re-assigned to a unit</strong>, or their situation needs a second look.</li>
+
                             </ul>
                         </div>
                     </div>

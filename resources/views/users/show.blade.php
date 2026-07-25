@@ -511,6 +511,10 @@
                                     Entered by: {{ $user->formRegistrar->full_name }} DB-{{ $user->formRegistrar->id }} {{ $user->created_at?->format('M d, Y') ?? 'N/A' }}
                                 </div>
                             @endif
+
+                            @if($user->consent_notes)
+                                <div class="text-sm text-gray-500 mt-0.5">Consent notes: {{ $user->consent_notes }}</div>
+                            @endif
                         </td>
                     </tr>
 
