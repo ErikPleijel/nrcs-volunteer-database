@@ -122,6 +122,62 @@ class MembershipPayment extends Model
         ];
     }
 
+    private ?MembershipPayment $extendsPaymentCache = null;
+
+    private bool $extendsPaymentResolved = false;
+
+    /**
+     * The prior approved, personal, non-deleted payment (if any) for the same
+     * user whose expiry_date immediately precedes this payment's payment_date —
+     * i.e. the payment this one extends. Memoized: the review page renders this
+     * twice (the id and the date range).
+     */
+    public function extendsPayment(): ?MembershipPayment
+    {
+        if ($this->extendsPaymentResolved) {
+            return $this->extendsPaymentCache;
+        }
+
+        $this->extendsPaymentResolved = true;
+
+        return $this->extendsPaymentCache = static::personal()
+            ->where('user_id', $this->user_id)
+            ->where('is_deleted', false)
+            ->where('id', '!=', $this->id)
+            ->where('expiry_date', '<', $this->payment_date)
+            ->orderByDesc('expiry_date')
+            ->first();
+    }
+
+    /**
+     * Warns the approver when this payment's fee type contradicts the member's
+     * stated contribution preference (e.g. they indicated interest in
+     * volunteering, but this is a non-volunteer membership fee). Precedence
+     * matches profile/show.blade.php: volunteering wins if both flags are set;
+     * no note when neither is set (nothing on file to contradict).
+     */
+    public function contributionMismatchNote(): ?string
+    {
+        $wantsVolunteering = (bool) $this->user->can_contribute_volunteering;
+        $wantsMember = (bool) $this->user->can_contribute_member && ! $wantsVolunteering;
+
+        if (! $wantsVolunteering && ! $wantsMember) {
+            return null;
+        }
+
+        $isVolunteerFee = (bool) $this->membershipFee->is_volunteer_fee;
+
+        if ($wantsVolunteering && ! $isVolunteerFee) {
+            return 'Contribution mismatch — indicated volunteering, this is a membership fee';
+        }
+
+        if ($wantsMember && $isVolunteerFee) {
+            return 'Contribution mismatch — indicated membership, this is a volunteer fee';
+        }
+
+        return null;
+    }
+
     public function removedByUser()
     {
         return $this->belongsTo(User::class, 'removed_by_user_id');

@@ -57,12 +57,13 @@
         @endif
 
         @if($user->isUnassignedGhost())
-            <div class="max-w-4xl mx-auto mb-6">
+            <div class="max-w-2xl mx-auto mb-6">
                 <div class="bg-amber-50 border-2 border-amber-300 rounded-lg py-4 px-6 text-center">
                     <div class="flex items-center justify-center gap-3">
                         <i class="fas fa-triangle-exclamation text-amber-500 text-2xl"></i>
                         <span class="text-lg text-amber-800">
-                            This volunteer is currently unassigned to a Red Cross Unit.
+                            LIMBO<br>
+                            This volunteer is currently unassigned to a Red Cross Unit.<br>
                             <strong class="font-bold">Please ensure they are assigned to a new unit as soon as possible.</strong>
                         </span>
                     </div>

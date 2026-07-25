@@ -89,6 +89,27 @@
                         </span>
                     </div>
                 @endif
+
+                @if($record instanceof \App\Models\MembershipPayment && $record->extendsPayment())
+                    <div class="px-6 py-3 flex justify-between text-sm">
+                        <dt class="text-gray-500">Extends previous payment</dt>
+                        <dd class="text-gray-900 font-medium text-right">
+                            #{{ $record->extendsPayment()->id }}
+                            <span class="block text-xs text-gray-400 font-normal">
+                                valid {{ $record->extendsPayment()->payment_date->format('M d, Y') }}
+                                – {{ $record->extendsPayment()->expiry_date->format('M d, Y') }}
+                            </span>
+                        </dd>
+                    </div>
+                @endif
+
+                @if($record instanceof \App\Models\MembershipPayment && $mismatchNote = $record->contributionMismatchNote())
+                    <div class="px-6 py-3 flex justify-end">
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                            <i class="fas fa-triangle-exclamation mr-1"></i>{{ $mismatchNote }}
+                        </span>
+                    </div>
+                @endif
             </dl>
 
             {{-- Action bar --}}
