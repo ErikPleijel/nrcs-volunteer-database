@@ -387,12 +387,10 @@ class UserController extends Controller
             ],
             'red_cross_unit_id' => [
                 'nullable',
+                'required_if:contribution_type,volunteering',
                 'exists:red_cross_units,id,is_active,1',
                 function ($attribute, $value, $fail) use ($request) {
                     $contributionType = $request->input('contribution_type');
-                    if ($contributionType === 'volunteering' && empty($value)) {
-                        $fail('A Red Cross Unit must be selected for volunteers.');
-                    }
                     if ($contributionType === 'member' && ! empty($value)) {
                         $fail('Members should not be assigned to a Red Cross Unit.');
                     }
@@ -406,6 +404,8 @@ class UserController extends Controller
             'admin_consent_confirmed' => 'accepted',
             'admin_consent_form' => 'accepted',
             'consent_notes' => 'nullable|string|max:255',
+        ], [
+            'red_cross_unit_id.required_if' => 'A Red Cross Unit must be selected for volunteers.',
         ]);
 
         if ($validator->fails()) {
