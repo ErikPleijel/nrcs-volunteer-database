@@ -32,7 +32,7 @@ class UserMembershipStatusBadge extends Component
         } elseif ($user->isUnassignedGhost()) {
             // Left their RC unit, no genuine (non-volunteer-fee) membership to fall back on
             $this->type   = 'unassigned';
-            $this->line1  = 'Volunteer/Unassigned';
+            $this->line1  = 'Volunteer/Limbo';
             $this->line2  = $user->current_membership_name ?? 'No unit assigned';
             $this->icon   = 'fa-user-slash';
             $this->styles = 'bg-yellow-100 text-yellow-800';
