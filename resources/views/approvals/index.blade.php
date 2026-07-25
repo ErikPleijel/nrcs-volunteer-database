@@ -157,7 +157,21 @@
                                     @endif
                                 </td>
                                 <td class="table-body-cell">
-                                    <div class="table-field-main">{{ $record->approvalSummary() }}</div>
+                                    <div class="table-field-main">
+                                        {{ $record->approvalSummary() }}
+                                        @if($record instanceof \App\Models\MembershipPayment)
+                                            @if($record->extendsPayment())
+                                                <span class="ml-1 inline-flex items-center text-blue-500" title="Extends a previous payment">
+                                                    <i class="fas fa-arrow-right-to-bracket text-xs"></i>
+                                                </span>
+                                            @endif
+                                            @if($record->contributionMismatchNote())
+                                                <span class="ml-1 inline-flex items-center text-amber-500" title="{{ $record->contributionMismatchNote() }}">
+                                                    <i class="fas fa-triangle-exclamation text-xs"></i>
+                                                </span>
+                                            @endif
+                                        @endif
+                                    </div>
                                 </td>
                                 <td class="table-body-cell">
                                     <div class="table-field-main">{{ $record->branch->name ?? '—' }}</div>
@@ -203,7 +217,21 @@
                                     <i class="fas fa-user-check mr-1"></i>Self-submitted — same person
                                 </span>
                             @endif
-                            <div class="text-sm text-gray-700 mb-1">{{ $record->approvalSummary() }}</div>
+                            <div class="text-sm text-gray-700 mb-1">
+                                {{ $record->approvalSummary() }}
+                                @if($record instanceof \App\Models\MembershipPayment)
+                                    @if($record->extendsPayment())
+                                        <span class="ml-1 inline-flex items-center text-blue-500" title="Extends a previous payment">
+                                            <i class="fas fa-arrow-right-to-bracket text-xs"></i>
+                                        </span>
+                                    @endif
+                                    @if($record->contributionMismatchNote())
+                                        <span class="ml-1 inline-flex items-center text-amber-500" title="{{ $record->contributionMismatchNote() }}">
+                                            <i class="fas fa-triangle-exclamation text-xs"></i>
+                                        </span>
+                                    @endif
+                                @endif
+                            </div>
                             <div class="text-xs text-gray-500 mb-3">
                                 {{ $record->branch->name ?? '—' }}@if($record->division) – {{ $record->division->name }}@endif
                                 · by {{ $record->submittedByUser?->full_name ?? 'N/A' }}
