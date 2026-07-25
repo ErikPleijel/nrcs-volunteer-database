@@ -464,10 +464,8 @@
                     <!-- Authentication Section -->
                     <div class="mb-8">
                         <h2 class="text-lg font-medium text-gray-800 mb-4 pb-2 border-b">Update Password</h2>
-                        <p class="text-sm text-gray-600 mb-4">
-                            If you wish to change your password, please fill in the fields below.
-                            Otherwise, leave them blank.
-                        </p>
+                        <p class="form-hint"><strong>Leave blank</strong> if you don't want to change the password.</p>
+
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <!-- Password -->
                             <div>

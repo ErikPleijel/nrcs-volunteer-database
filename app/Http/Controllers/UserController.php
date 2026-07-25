@@ -453,6 +453,8 @@ class UserController extends Controller
         $user->save();
 
         if ($user->red_cross_unit_id !== null) {
+            $user->assigned_rcu_date = now();
+            $user->assigned_rcu_by_id = Auth::id();
             $user->markActive();
         }
 
