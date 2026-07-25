@@ -48,7 +48,8 @@
                 <!-- Note for editing -->
                 <div class="important-note" role="alert">
                     <p class="font-bold">Important Note:</p>
-                    <p>On this page you can either update a fee amount or deactivate a fee. Updating the amount will create a new record and automatically deactivate the old one. This ensures that past and ongoing payments remain linked to the correct fee amount. For any other changes, use “Create New Membership Category” on the previous page.</p>
+                    <p>On this page you can either update a fee amount or remove a fee. You remove a fee by unticking 'Active'.</p>
+                    <p class="mt-4">Updating the amount will create a new record and automatically deactivate the old one. This ensures that past and ongoing payments remain linked to the correct fee amount. For any other changes, use “Create New Membership Category” on the previous page.</p>
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">

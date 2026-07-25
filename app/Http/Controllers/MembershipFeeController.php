@@ -104,7 +104,7 @@ class MembershipFeeController extends Controller
         $epsilon = 0.00001;
         $amountChanged = abs($membershipFee->amount - $validated['amount']) > $epsilon;
         $idCardFeeChanged = abs(($membershipFee->id_card_fee ?? 0) - ($validated['id_card_fee'] ?? 0)) > $epsilon;
-        $isActiveChanged = $membershipFee->is_active != $validated['is_active'];
+        $isActiveChanged = (bool) $membershipFee->is_active !== (bool) ($validated['is_active'] ?? false);
 
         // Determine if in-place fields have changed
         $isVolunteerFeeChanged = (bool)($validated['is_volunteer_fee'] ?? false) !== (bool)$membershipFee->is_volunteer_fee;
@@ -125,7 +125,7 @@ class MembershipFeeController extends Controller
                 'id_card_fee' => $validated['id_card_fee'] ?? 0,
                 'validity_years' => $membershipFee->validity_years,
                 'for_organizations' => $membershipFee->for_organizations,
-                'is_active' => $validated['is_active'],
+                'is_active' => (bool) ($validated['is_active'] ?? false),
                 'is_volunteer_fee' => (bool)($validated['is_volunteer_fee'] ?? false),
             ]);
 

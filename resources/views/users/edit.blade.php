@@ -449,13 +449,16 @@
                                     <label for="birth_year" class="form-label">
                                         Birth Year <span class="text-red-500">*</span>
                                     </label>
-                                    <input type="number"
-                                           id="birth_year"
-                                           name="birth_year"
-                                           value="{{ old('birth_year', $user->birth_year) }}"
-                                           min="1900"
-                                           max="{{ date('Y') - 10 }}"
-                                           class="form-input @error('birth_year') form-input-error @enderror">
+                                    <select id="birth_year"
+                                            name="birth_year"
+                                            class="form-select @error('birth_year') form-select-error @enderror">
+                                        <option value="" disabled {{ old('birth_year', $user->birth_year) ? '' : 'selected' }}>Select Year</option>
+                                        @for ($year = date('Y'); $year >= 1900; $year--)
+                                            <option value="{{ $year }}" {{ old('birth_year', $user->birth_year) == $year ? 'selected' : '' }}>
+                                                {{ $year }}
+                                            </option>
+                                        @endfor
+                                    </select>
                                     @error('birth_year')
                                     <p class="form-error">{{ $message }}</p>
                                     @enderror
