@@ -1579,6 +1579,7 @@
                             'icon'           => 'fa-envelope-open-text',
                             'color'          => 'emerald',
                             'route'          => 'campaigns.admin.proposed',
+                            'route_params'   => ['status' => 'proposed'],
                             'permission'     => 'campaign_request_approve',
                         ],
                     ];
@@ -1607,6 +1608,9 @@
                         <p class="mt-1 text-sm text-gray-600">{{ $mod['label'] }}</p>
                         <p class="text-xs text-gray-400">pending approval</p>
                         @can($mod['permission'])
+                            <a href="{{ route($mod['route'], $mod['route_params'] ?? []) }}" class="btn-view mt-2 inline-block">
+                                View
+                            </a>
                             @if($mod['self_submitted'] > 0)
                                 <p class="mt-1 text-[11px] text-amber-600 leading-snug">
                                     <i class="fas fa-circle-info"></i>
@@ -1656,6 +1660,13 @@
                             <p class="text-3xl font-bold text-orange-600">{{ number_format($dashboardData['hangingRegistrationCount']) }}</p>
                             <p class="mt-1 text-sm text-gray-600">Hanging Registrations</p>
                         </a>
+                        <a href="{{ route('users.index', array_filter([
+                            'registration_filter' => 'admin',
+                            'archived_filter' => 'pending_engagement',
+                            'branch_id' => $dashboardData['branchId'],
+                        ])) }}" class="btn-view mt-2 inline-block">
+                            View
+                        </a>
                     @endif
                     <div class="mt-2">
                         <x-help-popup trigger-class="help-btn">
@@ -1692,6 +1703,9 @@
                         <p class="text-3xl font-bold text-orange-600">{{ number_format($dashboardData['unassignedGhostCount']) }}</p>
                         <p class="mt-1 text-sm text-gray-600">Volunteers in Limbo</p>
                     </a>
+                    <a href="{{ route('users.index', array_filter(['person_type' => 'unassigned', 'branch_id' => $dashboardData['branchId']])) }}" class="btn-view mt-2 inline-block">
+                        View
+                    </a>
                     <div class="mt-2">
                         <x-help-popup trigger-class="help-btn">
                             <x-slot:trigger><i class="fas fa-question-circle mr-1"></i> What is this?</x-slot:trigger>
@@ -1727,6 +1741,9 @@
                     <a href="{{ route('users.index', array_filter(['verification_filter' => 'unverified', 'branch_id' => $dashboardData['branchId']])) }}" class="block hover:opacity-80 transition">
                         <p class="text-3xl font-bold text-orange-600">{{ number_format($dashboardData['unverifiedRegistrationsCount']) }}</p>
                         <p class="mt-1 text-sm text-gray-600">Unverified Registrations</p>
+                    </a>
+                    <a href="{{ route('users.index', array_filter(['verification_filter' => 'unverified', 'branch_id' => $dashboardData['branchId']])) }}" class="btn-view mt-2 inline-block">
+                        View
                     </a>
                     <div class="mt-2">
                         <x-help-popup trigger-class="help-btn">
