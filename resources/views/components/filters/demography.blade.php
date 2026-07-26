@@ -25,6 +25,7 @@
             <option value="">All ages</option>
             <optgroup label="Broad groups">
                 <option value="1|17"  @selected(request('age_bracket') === '1|17')>Under 18</option>
+                <option value="18|"   @selected(request('age_bracket') === '18|')>Adults only (18+)</option>
                 <option value="18|35" @selected(request('age_bracket') === '18|35')>Youth (18–35)</option>
                 <option value="36|59" @selected(request('age_bracket') === '36|59')>Adults (36–59)</option>
                 <option value="60|"   @selected(request('age_bracket') === '60|')>Elderly (60+)</option>

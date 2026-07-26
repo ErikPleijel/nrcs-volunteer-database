@@ -214,7 +214,7 @@ final class CampaignSendRunner
                 if ($r->recipient_type === User::class) {
                     $token = $user?->id_check_token;
                     if ($token) {
-                        $profileUrl = route('welcome');
+                        $profileUrl = config('app.campaign_display_url') ?: route('welcome');
                         if ($wantsEmail) {
                             $emailUrl = route('unsubscribe.email.show', $token);
                             $emailBodyFinal .=

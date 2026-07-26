@@ -240,6 +240,7 @@ class UserController extends Controller
                 'division_id',
                 'red_cross_unit_id',
                 'gender',
+                'age_bracket',
                 'age_min',
                 'age_max',
                 'person_type',

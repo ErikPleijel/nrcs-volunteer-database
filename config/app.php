@@ -56,6 +56,8 @@ return [
 
     'official_website' => env('OFFICIAL_WEBSITE_URL', 'https://redcrossnigeria.org'),
 
+    'campaign_display_url' => env('CAMPAIGN_DISPLAY_URL', null),
+
     /*
     |--------------------------------------------------------------------------
     | Application Timezone
