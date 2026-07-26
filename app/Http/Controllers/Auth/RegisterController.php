@@ -53,6 +53,25 @@ class RegisterController extends Controller
      */
     public function register(Request $request)
     {
+        // Bot trap: honeypot field genuine users never see or fill in; only
+        // automated form-fillers tend to populate it. Checked before any
+        // validation or DB queries run.
+        if (filled($request->input('website'))) {
+            return redirect()->back()
+                ->withErrors(['registration' => 'We were unable to process your registration. Please try again.'])
+                ->withInput();
+        }
+
+        // Bot trap: reject submissions completed faster than a human could
+        // realistically fill out this form. Checked before any validation
+        // or DB queries run.
+        $formRenderedAt = $request->input('form_rendered_at');
+        if (! $formRenderedAt || (now()->timestamp - (int) $formRenderedAt) < 3) {
+            return redirect()->back()
+                ->withErrors(['registration' => 'We were unable to process your registration. Please try again.'])
+                ->withInput();
+        }
+
         $validator = $this->validator($request->all());
 
         if ($validator->fails()) {

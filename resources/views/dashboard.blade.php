@@ -1682,9 +1682,8 @@
                             </p>
 
                             <p class="text-sm text-gray-700 mb-4">
-                                This count only includes admin registrations made after the date configured in
-                                <span class="font-semibold">NRCS_DB_MIGRATION_DATE</span> (.env) — older admin-registered
-                                pending registrations from before that date are not included, even if they'd otherwise match.
+                                Only counts registrations made after the new database went live. Older pending
+                                registrations from before that date aren't included.
                             </p>
 
                             <p class="text-sm text-gray-700 mb-4">

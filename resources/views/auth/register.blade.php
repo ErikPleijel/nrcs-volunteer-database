@@ -39,6 +39,15 @@
                 <form method="POST" action="{{ route('register') }}" enctype="multipart/form-data" class="p-4 sm:p-6 space-y-8">
                     @csrf
 
+                    {{-- Bot trap: honeypot field hidden from sighted and screen-reader users alike; only automated form-fillers tend to populate it. --}}
+                    <div style="position: absolute; left: -9999px; top: -9999px;" aria-hidden="true">
+                        <label for="website">Website</label>
+                        <input type="text" id="website" name="website" tabindex="-1" autocomplete="off">
+                    </div>
+
+                    {{-- Bot trap: timestamp captured at page render, checked server-side against submission time. --}}
+                    <input type="hidden" name="form_rendered_at" value="{{ now()->timestamp }}">
+
                     <!-- Personal Information Section -->
                     <div class="mb-8">
                         <h2 class="text-lg font-medium text-gray-800 mb-4 pb-2 border-b">Personal Information</h2>

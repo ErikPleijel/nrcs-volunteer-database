@@ -1,8 +1,11 @@
 <?php
 
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 
 $app = Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -17,6 +20,12 @@ $app = Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'policy.accepted' => \App\Http\Middleware\RequiresPolicyAcceptance::class,
         ]);
+
+        // Registration abuse protection — 5 attempts per minute per IP,
+        // mirroring the throttle:5,1 already applied to the login route.
+        RateLimiter::for('register', function (Request $request) {
+            return Limit::perMinute(5)->by($request->ip());
+        });
 
         // This is a plaintext UI-preference cookie set client-side by JS
         // (users index "Show profile photos"). Exempt it from encryption so
