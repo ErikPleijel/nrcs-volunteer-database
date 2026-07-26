@@ -23,26 +23,19 @@ class UserEmailVerificationStatusBadge extends Component
 
     protected function resolveStatus(): void
     {
-        if (! $this->user->email) {
-            $this->label  = 'No email';
-            $this->icon   = 'fa-envelope-open-text';
-            $this->styles = 'bg-gray-100 text-gray-600';
-            $this->title  = 'No email address on file.';
-            return;
-        }
-
-        if ($this->user->email_verified_at) {
-            $this->label  = 'Email verified';
-            $this->icon   = 'fa-envelope-circle-check';
-            $this->styles = 'bg-green-100 text-green-800';
-            $this->title  = 'Email verified: ' . $this->user->email;
-            return;
-        }
-
         $this->label  = 'Email not verified';
         $this->icon   = 'fa-envelope';
-        $this->styles = 'bg-yellow-100 text-yellow-800';
+        $this->styles = 'bg-red-100 text-red-800';
         $this->title  = 'Email not verified: ' . $this->user->email;
+    }
+
+    /**
+     * Only ever shown for the unverified-email case — hidden for a
+     * verified email or no email at all.
+     */
+    public function shouldRender(): bool
+    {
+        return (bool) $this->user->email && ! $this->user->email_verified_at;
     }
 
     public function render()
