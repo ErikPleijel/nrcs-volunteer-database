@@ -16,6 +16,7 @@ $app = Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'policy.accepted' => \App\Http\Middleware\RequiresPolicyAcceptance::class,
+            'verified.or.absent' => \App\Http\Middleware\EnsureEmailIsVerifiedOrAbsent::class,
         ]);
 
         // This is a plaintext UI-preference cookie set client-side by JS

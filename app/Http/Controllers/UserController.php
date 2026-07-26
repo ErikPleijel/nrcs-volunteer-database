@@ -424,8 +424,11 @@ class UserController extends Controller
         // Hash password
         $validated['password'] = Hash::make($validated['password']);
 
-        // Mark email as verified since admin is creating this user
-        $validated['email_verified_at'] = now();
+        // Mark email as verified since admin is entering it on the user's behalf
+        // — only applies if an email was actually provided.
+        if (!empty($validated['email'])) {
+            $validated['email_verified_at'] = now();
+        }
 
         // Handle photo upload (either file upload or captured photo) using the trait method
         $pictureFilename = $this->processPhotoUpload($request, 'profile', 'picture', 'captured_photo');

@@ -184,9 +184,13 @@ Route::post('/u/{token}/sms', [UnsubscribeController::class, 'handleSms'])->name
 |--------------------------------------------------------------------------
 | These routes require the user to be logged in.
 */
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'verified.or.absent'])->group(function () {
     // Logout Route
     Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
+
+    // Blocking page shown to users with an unverified email (exempted from
+    // the verified.or.absent gate itself — see EnsureEmailIsVerifiedOrAbsent).
+    Route::view('/email/verify-required', 'auth.verify-email-required')->name('verification.required');
 
     // Data handling policy acknowledgement (one-time, for staff/admins)
     Route::get('/policy/accept', [PolicyAcceptanceController::class, 'show'])->name('policy.accept');
