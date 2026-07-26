@@ -9,9 +9,12 @@ use App\Services\Reports\MembershipStatsService;
 use App\Services\Reports\RedCrossUnitStatsService;
 use App\Services\Reports\TaskForceStatsService;
 use App\Services\Reports\TrainingStatsService;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\RateLimiter;
 
 // Import the User model
 // Import the UserObserver
@@ -46,6 +49,12 @@ class AppServiceProvider extends ServiceProvider
 
         // Register the User Observer for Super Admin role assignment
         User::observe(UserObserver::class);
+
+        // Registration abuse protection — 5 attempts per minute per IP,
+        // mirroring the throttle:5,1 already applied to the login route.
+        RateLimiter::for('register', function (Request $request) {
+            return Limit::perMinute(5)->by($request->ip());
+        });
 
         \Illuminate\Support\Facades\View::composer(
             [

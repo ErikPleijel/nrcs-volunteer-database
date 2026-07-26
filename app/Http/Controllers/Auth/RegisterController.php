@@ -215,7 +215,7 @@ class RegisterController extends Controller
             'organisation' => $data['organisation'] ?? null,
             'branch_id' => $data['branch_id'] ?? null,
             'division_id' => $data['division_id'] ?? null,
-            'disciplin' => $data['disciplin'],
+            'disciplin' => $data['disciplin'] ?? null,
             'occupation' => $data['occupation'] ?? null,
             'birth_year' => $data['birth_year'],
             'gender' => $data['gender'],
