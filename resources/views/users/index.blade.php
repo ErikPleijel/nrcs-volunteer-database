@@ -928,6 +928,7 @@
                                             <x-user-membership-status-badge :user="$user" />
                                             <x-user-lifecycle-status-badge :user="$user" />
                                             <x-user-digital-status-badge :user="$user" />
+                                            <x-user-email-verification-status-badge :user="$user" />
                                         </div>
                                     </td>
 

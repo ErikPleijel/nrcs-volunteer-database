@@ -77,6 +77,25 @@
             </div>
         @endif
 
+        @if($user->email && !$user->email_verified_at)
+            <div class="max-w-2xl mx-auto mb-6">
+                <div class="bg-amber-50 border-2 border-amber-300 rounded-lg py-4 px-6 text-center">
+                    <div class="flex items-center justify-center gap-3">
+                        <i class="fas fa-triangle-exclamation text-amber-500 text-2xl"></i>
+                        <span class="text-lg text-amber-800">
+                            <strong class="font-bold">Email Not Verified</strong>
+                        </span>
+                    </div>
+                    <p class="mt-2 text-sm text-amber-800">
+                        This user has not confirmed their email address yet.
+                    </p>
+                    <p class="mt-1 text-sm text-amber-800">
+                        Admins should be cautious about relying on this address for communication until it's verified.
+                    </p>
+                </div>
+            </div>
+        @endif
+
         {{-- Detail table --}}
         <div class="bg-white rounded-lg shadow p-6 mt-6">
         <div class="grid grid-cols-1 lg:grid-cols-2 lg:gap-12 xl:gap-16">
