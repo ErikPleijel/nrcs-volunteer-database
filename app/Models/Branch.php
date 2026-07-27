@@ -141,4 +141,10 @@ class Branch extends Model
         $formatted = strtoupper(str_replace(' ', '', $this->name));
         return substr($formatted, 0, 10);
     }
+
+    public function isEditableBy(User $user): bool
+    {
+        return $user->getAccessLevel() === 'national'
+            || (int) $this->id === (int) $user->getScopedBranchId();
+    }
 }

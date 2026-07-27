@@ -100,7 +100,7 @@
                                 <th class="table-header-cell">Postal Address</th>
                                 <th class="table-header-cell">Contact</th>
                                 <th class="table-header-cell">Contacts</th>
-                                <th class="table-header-cell hyphens-auto" lang="en">Di&shy;vi&shy;sions</th>
+                                <th class="table-header-cell hyphens-auto" lang="en">Di&shy;vs/&shy;Projects</th>
                                 <th class="table-header-cell hyphens-auto" lang="en">RC Units</th>
                                 <th class="table-header-cell hyphens-auto" lang="en">Vol&shy;un&shy;teers</th>
                                 <th class="table-header-cell hyphens-auto" lang="en">Mem&shy;bers</th>
@@ -155,6 +155,9 @@
                                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                                             {{ $branch->divisions_count }}
                                         </span>
+                                        <div class="text-xs text-gray-500 mt-1">
+                                            {{ is_null($branch->projects) ? 'No projects' : $branch->projects }}
+                                        </div>
                                     </td>
 
                                     <td class="table-body-cell">

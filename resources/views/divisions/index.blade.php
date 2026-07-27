@@ -142,6 +142,7 @@
                         <tr class="table-header-row">
                             <th class="table-header-cell">Name</th>
                             <th class="table-header-cell">Branch</th>
+                            <th class="table-header-cell">Contact</th>
                             <th class="table-header-cell">RC Units</th>
                             <th class="table-header-cell">Volunteers</th>
                             <th class="table-header-cell">Members</th>
@@ -167,20 +168,35 @@
                                 </td>
 
                                 <td class="table-body-cell">
+                                    @if($division->telephone || $division->email)
+                                        <div class="text-xs space-y-0.5">
+                                            @if($division->telephone)
+                                                <div>{{ $division->telephone }}</div>
+                                            @endif
+                                            @if($division->email)
+                                                <div class="break-all">{{ $division->email }}</div>
+                                            @endif
+                                        </div>
+                                    @else
+                                        <span class="text-gray-400 text-xs italic">Not provided</span>
+                                    @endif
+                                </td>
+
+                                <td class="table-body-cell">
                                     <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                        {{ $division->redCrossUnits()->count() }} units
+                                        {{ $division->redCrossUnits()->count() }}
                                     </span>
                                 </td>
 
                                 <td class="table-body-cell">
                                     <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                        {{ $volunteerCountsByDivision[$division->id] ?? 0 }} volunteers
+                                        {{ $volunteerCountsByDivision[$division->id] ?? 0 }}
                                     </span>
                                 </td>
 
                                 <td class="table-body-cell">
                                     <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
-                                        {{ $memberCountsByDivision[$division->id] ?? 0 }} members
+                                        {{ $memberCountsByDivision[$division->id] ?? 0 }}
                                     </span>
                                 </td>
 
@@ -196,7 +212,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="py-4 text-center text-gray-500 italic">
+                                <td colspan="7" class="py-4 text-center text-gray-500 italic">
                                     @if($search)
                                         No divisions found matching "{{ $search }}".
                                     @else

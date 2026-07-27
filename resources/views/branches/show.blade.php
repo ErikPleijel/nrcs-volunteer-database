@@ -15,11 +15,13 @@
     </x-slot>
 
     @can('edit_branch_information')
-        <x-slot name="button2">
-            <a href="{{ route('branches.edit', $branch) }}" class="btn-edit">
-                <i class="fas fa-edit mr-1"></i>Edit Branch
-            </a>
-        </x-slot>
+        @if($branch->isEditableBy(auth()->user()))
+            <x-slot name="button2">
+                <a href="{{ route('branches.edit', $branch) }}" class="btn-edit">
+                    <i class="fas fa-edit mr-1"></i>Edit Branch
+                </a>
+            </x-slot>
+        @endif
     @endcan
 
     <div class="show-page-container space-y-6">
@@ -76,7 +78,12 @@
 
                     <tr>
                         <td>Projects</td>
-                        <td>{{ is_null($branch->projects) ? 'Not provided' : $branch->projects }}</td>
+                        <td>
+                            {{ is_null($branch->projects) ? 'Not provided' : $branch->projects }}
+                            <div class="text-xs text-gray-500 italic mt-1">
+                                Projects is just a statistic — it's shown in the map popup on the public welcome page, and doesn't affect anything else in the system.
+                            </div>
+                        </td>
                     </tr>
 
                     <tr>

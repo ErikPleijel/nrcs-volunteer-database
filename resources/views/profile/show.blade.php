@@ -867,6 +867,42 @@
                         </div>
                     @endif
 
+                    <!-- Division Contact Details -->
+                    @if($user->division)
+                        <div class="bg-white rounded-lg shadow-lg p-6">
+                            <h2 class="text-xl font-bold text-gray-900 mb-4">
+                                {{ $user->division->name ?? '-' }} Division Contact Details
+                            </h2>
+
+                            <div class="space-y-3 text-sm">
+                                @if($user->division->physical_address)
+                                    <div class="grid grid-cols-3 gap-2">
+                                        <span class="text-gray-600">Physical Address:</span>
+                                        <span class="col-span-2 text-gray-900">{{ $user->division->physical_address }}</span>
+                                    </div>
+                                @endif
+                                @if($user->division->postal_address)
+                                    <div class="grid grid-cols-3 gap-2">
+                                        <span class="text-gray-600">Postal Address:</span>
+                                        <span class="col-span-2 text-gray-900">{{ $user->division->postal_address }}</span>
+                                    </div>
+                                @endif
+                                @if($user->division->telephone)
+                                    <div class="grid grid-cols-3 gap-2">
+                                        <span class="text-gray-600">Telephone:</span>
+                                        <span class="col-span-2 text-gray-900">{{ $user->division->telephone }}</span>
+                                    </div>
+                                @endif
+                                @if($user->division->email)
+                                    <div class="grid grid-cols-3 gap-2">
+                                        <span class="text-gray-600">Email:</span>
+                                        <span class="col-span-2 text-gray-900">{{ $user->division->email }}</span>
+                                    </div>
+                                @endif
+                            </div>
+                        </div>
+                    @endif
+
                     {{-- Your Organisations --}}
                     @if($user->organisations->isNotEmpty())
                         <div class="bg-white rounded-lg shadow-lg p-6">

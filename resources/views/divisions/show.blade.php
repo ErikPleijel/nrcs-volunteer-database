@@ -129,8 +129,12 @@
                             <div>
                                 @foreach($chunk as $unit)
                                     <div class="py-1 border-b border-gray-100">
-                                        <a href="{{ route('red-cross-units.show', $unit) }}"
-                                           class="text-base underline text-gray-700 hover:text-blue-600">{{ $unit->name }}</a>
+                                        @if($unit->isViewableBy(auth()->user()))
+                                            <a href="{{ route('red-cross-units.show', $unit) }}"
+                                               class="text-base underline text-gray-700 hover:text-blue-600">{{ $unit->name }}</a>
+                                        @else
+                                            <span class="text-base text-gray-700">{{ $unit->name }}</span>
+                                        @endif
                                         <span class="text-base text-gray-500">({{ $unit->active_users_count }})</span>
                                     </div>
                                 @endforeach
@@ -149,8 +153,12 @@
                                 <div>
                                     @foreach($chunk as $unit)
                                         <div class="py-1 border-b border-gray-100">
-                                            <a href="{{ route('red-cross-units.show', $unit) }}"
-                                               class="text-base underline text-gray-400 hover:text-blue-600">{{ $unit->name }}</a>
+                                            @if($unit->isViewableBy(auth()->user()))
+                                                <a href="{{ route('red-cross-units.show', $unit) }}"
+                                                   class="text-base underline text-gray-400 hover:text-blue-600">{{ $unit->name }}</a>
+                                            @else
+                                                <span class="text-base text-gray-400">{{ $unit->name }}</span>
+                                            @endif
                                             <span class="text-base text-gray-300">(0)</span>
                                         </div>
                                     @endforeach
