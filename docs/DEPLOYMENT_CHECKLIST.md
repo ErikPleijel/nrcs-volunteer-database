@@ -24,8 +24,12 @@ ADAPT procedure accordingly. This might need changes:
 ### Migration
 - [ ] Download old database to local environment
 - [ ] Do data migration procedure in MIGRATION.md
+- [ ] php artisan db:seed --class=SuperAdminSeeder
 
 ### Data integrity checks
+
+Remember: after changing .env: php artisan config:cache
+- [ ] Check that superadmin accounts were created.
 
 - [ ] **`division_id` NULL count** — expect 0. In rehearsal, 373 users had
   NULL `division_id` after `migrate:users`; a built-in restore pass
