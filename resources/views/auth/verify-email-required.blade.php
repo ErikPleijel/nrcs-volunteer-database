@@ -20,6 +20,20 @@
                     you can request a new one below — don't forget to check your spam or junk folder.
                 </p>
 
+                <p class="text-gray-600 mb-6">
+                    Your reference code: <span class="font-semibold text-gray-900">{{ auth()->user()->getUserIdReferenceShortAttribute() }}</span> — have this ready if you contact your branch for help.
+                </p>
+
+                @if (auth()->user()->branch)
+                    <p class="text-gray-600 mb-6">
+                        @if (auth()->user()->branch->telephone)
+                            If you entered the wrong email address, contact your branch to have it corrected: {{ auth()->user()->branch->name }}, {{ auth()->user()->branch->telephone }}.
+                        @else
+                            If you entered the wrong email address, contact your {{ auth()->user()->branch->name }} branch for help.
+                        @endif
+                    </p>
+                @endif
+
                 <form method="POST" action="{{ route('verification.resend') }}">
                     @csrf
                     <button type="submit" class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition duration-200">

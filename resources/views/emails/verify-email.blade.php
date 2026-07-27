@@ -38,12 +38,12 @@
 <body class="body">
 <div class="container">
     <div class="header">
-        <h1>Red Cross Volunteers</h1>
+        <h1>Nigerian Red Cross Society Database</h1>
     </div>
 
     <h2>Hello {{ $user->first_name }}!</h2>
 
-    <p>Thank you for registering with Red Cross Volunteers. To complete your registration, please verify your email address by clicking the button below:</p>
+    <p>Thank you for registering with the Nigerian Red Cross Society. To complete your registration, please verify your email address by clicking the button below:</p>
 
     <p style="text-align: center; margin: 30px 0;">
         <table cellpadding="0" cellspacing="0" style="margin: 30px auto;">
@@ -62,9 +62,7 @@
 
     <p>If you did not create an account, no further action is required.</p>
 
-    <div class="footer">
-        <p>© {{ date('Y') }} Red Cross Volunteers. All rights reserved.</p>
-    </div>
+
 </div>
 </body>
 </html>
