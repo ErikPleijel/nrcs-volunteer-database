@@ -98,6 +98,10 @@ Route::group([], function () {
         return view('auth.registration-success');
     })->name('registration.success');
 
+    Route::get('/email/verified', function () {
+        return view('auth.verification-confirmed');
+    })->name('verification.confirmed');
+
     // Password Reset
     Route::get('forgot-password', [NewPasswordController::class, 'create'])->name('password.request');
     Route::post('forgot-password', [NewPasswordController::class, 'store'])->name('password.email');
@@ -113,11 +117,6 @@ Route::middleware('auth')->group(function () {
 
 // Email Verification Routes
 Route::group([], function () {
-    // Email verification notice
-    Route::get('/email/verify', function () {
-        return view('auth.verify');
-    })->name('verification.notice');
-
     // Email verification handler
     Route::get('/email/verify/{id}/{hash}', function (EmailVerificationRequest $request) {
         $user = $request->user();
@@ -127,13 +126,13 @@ Route::group([], function () {
         }
 
         if ($user->hasVerifiedEmail()) {
-            return redirect()->route('welcome')->with('success', 'Email already verified!');
+            return redirect()->route('verification.confirmed');
         }
 
         try {
             $request->fulfill();
 
-            return redirect()->route('welcome')->with('success', 'Email verified successfully!');
+            return redirect()->route('verification.confirmed');
         } catch (\Exception $e) {
             Log::error('Email verification failed', [
                 'user_id' => $user->id,

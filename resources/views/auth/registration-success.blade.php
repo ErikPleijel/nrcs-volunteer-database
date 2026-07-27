@@ -32,20 +32,8 @@
                                 <span>Check your email <strong>({{ session('email') }})</strong> and click the verification link</span>
                             </p>
                             <div class="mt-2 text-center">
-                                <a href="{{ route('verification.notice') }}" class="inline-block text-sm text-gray-500 hover:text-gray-700 underline underline-offset-2 transition duration-200">
+                                <a href="{{ route('verification.required') }}" class="inline-block text-sm text-gray-500 hover:text-gray-700 underline underline-offset-2 transition duration-200">
                                     Resend verification email
-                                </a>
-                            </div>
-                        </div>
-
-                        <div>
-                            <p class="flex items-start">
-                                <span class="text-blue-600 mr-3 text-xl">⏰</span>
-                                <span>Check out your profile to see your membership status and next steps.</span>
-                            </p>
-                            <div class="mt-2 text-center">
-                                <a href="{{ route('profile.show') }}" class="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition duration-200">
-                                    View My Profile
                                 </a>
                             </div>
                         </div>
