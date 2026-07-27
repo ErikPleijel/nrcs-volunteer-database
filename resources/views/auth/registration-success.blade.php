@@ -1,6 +1,6 @@
 <x-layouts.app>
     <div class="container mx-auto px-4 py-8">
-        <div class="max-w-2xl mx-auto text-center">
+        <div class="max-w-xl mx-auto text-center">
             <div class="bg-green-50 border border-green-200 rounded-lg p-8">
                 <div class="text-green-600 text-6xl mb-4">✓</div>
                 <h1 class="text-3xl font-bold text-gray-800 mb-4">Registration Successful!</h1>

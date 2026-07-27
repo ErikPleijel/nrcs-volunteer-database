@@ -31,14 +31,23 @@ class SendGridService
     {
         // Check if SendGrid API Key is configured. If not, log the email instead of sending.
         if (empty($this->apiKey)) {
-            Log::info('SendGridService: SendGrid API Key is not set. Logging email instead.', [
+            $logContext = [
                 'to' => $to,
                 'subject' => $subject,
                 'from_email' => $this->fromEmail,
                 'from_name' => $this->fromName,
                 'html_content_length' => strlen($htmlContent),
                 'text_content_length' => $textContent ? strlen($textContent) : 0,
-            ]);
+            ];
+
+            if (app()->environment('local')) {
+                $logContext['html_content'] = $htmlContent;
+                if ($textContent) {
+                    $logContext['text_content'] = $textContent;
+                }
+            }
+
+            Log::info('SendGridService: SendGrid API Key is not set. Logging email instead.', $logContext);
             return true; // Simulate success for logging
         }
 
