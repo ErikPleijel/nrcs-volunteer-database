@@ -7,6 +7,7 @@
                 <div class="mb-4 font-medium text-sm text-green-600">
                     {{ session('status') }}
                 </div>
+                <p class="mb-4 text-xs text-gray-500">Need to try a different email address?</p>
             @endif
 
             <form method="POST" action="{{ route('password.email') }}">
@@ -23,7 +24,7 @@
 
                 <div>
                     <button type="submit" class="w-full bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition duration-300">
-                        Email Password Reset Link
+                        Send Password Reset Link
                     </button>
                 </div>
             </form>
