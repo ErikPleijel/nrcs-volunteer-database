@@ -109,7 +109,7 @@
                         </thead>
                         <tbody class="table-body">
                             @foreach($branches as $branch)
-                                <tr class="table-body-row {{ auth()->user()->getScopedBranchId() && (int) auth()->user()->getScopedBranchId() === (int) $branch->id ? 'bg-blue-50' : '' }}">
+                                <tr class="table-body-row {{ auth()->user()->getScopedBranchId() && (int) auth()->user()->getScopedBranchId() === (int) $branch->id ? 'bg-blue-200' : '' }}">
 
                                     <td class="table-body-cell">
                                         <div class="table-field-main">{{ $branch->name }}</div>
