@@ -868,7 +868,7 @@
                     @endif
 
                     <!-- Division Contact Details -->
-                    @if($user->division)
+                    @if($user->division && ($user->division->physical_address || $user->division->postal_address || $user->division->telephone || $user->division->email))
                         <div class="bg-white rounded-lg shadow-lg p-6">
                             <h2 class="text-xl font-bold text-gray-900 mb-4">
                                 {{ $user->division->name ?? '-' }} Division Contact Details

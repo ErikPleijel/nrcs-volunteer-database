@@ -40,4 +40,21 @@ class Division extends Model
     {
         return $this->hasMany(RedCrossUnit::class);
     }
+
+    public function isEditableBy(User $user): bool
+    {
+        switch ($user->getAccessLevel()) {
+            case 'national':
+                return true;
+
+            case 'branch':
+                return $this->branch_id === (int) $user->getScopedBranchId();
+
+            case 'division':
+                return $this->id === (int) $user->getScopedId();
+
+            default:
+                return false;
+        }
+    }
 }

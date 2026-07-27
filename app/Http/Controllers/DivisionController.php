@@ -33,7 +33,16 @@ class DivisionController extends Controller
     public function index(Request $request): View
     {
         $search = $request->get('search');
-        $branchId = $request->get('branch_id');
+
+        $accessLevel = auth()->user()->getAccessLevel();
+        $defaultBranchId = null;
+        if ($accessLevel === 'branch') {
+            $defaultBranchId = auth()->user()->getScopedId();
+        } elseif ($accessLevel === 'division') {
+            $defaultBranchId = auth()->user()->getScopedBranchId();
+        }
+
+        $branchId = $request->get('branch_id', $defaultBranchId);
 
         $divisionsQuery = Division::with(['branch', 'redCrossUnits'])
             ->join('branches', 'divisions.branch_id', '=', 'branches.id')
@@ -138,6 +147,10 @@ class DivisionController extends Controller
      */
     public function edit(Division $division): View
     {
+        if (! $division->isEditableBy(auth()->user())) {
+            abort(403, 'You can only edit divisions within your own scope.');
+        }
+
         $branches = Branch::orderBy('name')->get();
         return view('divisions.edit', compact('division', 'branches'));
     }
@@ -147,6 +160,10 @@ class DivisionController extends Controller
      */
     public function update(Request $request, Division $division): RedirectResponse
     {
+        if (! $division->isEditableBy(auth()->user())) {
+            abort(403, 'You can only edit divisions within your own scope.');
+        }
+
         $validated = $request->validate([
             'physical_address' => 'nullable|string|max:150',
             'postal_address' => 'nullable|string|max:100',

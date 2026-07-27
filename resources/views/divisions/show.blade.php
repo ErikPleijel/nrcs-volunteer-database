@@ -20,11 +20,13 @@
     </x-slot>
 
     @can('edit_division_information')
-        <x-slot name="button2">
-            <a href="{{ route('divisions.edit', $division) }}" class="btn-edit">
-                <i class="fas fa-edit mr-1"></i>Edit Division
-            </a>
-        </x-slot>
+        @if($division->isEditableBy(auth()->user()))
+            <x-slot name="button2">
+                <a href="{{ route('divisions.edit', $division) }}" class="btn-edit">
+                    <i class="fas fa-edit mr-1"></i>Edit Division
+                </a>
+            </x-slot>
+        @endif
     @endcan
 
     <div class="show-page-container space-y-6">

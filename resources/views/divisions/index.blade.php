@@ -142,6 +142,8 @@
                         <tr class="table-header-row">
                             <th class="table-header-cell">Name</th>
                             <th class="table-header-cell">Branch</th>
+                            <th class="table-header-cell">Physical Address</th>
+                            <th class="table-header-cell">Postal Address</th>
                             <th class="table-header-cell">Contact</th>
                             <th class="table-header-cell">RC Units</th>
                             <th class="table-header-cell">Volunteers</th>
@@ -165,6 +167,22 @@
 
                                 <td class="table-body-cell">
                                     <div class="table-field-main">{{ $division->branch->name ?? 'N/A' }}</div>
+                                </td>
+
+                                <td class="table-body-cell">
+                                    @if($division->physical_address)
+                                        <div class="text-xs">{{ $division->physical_address }}</div>
+                                    @else
+                                        <span class="text-gray-400 text-xs italic">Not provided</span>
+                                    @endif
+                                </td>
+
+                                <td class="table-body-cell">
+                                    @if($division->postal_address)
+                                        <div class="text-xs">{{ $division->postal_address }}</div>
+                                    @else
+                                        <span class="text-gray-400 text-xs italic">Not provided</span>
+                                    @endif
                                 </td>
 
                                 <td class="table-body-cell">
@@ -212,7 +230,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="py-4 text-center text-gray-500 italic">
+                                <td colspan="9" class="py-4 text-center text-gray-500 italic">
                                     @if($search)
                                         No divisions found matching "{{ $search }}".
                                     @else
