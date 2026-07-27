@@ -49,7 +49,7 @@
         <table cellpadding="0" cellspacing="0" style="margin: 30px auto;">
             <tr>
                 <td style="border-radius: 5px; background-color: #dc2626;">
-                    <a href="{{ $url }}" style="display: inline-block; padding: 12px 24px; color: #ffffff; text-decoration: none; font-weight: bold; border-radius: 5px;">
+                    <a href="{!! $url !!}" style="display: inline-block; padding: 12px 24px; color: #ffffff; text-decoration: none; font-weight: bold; border-radius: 5px;">
                         Verify Email Address
                     </a>
                 </td>
@@ -58,7 +58,7 @@
     </p>
 
     <p>If you're having trouble clicking the button, copy and paste the URL below into your web browser:</p>
-    <p style="word-break: break-all; color: #666;">{{ $url }}</p>
+    <p style="word-break: break-all; color: #666;">{!! $url !!}</p>
 
     <p>If you did not create an account, no further action is required.</p>
 

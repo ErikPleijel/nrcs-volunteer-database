@@ -116,7 +116,7 @@ Route::middleware('auth')->group(function () {
 });
 
 // Email Verification Routes
-Route::group([], function () {
+Route::middleware('auth')->group(function () {
     // Email verification handler
     Route::get('/email/verify/{id}/{hash}', function (EmailVerificationRequest $request) {
         $user = $request->user();

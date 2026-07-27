@@ -24,11 +24,11 @@ ADAPT procedure accordingly. This might need changes:
 ### Migration
 - [ ] Download old database to local environment
 - [ ] Do data migration procedure in MIGRATION.md
-- [ ] php artisan db:seed --class=SuperAdminSeeder
+
 
 ### Data integrity checks
 
-Remember: after changing .env: php artisan config:cache
+
 - [ ] Check that superadmin accounts were created.
 
 - [ ] **`division_id` NULL count** — expect 0. In rehearsal, 373 users had
@@ -104,10 +104,13 @@ Expected result: both columns show 0.
 
 
 ### Set .env VPS
+--> Remember: after changing .env: php artisan config:cache
 - [ ] APP_ENV=production
+- [ ] APP_DEBUG=true
 - [ ] Diff VPS `.env` against local: MAIL_*, APP_KEY, IMAGE_MIGRATION_SOURCE,
   ElevenLabs/analytics keys, queue driver
 - [ ] `super_admin_emails` set in `.env`
+- php artisan db:seed --class=SuperAdminSeeder
 - [ ] `NRCS_DB_MIGRATION_DATE=2026-08-01` set in `.env`
 - [ ] **APP_KEY**:
     - Generate fresh per environment: `php artisan key:generate` — never
