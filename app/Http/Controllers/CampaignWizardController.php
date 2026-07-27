@@ -110,28 +110,50 @@ class CampaignWizardController extends Controller
         }
 
         // Auto-fill subject and body into filter_json['_content']
-        // Only pre-fill if _content is not already set (don't overwrite user edits)
+        // A field is overwritten when it was never filled, or when it still
+        // exactly matches the default it was last auto-filled with (i.e.
+        // untouched since) — tracked per field in _prefilled_defaults. Any
+        // other value is a genuine admin edit and is left alone, even across
+        // a later Purpose change.
         $filter = $campaign->filter_json ?? [];
         $content = data_get($filter, '_content', []);
         if (! is_array($content) || array_is_list($content)) {
             $content = [];
         }
 
+        $prefilledDefaults = data_get($content, '_prefilled_defaults', []);
+        if (! is_array($prefilledDefaults) || array_is_list($prefilledDefaults)) {
+            $prefilledDefaults = [];
+        }
+
         if ($purpose) {
-            // Pre-fill subject only if not already set
-            if (empty($content['email_subject']) && $purpose->default_subject) {
-                $content['email_subject'] = $purpose->default_subject;
-            }
-            // Pre-fill email body only if not already set
-            if (empty($content['email_body']) && $purpose->default_email_body) {
-                $content['email_body'] = $purpose->default_email_body;
-            }
-            // Pre-fill SMS body only if not already set
-            if (empty($content['sms_body']) && $purpose->default_sms_body) {
-                $content['sms_body'] = $purpose->default_sms_body;
+            $fieldDefaults = [
+                'email_subject' => $purpose->default_subject,
+                'email_body' => $purpose->default_email_body,
+                'sms_body' => $purpose->default_sms_body,
+            ];
+
+            foreach ($fieldDefaults as $field => $defaultValue) {
+                if (! $defaultValue) {
+                    continue;
+                }
+
+                $current = $content[$field] ?? null;
+                $sentinelValue = $prefilledDefaults[$field]['value'] ?? null;
+
+                $safeToOverwrite = empty($current) || $current === $sentinelValue;
+
+                if ($safeToOverwrite) {
+                    $content[$field] = $defaultValue;
+                    $prefilledDefaults[$field] = [
+                        'purpose_id' => $purpose->id,
+                        'value' => $defaultValue,
+                    ];
+                }
             }
         }
 
+        $content['_prefilled_defaults'] = $prefilledDefaults;
         $filter['_content'] = $content;
 
         $campaign->update([

@@ -256,10 +256,9 @@ class DashboardController extends Controller
         if ($dbMigrationDate) {
             $counts = User::adminRegistered()
                 ->where('lifecycle_status', 'pending_engagement')
-                ->whereNull('red_cross_unit_id')
-                ->whereDoesntHave('membershipPayments', function ($q) {
-                    $q->where('approval_status', \App\Models\MembershipPayment::APPROVED);
-                })
+                ->where('is_super_admin', false)
+                ->whereNull('organisation_id')
+                ->notInactive()
                 ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
                 ->selectRaw('COUNT(*) as total, SUM(CASE WHEN created_at >= ? THEN 1 ELSE 0 END) as filtered', [$dbMigrationDate])
                 ->first();
