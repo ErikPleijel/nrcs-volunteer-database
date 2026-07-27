@@ -1683,18 +1683,15 @@
                             </div>
 
                             <p class="text-sm text-gray-700 mb-4">
-                                When an admin registers a prospective member, the registration must be followed by payment. If payment is not completed, it becomes a 'hanging registration.' Payment should be made as soon as possible.
+                                When <span class="font-semibold">an admin registers a prospective member</span>, the registration must be followed by payment. If payment is not completed, it becomes a 'hanging registration.' Payment should be made as soon as possible.
                             </p>
 
                             <p class="text-sm text-gray-700 mb-4">
-                                The bold number counts hanging registrations logged after the new
-                                database went live — this is the number to watch going forward. The
-                                smaller number beside it is the total backlog still sitting in the
-                                old database from before that date, most of which predates the
-                                stricter rule and isn't expected to shrink on its own. After launch,
-                                keep an eye on the bold number specifically: it's fine if it isn't
-                                always exactly 0, since payment approvals take a little time — the
-                                goal is making sure it doesn't keep growing.
+                                {{ number_format($dashboardData['hangingRegistrationCount']) }} is
+                                the number of hanging registrations since {{ \Carbon\Carbon::parse($dashboardData['dbMigrationDate'])->format('j M Y') }}
+                                (when the new database was launched). {{ number_format($dashboardData['hangingRegistrationTotalCount']) }}
+                                is the total number, including hanging registrations from the old
+                                database.
                             </p>
 
                             <p class="text-sm text-gray-700 mb-4">

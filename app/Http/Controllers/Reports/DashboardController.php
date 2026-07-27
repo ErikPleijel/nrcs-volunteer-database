@@ -338,6 +338,7 @@ class DashboardController extends Controller
             'hangingRegistrationCount'                 => $hangingRegistrationCount,
             'hangingRegistrationTotalCount'             => $hangingRegistrationTotalCount,
             'hangingRegistrationConfigured'             => (bool) $dbMigrationDate,
+            'dbMigrationDate'                           => $dbMigrationDate,
 
             'messagesSentLast7'       => $messagesSentLast7,
             'idCardsPrintedLast7'     => $idCardsPrintedLast7,
