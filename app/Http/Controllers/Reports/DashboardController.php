@@ -252,16 +252,20 @@ class DashboardController extends Controller
 
         $dbMigrationDate = config('housekeeping.db_migration_date');
         $hangingRegistrationCount = null;
+        $hangingRegistrationTotalCount = null;
         if ($dbMigrationDate) {
-            $hangingRegistrationCount = User::adminRegistered()
+            $counts = User::adminRegistered()
                 ->where('lifecycle_status', 'pending_engagement')
                 ->whereNull('red_cross_unit_id')
-                ->where('created_at', '>=', $dbMigrationDate)
                 ->whereDoesntHave('membershipPayments', function ($q) {
                     $q->where('approval_status', \App\Models\MembershipPayment::APPROVED);
                 })
                 ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
-                ->count();
+                ->selectRaw('COUNT(*) as total, SUM(CASE WHEN created_at >= ? THEN 1 ELSE 0 END) as filtered', [$dbMigrationDate])
+                ->first();
+
+            $hangingRegistrationCount = (int) $counts->filtered;
+            $hangingRegistrationTotalCount = (int) $counts->total;
         }
 
         $selfSubmittedPayments = \App\Models\MembershipPayment::pendingApproval()
@@ -332,6 +336,7 @@ class DashboardController extends Controller
             'unassignedGhostCount'                     => $unassignedGhostCount,
             'unverifiedRegistrationsCount'             => $unverifiedRegistrationsCount,
             'hangingRegistrationCount'                 => $hangingRegistrationCount,
+            'hangingRegistrationTotalCount'             => $hangingRegistrationTotalCount,
             'hangingRegistrationConfigured'             => (bool) $dbMigrationDate,
 
             'messagesSentLast7'       => $messagesSentLast7,

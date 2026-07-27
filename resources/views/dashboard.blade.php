@@ -1657,7 +1657,12 @@
                             'archived_filter' => 'pending_engagement',
                             'branch_id' => $dashboardData['branchId'],
                         ])) }}" class="block hover:opacity-80 transition">
-                            <p class="text-3xl font-bold text-orange-600">{{ number_format($dashboardData['hangingRegistrationCount']) }}</p>
+                            <p class="text-3xl font-bold text-orange-600">
+                                {{ number_format($dashboardData['hangingRegistrationCount']) }}
+                                <span class="text-sm font-normal text-gray-400">
+                                    ({{ number_format($dashboardData['hangingRegistrationTotalCount']) }} total)
+                                </span>
+                            </p>
                             <p class="mt-1 text-sm text-gray-600">Hanging Registrations</p>
                         </a>
                         <a href="{{ route('users.index', array_filter([
@@ -1682,8 +1687,14 @@
                             </p>
 
                             <p class="text-sm text-gray-700 mb-4">
-                                Only counts registrations made after the new database went live. Older pending
-                                registrations from before that date aren't included.
+                                The bold number counts hanging registrations logged after the new
+                                database went live — this is the number to watch going forward. The
+                                smaller number beside it is the total backlog still sitting in the
+                                old database from before that date, most of which predates the
+                                stricter rule and isn't expected to shrink on its own. After launch,
+                                keep an eye on the bold number specifically: it's fine if it isn't
+                                always exactly 0, since payment approvals take a little time — the
+                                goal is making sure it doesn't keep growing.
                             </p>
 
                             <p class="text-sm text-gray-700 mb-4">
