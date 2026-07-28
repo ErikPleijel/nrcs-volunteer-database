@@ -525,7 +525,7 @@
                                     <div class="ml-3">
                                         <div class="text-sm font-medium text-gray-900">{{ $donation->donor_full_name }}</div>
                                         @if(!$donation->anonymous && $donation->user)
-                                            <div class="text-xs text-gray-500">{{ $donation->user->user_id_reference }}</div>
+                                            <div class="text-xs text-gray-500">{!! $donation->user->user_id_reference_link !!}</div>
                                         @endif
                                     </div>
                                 </div>

@@ -550,7 +550,7 @@
                                         <div class="text-sm font-medium text-gray-900">
                                             {{ $payment->user->first_name }} {{ $payment->user->last_name }}
                                         </div>
-                                        <div class="text-xs text-gray-500">{{ 'DB-' . $payment->user->id }}</div>
+                                        <div class="text-xs text-gray-500">{!! $payment->user->user_id_reference_link !!}</div>
                                     @else
                                         <div class="text-sm font-medium text-red-600">User Not Found</div>
                                     @endif

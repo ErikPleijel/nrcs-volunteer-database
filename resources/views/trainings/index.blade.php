@@ -559,7 +559,7 @@
                                 <div class="ml-3">
                                     @if($training->user)
                                         <div class="text-sm font-medium text-gray-900">{{ $training->user->full_name ?: 'No Name' }}</div>
-                                        <div class="text-xs text-gray-500">{{ $training->user->user_id_reference }}</div>
+                                        <div class="text-xs text-gray-500">{!! $training->user->user_id_reference_link !!}</div>
                                     @else
                                         <div class="text-sm font-medium text-red-600">User Not Found</div>
                                     @endif

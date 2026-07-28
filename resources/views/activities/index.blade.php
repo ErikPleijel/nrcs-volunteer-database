@@ -622,7 +622,7 @@
                                             {{ $activity->user->first_name }} {{ $activity->user->last_name }}
                                         </div>
                                         <div class="text-xs text-gray-500">
-                                            {{ $activity->user->user_id_reference }}
+                                            {!! $activity->user->user_id_reference_link !!}
                                         </div>
                                     @else
                                         <div class="text-sm font-medium text-red-600">
