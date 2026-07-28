@@ -645,7 +645,7 @@
                     <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mr-1">
                         <i class="fas fa-id-card text-blue-600 text-lg"></i>
                     </div>
-                    <h2 class="text-xl font-bold text-gray-900">MEMBERSHIP</h2>
+                    <h2 class="text-xl font-bold text-gray-900">MEMBER&shy;SHIP</h2>
                 </div>
                 @can('add_payments')
                 <a href="{{ route('membership-payments.create', ['user' => $user->id]) }}"
@@ -777,7 +777,7 @@
                     <div class="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center mr-1">
                         <i class="fas fa-hands-helping text-orange-600 text-xl"></i>
                     </div>
-                    <h2 class="text-xl font-bold text-gray-900">VOLUNTEERING</h2>
+                    <h2 class="text-xl font-bold text-gray-900">VOLUN&shy;TEERING</h2>
                 </div>
                 @can('add_volunteering')
                 <a href="{{ route('activities.create', ['user' => $user->id]) }}"
@@ -1055,7 +1055,7 @@
                     <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mr-1">
                         <i class="fas fa-hand-holding-heart text-green-600 text-xl"></i>
                     </div>
-                    <h2 class="text-xl font-bold text-gray-900">DONATIONS</h2>
+                    <h2 class="text-xl font-bold text-gray-900">DON&shy;ATIONS</h2>
                 </div>
                 @can('add_donations')
                 <a href="{{ route('donations.create', ['user' => $user->id]) }}" class="btn-primary-small">
