@@ -783,7 +783,7 @@
                 <a href="{{ route('activities.create', ['user' => $user->id]) }}"
                    class="btn-primary-small">
                     <i class="fas fa-plus mr-2"></i>
-                    Add Volunteering
+                    Add Vol Log
                 </a>
                 @endcan
             </div>
@@ -1051,7 +1051,7 @@
         <!-- Donations Section -->
         <div class="bg-white rounded-lg shadow-lg p-6 mt-6">
             <div class="flex justify-between items-center mb-4">
-                <div class="flex items-center gap-2">
+                <div class="flex items-center">
                     <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mr-1">
                         <i class="fas fa-hand-holding-heart text-green-600 text-xl"></i>
                     </div>

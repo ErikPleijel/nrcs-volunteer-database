@@ -71,7 +71,7 @@ dialog.help-popup-dialog::backdrop {
 }
 
 .btn-primary-small {
-    @apply bg-blue-700 hover:bg-blue-400 text-white text-base font-bold py-1 px-2 rounded;
+    @apply bg-blue-700 hover:bg-blue-400 text-white text-sm font-bold py-1 px-2 rounded;
 }
 
 .btn-secondary {
