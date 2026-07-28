@@ -651,7 +651,7 @@
                 <a href="{{ route('membership-payments.create', ['user' => $user->id]) }}"
                    class="btn-primary-small" >
                     <i class="fas fa-plus mr-2"></i>
-                    Add Payment
+                    Add Paym
                 </a>
                 @endcan
             </div>
@@ -783,7 +783,7 @@
                 <a href="{{ route('activities.create', ['user' => $user->id]) }}"
                    class="btn-primary-small">
                     <i class="fas fa-plus mr-2"></i>
-                    Add Vol Log
+                    Add Log
                 </a>
                 @endcan
             </div>
