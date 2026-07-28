@@ -86,17 +86,11 @@
                 ->pluck('id')->values();
         @endphp
 
-        <div x-data="{ selected: [], allIds: @js($selectableIds) }">
+        <div x-data="{ selected: [] }">
 
             @if($records->count() > 0)
                 {{-- Bulk toolbar --}}
-                <div class="flex flex-wrap items-center justify-between gap-3 mb-3 bg-white border border-gray-200 rounded-lg px-4 py-2">
-                    <label class="inline-flex items-center text-sm text-gray-700 select-none">
-                        <input type="checkbox" class="mr-2 rounded border-gray-300"
-                               @change="selected = $event.target.checked ? allIds.slice() : []"
-                               :checked="allIds.length > 0 && selected.length === allIds.length">
-                        Select all approvable (<span x-text="allIds.length"></span>)
-                    </label>
+                <div class="flex flex-wrap items-center justify-end gap-3 mb-3 bg-white border border-gray-200 rounded-lg px-4 py-2">
                     <form method="POST" action="{{ route($routeName . '.bulk-approve') }}"
                           @submit="if (! confirm('Approve ' + selected.length + ' selected record(s)?')) $event.preventDefault()">
                         @csrf
@@ -207,9 +201,12 @@
                         @php $cardSelfDirected = $record->isSelfDirected; @endphp
                         <div class="p-4 {{ $cardSelfDirected ? 'bg-yellow-50' : '' }}">
                             <div class="flex items-center justify-between mb-2">
-                                <div>
-                                    <div class="text-sm font-medium text-gray-900">{{ $record->user?->full_name ?? 'N/A' }}</div>
-                                    <div class="text-xs text-gray-500">{{ $record->user?->user_id_reference_short }}</div>
+                                <div class="flex items-center gap-3">
+                                    <input type="checkbox" class="rounded border-gray-300" :value="{{ $record->id }}" x-model="selected">
+                                    <div>
+                                        <div class="text-sm font-medium text-gray-900">{{ $record->user?->full_name ?? 'N/A' }}</div>
+                                        <div class="text-xs text-gray-500">{{ $record->user?->user_id_reference_short }}</div>
+                                    </div>
                                 </div>
                                 <x-approval-status-badge status="pending" />
                             </div>
