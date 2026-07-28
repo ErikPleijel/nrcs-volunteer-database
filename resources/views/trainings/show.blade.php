@@ -64,19 +64,23 @@
                     <tr>
                         <td>DB Number</td>
                         <td>
-                            <span class="db-code">
-                                {{ $training->user ? $training->user->user_id_reference_short : 'N/A' }}
-                            </span>
+                            <span class="db-code">{!! $training->user ? $training->user->user_id_reference_link : 'N/A' !!}</span>
                         </td>
                     </tr>
 
-                    <tr>
-                        <td></td>
+                    <tr class="bg-blue-50">
+                        <td class="text-blue-700">Reference</td>
                         <td>
-                            @if($training->user)
-                                <a href="{{ route('users.show', $training->user) }}" class="btn-show-link">
-                                    View full profile →
-                                </a>
+                            @if($training->training_reference)
+                                <div class="font-mono">{{ $training->training_reference }}</div>
+                            @endif
+                            @if($training->reference)
+                                <div class="text-sm text-gray-400 mt-0.5 font-mono">
+                                    <i class="fas fa-hashtag mr-1"></i>{{ $training->reference }}
+                                </div>
+                            @endif
+                            @if(!$training->training_reference && !$training->reference)
+                                <span class="text-gray-400">None</span>
                             @endif
                         </td>
                     </tr>
@@ -149,23 +153,6 @@
                     @endif
 
                     {{-- Submission details — light blue background rows --}}
-                    <tr class="bg-blue-50">
-                        <td class="text-blue-700">Reference</td>
-                        <td>
-                            @if($training->training_reference)
-                                <div class="font-mono">{{ $training->training_reference }}</div>
-                            @endif
-                            @if($training->reference)
-                                <div class="text-sm text-gray-400 mt-0.5 font-mono">
-                                    <i class="fas fa-hashtag mr-1"></i>{{ $training->reference }}
-                                </div>
-                            @endif
-                            @if(!$training->training_reference && !$training->reference)
-                                <span class="text-gray-400">None</span>
-                            @endif
-                        </td>
-                    </tr>
-
                     <tr class="bg-blue-50">
                         <td class="text-blue-700">Submitted By</td>
                         <td>

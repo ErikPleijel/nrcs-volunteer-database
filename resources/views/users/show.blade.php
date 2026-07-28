@@ -636,12 +636,12 @@
         </div>
 
         {{-- E. Data sections --}}
-        <div class="max-w-4xl mx-auto">
+        <div class="max-w-2xl mx-auto">
 
         <!-- Membership Section -->
-        <div class="bg-white rounded-lg shadow-lg p-6 mt-6">
+        <div class="bg-white rounded-lg shadow-lg py-6 px-2 mt-6">
             <div class="flex justify-between items-center">
-                <div class="flex items-center gap-2">
+                <div class="flex items-center">
                     <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mr-1">
                         <i class="fas fa-id-card text-blue-600 text-lg"></i>
                     </div>
@@ -649,30 +649,30 @@
                 </div>
                 @can('add_payments')
                 <a href="{{ route('membership-payments.create', ['user' => $user->id]) }}"
-                   class="btn-primary-small" >
+                   class="btn-primary-small whitespace-nowrap" >
                     <i class="fas fa-plus mr-2"></i>
-                    Add Paym
+                    Add&nbsp;Paym
                 </a>
                 @endcan
             </div>
 
             <!-- Current Valid Membership Status -->
-            <div class="mt-4 mb-6 p-4 border-2 border-dashed border-gray-200 rounded-lg bg-gray-50">
+            <div class="mt-4 mb-6 p-1 border-2 border-dashed border-gray-200 rounded-lg bg-gray-50">
                 <h3 class="text-lg font-semibold text-gray-900 mb-3">Current Membership Status</h3>
 
                 @if($currentMembership)
-                    <div class="flex items-center justify-between">
+                    <div class="flex items-center justify-between gap-1">
                         <div>
-                            <p class="text-sm text-gray-600">Current Plan:</p>
+
                             <p class="font-medium text-gray-900">{{ $currentMembership['membership_type'] }}</p>
                         </div>
                         <div>
-                            <p class="text-sm text-gray-600">Amount Paid:</p>
+
                             <p class="font-medium text-gray-900">{{ $currentMembership['formatted_amount'] }}</p>
                         </div>
                         <div>
-                            <p class="text-sm text-gray-600">Valid Until:</p>
-                            <p class="font-medium text-green-600">{{ $currentMembership['expiry_date'] }}</p>
+
+                            <p class="font-medium text-green-600">Valid {{ $currentMembership['expiry_date'] }}</p>
                         </div>
                         <div>
                                 <span
@@ -707,29 +707,26 @@
                 <div class="overflow-x-auto">
                     <div class="@if($showingLimitMessage) max-h-64 overflow-y-auto @endif">
                         <table class="min-w-full text-sm">
-                            <thead class="sticky top-0 bg-gray-50">
-                            <tr class="border-b border-gray-200">
-                                <th class="text-left py-1 text-xs text-gray-500 bg-gray-50">Payment date</th>
-                                <th class="text-left py-1 text-xs text-gray-500 bg-gray-50">Membership Type</th>
-                                <th class="text-left py-1 text-xs text-gray-500 bg-gray-50">Amount</th>
-                                <th class="text-left py-1 text-xs text-gray-500 bg-gray-50">Status</th>
-                            </tr>
-                            </thead>
+
                             <tbody>
                             @forelse($membershipPayments as $payment)
-                                <tr class="border-b border-gray-100">
-                                    <td class="py-1 text-xs text-gray-500">{{ $payment['payment_date'] }}</td>
-                                    <td class="py-1 text-xs text-gray-500">{{ $payment['membership_type'] }}</td>
-                                    <td class="py-1 text-xs text-gray-500">{{ $payment['formatted_amount'] }}</td>
+                                <tr class="border-b border-gray-100 gap-2">
+                                    <td class="py-1 pr-1 text-xs text-gray-500">{{ $payment['payment_date'] }}</td>
+                                    <td class="py-1 pr-1 text-xs text-gray-500">
+                                        <div>{{ $payment['membership_type'] }}</div>
+                                        <div class="text-xs">{!! $payment['reference_link'] !!}</div>
+                                    </td>
+                                    <td class="py-1 pr-1 text-xs text-gray-500">{{ $payment['formatted_amount'] }}</td>
                                     <td class="py-1">
                                                 <span
-                                                    class="{{ $payment['status']['class'] }} px-2 py-1 rounded-full text-xs">
+                                                    class="{{ $payment['status']['class'] }} px-1 py-1 rounded-full text-xs">
                                                     {{ $payment['status']['text'] }}
                                                 </span>
                                         @if($payment['approval_status'] === 'pending')
                                             <x-approval-status-badge status="pending" class="ml-1" />
                                         @endif
                                     </td>
+
                                 </tr>
                             @empty
                                 <tr>
@@ -781,15 +778,13 @@
                 </div>
                 @can('add_volunteering')
                 <a href="{{ route('activities.create', ['user' => $user->id]) }}"
-                   class="btn-primary-small">
+                   class="btn-primary-small whitespace-nowrap">
                     <i class="fas fa-plus mr-2"></i>
-                    Add Log
+                    Add&nbsp;Log
                 </a>
                 @endcan
             </div>
-            <p class="text-gray-600 text-sm mb-4">
-                This section displays the user's volunteering activities and hours.
-            </p>
+
 
             <!-- Volunteering History with Scrollable Container -->
             @if($activitiesLimitMessage)
@@ -803,15 +798,7 @@
             <div class="overflow-x-auto">
                 <div class="@if($activitiesLimitMessage) max-h-64 overflow-y-auto @endif">
                     <table class="min-w-full text-sm">
-                        <thead class="sticky top-0 bg-white">
-                        <tr class="border-b border-gray-200">
-                            <th class="text-left py-2 text-gray-600 bg-white">Date</th>
-                            <th class="text-left py-2 text-gray-600 bg-white">Activity</th>
-                            <th class="text-left py-2 text-gray-600 bg-white">Hours</th>
-                            <th class="text-left py-2 text-gray-600 bg-white">Unit</th>
-                            <th class="text-left py-2 text-gray-600 bg-white">Unit type</th>
-                        </tr>
-                        </thead>
+
                         <tbody>
                         @forelse($activities as $activity)
                             <tr class="border-b border-gray-100">
@@ -820,17 +807,17 @@
                                     <div class="flex items-center">
 
                                         {{ $activity['activity'] }}
+                                        ({{ $activity['hours_display'] }})
                                         @if($activity['approval_status'] === 'pending')
                                             <x-approval-status-badge status="pending" class="ml-2" />
                                         @endif
                                     </div>
-                                    @if($activity['reference'])
-                                        <div class="text-xs text-gray-500 mt-1">
-                                            Ref: {{ $activity['reference'] }}
-                                        </div>
-                                    @endif
+                                    <div class="text-xs text-gray-500">
+                                        {!! $activity['reference_link'] !!}
+
+                                    </div>
                                 </td>
-                                <td class="py-2 font-medium">{{ $activity['hours_display'] }}</td>
+
                                 <td class="py-2 break-words whitespace-normal">
                                     @if($activity['unit'] && $activity['unit'] !== 'Unit not specified')
                                         <span class="table-field-main">
@@ -840,16 +827,6 @@
                                         <span class="text-gray-400 text-xs">—</span>
                                     @endif
                                 </td>
-                                <td class="py-2">
-                                    @if($activity['unit_type'])
-                                        <span class="table-field-main">
-                                            {{ ucfirst(str_replace('_', ' ', $activity['unit_type'])) }}
-                                        </span>
-                                    @else
-                                        <span class="text-gray-400 text-xs">—</span>
-                                    @endif
-                                </td>
-
 
                             </tr>
                         @empty
@@ -913,22 +890,19 @@
         <div class="bg-white rounded-lg shadow-lg p-6 mt-6">
             <div class="flex justify-between items-center mb-4">
                 <div class="flex items-center gap-2">
-                    <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mr-1">
+                    <div class="w-6 h-12 bg-purple-100 rounded-lg flex items-center justify-center mr-1">
                         <i class="fas fa-graduation-cap text-purple-600 text-xl"></i>
                     </div>
                     <h2 class="text-xl font-bold text-gray-900">TRAINING</h2>
                 </div>
                 @can('add_trainings')
                 <a href="{{ route('trainings.create', ['user' => $user->id]) }}"
-                   class="btn-primary-small" >
+                   class="btn-primary-small whitespace-nowrap" >
                     <i class="fas fa-plus mr-2"></i>
-                    Add Training
+                    Add&nbsp;Training
                 </a>
                 @endcan
             </div>
-            <p class="text-gray-600 text-sm mb-4">
-                Training courses completed by the user.
-            </p>
 
             <!-- Training History with Scrollable Container -->
             @if($trainingsLimitMessage)
@@ -942,15 +916,7 @@
             <div class="overflow-x-auto">
                 <div class="@if($trainingsLimitMessage) max-h-64 overflow-y-auto @endif">
                     <table class="min-w-full text-sm">
-                        <thead class="sticky top-0 bg-white">
-                        <tr class="border-b border-gray-200">
-                            <th class="text-left py-2 text-gray-600 bg-white">Date</th>
-                            <th class="text-left py-2 text-gray-600 bg-white">Training</th>
-                            <th class="text-left py-2 text-gray-600 bg-white">Duration</th>
-                            <th class="text-left py-2 text-gray-600 bg-white">Status</th>
-                            <th class="text-left py-2 text-gray-600 bg-white">Print at</th>
-                        </tr>
-                        </thead>
+
                         <tbody>
                         @forelse($trainings as $training)
                             <tr class="training-row border-b border-gray-100 cursor-pointer hover:bg-purple-50 transition-colors"
@@ -958,29 +924,29 @@
                                 <td class="py-2">{{ $training['date'] }}</td>
                                 <td class="py-2">
                                     <div class="flex items-center">
-                                        <i class="fas fa-certificate text-purple-600 mr-2"></i>
                                         {{ $training['activity'] }}
+                                        ({{ $training['duration'] }}d)
                                     </div>
+                                    <div class="text-xs">{!! $training['reference_link'] !!}</div>
                                 </td>
                                 <td class="py-2">
-                                    {{ $training['duration'] }} day{{ $training['duration'] != 1 ? 's' : '' }}
-                                </td>
-                                <td class="py-2">
-                                            <span
-                                                class="{{ $training['status']['class'] }} px-2 py-1 rounded-full text-xs">
-                                                {{ $training['status']['text'] }}
-                                            </span>
-                                    @if($training['approval_status'] === 'pending')
-                                        <x-approval-status-badge status="pending" class="ml-1" />
-                                    @endif
-                                </td>
-                                <td class="py-2 text-xs text-gray-600">
-                                    {{ $training['certificate_hq_only'] ? 'HQ' : 'Branch' }}
+                                    <div>
+                                        <span
+                                            class="{{ $training['status']['class'] }} py-1 rounded-full text-xs">
+                                            {{ $training['status']['text'] }}
+                                        </span>
+                                        @if($training['approval_status'] === 'pending')
+                                            <x-approval-status-badge status="pending" class="ml-1" />
+                                        @endif
+                                    </div>
+                                    <div class="text-xs text-gray-600 mt-1">
+                                        Print at {{ $training['certificate_hq_only'] ? 'HQ' : 'Branch' }}
+                                    </div>
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="5" class="py-4 text-center text-gray-500 italic">
+                                <td colspan="3" class="py-4 text-center text-gray-500 italic">
                                     No training records found
                                 </td>
                             </tr>
@@ -1058,15 +1024,12 @@
                     <h2 class="text-xl font-bold text-gray-900">DON&shy;ATIONS</h2>
                 </div>
                 @can('add_donations')
-                <a href="{{ route('donations.create', ['user' => $user->id]) }}" class="btn-primary-small">
-                    <i class="fas fa-plus mr-2"></i>
-                    Add Donation
+                <a href="{{ route('donations.create', ['user' => $user->id]) }}" class="btn-primary-small whitespace-nowrap">
+                    <i class="fas fa-plus mr-2"></i>Add&nbsp;Donation
                 </a>
                 @endcan
             </div>
-            <p class="text-gray-600 text-sm mb-4">
-                Records of financial and in-kind contributions made by this user.
-            </p>
+
 
             <!-- Donation History with Scrollable Container -->
             @if($donationsLimitMessage)
@@ -1080,39 +1043,26 @@
             <div class="overflow-x-auto">
                 <div class="@if($donationsLimitMessage) max-h-64 overflow-y-auto @endif">
                     <table class="min-w-full text-sm">
-                        <thead class="sticky top-0 bg-white">
-                        <tr class="border-b border-gray-200">
-                            <th class="text-left py-2 text-gray-600 bg-white">Donation date</th>
-                            <th class="text-left py-2 text-gray-600 bg-white">Donated item</th>
-                            <th class="text-left py-2 text-gray-600 bg-white">Amount</th>
-                            <th class="text-left py-2 text-gray-600 bg-white">Type</th>
-                        </tr>
-                        </thead>
+
                         <tbody>
                         @forelse($donations as $donation)
                             <tr class="border-b border-gray-100">
                                 <td class="py-2">{{ $donation['date'] }}</td>
+
                                 <td class="py-2">
-                                    <div class="flex items-center">
-                                        @if($donation['type'] === 'in-kind')
-                                            <i class="fas fa-box text-green-600 mr-2"></i>
-                                        @else
-                                            <i class="fas fa-money-bill text-green-600 mr-2"></i>
-                                        @endif
-                                        {{ $donation['item'] }}
-                                    </div>
+                                    {{ $donation['amount'] }}
+                                    <div class="text-xs">{!! $donation['reference_link'] !!}</div>
                                 </td>
-                                <td class="py-2">{{ $donation['amount'] }}</td>
                                 <td class="py-2">
-                                            <span class="px-2 py-1 rounded-full text-xs
-                                                @if($donation['type'] === 'in-kind')
-                                                    bg-blue-100 text-blue-800
-                                                @else
-                                                    bg-green-100 text-green-800
-                                                @endif">
-                                                {{ $donation['type'] === 'in-kind' ? 'In-Kind' : 'Cash' }}
-                                            </span>
-                                            </span>
+                                    <span class="px-2 py-1 rounded-full text-xs
+                                        @if($donation['type'] === 'in-kind')
+                                            bg-blue-100 text-blue-800
+                                        @else
+                                            bg-green-100 text-green-800
+                                        @endif">
+                                        {{ $donation['type'] === 'in-kind' ? 'In-Kind' : 'Cash' }}
+                                    </span>
+
                                     @if($donation['approval_status'] === 'pending')
                                         <x-approval-status-badge status="pending" class="ml-1" />
                                     @endif

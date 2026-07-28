@@ -706,9 +706,9 @@ class ProfileController extends Controller
     private function getDonationAmount($donation)
     {
         if ($donation->in_kind_donation) {
-            return $donation->donation_estimated_value
-                ? '₦' . number_format($donation->donation_estimated_value, 2) . ' (est.)'
-                : 'No value estimated';
+            return $donation->amount
+                ? $donation->amount . ' x ' . ($donation->donation_item ?? 'items')
+                : 'No quantity recorded';
         } else {
             return $donation->amount
                 ? '₦' . number_format($donation->amount, 2)

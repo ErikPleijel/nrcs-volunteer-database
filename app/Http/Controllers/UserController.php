@@ -583,6 +583,7 @@ class UserController extends Controller
                 'is_valid' => $isValid,
                 'is_expired' => $isExpired,
                 'approval_status' => $payment->approval_status,
+                'reference_link' => $payment->payment_reference_link,
             ];
         });
 
@@ -612,6 +613,7 @@ class UserController extends Controller
                 'type' => $donation->in_kind_donation ? 'in-kind' : 'cash',
                 'purpose' => $donation->purpose ?? 'General',
                 'approval_status' => $donation->approval_status,
+                'reference_link' => $donation->donation_reference_link,
             ];
         });
 
@@ -636,6 +638,7 @@ class UserController extends Controller
                 'training_type_id' => $training->training_type_id,
                 'certificate_hq_only' => $training->trainingType->certificate_hq_only ?? false,
                 'approval_status' => $training->approval_status,
+                'reference_link' => $training->training_reference_link,
             ];
         });
 
@@ -658,7 +661,7 @@ class UserController extends Controller
                 'hours_display' => $this->getActivityHours($activity),
                 'unit' => $this->getUnitName($activity),
                 'unit_type' => $this->getUnitTypeName($activity),
-                'reference' => $activity->reference ?? null,
+                'reference_link' => $activity->activity_reference_link,
                 'id' => $activity->id ?? null,
                 'approval_status' => $activity->approval_status,
             ];
@@ -1553,9 +1556,9 @@ class UserController extends Controller
     private function getDonationAmount($donation)
     {
         if ($donation->in_kind_donation) {
-            return $donation->donation_estimated_value
-                ? '₦'.number_format($donation->donation_estimated_value, 2).' (est.)'
-                : 'No value estimated';
+            return $donation->amount
+                ? $donation->amount . ' x ' . ($donation->donation_item ?? 'items')
+                : 'No quantity recorded';
         } else {
             return $donation->amount
                 ? '₦'.number_format($donation->amount, 2)
@@ -1599,7 +1602,7 @@ class UserController extends Controller
 
         return [
             'type' => 'unknown',
-            'text' => 'No expiry date',
+            'text' => 'No expiry',
             'class' => 'bg-gray-100 text-gray-800',
         ];
     }
@@ -1610,7 +1613,7 @@ class UserController extends Controller
     private function getActivityHours($activity)
     {
         if ($activity->hours) {
-            return $activity->hours.' hours';
+            return $activity->hours.'h';
         }
 
         return 'Duration not specified';

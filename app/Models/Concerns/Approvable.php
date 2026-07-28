@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Notifications\RecordRejected;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use RuntimeException;
 
 /**
@@ -160,6 +161,22 @@ trait Approvable
     public function isRejected(): bool
     {
         return $this->approval_status === self::REJECTED;
+    }
+
+    /**
+     * URL to this record's own page: {module}.show once approved (permission-
+     * gated only, generally reachable), {module}.review while pending/rejected
+     * (bypasses the ApprovedScope global scope that would 404 {module}.show —
+     * see HandlesRecordApproval's §8.1 note — but is itself only reachable by
+     * an eligible approver, the submitter, or the decider).
+     */
+    public function getReviewOrShowUrlAttribute(): string
+    {
+        $module = $this->approvalRouteName ?? Str::kebab(Str::pluralStudly(class_basename($this)));
+
+        return $this->approval_status === self::APPROVED
+            ? route("{$module}.show", $this->id)
+            : route("{$module}.review", $this->id);
     }
 
     /**

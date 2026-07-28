@@ -64,19 +64,20 @@
                     <tr>
                         <td>DB Number</td>
                         <td>
-                            <span class="db-code">
-                                {{ $activity->user ? $activity->user->user_id_reference_short : 'N/A' }}
-                            </span>
+                            <span class="db-code">{!! $activity->user ? $activity->user->user_id_reference_link : 'N/A' !!}</span>
                         </td>
                     </tr>
 
-                    <tr>
-                        <td></td>
+                    <tr class="bg-blue-50">
+                        <td class="text-blue-700">Reference</td>
                         <td>
-                            @if($activity->user)
-                                <a href="{{ route('users.show', $activity->user) }}" class="btn-show-link">
-                                    View full profile →
-                                </a>
+                            <div class="font-mono">{{ $activity->getActivityReferenceAttribute() }}</div>
+                            @if($activity->reference)
+                                <div class="text-sm text-gray-400 mt-0.5 font-mono">
+                                    <i class="fas fa-hashtag mr-1"></i>{{ $activity->reference }}
+                                </div>
+                            @else
+                                <div class="text-sm text-gray-400 mt-0.5">No external ref.</div>
                             @endif
                         </td>
                     </tr>
@@ -123,20 +124,6 @@
                     @endif
 
                     {{-- Submission details — light blue background rows --}}
-                    <tr class="bg-blue-50">
-                        <td class="text-blue-700">Reference</td>
-                        <td>
-                            <div class="font-mono">{{ $activity->getActivityReferenceAttribute() }}</div>
-                            @if($activity->reference)
-                                <div class="text-sm text-gray-400 mt-0.5 font-mono">
-                                    <i class="fas fa-hashtag mr-1"></i>{{ $activity->reference }}
-                                </div>
-                            @else
-                                <div class="text-sm text-gray-400 mt-0.5">No external ref.</div>
-                            @endif
-                        </td>
-                    </tr>
-
                     <tr class="bg-blue-50">
                         <td class="text-blue-700">Submitted By</td>
                         <td>

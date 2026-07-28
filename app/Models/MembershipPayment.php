@@ -238,6 +238,26 @@ class MembershipPayment extends Model
     }
 
     /**
+     * The payment reference, wrapped as a link to this record's own page.
+     */
+    public function getPaymentReferenceLinkAttribute(): string
+    {
+        $reference = $this->payment_reference;
+        $url = $this->review_or_show_url;
+
+        return "<a href=\"{$url}\" class=\"db-code underline\">{$reference}</a>";
+    }
+
+    /**
+     * Common-named alias for the shared approvals.show view, which handles
+     * four different Approvable models via one $record variable.
+     */
+    public function getSystemReferenceAttribute(): string
+    {
+        return $this->payment_reference;
+    }
+
+    /**
      * Get remaining time until expiry in years, months, and days.
      */
     public function getRemainingTimeAttribute()

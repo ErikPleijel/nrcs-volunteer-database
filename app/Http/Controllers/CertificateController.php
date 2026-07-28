@@ -1398,6 +1398,13 @@ class CertificateController extends Controller
 
         $records = $query->paginate(24)->withQueryString();
 
+        // Build a set of already-printed organisation keys for this certificate type.
+        $printedKeys = CertificatePrint::whereIn('organisation_id', $records->pluck('id'))
+            ->where('certificate_type', $certificateType)
+            ->whereNull('deleted_at')
+            ->pluck('organisation_id')
+            ->flip();
+
         $branches = ($accessLevel === 'branch' && $userBranchId)
             ? Branch::where('id', $userBranchId)->orderBy('name')->get()
             : Branch::orderBy('name')->get();
@@ -1426,7 +1433,8 @@ class CertificateController extends Controller
             'certificateType',
             'selectedSign1Id',
             'selectedSign2Id',
-            'signatureImages'
+            'signatureImages',
+            'printedKeys'
         ));
     }
 

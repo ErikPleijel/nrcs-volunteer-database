@@ -64,23 +64,23 @@
                     <tr>
                         <td>DB Number</td>
                         <td>
-                            @if($membershipPayment->user)
-                                <span class="db-code">
-                                    {{ $membershipPayment->user->user_id_reference_short }}
-                                </span>
-                            @else
-                                N/A
-                            @endif
+                            <span class="db-code">{!! $membershipPayment->user ? $membershipPayment->user->user_id_reference_link : 'N/A' !!}</span>
                         </td>
                     </tr>
 
-                    <tr>
-                        <td></td>
+                    <tr class="bg-blue-50">
+                        <td class="text-blue-700">Reference</td>
                         <td>
-                            @if($membershipPayment->user)
-                                <a href="{{ route('users.show', $membershipPayment->user) }}" class="btn-show-link">
-                                    View full profile →
-                                </a>
+                            @if($membershipPayment->payment_reference)
+                                <div class="font-mono">{{ $membershipPayment->payment_reference }}</div>
+                            @endif
+                            @if($membershipPayment->reference)
+                                <div class="text-sm text-gray-400 mt-0.5 font-mono">
+                                    <i class="fas fa-hashtag mr-1"></i>{{ $membershipPayment->reference }}
+                                </div>
+                            @endif
+                            @if(!$membershipPayment->reference && !$membershipPayment->payment_reference)
+                                <span class="text-gray-400">None</span>
                             @endif
                         </td>
                     </tr>
@@ -167,23 +167,6 @@
                     </tr>
 
                     {{-- Submission details — light blue background rows --}}
-                    <tr class="bg-blue-50">
-                        <td class="text-blue-700">Reference</td>
-                        <td>
-                            @if($membershipPayment->payment_reference)
-                                <div class="font-mono">{{ $membershipPayment->payment_reference }}</div>
-                            @endif
-                            @if($membershipPayment->reference)
-                                <div class="text-sm text-gray-400 mt-0.5 font-mono">
-                                    <i class="fas fa-hashtag mr-1"></i>{{ $membershipPayment->reference }}
-                                </div>
-                            @endif
-                            @if(!$membershipPayment->reference && !$membershipPayment->payment_reference)
-                                <span class="text-gray-400">None</span>
-                            @endif
-                        </td>
-                    </tr>
-
                     <tr class="bg-blue-50">
                         <td class="text-blue-700">Submitted By</td>
                         <td>

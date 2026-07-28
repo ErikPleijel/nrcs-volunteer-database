@@ -221,15 +221,27 @@
                                 Print with logo & frame
                             </button>
 
-                            <button
-                                id="mark-as-printed"
-                                type="button"
-                                class="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-md hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                                disabled
-                            >
-                                <i class="fas fa-check-circle mr-2"></i>
-                                Mark as Printed
-                            </button>
+                            <!-- Button: Mark as Printed + stop pulse -->
+                            <div class="flex items-center gap-2">
+                                <button
+                                    id="mark-as-printed"
+                                    type="button"
+                                    class="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-md hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                    disabled
+                                >
+                                    <i class="fas fa-check-circle mr-2"></i>
+                                    Mark as Printed
+                                </button>
+
+                                <button type="button"
+                                        id="stop-pulse-btn"
+                                        disabled
+                                        title="Stop reminder"
+                                        class="w-9 h-9 flex items-center justify-center rounded bg-gray-300 text-gray-500 cursor-not-allowed transition-colors"
+                                        onclick="stopPulse()">
+                                    <i class="fas fa-stop text-sm"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -249,9 +261,25 @@
                                            class="h-5 w-5 text-red-600 border-gray-300 rounded focus:ring-red-500 bulk-checkbox">
                                 </div>
 
-                                <div class="font-bold text-lg text-gray-800 pr-8">
-                                    {{ $organisation->name }}
+                                @php
+                                    $isPrinted = isset($printedKeys[$organisation->id]);
+                                @endphp
+
+                                <div class="flex items-start justify-between pr-8 gap-2">
+                                    <div class="font-bold text-lg text-gray-800">
+                                        {{ $organisation->name }}
+                                    </div>
+                                    @if($isPrinted)
+                                        <span class="flex-shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700 border border-green-200">
+                                            <i class="fas fa-circle-check text-green-500"></i> Printed
+                                        </span>
+                                    @else
+                                        <span class="flex-shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-500 border border-gray-200">
+                                            <i class="fas fa-circle text-gray-300"></i> Not printed
+                                        </span>
+                                    @endif
                                 </div>
+
                                 <p class="text-xs text-gray-500 break-words mb-2">
                                     {{ $organisation->branch->name ?? '—' }}
                                 </p>
@@ -385,6 +413,46 @@
                     }
                 });
             }
+
+            // ── PULSE REMINDER ────────────────────────────────────────────────
+            const markAsPrintedBtn = document.getElementById('mark-as-printed');
+            const stopPulseBtnEl   = document.getElementById('stop-pulse-btn');
+            const printPlainBtn    = document.getElementById('bulk-print-plain');
+            const printBrandedBtn  = document.getElementById('bulk-print-branded');
+
+            function startPulse() {
+                if (!markAsPrintedBtn || !stopPulseBtnEl) return;
+                markAsPrintedBtn.classList.add('btn-pulse-reminder');
+                stopPulseBtnEl.disabled = false;
+                stopPulseBtnEl.classList.remove('bg-gray-300', 'text-gray-500', 'cursor-not-allowed');
+                stopPulseBtnEl.classList.add('bg-gray-700', 'hover:bg-gray-900', 'text-white', 'cursor-pointer');
+            }
+
+            window.stopPulse = function () {
+                if (!markAsPrintedBtn || !stopPulseBtnEl) return;
+                markAsPrintedBtn.classList.remove('btn-pulse-reminder');
+                stopPulseBtnEl.disabled = true;
+                stopPulseBtnEl.classList.remove('bg-gray-700', 'hover:bg-gray-900', 'text-white', 'cursor-pointer');
+                stopPulseBtnEl.classList.add('bg-gray-300', 'text-gray-500', 'cursor-not-allowed');
+            };
+
+            if (printPlainBtn) {
+                printPlainBtn.addEventListener('click', () => setTimeout(startPulse, 500));
+            }
+            if (printBrandedBtn) {
+                printBrandedBtn.addEventListener('click', () => setTimeout(startPulse, 500));
+            }
         });
     </script>
+
+    <style>
+        @keyframes pulse-shadow {
+            0%   { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.7); }
+            50%  { box-shadow: 0 0 0 10px rgba(37, 99, 235, 0.2); }
+            100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
+        }
+        .btn-pulse-reminder {
+            animation: pulse-shadow 1.4s ease-in-out infinite;
+        }
+    </style>
 </x-layouts.admin>

@@ -60,19 +60,18 @@
                     <tr>
                         <td>DB Number</td>
                         <td>
-                            <span class="db-code">
-                                {{ $donation->user ? $donation->user->user_id_reference_short : 'N/A' }}
-                            </span>
+                            <span class="db-code">{!! $donation->user ? $donation->user->user_id_reference_link : 'N/A' !!}</span>
                         </td>
                     </tr>
 
-                    <tr>
-                        <td></td>
+                    <tr class="bg-blue-50">
+                        <td class="text-blue-700">Reference</td>
                         <td>
-                            @if($donation->user)
-                                <a href="{{ route('users.show', $donation->user) }}" class="btn-show-link">
-                                    View donor profile →
-                                </a>
+                            <div class="font-mono">{{ $donation->donation_reference }}</div>
+                            @if($donation->reference)
+                                <div class="text-sm text-gray-400 mt-0.5 font-mono">
+                                    <i class="fas fa-hashtag mr-1"></i>{{ $donation->reference }}
+                                </div>
                             @endif
                         </td>
                     </tr>
@@ -138,18 +137,6 @@
                     </tr>
 
                     {{-- Submission details — light blue background rows --}}
-                    <tr class="bg-blue-50">
-                        <td class="text-blue-700">Reference</td>
-                        <td>
-                            <div class="font-mono">{{ $donation->donation_reference }}</div>
-                            @if($donation->reference)
-                                <div class="text-sm text-gray-400 mt-0.5 font-mono">
-                                    <i class="fas fa-hashtag mr-1"></i>{{ $donation->reference }}
-                                </div>
-                            @endif
-                        </td>
-                    </tr>
-
                     <tr class="bg-blue-50">
                         <td class="text-blue-700">Submitted By</td>
                         <td>

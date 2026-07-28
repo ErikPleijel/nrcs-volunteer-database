@@ -50,12 +50,10 @@
                 <div class="text-base font-medium text-gray-900">{{ $record->user?->full_name ?? 'N/A' }}</div>
                 @if($record->user)
                     <div class="text-sm text-gray-500">
-                        {{ $record->user->user_id_reference_short }}
+                        {!! $record->user->user_id_reference_link !!}
                         @if($record->user->redCrossUnit) · {{ $record->user->redCrossUnit->name }}@endif
                     </div>
-                    <div class="mt-1">
-                        <x-user-lifecycle-status-badge :user="$record->user" />
-                    </div>
+                    <div class="text-sm text-gray-500">{{ $record->system_reference }}</div>
                 @endif
             </div>
 
