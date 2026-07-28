@@ -259,13 +259,7 @@
                                 <td class="py-2 px-4">
                                     @if($member['trainings']->count() > 0)
                                         <table class="w-full text-xs bg-gray-50 rounded-lg">
-                                            <thead>
-                                            <tr class="border-b border-gray-200">
-                                                <th class="text-left py-1 px-2 text-gray-600">Training Type</th>
-                                                <th class="text-left py-1 px-2 text-gray-600">Training Date</th>
-                                                <th class="text-left py-1 px-2 text-gray-600">Expiry Status</th>
-                                            </tr>
-                                            </thead>
+
                                             <tbody>
                                             @foreach($member['trainings'] as $training)
                                                 <tr class="border-b border-gray-100 last:border-b-0">

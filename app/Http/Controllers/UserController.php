@@ -70,7 +70,7 @@ class UserController extends Controller
         // --------------------------------------------------
         // Base query (NO filters here)
         // --------------------------------------------------
-        $with = ['branch', 'division', 'redCrossUnit'];
+        $with = ['branch', 'division', 'redCrossUnit', 'organisations'];
         if ($viewMode === 'certificates') {
             $with[] = 'certificatePrints.training.trainingType';
         } elseif ($viewMode === 'trainings') {
@@ -559,6 +559,7 @@ class UserController extends Controller
 
         // Process Membership Payments
         $allPayments = $user->membershipPayments()
+            ->personal()
             ->withAnyApprovalStatus()
             ->whereIn('approval_status', ['approved', 'pending'])
             ->with('membershipFee')

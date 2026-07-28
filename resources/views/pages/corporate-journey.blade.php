@@ -234,17 +234,7 @@
                 </div>
             </div>
 
-            {{-- Section 5: Bottom CTA --}}
-            <div class="text-center mt-12">
-                @if(!$isAuthenticated)
-                    <h2 class="text-3xl font-bold text-gray-900 mb-4">Ready to get started?</h2>
-                    <a href="{{ route('register') }}" class="inline-block bg-red-600 text-white px-12 py-4 rounded-lg font-semibold hover:bg-red-700 transition duration-300 shadow-lg text-lg">
-                        <i class="fas fa-user-plus mr-2"></i>Register Now
-                    </a>
-                @else
-                    <p class="text-xl text-gray-600">Your branch team is ready to help you register your organisation.</p>
-                @endif
-            </div>
+
 
         </div>
     </section>

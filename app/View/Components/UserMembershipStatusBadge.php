@@ -37,7 +37,7 @@ class UserMembershipStatusBadge extends Component
             $this->icon   = 'fa-user-slash';
             $this->styles = 'bg-yellow-100 text-yellow-800';
 
-        } elseif ($user->currentMembershipPayment) {
+        } elseif ($user->currentMembershipPayment()->personal()->first()) {
             // Valid payment, not in RC unit
             $this->type   = 'active';
             $this->line1  = 'Member';

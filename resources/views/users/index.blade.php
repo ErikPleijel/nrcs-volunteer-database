@@ -728,6 +728,14 @@
                                     <div class="text-sm text-gray-900 truncate">{{ $user->branch->code ?? 'No branch' }} {{ $user->division->name ?? 'No division' }}</div>
                                     <x-user-rcunit-taskforce-badge :user="$user" />
 
+                                    @foreach($user->organisations as $org)
+                                        <div class="mt-1">
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                                {{ $org->name }}
+                                            </span>
+                                        </div>
+                                    @endforeach
+
                                     <div class="text-gray-900 truncate mt-1">{{ $user->email ?? 'No email' }}</div>
                                     <div class="text-gray-500 truncate">{{ $user->primary_phone ?? 'No phone' }}</div>
 
