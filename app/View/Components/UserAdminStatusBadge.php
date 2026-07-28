@@ -18,7 +18,7 @@ class UserAdminStatusBadge extends Component
 
     public bool $shouldRender = true;
 
-    protected int $thresholdMonths = 6;
+    protected int $thresholdMonths = 3;
 
     protected array $adminRoles = [];
 

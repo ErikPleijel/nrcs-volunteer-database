@@ -14,7 +14,7 @@ class UserDigitalStatusBadge extends Component
     public string $styles;
     public string $title;
 
-    protected int $thresholdMonths = 6;
+    protected int $thresholdMonths = 3;
 
     public function __construct(User $user)
     {

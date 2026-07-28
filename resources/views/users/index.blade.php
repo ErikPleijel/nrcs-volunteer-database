@@ -420,8 +420,8 @@
                                 <label for="dormancy_filter" class="filter-label-small">Digital Activity</label>
                                 <select name="dormancy_filter" id="dormancy_filter" class="filter-select-small {{ request('dormancy_filter') ? 'filter-active' : '' }}">
                                     <option value=""               {{ request('dormancy_filter', '') === ''               ? 'selected' : '' }}>All Users</option>
-                                    <option value="digital_active" {{ request('dormancy_filter') === 'digital_active'     ? 'selected' : '' }}>Digitally Active (≤6mo since last login)</option>
-                                    <option value="digital_dormant" {{ request('dormancy_filter') === 'digital_dormant'   ? 'selected' : '' }}>Digitally Dormant (&gt;6mo no login)</option>
+                                    <option value="digital_active" {{ request('dormancy_filter') === 'digital_active'     ? 'selected' : '' }}>Digitally Active (≤3mo since last login)</option>
+                                    <option value="digital_dormant" {{ request('dormancy_filter') === 'digital_dormant'   ? 'selected' : '' }}>Digitally Dormant (&gt;3mo no login)</option>
                                     <option value="never_logged_in" {{ request('dormancy_filter') === 'never_logged_in'   ? 'selected' : '' }}>Never logged in</option>
                                 </select>
                             </div>

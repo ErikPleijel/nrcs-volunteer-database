@@ -1526,10 +1526,12 @@
                           + $dashboardData['pendingTrainings']
                           + $dashboardData['pendingActivities'];
         @endphp
+
+        {{-- Housekeeping --}}
         <div class="mt-8">
-            <h3 class="text-center text-sm font-semibold uppercase tracking-wide
+            <h3 class="text-center text-xl font-semibold uppercase tracking-wide
                        text-gray-500 mb-3">
-                Pending Approvals — <span class="font-bold text-base">{{ $dashboardData['branchId'] ? $selectedBranchName : 'Nationwide' }}</span>
+                Housekeeping — <span class="">{{ $dashboardData['branchId'] ? $selectedBranchName : 'Nationwide' }}</span>
 
             </h3>
             <div class="flex flex-wrap justify-center gap-4">
@@ -1638,11 +1640,9 @@
             @endif
         </div>
 
-        {{-- Housekeeping --}}
+
         <div class="mt-8">
-            <h3 class="text-center text-sm font-semibold uppercase tracking-wide text-gray-500 mb-3">
-                Housekeeping
-            </h3>
+
             <div class="flex flex-wrap justify-center gap-4">
                 <div class="bg-white rounded-lg shadow p-4 w-64 text-center">
                     @if($dashboardData['hangingRegistrationCount'] === null)

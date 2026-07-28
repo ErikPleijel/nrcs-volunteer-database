@@ -178,12 +178,12 @@ class UserFilterService
 
             if ($df === 'digital_active') {
                 $query->whereNotNull('last_login_at')
-                    ->where('last_login_at', '>=', now()->copy()->subMonths(6));
+                    ->where('last_login_at', '>=', now()->copy()->subMonths(3));
 
             } elseif ($df === 'digital_dormant') {
                 $query->where(function ($q) {
                     $q->whereNull('last_login_at')
-                        ->orWhere('last_login_at', '<', now()->copy()->subMonths(6));
+                        ->orWhere('last_login_at', '<', now()->copy()->subMonths(3));
                 });
 
             } elseif ($df === 'never_logged_in') {

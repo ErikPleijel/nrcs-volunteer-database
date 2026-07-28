@@ -129,7 +129,7 @@
                                 </div>
                             </div>
 
-                            <div class="flex justify-center mt-6">
+                            <div id="update-photo-button-container" class="flex justify-center mt-6 hidden">
                                 <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md disabled:opacity-50" id="update-profile-photo-button">
                                     Update Profile Photo
                                 </button>
@@ -225,7 +225,7 @@
                                 </div>
                             </div>
 
-                            <div class="flex justify-center mt-6">
+                            <div id="update-signature-button-container" class="flex justify-center mt-6 hidden">
                                 <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md disabled:opacity-50" id="update-signature-button">
                                     Update Signature
                                 </button>
@@ -919,6 +919,29 @@
                     signatureFileInput.addEventListener('change', () => updateButtonPulse(signatureFileInput, capturedPhotoDataSignature, updateSignatureButton));
                 }
 
+                // Shows/hides the submit button for a widget based on whether a file is
+                // chosen or a photo/signature has been captured.
+                function toggleUpdateButtonVisibility(containerId, fileInputId, capturedDataId) {
+                    const container = document.getElementById(containerId);
+                    const fileInput = document.getElementById(fileInputId);
+                    const capturedData = document.getElementById(capturedDataId);
+                    if (!container) return;
+                    const hasFile = fileInput?.files?.length > 0;
+                    const hasCaptured = capturedData?.value?.length > 0;
+                    container.classList.toggle('hidden', !(hasFile || hasCaptured));
+                }
+
+                // Wired independently of the camera setup below so the plain
+                // file-picker path still works even if the camera never initializes.
+                pictureFileInput?.addEventListener('change', () =>
+                    toggleUpdateButtonVisibility('update-photo-button-container', 'picture', 'captured-photo-data-profile'));
+                signatureFileInput?.addEventListener('change', () =>
+                    toggleUpdateButtonVisibility('update-signature-button-container', 'signature_file', 'captured-photo-data-signature'));
+
+                // Initial check (e.g. a validation-error redirect re-rendering the page)
+                toggleUpdateButtonVisibility('update-photo-button-container', 'picture', 'captured-photo-data-profile');
+                toggleUpdateButtonVisibility('update-signature-button-container', 'signature_file', 'captured-photo-data-signature');
+
                 // Generic function to stop camera stream
                 function stopCamera(stream) {
                     if (stream) {
@@ -960,6 +983,7 @@
                 startCameraProfileBtn.addEventListener('click', async () => {
                     stopCamera(streamSignature); // Stop other camera if active
                     resetCameraUI(videoSignature, previewSignature, capturedImageSignature, startCameraSignatureBtn, captureControlsSignature, retakeControlsSignature, capturedPhotoDataSignature, signatureFileInput, updateSignatureButton);
+                    toggleUpdateButtonVisibility('update-signature-button-container', 'signature_file', 'captured-photo-data-signature');
 
                     startCameraProfileBtn.classList.add('hidden');
                     const stream = await startCamera(videoProfile, 'profile');
@@ -968,6 +992,7 @@
                     } else {
                         startCameraProfileBtn.classList.remove('hidden'); // Show button again if camera failed to start
                     }
+                    toggleUpdateButtonVisibility('update-photo-button-container', 'picture', 'captured-photo-data-profile');
                 });
 
                 capturePhotoProfileBtn.addEventListener('click', () => {
@@ -986,15 +1011,18 @@
                     retakeControlsProfile.classList.remove('hidden');
                     stopCamera(streamProfile); // Stop the video stream after capturing
                     updateButtonPulse(pictureFileInput, capturedPhotoDataProfile, updateProfilePhotoButton);
+                    toggleUpdateButtonVisibility('update-photo-button-container', 'picture', 'captured-photo-data-profile');
                 });
 
                 stopCameraProfileBtn.addEventListener('click', () => {
                     stopCamera(streamProfile);
                     resetCameraUI(videoProfile, previewProfile, capturedImageProfile, startCameraProfileBtn, captureControlsProfile, retakeControlsProfile, capturedPhotoDataProfile, pictureFileInput, updateProfilePhotoButton);
+                    toggleUpdateButtonVisibility('update-photo-button-container', 'picture', 'captured-photo-data-profile');
                 });
 
                 retakePhotoProfileBtn.addEventListener('click', async () => {
                     resetCameraUI(videoProfile, previewProfile, capturedImageProfile, startCameraProfileBtn, captureControlsProfile, retakeControlsProfile, capturedPhotoDataProfile, pictureFileInput, updateProfilePhotoButton);
+                    toggleUpdateButtonVisibility('update-photo-button-container', 'picture', 'captured-photo-data-profile');
                     startCameraProfileBtn.classList.add('hidden'); // Keep hidden until camera stream is ready
                     const stream = await startCamera(videoProfile, 'profile');
                     if (stream) {
@@ -1002,6 +1030,7 @@
                     } else {
                         startCameraProfileBtn.classList.remove('hidden'); // Show button again if camera failed to start
                     }
+                    toggleUpdateButtonVisibility('update-photo-button-container', 'picture', 'captured-photo-data-profile');
                 });
 
                 usePhotoProfileBtn.addEventListener('click', () => {
@@ -1015,6 +1044,7 @@
                 startCameraSignatureBtn.addEventListener('click', async () => {
                     stopCamera(streamProfile); // Stop other camera if active
                     resetCameraUI(videoProfile, previewProfile, capturedImageProfile, startCameraProfileBtn, captureControlsProfile, retakeControlsProfile, capturedPhotoDataProfile, pictureFileInput, updateProfilePhotoButton);
+                    toggleUpdateButtonVisibility('update-photo-button-container', 'picture', 'captured-photo-data-profile');
 
                     startCameraSignatureBtn.classList.add('hidden');
                     const stream = await startCamera(videoSignature, 'signature');
@@ -1023,6 +1053,7 @@
                     } else {
                         startCameraSignatureBtn.classList.remove('hidden'); // Show button again if camera failed to start
                     }
+                    toggleUpdateButtonVisibility('update-signature-button-container', 'signature_file', 'captured-photo-data-signature');
                 });
 
                 captureSignatureBtn.addEventListener('click', () => {
@@ -1041,15 +1072,18 @@
                     retakeControlsSignature.classList.remove('hidden');
                     stopCamera(streamSignature); // Stop the video stream after capturing
                     updateButtonPulse(signatureFileInput, capturedPhotoDataSignature, updateSignatureButton);
+                    toggleUpdateButtonVisibility('update-signature-button-container', 'signature_file', 'captured-photo-data-signature');
                 });
 
                 stopCameraSignatureBtn.addEventListener('click', () => {
                     stopCamera(streamSignature);
                     resetCameraUI(videoSignature, previewSignature, capturedImageSignature, startCameraSignatureBtn, captureControlsSignature, retakeControlsSignature, capturedPhotoDataSignature, signatureFileInput, updateSignatureButton);
+                    toggleUpdateButtonVisibility('update-signature-button-container', 'signature_file', 'captured-photo-data-signature');
                 });
 
                 retakeSignatureBtn.addEventListener('click', async () => {
                     resetCameraUI(videoSignature, previewSignature, capturedImageSignature, startCameraSignatureBtn, captureControlsSignature, retakeControlsSignature, capturedPhotoDataSignature, signatureFileInput, updateSignatureButton);
+                    toggleUpdateButtonVisibility('update-signature-button-container', 'signature_file', 'captured-photo-data-signature');
                     startCameraSignatureBtn.classList.add('hidden');
                     const stream = await startCamera(videoSignature, 'signature');
                     if (stream) {
@@ -1057,6 +1091,7 @@
                     } else {
                         startCameraSignatureBtn.classList.remove('hidden');
                     }
+                    toggleUpdateButtonVisibility('update-signature-button-container', 'signature_file', 'captured-photo-data-signature');
                 });
 
                 useSignatureBtn.addEventListener('click', () => {

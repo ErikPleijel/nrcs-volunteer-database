@@ -125,8 +125,8 @@ class UserFilterDescriber
         // --------------------------------------------------
         if ($df = $get('dormancy_filter')) {
             $labels[] = match ($df) {
-                'digital_active' => 'Digital: Active (≤6mo)',
-                'digital_dormant' => 'Digital: Dormant (>6mo)',
+                'digital_active' => 'Digital: Active (≤3mo)',
+                'digital_dormant' => 'Digital: Dormant (>3mo)',
                 'never_logged_in' => 'Digital: Never logged in',
                 default => null,
             };

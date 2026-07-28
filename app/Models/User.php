@@ -1170,7 +1170,7 @@ class User extends Authenticatable implements MustVerifyEmail
             : null;
     }
 
-    public function isDigitallyDormant(int $months = 6): bool
+    public function isDigitallyDormant(int $months = 3): bool
     {
         if (! $this->last_login_at) {
             return true; // Never logged in = digitally dormant
@@ -1188,7 +1188,7 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->last_activity_at->lt(now()->subMonths($months));
     }
 
-    public function isAdministrativelyDormant(int $months = 6): bool
+    public function isAdministrativelyDormant(int $months = 3): bool
     {
         if (! $this->last_admin_activity_at) {
             return true; // Never administered anything
