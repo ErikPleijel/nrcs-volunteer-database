@@ -1683,13 +1683,13 @@
                             </div>
 
                             <p class="text-sm text-gray-700 mb-4">
-                                When <span class="font-semibold">an admin registers a prospective member</span>, the registration must be followed by payment. If payment is not completed, it becomes a 'hanging registration.' Payment should be made as soon as possible.
+                                When <span class="font-bold">an admin registers a prospective member</span>, the registration must be <strong>followed by payment</strong>. If payment is not completed, it becomes a 'hanging registration.' Payment should be made as soon as possible.
                             </p>
 
                             <p class="text-sm text-gray-700 mb-4">
-                                {{ number_format($dashboardData['hangingRegistrationCount']) }} is
-                                the number of hanging registrations since {{ \Carbon\Carbon::parse($dashboardData['dbMigrationDate'])->format('j M Y') }}
-                                (when the new database was launched). {{ number_format($dashboardData['hangingRegistrationTotalCount']) }}
+                                <span class="font-bold text-red-700">{{ number_format($dashboardData['hangingRegistrationCount']) }}</span> is
+                                the number of hanging registrations since <span class="font-bold">{{ \Carbon\Carbon::parse($dashboardData['dbMigrationDate'])->format('j M Y') }}</span>
+                                (when the new database was launched). <span class="font-bold text-red-700">{{ number_format($dashboardData['hangingRegistrationTotalCount']) }}</span>
                                 is the total number, including hanging registrations from the old
                                 database.
                             </p>
