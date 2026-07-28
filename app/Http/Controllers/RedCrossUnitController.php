@@ -115,7 +115,7 @@ class RedCrossUnitController extends Controller
                         if ($daysUntilExpiry < 0) {
                             $expiryStatus = 'Expired';
                         } else {
-                            $expiryStatus = $daysUntilExpiry.' days left';
+                            $expiryStatus = round($daysUntilExpiry).' days left';
                         }
                     } else {
                         $expiryStatus = 'No Expiry'; // Or similar, if valid_years is null, meaning it never expires
@@ -700,7 +700,7 @@ class RedCrossUnitController extends Controller
                         if ($daysUntilExpiry < 0) {
                             $expiryStatus = 'Expired';
                         } else {
-                            $expiryStatus = $daysUntilExpiry.' days left';
+                            $expiryStatus = round($daysUntilExpiry).' days left';
                         }
                     } else {
                         $expiryStatus = 'No Expiry'; // Or similar, if valid_years is null, meaning it never expires

@@ -1711,44 +1711,7 @@
                     </div>
                 </div>
 
-                <div class="bg-white rounded-lg shadow p-4 w-64 text-center">
-                    <a href="{{ route('users.index', array_filter(['person_type' => 'unassigned', 'branch_id' => $dashboardData['branchId']])) }}" class="block hover:opacity-80 transition">
-                        <p class="text-3xl font-bold text-orange-600">{{ number_format($dashboardData['unassignedGhostCount']) }}</p>
-                        <p class="mt-1 text-sm text-gray-600">Volunteers in Limbo</p>
-                    </a>
-                    <a href="{{ route('users.index', array_filter(['person_type' => 'unassigned', 'branch_id' => $dashboardData['branchId']])) }}" class="btn-view mt-2 inline-block">
-                        View
-                    </a>
-                    <div class="mt-2">
-                        <x-help-popup trigger-class="help-btn">
-                            <x-slot:trigger><i class="fas fa-question-circle mr-1"></i> What is this?</x-slot:trigger>
 
-                            <div class="-mt-8 mb-4 text-center">
-                                <i class="fas fa-user-slash text-3xl text-orange-500"></i>
-                                <h3 class="mt-1 text-base font-semibold text-gray-900">Volunteers in Limbo</h3>
-                            </div>
-
-                            <p class="text-sm text-gray-700 mb-4">
-                                These are volunteers who were once assigned to a Red Cross Unit but have since been
-                                removed from it, without being assigned to a new one. This usually happens mid-transfer
-                                between branches — someone is unassigned from their old unit, but the process stalls
-                                before a new branch picks them up.
-                            </p>
-
-                            <p class="text-sm font-semibold text-gray-800 mb-2">How to find them:</p>
-                            <p class="text-sm text-gray-700 mb-4">
-                                <span class="font-semibold">Persons</span> → <span class="font-semibold">Members/Volunteers filter</span> → <span class="font-semibold">Unassigned</span>.
-                            </p>
-
-                            <p class="text-sm font-semibold text-gray-800 mb-2">What to do:</p>
-                            <ul class="space-y-1 text-sm text-gray-700 list-disc pl-4">
-                                <li>A <span class="font-semibold">National DB Administrator</span> can move the person directly to the correct branch — they aren't limited to their own branch.</li>
-                                <li>Or, the volunteer can update their own branch via <span class="font-semibold">My Profile</span> — but they may need a nudge or a call, since they may not realize the move is still incomplete.</li>
-                                <li>Once assigned to a unit again, they'll drop off this count automatically.</li>
-                            </ul>
-                        </x-help-popup>
-                    </div>
-                </div>
 
                 <div class="bg-white rounded-lg shadow p-4 w-64 text-center">
                     <a href="{{ route('users.index', array_filter([
@@ -1791,6 +1754,45 @@
                             <ul class="space-y-1 text-sm text-gray-700 list-disc pl-4">
                                 <li>If this is a recent registration, it may just need time — some people don't check their inbox right away.</li>
                                 <li>If it's been a while, <strong>consider reaching out</strong> to confirm their email is correct. They can update it and re-confirm from their own profile.</li>
+                            </ul>
+                        </x-help-popup>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-lg shadow p-4 w-64 text-center">
+                    <a href="{{ route('users.index', array_filter(['person_type' => 'unassigned', 'branch_id' => $dashboardData['branchId']])) }}" class="block hover:opacity-80 transition">
+                        <p class="text-3xl font-bold text-orange-600">{{ number_format($dashboardData['unassignedGhostCount']) }}</p>
+                        <p class="mt-1 text-sm text-gray-600">Volunteers in Limbo</p>
+                    </a>
+                    <a href="{{ route('users.index', array_filter(['person_type' => 'unassigned', 'branch_id' => $dashboardData['branchId']])) }}" class="btn-view mt-2 inline-block">
+                        View
+                    </a>
+                    <div class="mt-2">
+                        <x-help-popup trigger-class="help-btn">
+                            <x-slot:trigger><i class="fas fa-question-circle mr-1"></i> What is this?</x-slot:trigger>
+
+                            <div class="-mt-8 mb-4 text-center">
+                                <i class="fas fa-user-slash text-3xl text-orange-500"></i>
+                                <h3 class="mt-1 text-base font-semibold text-gray-900">Volunteers in Limbo</h3>
+                            </div>
+
+                            <p class="text-sm text-gray-700 mb-4">
+                                These are volunteers who were once assigned to a Red Cross Unit but have since been
+                                removed from it, without being assigned to a new one. This usually happens mid-transfer
+                                between branches — someone is unassigned from their old unit, but the process stalls
+                                before a new branch picks them up.
+                            </p>
+
+                            <p class="text-sm font-semibold text-gray-800 mb-2">How to find them:</p>
+                            <p class="text-sm text-gray-700 mb-4">
+                                <span class="font-semibold">Persons</span> → <span class="font-semibold">Members/Volunteers filter</span> → <span class="font-semibold">Unassigned</span>.
+                            </p>
+
+                            <p class="text-sm font-semibold text-gray-800 mb-2">What to do:</p>
+                            <ul class="space-y-1 text-sm text-gray-700 list-disc pl-4">
+                                <li>A <span class="font-semibold">National DB Administrator</span> can move the person directly to the correct branch — they aren't limited to their own branch.</li>
+                                <li>Or, the volunteer can update their own branch via <span class="font-semibold">My Profile</span> — but they may need a nudge or a call, since they may not realize the move is still incomplete.</li>
+                                <li>Once assigned to a unit again, they'll drop off this count automatically.</li>
                             </ul>
                         </x-help-popup>
                     </div>
