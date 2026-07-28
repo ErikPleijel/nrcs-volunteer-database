@@ -649,9 +649,9 @@
                 </div>
                 @can('add_payments')
                 <a href="{{ route('membership-payments.create', ['user' => $user->id]) }}"
-                   class="btn-primary" target="_blank">
+                   class="btn-primary" >
                     <i class="fas fa-plus mr-2"></i>
-                    Add Payment <i class="fa-solid fa-up-right-from-square ml-1"></i>
+                    Add Payment
                 </a>
                 @endcan
             </div>
@@ -778,9 +778,9 @@
                 </div>
                 @can('add_volunteering')
                 <a href="{{ route('activities.create', ['user' => $user->id]) }}"
-                   class="btn-primary" target="_blank">
+                   class="btn-primary">
                     <i class="fas fa-plus mr-2"></i>
-                    Add Volunteering <i class="fa-solid fa-up-right-from-square ml-1"></i>
+                    Add Volunteering
                 </a>
                 @endcan
             </div>
@@ -845,9 +845,9 @@
                                 </td>
 
                                 <td class="table-body-cell-no-wrap">
-                                    <a href="{{ route('activities.show', $activity['id']) }}" target="_blank"
+                                    <a href="{{ route('activities.show', $activity['id']) }}"
                                        class="btn-primary text-xs !py-1">
-                                        View<i class="fa-solid fa-up-right-from-square ml-1"></i>
+                                        View
                                     </a>
                                 </td>
                             </tr>
@@ -920,9 +920,9 @@
                 </div>
                 @can('add_trainings')
                 <a href="{{ route('trainings.create', ['user' => $user->id]) }}"
-                   class="btn-primary" target="_blank">
+                   class="btn-primary" >
                     <i class="fas fa-plus mr-2"></i>
-                    Add Training <i class="fa-solid fa-up-right-from-square ml-1"></i>
+                    Add Training
                 </a>
                 @endcan
             </div>
@@ -1055,9 +1055,9 @@
                     <h2 class="text-xl font-bold text-gray-900">DONATIONS</h2>
                 </div>
                 @can('add_donations')
-                <a href="{{ route('donations.create', ['user' => $user->id]) }}" class="btn-primary" target="_blank">
+                <a href="{{ route('donations.create', ['user' => $user->id]) }}" class="btn-primary">
                     <i class="fas fa-plus mr-2"></i>
-                    Add Donation <i class="fa-solid fa-up-right-from-square ml-1"></i>
+                    Add Donation
                 </a>
                 @endcan
             </div>

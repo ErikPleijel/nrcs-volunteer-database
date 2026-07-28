@@ -24,6 +24,19 @@ class SuperAdminSeeder extends Seeder
                 continue;
             }
 
+            $existing = User::where('email', $email)->first();
+
+            if ($existing) {
+                $this->command->error(
+                    "SuperAdminSeeder stopped: an account already exists for "
+                    . "{$email} (user id {$existing->id}). Review this account "
+                    . "manually — if it should not hold super-admin, delete or "
+                    . "reassign it, then re-run this seeder. No further emails "
+                    . "in the list were processed."
+                );
+                return;
+            }
+
             // Ensure all required fields are provided for creation
             $user = User::firstOrCreate(
                 ['email' => $email],

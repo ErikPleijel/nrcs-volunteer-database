@@ -1184,7 +1184,7 @@
 
                     <!-- Archive My Account -->
                     <button type="button" id="archiveAccountRevealBtn"
-                            class="inline-flex items-center px-3 py-1.5 rounded-md border border-gray-300 text-sm text-gray-500 hover:text-red-600 hover:border-red-300 focus:outline-none">
+                            class="inline-flex items-center px-3 py-1.5 rounded-md border bg-red-200 border-gray-300 text-sm text-gray-600 hover:text-red-600 hover:border-red-300 focus:outline-none">
                         <i class="fas fa-user-slash mr-2"></i>Archive My Account
                     </button>
 

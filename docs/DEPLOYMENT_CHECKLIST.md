@@ -23,6 +23,7 @@ ADAPT procedure accordingly. This might need changes:
 
 ### Migration
 - [ ] Download old database to local environment
+- [ ] php artisan key:generate and put APP_KEY on local .env 
 - [ ] Do data migration procedure in MIGRATION.md
 
 
@@ -101,20 +102,20 @@ Expected result: both columns show 0.
 - [ ] Install dependencies (`composer install`)
 - [ ] Set correct file/folder permissions (`storage/`, `bootstrap/cache/`)
 - [ ] Run Laravel schema migrations: `php artisan migrate`
+- [ ] Copy the .env used on dev.itacenmu.org (or use .env.example)  Remember: php artisan config:cache
 
 
 ### Set .env VPS
 --> Remember: after changing .env: php artisan config:cache
 - [ ] APP_ENV=production
-- [ ] APP_DEBUG=true
+- [ ] APP_DEBUG=false
 - [ ] Diff VPS `.env` against local: MAIL_*, APP_KEY, IMAGE_MIGRATION_SOURCE,
   ElevenLabs/analytics keys, queue driver
 - [ ] `super_admin_emails` set in `.env`
-- php artisan db:seed --class=SuperAdminSeeder
+- php artisan db:seed --class=SuperAdminSeeder  (this command also checks if the emails set in .env are not alreade in users-email, sec.gen@redcross.org might have opened and account with that mail. If this happens change the official email for that account to his personal email. )
 - [ ] `NRCS_DB_MIGRATION_DATE=2026-08-01` set in `.env`
 - [ ] **APP_KEY**:
-    - Generate fresh per environment: `php artisan key:generate` — never
-      copy a key from sandbox or local into production.
+    - COPY FROM LOCAL .env, the one used during migration.
     - ⚠️ This key protects more than national IDs. Once real data exists,
       rotating it will:
         - Make `national_id_number` and `personal_info` unreadable
@@ -124,6 +125,8 @@ Expected result: both columns show 0.
           printed or exported as PDF (signed verification links can't be
           regenerated for a document that's already out the door)
     - [ ] Back up APP_KEY in a secure password manager, separate from `.env`.
+- [ ] Set IMAGE_MIGRATION_SOURCE in .env — this is read by config/services.php and MigrateUserImages.php but has never actually been configured in any environment. Confirm the expected value/format by checking MigrateUserImages.php before setting it."
+- [ ] Set NRCS_DB_MIGRATION_DATE
 - php artisan config:clear
 - php artisan config:cache
 
