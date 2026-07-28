@@ -106,6 +106,17 @@ class MembershipPayment extends Model
         return ($this->membershipFee->name ?? 'Payment').' — '.(optional($this->payment_date)->format('M d, Y') ?? '');
     }
 
+    /**
+     * An organisational payment's contact person should not be promoted from
+     * pending_engagement to active on approval — the payment belongs to the
+     * organisation, not the contact person's own membership. Personal payments
+     * (organisation_id null) still promote as before.
+     */
+    public function promotesFromPendingEngagement(): bool
+    {
+        return $this->organisation_id === null;
+    }
+
     /** Label => value detail rows for the review page. */
     public function approvalDetailRows(): array
     {

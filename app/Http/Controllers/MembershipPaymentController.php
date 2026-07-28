@@ -493,12 +493,16 @@ class MembershipPaymentController extends Controller
             'membership_fee_id' => [
                 'required',
                 'exists:membership_fees,id',
-                function ($attribute, $value, $fail) use ($request) {
+                function ($attribute, $value, $fail) use ($request, $isOrgPayment) {
                     $fee = MembershipFee::find($value);
                     $targetUser = User::find($request->user_id);
 
                     if (! $fee || ! $targetUser) {
                         return; // let the other rules handle missing records
+                    }
+
+                    if ($isOrgPayment) {
+                        return; // fee/RCU matching only applies to personal payments
                     }
 
                     $hasActiveRcu = $targetUser->red_cross_unit_id !== null

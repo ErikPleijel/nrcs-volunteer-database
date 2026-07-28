@@ -319,6 +319,13 @@ class OrganisationController extends Controller
             'is_primary_contact' => false,
         ]);
 
+        // Mirrors RC-unit assignment: organisation linkage promotes a
+        // pending_engagement user to active, same as being assigned to a unit.
+        $user = User::find($request->user_id);
+        if ($user->lifecycle_status === 'pending_engagement') {
+            $user->markActive();
+        }
+
         if ($admin = Auth::user()) {
             $admin->touchLastAdminActivity();
         }

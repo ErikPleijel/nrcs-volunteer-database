@@ -961,3 +961,82 @@ are protected from cross-branch moves by the check above. This asymmetry
 was identified during investigation but deliberately not fixed, since it
 wasn't part of the reported problem and no operational issue has been
 observed from it. Revisit if this becomes a real problem in practice.
+
+---
+
+## 2026-07-28 — Organisational payments exempted from the fee/RCU validation (supersedes the 2026-07-20 "Closed two runtime gaps" entry)
+
+**Context:** The 2026-07-20 entry ("Closed two runtime gaps feeding
+Approvable's ungated pending_engagement promotion") added a fee/RCU
+mismatch check to `MembershipPaymentController::store()`'s
+`membership_fee_id` validation closure, and stated it was deliberately
+applied uniformly to personal and organisational payments — "no
+exemption was carved out for organisational payments; that's a
+deliberate choice, not an oversight, since organisational payments are
+handled manually going forward."
+
+In practice this uniform application broke a legitimate flow: an
+organisation payment submitted through a contact person (`user_id`) who
+happens to also be a personal RCU-assigned volunteer got rejected with
+"This fee type is not applicable to members assigned to a Red Cross
+Unit," even though the fee is for the *organisation*, not for the
+contact person's own membership. The contact person's personal RCU
+status has no bearing on what their linked organisation is being billed
+for.
+
+**Why simply exempting org payments would have been unsafe on its own:**
+investigation confirmed the fee/RCU check and `Approvable::approve()`'s
+ungated `pending_engagement` → `active` promotion are two independent
+mechanisms guarding the same risk. `Approvable::approve()` promotes
+`$this->user` (the contact person on the payment, personal or
+organisational alike) whenever `promotesFromPendingEngagement()` returns
+true — which it did unconditionally for every `MembershipPayment`,
+personal or org. So removing the fee/RCU block for org payments alone
+would have reopened exactly the gap the 2026-07-20 fix closed, just via
+the org-payment path instead of the personal one: an org payment with a
+fee type that doesn't match the contact person's RCU status could still
+silently promote that contact person out of `pending_engagement`.
+
+**What changed:**
+- `MembershipPayment::promotesFromPendingEngagement()` (new override,
+  `app/Models/MembershipPayment.php`): returns `$this->organisation_id ===
+  null`. Personal payments (`organisation_id` null) still promote exactly
+  as before; organisational payments no longer promote the contact person
+  at all, via the same per-record opt-out mechanism `Donation`/`Training`
+  already use at the module level — just conditioned on the record's own
+  `organisation_id` rather than the whole model.
+- `MembershipPaymentController::store()`'s `membership_fee_id` validation
+  closure (~line 486-520): added `if ($isOrgPayment) { return; }` right
+  after the existing `$fee`/`$targetUser` null-guard, before the two
+  `is_volunteer_fee` / RCU `$fail()` branches. Organisational payments now
+  skip the fee/RCU match entirely; personal payments are validated exactly
+  as before.
+
+**Why this is safe, unlike exempting the validation in isolation:** with
+`promotesFromPendingEngagement()` now false for any payment carrying an
+`organisation_id`, approving an org payment can no longer reach the
+`pending_engagement` → `active` promotion branch in
+`Approvable::approve()` at all — regardless of the fee type or the
+contact person's RCU status. The fee/RCU validation and the promotion
+gate were addressing the same underlying risk from two different angles;
+this change closes that risk for org payments via the promotion gate
+instead of via the fee/RCU check, so removing the latter for org payments
+doesn't reopen anything.
+
+**Confirmed unchanged:** `Approvable::approve()` itself was not touched —
+the generic mechanism (`if ($member->lifecycle_status === 'pending_engagement'
+&& $this->promotesFromPendingEngagement())`) is exactly as it was.
+`Donation`/`Training`'s existing overrides are untouched. The
+`approval_status` filtering in `store()`'s `$allPayments`-adjacent logic
+was not touched either — this change is scoped to the validation closure
+and the new model override only.
+
+## 2026-07-28 — Organisation linkage now promotes pending_engagement users to active
+
+Mirrors the existing RC-unit-assignment promotion pattern: OrganisationController::linkUser() now calls $user->markActive() whenever the user being linked is currently pending_engagement, exactly as unit assignment already does in UserController::update().
+
+Rationale: a person's engagement with the organisation is real, confirmed activity — they shouldn't sit in pending_engagement indefinitely just because their only real-world involvement is through an organisation rather than a Red Cross Unit. Linkage itself is the trigger, not any subsequent payment (see the 2026-07-28 entry above superseding 2026-07-20 — organisational payments no longer promote lifecycle status at all, precisely so that linkage can be the one clear trigger instead).
+
+Guard condition: $user->lifecycle_status === 'pending_engagement' only — active and dormant users pass through unaffected, matching the RC-unit pattern's own gating. markActive() itself was not modified; it remains a generic, caller-gated method. unlinkUser() and setPrimaryContact() are untouched — no promotion logic on detachment or primary-contact changes.
+
+Verified (rolled-back transaction, real users, nothing persisted): three users forced into pending_engagement/active/dormant respectively, each linked via the real linkUser() call — only the pending_engagement user was promoted (→ active); the other two passed through unchanged.
