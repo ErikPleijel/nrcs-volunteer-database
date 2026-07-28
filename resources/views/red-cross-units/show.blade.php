@@ -206,7 +206,18 @@
                                     <div>{{ $member['full_name'] }}</div>
                                     <div class="text-xs">{!! $member['db_code_link'] !!}</div>
                                 </td>
-                                <td class="py-2 px-4 text-sm text-gray-900">{{ $member['membership_type'] }}</td>
+                                <td class="py-2 px-4 text-sm text-gray-900">
+                                    <div>{{ $member['membership_type'] }}</div>
+                                    @if($member['has_pending_payment'])
+                                        <div class="text-xs"><x-approval-status-badge status="pending" /></div>
+                                    @endif
+                                    @if($member['is_expired'])
+                                        <div class="text-xs text-red-600">
+                                            Expired {{ $member['expiry_date_formatted'] }}
+                                            ({{ $member['expired_days_ago'] }} days ago)
+                                        </div>
+                                    @endif
+                                </td>
                                 <td class="py-2 px-4 text-sm text-gray-900">{{ $member['days_to_expiry'] }}</td>
                                 <td class="py-2 px-4 text-sm text-gray-900">{{ $member['volunteering_hours_last_12_months'] }}</td>
                             </tr>
@@ -261,7 +272,9 @@
                                                     <td class="py-1 px-2 text-gray-800">{{ $training['training_name'] }}</td>
                                                     <td class="py-1 px-2 text-gray-800">{{ \Illuminate\Support\Carbon::parse($training['training_date'])->format('M d, Y') }}</td>
                                                     <td class="py-1 px-2 text-gray-800">
-                                                        @if($training['expiry_status'] === 'Expired')
+                                                        @if($training['approval_status'] === 'pending')
+                                                            <x-approval-status-badge status="pending" />
+                                                        @elseif($training['expiry_status'] === 'Expired')
                                                             <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Expired</span>
                                                         @elseif(str_contains($training['expiry_status'], 'days left'))
                                                             <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">{{ $training['expiry_status'] }}</span>
