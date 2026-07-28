@@ -559,6 +559,8 @@ class UserController extends Controller
 
         // Process Membership Payments
         $allPayments = $user->membershipPayments()
+            ->withAnyApprovalStatus()
+            ->whereIn('approval_status', ['approved', 'pending'])
             ->with('membershipFee')
             ->where('is_deleted', false)
             ->orderBy('payment_date', 'desc')
@@ -579,14 +581,22 @@ class UserController extends Controller
                 'expiry_date' => $payment->expiry_date ? Carbon::parse($payment->expiry_date)->format('M d, Y') : 'N/A',
                 'is_valid' => $isValid,
                 'is_expired' => $isExpired,
+                'approval_status' => $payment->approval_status,
             ];
         });
 
-        $currentMembership = $processedPayments->firstWhere('is_valid', true);
+        // A pending (or rejected) payment must never be picked as the "current
+        // membership" even if it happens to carry a future expiry_date — only an
+        // approved record represents confirmed membership.
+        $currentMembership = $processedPayments->first(
+            fn ($payment) => $payment['is_valid'] && $payment['approval_status'] === 'approved'
+        );
         $membershipPayments = $processedPayments;
 
         // Process Donations
         $allDonations = $user->donations()
+            ->withAnyApprovalStatus()
+            ->whereIn('approval_status', ['approved', 'pending'])
             ->where('is_deleted', false)
             ->orderBy('date_donation', 'desc')
             ->get();
@@ -600,11 +610,14 @@ class UserController extends Controller
                 'amount' => $this->getDonationAmount($donation),
                 'type' => $donation->in_kind_donation ? 'in-kind' : 'cash',
                 'purpose' => $donation->purpose ?? 'General',
+                'approval_status' => $donation->approval_status,
             ];
         });
 
         // Process Trainings
         $allTrainings = $user->trainings()
+            ->withAnyApprovalStatus()
+            ->whereIn('approval_status', ['approved', 'pending'])
             ->with('trainingType')
             ->where('is_deleted', false)
             ->orderBy('training_date', 'desc')
@@ -621,11 +634,14 @@ class UserController extends Controller
                 'duration' => $training->duration ?? 0,
                 'training_type_id' => $training->training_type_id,
                 'certificate_hq_only' => $training->trainingType->certificate_hq_only ?? false,
+                'approval_status' => $training->approval_status,
             ];
         });
 
         // Process Activities (Volunteering)
         $allActivities = $user->activities()
+            ->withAnyApprovalStatus()
+            ->whereIn('approval_status', ['approved', 'pending'])
             ->with(['activityType', 'assignable'])
             ->where('is_deleted', false)
             ->orderBy('date', 'desc')
@@ -643,8 +659,16 @@ class UserController extends Controller
                 'unit_type' => $this->getUnitTypeName($activity),
                 'reference' => $activity->reference ?? null,
                 'id' => $activity->id ?? null,
+                'approval_status' => $activity->approval_status,
             ];
         });
+
+        // Pending activities must appear in the table above but must NOT inflate
+        // the hours/count summary, which is meant to represent confirmed
+        // (approved) volunteering only.
+        $approvedActivities = $activities->where('approval_status', 'approved');
+        $totalHours = $approvedActivities->sum('hours');
+        $activitiesLoggedCount = $approvedActivities->count();
 
         // Printed certificates
         $allCertificatePrints = CertificatePrint::query()
@@ -719,6 +743,8 @@ class UserController extends Controller
             'trainingsLimitMessage',
             'activities',
             'activitiesLimitMessage',
+            'totalHours',
+            'activitiesLoggedCount',
             'certificatePrints',
             'certificatePrintsLimitMessage',
             'idCardPrints',

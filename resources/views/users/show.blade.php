@@ -641,15 +641,15 @@
         <!-- Membership Section -->
         <div class="bg-white rounded-lg shadow-lg p-6 mt-6">
             <div class="flex justify-between items-center">
-                <div class="flex items-center">
-                    <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mr-4">
-                        <i class="fas fa-id-card text-blue-600 text-xl"></i>
+                <div class="flex items-center gap-2">
+                    <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mr-1">
+                        <i class="fas fa-id-card text-blue-600 text-lg"></i>
                     </div>
                     <h2 class="text-xl font-bold text-gray-900">MEMBERSHIP</h2>
                 </div>
                 @can('add_payments')
                 <a href="{{ route('membership-payments.create', ['user' => $user->id]) }}"
-                   class="btn-primary" >
+                   class="btn-primary-small" >
                     <i class="fas fa-plus mr-2"></i>
                     Add Payment
                 </a>
@@ -726,6 +726,9 @@
                                                     class="{{ $payment['status']['class'] }} px-2 py-1 rounded-full text-xs">
                                                     {{ $payment['status']['text'] }}
                                                 </span>
+                                        @if($payment['approval_status'] === 'pending')
+                                            <x-approval-status-badge status="pending" class="ml-1" />
+                                        @endif
                                     </td>
                                 </tr>
                             @empty
@@ -770,15 +773,15 @@
         <!-- Volunteering Section -->
         <div class="bg-white rounded-lg shadow-lg p-6 mt-6">
             <div class="flex justify-between items-center mb-4">
-                <div class="flex items-center">
-                    <div class="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center mr-4">
+                <div class="flex items-center gap-2">
+                    <div class="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center mr-1">
                         <i class="fas fa-hands-helping text-orange-600 text-xl"></i>
                     </div>
                     <h2 class="text-xl font-bold text-gray-900">VOLUNTEERING</h2>
                 </div>
                 @can('add_volunteering')
                 <a href="{{ route('activities.create', ['user' => $user->id]) }}"
-                   class="btn-primary">
+                   class="btn-primary-small">
                     <i class="fas fa-plus mr-2"></i>
                     Add Volunteering
                 </a>
@@ -817,6 +820,9 @@
                                     <div class="flex items-center">
 
                                         {{ $activity['activity'] }}
+                                        @if($activity['approval_status'] === 'pending')
+                                            <x-approval-status-badge status="pending" class="ml-2" />
+                                        @endif
                                     </div>
                                     @if($activity['reference'])
                                         <div class="text-xs text-gray-500 mt-1">
@@ -866,7 +872,6 @@
             <!-- Volunteering Summary -->
             @if($activities->count() > 0)
                 @php
-                    $totalHours = $activities->sum('hours');
                     $redCrossUnitActivities = $activities->where('unit', '!=', 'Unit not specified')->count();
                     $generalActivities = $activities->count() - $redCrossUnitActivities;
                 @endphp
@@ -877,7 +882,7 @@
                             <strong>Total:</strong> {{ $totalHours }} {{ $totalHours == 1 ? 'hour' : 'hours' }}
                         </div>
                         <div class="text-orange-600">
-                            <p> {{ $activities->count() }} activities logged</p>
+                            <p> {{ $activitiesLoggedCount }} activities logged</p>
                         </div>
                     </div>
                 </div>
@@ -912,15 +917,15 @@
         <!-- Training Section -->
         <div class="bg-white rounded-lg shadow-lg p-6 mt-6">
             <div class="flex justify-between items-center mb-4">
-                <div class="flex items-center">
-                    <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mr-4">
+                <div class="flex items-center gap-2">
+                    <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mr-1">
                         <i class="fas fa-graduation-cap text-purple-600 text-xl"></i>
                     </div>
                     <h2 class="text-xl font-bold text-gray-900">TRAINING</h2>
                 </div>
                 @can('add_trainings')
                 <a href="{{ route('trainings.create', ['user' => $user->id]) }}"
-                   class="btn-primary" >
+                   class="btn-primary-small" >
                     <i class="fas fa-plus mr-2"></i>
                     Add Training
                 </a>
@@ -970,6 +975,9 @@
                                                 class="{{ $training['status']['class'] }} px-2 py-1 rounded-full text-xs">
                                                 {{ $training['status']['text'] }}
                                             </span>
+                                    @if($training['approval_status'] === 'pending')
+                                        <x-approval-status-badge status="pending" class="ml-1" />
+                                    @endif
                                 </td>
                                 <td class="py-2 text-xs text-gray-600">
                                     {{ $training['certificate_hq_only'] ? 'HQ' : 'Branch' }}
@@ -1048,14 +1056,14 @@
         <!-- Donations Section -->
         <div class="bg-white rounded-lg shadow-lg p-6 mt-6">
             <div class="flex justify-between items-center mb-4">
-                <div class="flex items-center">
-                    <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mr-4">
+                <div class="flex items-center gap-2">
+                    <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mr-1">
                         <i class="fas fa-hand-holding-heart text-green-600 text-xl"></i>
                     </div>
                     <h2 class="text-xl font-bold text-gray-900">DONATIONS</h2>
                 </div>
                 @can('add_donations')
-                <a href="{{ route('donations.create', ['user' => $user->id]) }}" class="btn-primary">
+                <a href="{{ route('donations.create', ['user' => $user->id]) }}" class="btn-primary-small">
                     <i class="fas fa-plus mr-2"></i>
                     Add Donation
                 </a>
@@ -1109,6 +1117,10 @@
                                                 @endif">
                                                 {{ $donation['type'] === 'in-kind' ? 'In-Kind' : 'Cash' }}
                                             </span>
+                                            </span>
+                                    @if($donation['approval_status'] === 'pending')
+                                        <x-approval-status-badge status="pending" class="ml-1" />
+                                    @endif
                                 </td>
                             </tr>
                         @empty
