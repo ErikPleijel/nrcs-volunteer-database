@@ -46,6 +46,7 @@ trait HandlesRecordApproval
     public function approvals(Request $request): View
     {
         $modelClass = $this->approvalModelClass();
+        $table = (new $modelClass)->getTable();
         $user = Auth::user();
         $accessLevel = $user->getAccessLevel();
 
@@ -67,7 +68,21 @@ trait HandlesRecordApproval
             }
         }
 
-        $records = $query->orderBy('created_at', 'asc')->paginate(20)->appends($request->query());
+        // Duplicate-user detection must run against the full filtered set (before
+        // pagination slices it to a page) — otherwise a pair split across a page
+        // boundary would silently go undetected. Nulls are excluded so anonymous
+        // records (e.g. donations with no user_id) never get flagged against
+        // each other.
+        $duplicateUserIds = (clone $query)
+            ->whereNotNull($table.'.user_id')
+            ->select($table.'.user_id')
+            ->groupBy($table.'.user_id')
+            ->havingRaw('COUNT(*) > 1')
+            ->pluck($table.'.user_id')
+            ->all();
+
+        $records = $query->orderBy('user_id', 'asc')->orderBy('created_at', 'asc')
+            ->paginate(20)->appends($request->query());
 
         return view('approvals.index', [
             'records' => $records,
@@ -78,6 +93,7 @@ trait HandlesRecordApproval
             'accessLevel' => $accessLevel,
             'branches' => $branches,
             'divisions' => $divisions,
+            'duplicateUserIds' => $duplicateUserIds,
         ]);
     }
 

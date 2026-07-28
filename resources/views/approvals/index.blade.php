@@ -154,6 +154,9 @@
                                                 <i class="fas fa-user-check mr-1"></i>Self-submitted — same person
                                             </span>
                                         @endif
+                                        @if(in_array($record->user_id, $duplicateUserIds))
+                                            <x-duplicate-user-badge :large="$record instanceof \App\Models\MembershipPayment" class="mt-1" />
+                                        @endif
                                     @endif
                                 </td>
                                 <td class="table-body-cell">
@@ -214,6 +217,9 @@
                                 <span class="inline-flex items-center mb-2 px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
                                     <i class="fas fa-user-check mr-1"></i>Self-submitted — same person
                                 </span>
+                            @endif
+                            @if(in_array($record->user_id, $duplicateUserIds))
+                                <x-duplicate-user-badge :large="$record instanceof \App\Models\MembershipPayment" class="mb-2" />
                             @endif
                             <div class="text-sm text-gray-700 mb-1">
                                 {{ $record->approvalSummary() }}
