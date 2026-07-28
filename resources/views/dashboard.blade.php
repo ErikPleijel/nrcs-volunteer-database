@@ -1530,10 +1530,12 @@
         {{-- Housekeeping --}}
         <div class="mt-8">
             <h3 class="text-center text-xl font-semibold uppercase tracking-wide
-                       text-gray-500 mb-3">
+                       text-gray-500">
                 Housekeeping — <span class="">{{ $dashboardData['branchId'] ? $selectedBranchName : 'Nationwide' }}</span>
 
             </h3>
+            <p class="text-center text-base
+                       text-gray-500 mb-3">Aim for ZERO!</p>
             <div class="flex flex-wrap justify-center gap-4">
 
                 @php
@@ -1753,7 +1755,7 @@
                             <p class="text-sm font-semibold text-gray-800 mb-2">What to do:</p>
                             <ul class="space-y-1 text-sm text-gray-700 list-disc pl-4">
                                 <li>If this is a recent registration, it may just need time — some people don't check their inbox right away.</li>
-                                <li>If it's been a while, <strong>consider reaching out</strong> to confirm their email is correct. They can update it and re-confirm from their own profile.</li>
+                                <li>If it's been a while, <strong>consider reaching out</strong> to confirm their email is correct. They can update it and re-confirm from their own profile. Also consider <strong>archiving the account.</strong></li>
                             </ul>
                         </x-help-popup>
                     </div>

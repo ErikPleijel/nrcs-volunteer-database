@@ -202,7 +202,10 @@
                         <tbody>
                         @forelse($unitMembersData as $member)
                             <tr class="border-b border-gray-100 hover:bg-gray-50">
-                                <td class="py-2 px-4 text-sm text-gray-900 truncate">{{ $member['full_name'] }}</td>
+                                <td class="py-2 px-4 text-sm text-gray-900 truncate">
+                                    <div>{{ $member['full_name'] }}</div>
+                                    <div class="text-xs">{!! $member['db_code_link'] !!}</div>
+                                </td>
                                 <td class="py-2 px-4 text-sm text-gray-900">{{ $member['membership_type'] }}</td>
                                 <td class="py-2 px-4 text-sm text-gray-900">{{ $member['days_to_expiry'] }}</td>
                                 <td class="py-2 px-4 text-sm text-gray-900">{{ $member['volunteering_hours_last_12_months'] }}</td>
@@ -238,7 +241,10 @@
                         <tbody>
                         @forelse($membersWithTrainingsDetails as $member)
                             <tr class="border-b border-gray-100 hover:bg-gray-50">
-                                <td class="py-2 px-4 text-sm text-gray-900 truncate">{{ $member['full_name'] }}</td>
+                                <td class="py-2 px-4 text-sm text-gray-900 truncate">
+                                    <div>{{ $member['full_name'] }}</div>
+                                    <div class="text-xs">{!! $member['db_code_link'] !!}</div>
+                                </td>
                                 <td class="py-2 px-4">
                                     @if($member['trainings']->count() > 0)
                                         <table class="w-full text-xs bg-gray-50 rounded-lg">
@@ -338,7 +344,12 @@
                             <tbody>
                             @foreach($recentActivities as $activity)
                                 <tr class="border-b border-gray-100 hover:bg-gray-50">
-                                    <td class="py-2 px-4 text-sm text-gray-900 truncate">{{ $activity->user?->full_name ?? 'N/A' }}</td>
+                                    <td class="py-2 px-4 text-sm text-gray-900 truncate">
+                                        <div>{{ $activity->user?->full_name ?? 'N/A' }}</div>
+                                        @if($activity->user)
+                                            <div class="text-xs">{!! $activity->user->user_id_reference_link !!}</div>
+                                        @endif
+                                    </td>
                                     <td class="py-2 px-4">
                                         <div class="flex items-center space-x-2">
                                             <div class="flex-shrink-0">

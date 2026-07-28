@@ -671,6 +671,7 @@ class RedCrossUnitController extends Controller
                 return [
                     'id' => $user->id,
                     'full_name' => $user->full_name,
+                    'db_code_link' => $user->user_id_reference_link,
                     'membership_type' => $membershipType,
                     'days_to_expiry' => $daysToExpiry,
                     'volunteering_hours_last_12_months' => $volunteeringHoursLast12Months,
@@ -716,6 +717,7 @@ class RedCrossUnitController extends Controller
                 return [
                     'id' => $user->id,
                     'full_name' => $user->full_name,
+                    'db_code_link' => $user->user_id_reference_link,
                     'trainings' => $trainingsData,
                 ];
             });
