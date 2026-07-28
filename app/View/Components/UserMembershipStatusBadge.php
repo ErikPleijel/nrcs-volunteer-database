@@ -45,7 +45,7 @@ class UserMembershipStatusBadge extends Component
             $this->icon   = 'fa-id-card';
             $this->styles = 'bg-blue-100 text-blue-800';
 
-        } elseif ($user->latestMembershipPayment && $canMember && !$canVolunteer) {
+        } elseif ($user->latestMembershipPayment()->personal()->first() && $canMember && !$canVolunteer) {
             // Expired payment, membership ticked, not interested in volunteering
             $this->type   = 'expired';
             $this->line1  = 'Membership';
