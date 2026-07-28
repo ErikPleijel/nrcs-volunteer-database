@@ -706,7 +706,7 @@
                 <h4 class="text-sm font-semibold text-gray-500 mb-2">Payment history</h4>
                 <div class="overflow-x-auto">
                     <div class="@if($showingLimitMessage) max-h-64 overflow-y-auto @endif">
-                        <table class="w-full text-sm">
+                        <table class="min-w-full text-sm">
                             <thead class="sticky top-0 bg-gray-50">
                             <tr class="border-b border-gray-200">
                                 <th class="text-left py-1 text-xs text-gray-500 bg-gray-50">Payment date</th>
@@ -802,7 +802,7 @@
 
             <div class="overflow-x-auto">
                 <div class="@if($activitiesLimitMessage) max-h-64 overflow-y-auto @endif">
-                    <table class="w-full text-sm">
+                    <table class="min-w-full text-sm">
                         <thead class="sticky top-0 bg-white">
                         <tr class="border-b border-gray-200">
                             <th class="text-left py-2 text-gray-600 bg-white">Date</th>
@@ -941,7 +941,7 @@
 
             <div class="overflow-x-auto">
                 <div class="@if($trainingsLimitMessage) max-h-64 overflow-y-auto @endif">
-                    <table class="w-full text-sm">
+                    <table class="min-w-full text-sm">
                         <thead class="sticky top-0 bg-white">
                         <tr class="border-b border-gray-200">
                             <th class="text-left py-2 text-gray-600 bg-white">Date</th>
@@ -1079,7 +1079,7 @@
 
             <div class="overflow-x-auto">
                 <div class="@if($donationsLimitMessage) max-h-64 overflow-y-auto @endif">
-                    <table class="w-full text-sm">
+                    <table class="min-w-full text-sm">
                         <thead class="sticky top-0 bg-white">
                         <tr class="border-b border-gray-200">
                             <th class="text-left py-2 text-gray-600 bg-white">Donation date</th>
