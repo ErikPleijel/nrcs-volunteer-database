@@ -850,12 +850,7 @@
                                     @endif
                                 </td>
 
-                                <td class="table-body-cell-no-wrap">
-                                    <a href="{{ route('activities.show', $activity['id']) }}"
-                                       class="btn-primary text-xs !py-1">
-                                        View
-                                    </a>
-                                </td>
+
                             </tr>
                         @empty
                             <tr>
