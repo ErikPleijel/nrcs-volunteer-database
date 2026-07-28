@@ -438,7 +438,7 @@
                                     <td class="table-body-cell">
                                         <div class="table-field-main">{{ $donation->donor_full_name }}</div>
                                         @if(!$donation->anonymous && $donation->user)
-                                            <div class="table-field-sub">{{ $donation->user->user_id_reference_short }}</div>
+                                            <div class="table-field-sub">{!! $donation->user->user_id_reference_link !!}</div>
                                         @endif
                                     </td>
                                     <td class="table-body-cell">

@@ -517,7 +517,7 @@
                                                     {{ $activity->user->full_name }}
                                                 </div>
                                                 <div class="table-field-sub">
-                                                    {{ $activity->user->user_id_reference_short }}
+                                                    {!! $activity->user->user_id_reference_link !!}
                                                 </div>
                                             @else
                                                 <div class="table-field-main text-red-600">

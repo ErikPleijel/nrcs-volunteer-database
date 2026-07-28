@@ -458,7 +458,7 @@
                                 <td class="table-body-cell">
                                     @if($training->user)
                                         <div class="table-field-main">{{ $training->user->full_name ?: 'No Name' }}</div>
-                                        <div class="table-field-sub">{{ $training->user->user_id_reference_short }}</div>
+                                        <div class="table-field-sub">{!! $training->user->user_id_reference_link !!}</div>
                                     @else
                                         <div class="table-field-main text-red-600">User Not Found</div>
                                         <div class="table-field-sub">ID: {{ $training->user_id }}</div>

@@ -447,7 +447,7 @@
                                 <td class="table-body-cell">
                                     @if($payment->user)
                                         <div class="table-field-main">{{ $payment->user->first_name }} {{ $payment->user->last_name }}</div>
-                                        <div class="table-field-sub">{{ $payment->user->user_id_reference_short }}</div>
+                                        <div class="table-field-sub">{!! $payment->user->user_id_reference_link !!}</div>
                                     @else
                                         <div class="table-field-main text-red-600">User Not Found</div>
                                         <div class="table-field-sub">ID: {{ $payment->user_id }}</div>
