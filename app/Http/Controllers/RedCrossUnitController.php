@@ -651,6 +651,17 @@ class RedCrossUnitController extends Controller
             ->with([
                 'currentMembershipPayment' => fn ($q) => $q->personal(),
                 'currentMembershipPayment.membershipFee',
+                // Separate, additional eager-load (existing membershipPayments() relation,
+                // any approval status) used only to detect a pending payment in-memory
+                // below — does NOT touch or replace the approved-only
+                // currentMembershipPayment relation above.
+                'membershipPayments' => fn ($q) => $q->personal()->withAnyApprovalStatus(),
+                // Most recent APPROVED personal payment, with no expiry-date-in-future
+                // filter (unlike currentMembershipPayment) — so an actually-expired
+                // payment can still be found for is_expired/expired_days_ago below.
+                'latestMembershipPayment' => fn ($q) => $q->personal()
+                    ->where('approval_status', 'approved')
+                    ->latest('expiry_date'),
                 'activities' => function ($query) {
                     $query->where('date', '>=', Carbon::now()->subYear()); // Activities in the last 12 months
                 },
@@ -675,12 +686,21 @@ class RedCrossUnitController extends Controller
                     'membership_type' => $membershipType,
                     'days_to_expiry' => $daysToExpiry,
                     'volunteering_hours_last_12_months' => $volunteeringHoursLast12Months,
+                    'has_pending_payment' => $user->membershipPayments->contains('approval_status', 'pending'),
+                    'is_expired' => $user->latestMembershipPayment?->isExpired() ?? false,
+                    'expired_days_ago' => $user->latestMembershipPayment && $user->latestMembershipPayment->isExpired()
+                        ? abs((int) round(now()->diffInDays($user->latestMembershipPayment->expiry_date)))
+                        : null,
+                    'expiry_date_formatted' => $user->latestMembershipPayment?->expiry_date?->format('M d, Y'),
                 ];
             });
 
         // Fetch all members of the unit with their trainings for the new table, sorted by first name
         $membersWithTrainingsDetails = $redCrossUnit->activeUsers()
-            ->with(['trainings.trainingType']) // Eager load trainings and their types
+            ->with([
+                'trainings' => fn ($q) => $q->withAnyApprovalStatus(), // include pending, not just approved
+                'trainings.trainingType',
+            ]) // Eager load trainings and their types
             ->orderBy('first_name')
             ->get()
             ->map(function ($user) {
@@ -711,6 +731,7 @@ class RedCrossUnitController extends Controller
                         'training_name' => $training->trainingType->name ?? 'Unknown Training',
                         'training_date' => $training->training_date,
                         'expiry_status' => $expiryStatus,
+                        'approval_status' => $training->approval_status,
                     ];
                 });
 
