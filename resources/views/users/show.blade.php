@@ -432,7 +432,7 @@
                                     <div class="taskforce-style w-fit flex flex-col">
                                         <span>{{ $organisation->name }}</span>
                                         @if($organisation->pivot->is_primary_contact)
-                                            <span class="text-xs font-semibold text-gray-700">Primary contact</span>
+                                            <span class="text-xs font-semibold text-yellow-100">Primary contact</span>
                                         @endif
                                     </div>
                                     <a href="{{ route('organisations.show', $organisation) }}" class="btn-primary w-fit"><i class="fas fa-eye mr-1"></i>View</a>

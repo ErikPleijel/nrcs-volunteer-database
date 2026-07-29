@@ -275,6 +275,43 @@
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <!-- Left Column -->
                 <div class="space-y-8">
+
+                    {{-- Your Organisations --}}
+                    @if($user->organisations->isNotEmpty())
+                        <div class="bg-white rounded-lg shadow-lg p-6">
+                            <div class="flex items-center mb-4">
+                                <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mr-4">
+                                    <i class="fas fa-building text-blue-600 text-xl"></i>
+                                </div>
+                                <h2 class="text-xl font-bold text-gray-900">YOUR ORGANISATIONS</h2>
+                            </div>
+                            <p class="text-gray-600 text-sm mb-4">
+                                You are registered as a contact person for the following organisation(s):
+                            </p>
+                            <div class="space-y-3">
+                                @foreach($user->organisations as $linkedOrg)
+                                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                        <div>
+                                            <a href="{{ route('profile.organisation', $linkedOrg) }}"
+                                               class="font-medium text-blue-600 hover:text-blue-800">
+                                                {{ $linkedOrg->name }}
+                                            </a>
+                                            @if($linkedOrg->pivot->is_primary_contact)
+                                                <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                                    <i class="fas fa-star mr-1"></i>Primary Contact
+                                                </span>
+                                            @endif
+                                        </div>
+                                        <a href="{{ route('profile.organisation', $linkedOrg) }}"
+                                           class="text-sm text-blue-600 hover:text-blue-800 whitespace-nowrap ml-4">
+                                            View &rarr;
+                                        </a>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
+
                     <!-- Membership Section -->
                     <div class="bg-white rounded-lg shadow-lg p-6">
                         <div class="flex items-center mb-4">
@@ -903,41 +940,7 @@
                         </div>
                     @endif
 
-                    {{-- Your Organisations --}}
-                    @if($user->organisations->isNotEmpty())
-                        <div class="bg-white rounded-lg shadow-lg p-6">
-                            <div class="flex items-center mb-4">
-                                <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mr-4">
-                                    <i class="fas fa-building text-blue-600 text-xl"></i>
-                                </div>
-                                <h2 class="text-xl font-bold text-gray-900">YOUR ORGANISATIONS</h2>
-                            </div>
-                            <p class="text-gray-600 text-sm mb-4">
-                                You are registered as a contact person for the following organisation(s):
-                            </p>
-                            <div class="space-y-3">
-                                @foreach($user->organisations as $linkedOrg)
-                                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                                        <div>
-                                            <a href="{{ route('profile.organisation', $linkedOrg) }}"
-                                               class="font-medium text-blue-600 hover:text-blue-800">
-                                                {{ $linkedOrg->name }}
-                                            </a>
-                                            @if($linkedOrg->pivot->is_primary_contact)
-                                                <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                                    <i class="fas fa-star mr-1"></i>Primary Contact
-                                                </span>
-                                            @endif
-                                        </div>
-                                        <a href="{{ route('profile.organisation', $linkedOrg) }}"
-                                           class="text-sm text-blue-600 hover:text-blue-800 whitespace-nowrap ml-4">
-                                            View &rarr;
-                                        </a>
-                                    </div>
-                                @endforeach
-                            </div>
-                        </div>
-                    @endif
+
 
                     <!-- Consolidated Details -->
                     <div class="bg-white rounded-lg shadow-lg p-6">
