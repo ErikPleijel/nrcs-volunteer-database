@@ -156,7 +156,7 @@
                                         @endif
                                     </div>
                                     <div class="text-xs text-gray-500">
-                                        DB-{{ $user->id }}
+                                        {!! $user->user_id_reference_link !!}
                                         @if($user->pivot->linked_at)
                                             &mdash; Linked {{ $user->pivot->linked_at->format('M d, Y') }}
                                         @endif
@@ -165,10 +165,6 @@
                             </div>
 
                             <div class="flex items-center gap-2">
-                                <a href="{{ route('users.show', $user) }}"
-                                   class="btn-primary"
-                                   target="_blank"><i class="fas fa-eye mr-1"></i>View</a>
-
                                 @if(!$user->pivot->is_primary_contact)
                                     <form action="{{ route('organisations.set-primary-contact', [$organisation, $user]) }}"
                                           method="POST"

@@ -479,7 +479,7 @@
                                                         <i class="fas fa-eye mr-1"></i>View
                                                     </span>
                                                     <span class="text-xs -mt-1 font-normal opacity-90">
-                                                        Link persons
+                                                        Link&nbsp;persons
                                                     </span>
                                                 </a>
                                             </div>
