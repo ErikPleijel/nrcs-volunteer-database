@@ -292,51 +292,60 @@
                         @php
                             /** @var \App\Models\User $u */
                             $u = auth()->user();
-
-                            $isMember      = (bool) $u->currentMembershipPayment;
-                            $wantsMembership = (bool) $u->wantsMembership();
-                            $membershipName  = $u->current_membership_name; // accessor suggested earlier
+                            $currentPayment = $u->currentMembershipPayment()->personal()->first();
+                            $latestPayment  = $u->latestMembershipPayment()->personal()->first();
                         @endphp
 
-                        @if ($isMember)
-                            {{-- ✅ Member: show membership type --}}
-                            <div class="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-green-900">
-                                <div class="font-semibold">
-                                    Your membership:
-                                </div>
-                                <div class="mt-1 text-2xl">
-                                    <span class="font-medium">{{ $membershipName ?: 'Member' }}</span>
-                                </div>
+                        @if($u->lifecycle_status === 'pending_engagement')
+                            {{-- Pending: short, neutral --}}
+                            <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-gray-800">
+                                <div class="font-semibold">Registration pending</div>
                             </div>
 
-                        @elseif ($wantsMembership)
-                            {{-- 🙋 Interested: show payment instructions --}}
+                        @elseif($u->isVolunteer())
+                            {{-- Volunteer: show RC unit name --}}
+                            <div class="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-green-900">
+                                <div class="font-semibold">You're a volunteer</div>
+                                <div class="mt-1 text-lg">{{ $u->redCrossUnit->name ?? 'Unit assigned' }}</div>
+                            </div>
+
+                        @elseif($currentPayment)
+                            {{-- Valid personal membership --}}
+                            <div class="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-green-900">
+                                <div class="font-semibold">Your membership:</div>
+                                <div class="mt-1 text-2xl font-medium">{{ optional($currentPayment->membershipFee)->name ?? 'Member' }}</div>
+                            </div>
+
+                        @elseif($latestPayment && $latestPayment->isExpired())
+                            {{-- Expired personal membership --}}
+                            <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-900">
+                                <div class="font-semibold">Your membership has expired</div>
+                                <div class="mt-1 text-sm">Expired {{ $latestPayment->expiry_date->format('M d, Y') }} — please renew to continue enjoying member benefits.</div>
+                            </div>
+
+                        @elseif($u->wantsMembership())
+                            {{-- Existing "interested" branch, unchanged --}}
                             <div class="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-blue-900">
-                                <div class="font-semibold">
-                                    Become a member
-                                </div>
-
+                                <div class="font-semibold">Become a member</div>
                                 <div class="mt-2 text-base space-y-2">
-                                    <p>
-                                        You’ve marked that you’re interested in membership.
-                                    </p>
-                                    <p>
-                                        To activate it, please make your membership payment.
-                                    </p>
+                                    <p>You've marked that you're interested in membership.</p>
+                                    <p>To activate it, please make your membership payment.</p>
                                 </div>
-
-
                             </div>
 
                         @else
-                            {{-- ❌ Not a member and not interested --}}
+                            {{-- Existing fallback, unchanged --}}
                             <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-gray-800">
-                                <div class="font-semibold">
-                                    Membership status
-                                </div>
-                                <div class="mt-1 text-sm">
-                                    Not a member.
-                                </div>
+                                <div class="font-semibold">Membership status</div>
+                                <div class="mt-1 text-sm">Not a member.</div>
+                            </div>
+                        @endif
+
+                        {{-- Always-additive: organisation contact note, independent of the above --}}
+                        @if($u->organisations->isNotEmpty())
+                            <div class="mt-3 rounded-lg border border-purple-200 bg-purple-50 px-4 py-3 text-purple-900">
+                                <div class="font-semibold">You're a contact for:</div>
+                                <div class="mt-1">{{ $u->organisations->pluck('name')->join(', ', ' and ') }}</div>
                             </div>
                         @endif
                     @endauth
