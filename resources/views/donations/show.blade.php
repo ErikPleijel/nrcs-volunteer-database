@@ -69,6 +69,7 @@
                             <td>Organisation</td>
                             <td>
                                 <span class="db-code">{!! $donation->organisation->org_reference_link !!}</span>
+                                <div class="text-sm font-medium text-purple-800 mt-0.5">{{ $donation->organisation->name }}</div>
                             </td>
                         </tr>
                     @endif
