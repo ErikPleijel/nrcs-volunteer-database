@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Reports;
 
 use App\Http\Controllers\Controller;
 use App\Models\Branch;
+use App\Models\Donation;
 use App\Services\Reports\DonationStatsService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -157,6 +158,59 @@ class DonationReportController extends Controller
             'selectedYear'              => $selectedYear,
             'trendDataset'              => $trendDataset,
             'divisionQuarterlySummaries'=> $divisionQuarterlySummaries,
+        ]);
+    }
+
+    /**
+     * Breakdown: the individual donations behind one Quarterly Donations
+     * Summary cell (branch + year + quarter + cash/in-kind). Reproduces the
+     * exact same filter predicate as
+     * DonationStatsService::getBranchDonationQuarterlySummary() so this list's
+     * total always matches the summary cell that was clicked.
+     */
+    public function breakdown(Request $request)
+    {
+        $branchId = (int) $request->input('branch_id');
+        $year     = (int) $request->input('year');
+        $quarter  = (int) $request->input('quarter');
+        $type     = $request->input('type') === 'in-kind' ? 'in-kind' : 'cash';
+
+        // Branch/division-level viewers may only drill into their own branch —
+        // national-level viewers (including observer_national_level, per
+        // User::NATIONAL_ROLES) are unrestricted, matching getAccessLevel().
+        $accessLevel = auth()->user()->getAccessLevel();
+        $scopedBranchId = auth()->user()->getScopedBranchId();
+
+        if (in_array($accessLevel, ['branch', 'division'], true) && $scopedBranchId !== $branchId) {
+            abort(403);
+        }
+
+        $branch = Branch::findOrFail($branchId);
+
+        $donations = Donation::where('branch_id', $branchId)
+            ->where('is_deleted', 0)
+            ->where('approval_status', 'approved')
+            ->whereYear('date_donation', $year)
+            ->whereRaw('QUARTER(date_donation) = ?', [$quarter])
+            ->where('in_kind_donation', $type === 'in-kind' ? 1 : 0)
+            ->with(['user', 'organisation'])
+            ->orderBy('date_donation', 'desc')
+            ->get();
+
+        // Matches the summary cell itself: cash is a currency sum, in-kind is
+        // a plain count of donations (never a summed "amount" — in-kind items
+        // aren't fungible, so the report only ever counts them).
+        $total = $type === 'in-kind'
+            ? $donations->count()
+            : $donations->sum('amount');
+
+        return view('reports.donations.breakdown', [
+            'branch'     => $branch,
+            'year'       => $year,
+            'quarter'    => $quarter,
+            'type'       => $type,
+            'donations'  => $donations,
+            'total'      => $total,
         ]);
     }
 

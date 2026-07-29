@@ -166,6 +166,19 @@ class Donation extends Model
     }
 
     /**
+     * Donor display name accounting for organisation-linked donations, which
+     * donor_full_name doesn't distinguish (it only knows anonymous vs. person).
+     */
+    public function getDonorDisplayNameAttribute(): string
+    {
+        if ($this->organisation_id && $this->organisation) {
+            return $this->organisation->name;
+        }
+
+        return $this->donor_full_name; // handles anonymous/person
+    }
+
+    /**
      * Get the formatted donation string based on donation type.
      */
     public function getFormattedDonationAttribute(): string

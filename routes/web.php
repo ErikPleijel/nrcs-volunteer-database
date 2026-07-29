@@ -728,6 +728,16 @@ Route::middleware(['auth', 'verified.or.absent'])->group(function () {
                 // Branch donations report
                 Route::get('/branch/{branch}', [DonationReportController::class, 'branch'])
                     ->name('branch');
+
+                // Breakdown: individual donations behind one quarterly summary cell.
+                // Gated on the underlying data's own permission (view_donations)
+                // rather than the enclosing group's view_reports, so viewers
+                // without financial permissions (e.g. division_db_assistant_operations)
+                // can't reach it just because they can see reports.
+                Route::get('/breakdown', [DonationReportController::class, 'breakdown'])
+                    ->name('breakdown')
+                    ->withoutMiddleware('can:view_reports')
+                    ->middleware('can:view_donations');
             });
 
             Route::prefix('registrations')
