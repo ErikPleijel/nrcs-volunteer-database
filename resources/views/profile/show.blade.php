@@ -82,7 +82,7 @@
 
                         <!-- Name and Info -->
                         <div class="flex flex-col justify-center">
-                            <h1 class="text-3xl font-bold text-gray-900">{{ $user->full_name ?? '---' }}</h1>
+                            <h1 class="text-3xl font-bold text-gray-900">Welcome {{ $user->full_name ?? '---' }}!</h1>
                             <p class="text-xl font-bold">{{ $user->getUserIdReferenceShortAttribute() }}</p>
 
                             <!-- Current Membership Status -->

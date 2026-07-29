@@ -28,8 +28,8 @@
 
     <div class="mb-8 px-4 sm:px-6 lg:px-8">
         {{-- User Welcome & Metadata --}}
-        <h1 class="text-3xl font-extrabold text-gray-900 dark:text-white leading-tight">
-            Welcome, {{ $user->full_name }}!
+        <h1 class="text-2xl font-extrabold text-gray-900 dark:text-white leading-tight">
+            {{ $user->full_name }}
         </h1>
 
         <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-600 dark:text-gray-400">
@@ -1659,7 +1659,7 @@
                             'archived_filter' => 'pending_engagement',
                             'branch_id' => $dashboardData['branchId'],
                         ])) }}" class="block hover:opacity-80 transition">
-                            <p class="text-3xl font-bold text-orange-600">
+                            <p class="text-3xl font-bold {{ $dashboardData['hangingRegistrationCount'] === 0 ? 'text-gray-400' : 'text-orange-600' }}">
                                 {{ number_format($dashboardData['hangingRegistrationCount']) }}
                                 <span class="text-sm font-normal text-gray-400">
                                     ({{ number_format($dashboardData['hangingRegistrationTotalCount']) }} total)
@@ -1721,7 +1721,7 @@
                         'archived_filter' => 'all',
                         'branch_id' => $dashboardData['branchId'],
                     ])) }}" class="block hover:opacity-80 transition">
-                        <p class="text-3xl font-bold text-orange-600">{{ number_format($dashboardData['unverifiedRegistrationsCount']) }}</p>
+                        <p class="text-3xl font-bold {{ $dashboardData['unverifiedRegistrationsCount'] === 0 ? 'text-gray-400' : 'text-orange-600' }}">{{ number_format($dashboardData['unverifiedRegistrationsCount']) }}</p>
                         <p class="mt-1 text-sm text-gray-600">Unverified Registrations</p>
                     </a>
                     <a href="{{ route('users.index', array_filter([
@@ -1763,7 +1763,7 @@
 
                 <div class="bg-white rounded-lg shadow p-4 w-64 text-center">
                     <a href="{{ route('users.index', array_filter(['person_type' => 'unassigned', 'branch_id' => $dashboardData['branchId']])) }}" class="block hover:opacity-80 transition">
-                        <p class="text-3xl font-bold text-orange-600">{{ number_format($dashboardData['unassignedGhostCount']) }}</p>
+                        <p class="text-3xl font-bold {{ $dashboardData['unassignedGhostCount'] === 0 ? 'text-gray-400' : 'text-orange-600' }}">{{ number_format($dashboardData['unassignedGhostCount']) }}</p>
                         <p class="mt-1 text-sm text-gray-600">Volunteers in Limbo</p>
                     </a>
                     <a href="{{ route('users.index', array_filter(['person_type' => 'unassigned', 'branch_id' => $dashboardData['branchId']])) }}" class="btn-view mt-2 inline-block">
