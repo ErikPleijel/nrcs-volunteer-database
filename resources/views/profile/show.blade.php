@@ -1206,6 +1206,29 @@
                                 You hold an administrative role. Ask another administrator to remove it before you can archive your own account.
                             </p>
                         @else
+                            @if($user->organisations->isNotEmpty())
+                                @php
+                                    $soleContactOrgs = $user->soleContactOrganisations();
+                                @endphp
+
+                                @if($soleContactOrgs->isNotEmpty())
+                                    <div class="mt-2 rounded-md bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
+                                        <i class="fas fa-triangle-exclamation mr-1 text-amber-500"></i>
+                                        You are the <span class="font-semibold">only linked contact</span> for
+                                        {{ $soleContactOrgs->pluck('name')->join(', ', ' and ') }}.
+                                        Archiving your account will prevent that organisation from making membership
+                                        payments or donations until a new contact is linked.
+                                    </div>
+                                @else
+                                    <div class="mt-2 rounded-md bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
+                                        <i class="fas fa-triangle-exclamation mr-1 text-amber-500"></i>
+                                        You are linked to {{ $user->organisations->pluck('name')->join(', ', ' and ') }}.
+                                        Other contacts are also linked, so archiving your account will not block the
+                                        organisation's ability to make payments or donations.
+                                    </div>
+                                @endif
+                            @endif
+
                             <form method="POST" action="{{ route('profile.self-archive') }}" onsubmit="return confirm('Are you sure? This cannot be undone by you — you will need to contact your branch to be reactivated.');">
                                 @csrf
                                 <label for="archive_confirmation" class="block text-sm font-medium text-gray-700 mb-1">

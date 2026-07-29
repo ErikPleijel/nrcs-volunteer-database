@@ -36,7 +36,7 @@ class ProfileController extends Controller
             'redCrossUnit',
             'activeMembershipPayments.membershipFee',
             'activeMembershipPayments.organisation',
-            'organisations',
+            'organisations.users',
         ])->find($userId);
 
         // Initialize variables

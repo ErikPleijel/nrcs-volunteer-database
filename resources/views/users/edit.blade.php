@@ -775,9 +775,7 @@
 
                                 @if($user->organisations->isNotEmpty())
                                     @php
-                                        $soleContactOrgs = $user->organisations->filter(function ($org) use ($user) {
-                                            return $org->users->count() <= 1;
-                                        });
+                                        $soleContactOrgs = $user->soleContactOrganisations();
                                     @endphp
 
                                     @if($soleContactOrgs->isNotEmpty())

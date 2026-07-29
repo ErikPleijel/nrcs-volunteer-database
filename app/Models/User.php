@@ -154,6 +154,15 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
+     * Callers should eager-load 'organisations.users' first, or each
+     * organisation's ->users->count() below triggers its own query.
+     */
+    public function soleContactOrganisations(): \Illuminate\Support\Collection
+    {
+        return $this->organisations->filter(fn ($org) => $org->users->count() <= 1);
+    }
+
+    /**
      * The roles that imply national-level access.
      */
     const NATIONAL_ROLES = [
