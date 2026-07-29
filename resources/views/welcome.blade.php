@@ -183,16 +183,19 @@
         <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-5 mt-16">
             <div class="text-center">
                 <div style="display: flex; flex-direction: column; align-items: center;">
-                    <div style="max-width: 500px; width: 100%; box-sizing: border-box; background-color: #d9381e; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; padding: 16px 24px; border-radius: 6px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <div style="max-width: 400px; width: 100%; box-sizing: border-box; background-color: #d9381e; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; padding: 16px 24px; border-radius: 6px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                         <h2 style="margin: 0 0 8px 0; font-size: 22px; font-weight: 700; letter-spacing: -0.5px;">
                             ⚠️ Development Version
                         </h2>
                         <p style="margin: 0; font-size: 15px; line-height: 1.5; color: #fbebeb;">
+                            This site is for testing only — the real database will be live on the NRCS website soon.
+                        </p>
+                        <p style="display: none; margin: 0; font-size: 15px; line-height: 1.5; color: #fbebeb;">
                             <strong>RESTRICTED ACCESS:</strong> This database contains confidential personal data. Do not share any information or screenshots outside of administrative team of the NRCS.
                         </p>
                     </div>
 
-                    <div style="max-width: 500px; width: 100%; box-sizing: border-box; background-color: #f0f7ff; border: 1px solid #cce3ff; border-radius: 6px; color: #1e293b; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 20px; margin-bottom: 20px;">
+                    <div style="display: none;  max-width: 500px; width: 100%; box-sizing: border-box; background-color: #f0f7ff; border: 1px solid #cce3ff; border-radius: 6px; color: #1e293b; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 20px; margin-bottom: 20px;">
                         <h3 style="margin: 0 0 10px 0; font-size: 18px; color: #0369a1; font-weight: 600;">
                             👋 Welcome to the Sandbox!
                         </h3>
