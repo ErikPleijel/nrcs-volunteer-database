@@ -5,35 +5,29 @@ namespace App\Services\Reports;
 use App\Models\TaskForce;
 use App\Models\TaskForceMember;
 use App\Models\TaskForceType;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class TaskForceStatsService
 {
-    protected $cachePrefix = 'task_force_stats_';
-    protected $cacheTtl = 300; // 5 minutes
-
     /**
      * Get comprehensive task force statistics
      */
     public function getComprehensiveStats()
     {
-        return Cache::remember($this->cachePrefix . 'comprehensive', $this->cacheTtl, function () {
-            return [
-                'total_task_forces' => $this->getTotalTaskForces(),
-                'active_task_forces' => $this->getActiveTaskForces(),
-                'inactive_task_forces' => $this->getInactiveTaskForces(),
-                'total_task_force_members' => $this->getTotalTaskForceMembers(),
-                'active_task_force_members' => $this->getActiveTaskForceMembers(),
-                'task_force_types_count' => $this->getTaskForceTypesCount(),
-                'task_forces_with_leaders' => $this->getTaskForcesWithLeaders(),
-                'task_forces_with_complete_leadership' => $this->getTaskForcesWithCompleteLeadership(),
-                'task_forces_by_type' => $this->getTaskForcesByType(),
-                'task_forces_by_branch' => $this->getTaskForcesByBranch(),
-                'task_force_leadership_stats' => $this->getTaskForceLeadershipStats(),
-                'recent_task_forces' => $this->getRecentTaskForces(),
-            ];
-        });
+        return [
+            'total_task_forces' => $this->getTotalTaskForces(),
+            'active_task_forces' => $this->getActiveTaskForces(),
+            'inactive_task_forces' => $this->getInactiveTaskForces(),
+            'total_task_force_members' => $this->getTotalTaskForceMembers(),
+            'active_task_force_members' => $this->getActiveTaskForceMembers(),
+            'task_force_types_count' => $this->getTaskForceTypesCount(),
+            'task_forces_with_leaders' => $this->getTaskForcesWithLeaders(),
+            'task_forces_with_complete_leadership' => $this->getTaskForcesWithCompleteLeadership(),
+            'task_forces_by_type' => $this->getTaskForcesByType(),
+            'task_forces_by_branch' => $this->getTaskForcesByBranch(),
+            'task_force_leadership_stats' => $this->getTaskForceLeadershipStats(),
+            'recent_task_forces' => $this->getRecentTaskForces(),
+        ];
     }
 
     /**
@@ -41,9 +35,7 @@ class TaskForceStatsService
      */
     public function getTotalTaskForces()
     {
-        return Cache::remember($this->cachePrefix . 'total_task_forces', $this->cacheTtl, function () {
-            return TaskForce::count();
-        });
+        return TaskForce::count();
     }
 
     /**
@@ -239,44 +231,19 @@ class TaskForceStatsService
      */
     public function getBranchStats($branchId)
     {
-        return Cache::remember($this->cachePrefix . 'branch_' . $branchId, $this->cacheTtl, function () use ($branchId) {
-            $taskForces = TaskForce::byBranch($branchId);
-            $activeTaskForces = TaskForce::active()->byBranch($branchId);
+        $taskForces = TaskForce::byBranch($branchId);
+        $activeTaskForces = TaskForce::active()->byBranch($branchId);
 
-            return [
-                'total_task_forces' => $taskForces->count(),
-                'active_task_forces' => $activeTaskForces->count(),
-                'inactive_task_forces' => $taskForces->inactive()->count(),
-                'total_members' => TaskForceMember::whereHas('taskForce', function ($query) use ($branchId) {
-                    $query->where('branch_id', $branchId);
-                })->count(),
-                'active_members' => TaskForceMember::whereHas('taskForce', function ($query) use ($branchId) {
-                    $query->where('branch_id', $branchId)->where('inactive', false);
-                })->count(),
-            ];
-        });
-    }
-
-    /**
-     * Clear all cached statistics
-     */
-    public function clearAllCache(): void
-    {
-        $patterns = [
-            'comprehensive',
-            'task_forces_by_branch',
-            'task_forces_by_type',
-            'recent_task_forces',
+        return [
+            'total_task_forces' => $taskForces->count(),
+            'active_task_forces' => $activeTaskForces->count(),
+            'inactive_task_forces' => $taskForces->inactive()->count(),
+            'total_members' => TaskForceMember::whereHas('taskForce', function ($query) use ($branchId) {
+                $query->where('branch_id', $branchId);
+            })->count(),
+            'active_members' => TaskForceMember::whereHas('taskForce', function ($query) use ($branchId) {
+                $query->where('branch_id', $branchId)->where('inactive', false);
+            })->count(),
         ];
-
-        foreach ($patterns as $pattern) {
-            Cache::forget($this->cachePrefix . $pattern);
-        }
-
-        // Clear branch-specific caches
-        $branches = \App\Models\Branch::pluck('id');
-        foreach ($branches as $branchId) {
-            Cache::forget($this->cachePrefix . 'branch_' . $branchId);
-        }
     }
 }

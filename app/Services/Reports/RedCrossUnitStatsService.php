@@ -5,33 +5,11 @@ namespace App\Services\Reports;
 use App\Models\RedCrossUnit;
 use App\Models\Activity;
 use App\Models\User;
-use Illuminate\Support\Facades\Cache;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB; // Added DB facade for getUnitsWithManyMembers and getMostActiveUnit
 
 class RedCrossUnitStatsService
 {
-
-    /**
-     * Global TTL for all membership stats cache (in seconds).
-     *
-     * During dev, you can set this to 1 (or even 0 to disable caching).
-     * In production, 3600 (1 hour) is a reasonable default.
-     */
-    private int $cacheTtl = 3600;
-
-    /**
-     * Small helper so we don't repeat Cache::remember everywhere.
-     */
-    private function remember(string $key, \Closure $callback)
-    {
-        // If TTL <= 0, skip cache entirely (useful in dev/debug)
-        if ($this->cacheTtl <= 0) {
-            return $callback();
-        }
-
-        return Cache::remember($key, $this->cacheTtl, $callback);
-    }
 
     /**
      * Get the count of volunteers attached to active red cross units
@@ -40,45 +18,36 @@ class RedCrossUnitStatsService
      */
     public function getActiveUnitVolunteersCount(?int $branchId = null): int
     {
-        $cacheKey = 'red_cross_volunteers_active_units' . ($branchId ? '_branch_' . $branchId : '');
+        $query = User::whereHas('redCrossUnit', function ($query) {
+            $query->where('is_active', true);
+        })
+        ->where('lifecycle_status', '!=', 'archived');
 
-        return $this->remember($cacheKey, function () use ($branchId) {
-            $query = User::whereHas('redCrossUnit', function ($query) {
-                $query->where('is_active', true);
-            })
-            ->where('lifecycle_status', '!=', 'archived');
+        if ($branchId) {
+            $query->whereHas('redCrossUnit.division.branch', function ($q) use ($branchId) {
+                $q->where('id', $branchId);
+            });
+        }
 
-            if ($branchId) {
-                $query->whereHas('redCrossUnit.division.branch', function ($q) use ($branchId) {
-                    $q->where('id', $branchId);
-                });
-            }
-
-            return $query->count();
-        });
+        return $query->count();
     }
 
 
     public function getActiveUnitVolunteersCountAt(Carbon $date, ?int $branchId = null): int
     {
-        $cacheKey = 'red_cross_volunteers_active_units_at_' . $date->format('Y_m_d')
-            . ($branchId ? '_branch_' . $branchId : '');
+        $cutoff = $date->copy()->endOfDay();
 
-        return $this->remember($cacheKey, function () use ($branchId, $date) {
-            $cutoff = $date->copy()->endOfDay();
+        $query = User::query()
+            ->whereNotNull('red_cross_unit_id')
+            ->whereNotNull('assigned_rcu_date')
+            ->where('assigned_rcu_date', '<=', $cutoff)
+            ->where('lifecycle_status', '!=', 'archived');
 
-            $query = User::query()
-                ->whereNotNull('red_cross_unit_id')
-                ->whereNotNull('assigned_rcu_date')
-                ->where('assigned_rcu_date', '<=', $cutoff)
-                ->where('lifecycle_status', '!=', 'archived');
+        if ($branchId) {
+            $query->where('branch_id', $branchId);
+        }
 
-            if ($branchId) {
-                $query->where('branch_id', $branchId);
-            }
-
-            return $query->count();
-        });
+        return $query->count();
     }
 
 
@@ -100,19 +69,14 @@ class RedCrossUnitStatsService
      */
     public function getVolunteeringHoursBetweenDates(Carbon $startDate, Carbon $endDate, ?int $branchId = null): float
     {
-        $cacheKey = 'volunteering_hours_' . $startDate->format('Y_m_d') . '_to_' . $endDate->format('Y_m_d')
-            . ($branchId ? '_branch_' . $branchId : '');
+        $query = \App\Models\Activity::active()
+            ->whereBetween('date', [$startDate->startOfDay(), $endDate->endOfDay()]);
 
-        return $this->remember($cacheKey, function () use ($startDate, $endDate, $branchId) {
-            $query = \App\Models\Activity::active()
-                ->whereBetween('date', [$startDate->startOfDay(), $endDate->endOfDay()]);
+        if ($branchId) {
+            $query->where('branch_id', $branchId);
+        }
 
-            if ($branchId) {
-                $query->where('branch_id', $branchId);
-            }
-
-            return $query->sum('hours') ?? 0;
-        });
+        return $query->sum('hours') ?? 0;
     }
 
     /**
@@ -153,24 +117,19 @@ class RedCrossUnitStatsService
      */
     public function getActiveVolunteersAtDate(Carbon $date, ?int $branchId = null): int
     {
-        $cacheKey = 'active_volunteers_at_' . $date->format('Y_m_d')
-            . ($branchId ? '_branch_' . $branchId : '');
+        $endDate  = $date->copy()->endOfDay();
+        $startDate = $date->copy()->subYear()->startOfDay();
 
-        return $this->remember($cacheKey, function () use ($date, $branchId) {
-            $endDate  = $date->copy()->endOfDay();
-            $startDate = $date->copy()->subYear()->startOfDay();
+        $query = Activity::query()
+            ->active() // ->where('is_deleted', false)
+            ->whereBetween('date', [$startDate, $endDate]);
 
-            $query = Activity::query()
-                ->active() // ->where('is_deleted', false)
-                ->whereBetween('date', [$startDate, $endDate]);
+        if ($branchId) {
+            $query->where('branch_id', $branchId);
+        }
 
-            if ($branchId) {
-                $query->where('branch_id', $branchId);
-            }
-
-            // Count distinct volunteers
-            return $query->distinct('user_id')->count('user_id');
-        });
+        // Count distinct volunteers
+        return $query->distinct('user_id')->count('user_id');
     }
 
     /**
@@ -204,19 +163,15 @@ class RedCrossUnitStatsService
      */
     public function getActiveUnitsCount(?int $branchId = null): int
     {
-        $cacheKey = 'active_units' . ($branchId ? "_branch_{$branchId}" : '_all');
+        $query = RedCrossUnit::query()
+            ->active()
+            ->join('divisions', 'divisions.id', '=', 'red_cross_units.division_id');
 
-        return $this->remember($cacheKey, function () use ($branchId) {
-            $query = RedCrossUnit::query()
-                ->active()
-                ->join('divisions', 'divisions.id', '=', 'red_cross_units.division_id');
+        if ($branchId) {
+            $query->where('divisions.branch_id', $branchId);
+        }
 
-            if ($branchId) {
-                $query->where('divisions.branch_id', $branchId);
-            }
-
-            return (int) $query->count('red_cross_units.id');
-        });
+        return (int) $query->count('red_cross_units.id');
     }
 
     /**
@@ -224,36 +179,32 @@ class RedCrossUnitStatsService
      */
     public function getAverageMembersPerActiveUnit(?int $branchId = null): float
     {
-        $cacheKey = 'avg_members_per_unit' . ($branchId ? "_branch_{$branchId}" : '_all');
+        $query = RedCrossUnit::query()
+            ->active()
+            ->join('divisions', 'divisions.id', '=', 'red_cross_units.division_id');
 
-        return $this->remember($cacheKey, function () use ($branchId) {
-            $query = RedCrossUnit::query()
-                ->active()
-                ->join('divisions', 'divisions.id', '=', 'red_cross_units.division_id');
+        if ($branchId) {
+            $query->where('divisions.branch_id', $branchId);
+        }
 
-            if ($branchId) {
-                $query->where('divisions.branch_id', $branchId);
-            }
+        // Join users — volunteers are in an RC unit and not archived
+        $query->leftJoin('users', 'users.red_cross_unit_id', '=', 'red_cross_units.id')
+            ->where(function ($q) {
+                $q->whereNull('users.lifecycle_status')
+                  ->orWhere('users.lifecycle_status', '!=', 'archived');
+            });
 
-            // Join users — volunteers are in an RC unit and not archived
-            $query->leftJoin('users', 'users.red_cross_unit_id', '=', 'red_cross_units.id')
-                ->where(function ($q) {
-                    $q->whereNull('users.lifecycle_status')
-                      ->orWhere('users.lifecycle_status', '!=', 'archived');
-                });
+        $stats = $query->selectRaw('
+                COUNT(DISTINCT red_cross_units.id) as unit_count,
+                COUNT(users.id) as member_count
+            ')
+            ->first();
 
-            $stats = $query->selectRaw('
-                    COUNT(DISTINCT red_cross_units.id) as unit_count,
-                    COUNT(users.id) as member_count
-                ')
-                ->first();
+        if (!$stats || $stats->unit_count == 0) {
+            return 0.0;
+        }
 
-            if (!$stats || $stats->unit_count == 0) {
-                return 0.0;
-            }
-
-            return round($stats->member_count / $stats->unit_count, 1);
-        });
+        return round($stats->member_count / $stats->unit_count, 1);
     }
 
     /**
@@ -261,32 +212,28 @@ class RedCrossUnitStatsService
      */
     public function getLeadershipCoveragePercent(?int $branchId = null): float
     {
-        $cacheKey = 'leadership_coverage' . ($branchId ? "_branch_{$branchId}" : '_all');
+        $base = RedCrossUnit::query()
+            ->active()
+            ->join('divisions', 'divisions.id', '=', 'red_cross_units.division_id');
 
-        return $this->remember($cacheKey, function () use ($branchId) {
-            $base = RedCrossUnit::query()
-                ->active()
-                ->join('divisions', 'divisions.id', '=', 'red_cross_units.division_id');
+        if ($branchId) {
+            $base->where('divisions.branch_id', $branchId);
+        }
 
-            if ($branchId) {
-                $base->where('divisions.branch_id', $branchId);
-            }
+        $totalUnits = (int) $base->count('red_cross_units.id');
 
-            $totalUnits = (int) $base->count('red_cross_units.id');
+        if ($totalUnits === 0) {
+            return 0.0;
+        }
 
-            if ($totalUnits === 0) {
-                return 0.0;
-            }
+        $withLeadership = (int) (clone $base)
+            ->where(function ($q) {
+                $q->whereNotNull('team_leader_user_id')
+                    ->orWhereNotNull('assistant_team_leader_user_id');
+            })
+            ->count('red_cross_units.id');
 
-            $withLeadership = (int) (clone $base)
-                ->where(function ($q) {
-                    $q->whereNotNull('team_leader_user_id')
-                        ->orWhereNotNull('assistant_team_leader_user_id');
-                })
-                ->count('red_cross_units.id');
-
-            return round(($withLeadership / $totalUnits) * 100, 1);
-        });
+        return round(($withLeadership / $totalUnits) * 100, 1);
     }
 
     /**
@@ -294,22 +241,18 @@ class RedCrossUnitStatsService
      */
     public function getUnitsWithoutLeadershipCount(?int $branchId = null): int
     {
-        $cacheKey = 'units_without_leadership' . ($branchId ? "_branch_{$branchId}" : '_all');
+        $query = RedCrossUnit::query()
+            ->active()
+            ->join('divisions', 'divisions.id', '=', 'red_cross_units.division_id');
 
-        return $this->remember($cacheKey, function () use ($branchId) {
-            $query = RedCrossUnit::query()
-                ->active()
-                ->join('divisions', 'divisions.id', '=', 'red_cross_units.division_id');
+        if ($branchId) {
+            $query->where('divisions.branch_id', $branchId);
+        }
 
-            if ($branchId) {
-                $query->where('divisions.branch_id', $branchId);
-            }
-
-            return (int) $query
-                ->whereNull('team_leader_user_id')
-                ->whereNull('assistant_team_leader_user_id')
-                ->count('red_cross_units.id');
-        });
+        return (int) $query
+            ->whereNull('team_leader_user_id')
+            ->whereNull('assistant_team_leader_user_id')
+            ->count('red_cross_units.id');
     }
 
 
@@ -324,41 +267,34 @@ class RedCrossUnitStatsService
      */
     public function getAverageAgeByGender(?int $branchId = null): array
     {
-        $cacheKey = 'avg_age_by_gender' . ($branchId ? "_branch_{$branchId}" : '_all');
+        $currentYear = now()->year;
 
-        return $this->remember($cacheKey, function () use ($branchId) {
-            $currentYear = now()->year;
+        $query = DB::table('users')
+            ->whereNotNull('birth_year')
+            ->where(function ($q) {
+                $q->whereNull('lifecycle_status')
+                  ->orWhere('lifecycle_status', '!=', 'archived');
+            })
+            ->whereNotNull('red_cross_unit_id');
 
-            $query = DB::table('users')
-                ->whereNotNull('birth_year')
-                ->where(function ($q) {
-                    $q->whereNull('lifecycle_status')
-                      ->orWhere('lifecycle_status', '!=', 'archived');
-                })
-                ->whereNotNull('red_cross_unit_id');
+        if ($branchId) {
+            $query->where('branch_id', $branchId);
+        }
 
-            if ($branchId) {
-                $query->where('branch_id', $branchId);
-            }
+        $rows = $query
+            ->selectRaw("
+            gender,
+            AVG($currentYear - birth_year) as avg_age
+        ")
+            ->whereIn('gender', ['female', 'male'])
+            ->groupBy('gender')
+            ->pluck('avg_age', 'gender')
+            ->toArray();
 
-            $rows = $query
-                ->selectRaw("
-                gender,
-                AVG($currentYear - birth_year) as avg_age
-            ")
-                ->whereIn('gender', ['female', 'male'])
-                ->groupBy('gender')
-                ->pluck('avg_age', 'gender')
-                ->toArray();
-
-            return [
-                'female' => isset($rows['female']) ? round($rows['female']) : null,
-                'male'   => isset($rows['male'])   ? round($rows['male'])   : null,
-            ];
-        });
+        return [
+            'female' => isset($rows['female']) ? round($rows['female']) : null,
+            'male'   => isset($rows['male'])   ? round($rows['male'])   : null,
+        ];
     }
-
-
-
 
 }

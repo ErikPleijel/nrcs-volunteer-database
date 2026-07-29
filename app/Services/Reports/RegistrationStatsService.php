@@ -5,53 +5,22 @@ namespace App\Services\Reports;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class RegistrationStatsService
 {
     /**
-     * Global TTL for all registration stats cache (in seconds).
-     *
-     * During dev, you can set this to 1 (or even 0 to disable caching).
-     * In production, 3600 (1 hour) is a reasonable default.
-     */
-    private int $cacheTtl = 3600;
-
-    /**
-     * Cache key prefix so we keep things grouped.
-     */
-    private string $cachePrefix = 'registration_stats_';
-
-    /**
-     * Small helper so we don't repeat Cache::remember everywhere.
-     */
-    private function remember(string $key, \Closure $callback)
-    {
-        // If TTL <= 0, skip cache entirely (useful in dev/debug)
-        if ($this->cacheTtl <= 0) {
-            return $callback();
-        }
-
-        return Cache::remember($key, $this->cacheTtl, $callback);
-    }
-
-    /**
      * Registrations (user profiles created) in the last 12 months.
      */
     public function getRegistrationsLast12Months(?int $branchId = null): int
     {
-        $cacheKey = $this->cachePrefix . 'last12' . ($branchId ? '_branch_' . $branchId : '_all');
+        $query = User::whereBetween('created_at', [now()->subYear(), now()]);
 
-        return $this->remember($cacheKey, function () use ($branchId) {
-            $query = User::whereBetween('created_at', [now()->subYear(), now()]);
+        if ($branchId) {
+            $query->where('branch_id', $branchId);
+        }
 
-            if ($branchId) {
-                $query->where('branch_id', $branchId);
-            }
-
-            return $query->count();
-        });
+        return $query->count();
     }
 
     /**
@@ -59,61 +28,52 @@ class RegistrationStatsService
      */
     public function getRegistrationsPrev12Months(?int $branchId = null): int
     {
-        $cacheKey = $this->cachePrefix . 'prev12' . ($branchId ? '_branch_' . $branchId : '_all');
+        $start = now()->subYears(2);
+        $end   = now()->subYear();
 
-        return $this->remember($cacheKey, function () use ($branchId) {
-            $start = now()->subYears(2);
-            $end   = now()->subYear();
+        $query = User::whereBetween('created_at', [$start, $end]);
 
-            $query = User::whereBetween('created_at', [$start, $end]);
+        if ($branchId) {
+            $query->where('branch_id', $branchId);
+        }
 
-            if ($branchId) {
-                $query->where('branch_id', $branchId);
-            }
-
-            return $query->count();
-        });
+        return $query->count();
     }
 
     public function getDormantProfiles(?int $branchId = null): int
     {
-        $cacheKey = $this->cachePrefix . 'dormant' . ($branchId ? '_branch_' . $branchId : '_all');
+        $cutoff = now()->subMonths(48);
 
-        return $this->remember($cacheKey, function () use ($branchId) {
+        $query = User::query();
 
-            $cutoff = now()->subMonths(48);
+        // Filter by branch if provided
+        if ($branchId) {
+            $query->where('branch_id', $branchId);
+        }
 
-            $query = User::query();
-
-            // Filter by branch if provided
-            if ($branchId) {
-                $query->where('branch_id', $branchId);
-            }
-
-            // No activity since cutoff
-            $query->whereDoesntHave('activities', function ($q) use ($cutoff) {
-                $q->where('date', '>=', $cutoff);
-            });
-
-            // No donations since cutoff
-            $query->whereDoesntHave('donations', function ($q) use ($cutoff) {
-                $q->where(function ($don) use ($cutoff) {
-                    $don->where('date_donation', '>=', $cutoff);
-                });
-            });
-
-            // No trainings since cutoff
-            $query->whereDoesntHave('trainings', function ($q) use ($cutoff) {
-                $q->where('training_date', '>=', $cutoff);
-            });
-
-            // No membership payments since cutoff
-            $query->whereDoesntHave('membershipPayments', function ($q) use ($cutoff) {
-                $q->where('payment_date', '>=', $cutoff);
-            });
-
-            return $query->count();
+        // No activity since cutoff
+        $query->whereDoesntHave('activities', function ($q) use ($cutoff) {
+            $q->where('date', '>=', $cutoff);
         });
+
+        // No donations since cutoff
+        $query->whereDoesntHave('donations', function ($q) use ($cutoff) {
+            $q->where(function ($don) use ($cutoff) {
+                $don->where('date_donation', '>=', $cutoff);
+            });
+        });
+
+        // No trainings since cutoff
+        $query->whereDoesntHave('trainings', function ($q) use ($cutoff) {
+            $q->where('training_date', '>=', $cutoff);
+        });
+
+        // No membership payments since cutoff
+        $query->whereDoesntHave('membershipPayments', function ($q) use ($cutoff) {
+            $q->where('payment_date', '>=', $cutoff);
+        });
+
+        return $query->count();
     }
 
     /**
@@ -122,23 +82,18 @@ class RegistrationStatsService
      */
     public function getLoginDormantProfiles(?int $branchId = null): int
     {
-        // 🔧 Fix cache key so it doesn't collide with getDormantProfiles()
-        $cacheKey = $this->cachePrefix . 'login_dormant' . ($branchId ? '_branch_' . $branchId : '_all');
+        $cutoff = now()->subMonths(36);
 
-        return $this->remember($cacheKey, function () use ($branchId) {
-            $cutoff = now()->subMonths(36);
-
-            $query = User::where(function ($q) use ($cutoff) {
-                $q->whereNull('last_login')
-                    ->orWhere('last_login', '<', $cutoff);
-            });
-
-            if ($branchId) {
-                $query->where('branch_id', $branchId);
-            }
-
-            return $query->count();
+        $query = User::where(function ($q) use ($cutoff) {
+            $q->whereNull('last_login')
+                ->orWhere('last_login', '<', $cutoff);
         });
+
+        if ($branchId) {
+            $query->where('branch_id', $branchId);
+        }
+
+        return $query->count();
     }
 
     /*
@@ -165,54 +120,48 @@ class RegistrationStatsService
         // Clamp years between 1 and 10, just to be safe
         $years = max(1, min($years, 10));
 
-        $cacheKey = $this->cachePrefix
-            . 'trend_' . $years
-            . ($branchId ? '_branch_' . $branchId : '_all');
+        // End = current month, start = N years back
+        $end   = now()->startOfMonth();
+        $start = (clone $end)->subYears($years)->startOfMonth();
 
-        return $this->remember($cacheKey, function () use ($years, $branchId) {
-            // End = current month, start = N years back
-            $end   = now()->startOfMonth();
-            $start = (clone $end)->subYears($years)->startOfMonth();
+        $query = User::query()
+            ->selectRaw("DATE_FORMAT(created_at, '%Y-%m') as ym, COUNT(*) as registrations_count")
+            ->whereBetween('created_at', [$start, (clone $end)->endOfMonth()]);
 
-            $query = User::query()
-                ->selectRaw("DATE_FORMAT(created_at, '%Y-%m') as ym, COUNT(*) as registrations_count")
-                ->whereBetween('created_at', [$start, (clone $end)->endOfMonth()]);
+        if ($branchId) {
+            $query->where('branch_id', $branchId);
+        }
 
-            if ($branchId) {
-                $query->where('branch_id', $branchId);
-            }
+        $rows = $query
+            ->groupBy('ym')
+            ->orderBy('ym')
+            ->get();
 
-            $rows = $query
-                ->groupBy('ym')
-                ->orderBy('ym')
-                ->get();
+        $byMonth = $rows->keyBy('ym');
 
-            $byMonth = $rows->keyBy('ym');
+        $labels = [];
+        $values = [];
 
-            $labels = [];
-            $values = [];
+        $cursor = $start->copy();
+        while ($cursor <= $end) {
+            $ym = $cursor->format('Y-m');
 
-            $cursor = $start->copy();
-            while ($cursor <= $end) {
-                $ym = $cursor->format('Y-m');
+            $labels[] = $cursor->format('M Y'); // e.g. "Jan 2024"
+            $values[] = optional($byMonth->get($ym))->registrations_count ?? 0;
 
-                $labels[] = $cursor->format('M Y'); // e.g. "Jan 2024"
-                $values[] = optional($byMonth->get($ym))->registrations_count ?? 0;
+            $cursor->addMonth();
+        }
 
-                $cursor->addMonth();
-            }
-
-            return [
-                'labels' => $labels,
-                'values' => array_map('intval', $values),
-                'meta'   => [
-                    'from'     => $start->toDateString(),
-                    'to'       => $end->toDateString(),
-                    'years'    => $years,
-                    'branchId' => $branchId,
-                ],
-            ];
-        });
+        return [
+            'labels' => $labels,
+            'values' => array_map('intval', $values),
+            'meta'   => [
+                'from'     => $start->toDateString(),
+                'to'       => $end->toDateString(),
+                'years'    => $years,
+                'branchId' => $branchId,
+            ],
+        ];
     }
 
     /**
@@ -228,22 +177,17 @@ class RegistrationStatsService
     {
         [$start, $end] = $this->getCalendarYearRange($year);
 
-        $cacheKey = $this->cachePrefix
-            . 'branch_summary_year_' . $year;
-
-        return $this->remember($cacheKey, function () use ($start, $end) {
-            return DB::table('users as u')
-                ->join('branches as b', 'b.id', '=', 'u.branch_id')
-                ->selectRaw('
-                    u.branch_id,
-                    b.name as branch_name,
-                    COUNT(*) as registrations_count
-                ')
-                ->whereBetween('u.created_at', [$start, $end])
-                ->groupBy('u.branch_id', 'b.name')
-                ->orderBy('b.name')
-                ->get();
-        });
+        return DB::table('users as u')
+            ->join('branches as b', 'b.id', '=', 'u.branch_id')
+            ->selectRaw('
+                u.branch_id,
+                b.name as branch_name,
+                COUNT(*) as registrations_count
+            ')
+            ->whereBetween('u.created_at', [$start, $end])
+            ->groupBy('u.branch_id', 'b.name')
+            ->orderBy('b.name')
+            ->get();
     }
 
     /**
@@ -259,24 +203,18 @@ class RegistrationStatsService
     {
         [$start, $end] = $this->getCalendarYearRange($year);
 
-        $cacheKey = $this->cachePrefix
-            . 'division_summary_branch_' . $branchId
-            . '_year_' . $year;
-
-        return $this->remember($cacheKey, function () use ($branchId, $start, $end) {
-            return DB::table('users as u')
-                ->join('divisions as d', 'd.id', '=', 'u.division_id')
-                ->selectRaw('
-                    u.division_id,
-                    d.name as division_name,
-                    COUNT(*) as registrations_count
-                ')
-                ->where('u.branch_id', $branchId)
-                ->whereBetween('u.created_at', [$start, $end])
-                ->groupBy('u.division_id', 'd.name')
-                ->orderBy('d.name')
-                ->get();
-        });
+        return DB::table('users as u')
+            ->join('divisions as d', 'd.id', '=', 'u.division_id')
+            ->selectRaw('
+                u.division_id,
+                d.name as division_name,
+                COUNT(*) as registrations_count
+            ')
+            ->where('u.branch_id', $branchId)
+            ->whereBetween('u.created_at', [$start, $end])
+            ->groupBy('u.division_id', 'd.name')
+            ->orderBy('d.name')
+            ->get();
     }
 
     /**

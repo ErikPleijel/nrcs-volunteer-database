@@ -10,32 +10,10 @@ use App\Models\RedCrossUnit;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class AdminActivityStatsService
 {
-    /**
-     * Global TTL for all admin activity stats cache (in seconds).
-     *
-     * During dev, you can set this to 1 (or even 0 to disable caching).
-     * In production, 3600 (1 hour) is a reasonable default.
-     */
-    private int $cacheTtl = 1;
-
-    /**
-     * Small helper so we don't repeat Cache::remember everywhere.
-     */
-    private function remember(string $key, \Closure $callback)
-    {
-        // If TTL <= 0, skip cache entirely (useful in dev/debug)
-        if ($this->cacheTtl <= 0) {
-            return $callback();
-        }
-
-        return Cache::remember($key, $this->cacheTtl, $callback);
-    }
-
     /**
      * Monthly ID card print trend for Chart.js.
      *
@@ -53,26 +31,22 @@ class AdminActivityStatsService
         // Clamp years between 1 and 10, just to be safe
         $trendYears = max(1, min($trendYears, 10));
 
-        $cacheKey = 'admin_activity_idcard_trend_' . $trendYears . ($branchId ? '_branch_' . $branchId : '');
+        // End = current month, start = N years back
+        $end   = now()->startOfMonth();
+        $start = (clone $end)->subYears($trendYears)->startOfMonth();
 
-        return $this->remember($cacheKey, function () use ($trendYears, $branchId) {
-            // End = current month, start = N years back
-            $end   = now()->startOfMonth();
-            $start = (clone $end)->subYears($trendYears)->startOfMonth();
+        $query = IdCardPrint::query()
+            ->selectRaw("DATE_FORMAT(id_card_prints.printed_at, '%Y-%m') as ym, COUNT(*) as cnt")
+            ->whereBetween('id_card_prints.printed_at', [$start, (clone $end)->endOfMonth()]);
 
-            $query = IdCardPrint::query()
-                ->selectRaw("DATE_FORMAT(id_card_prints.printed_at, '%Y-%m') as ym, COUNT(*) as cnt")
-                ->whereBetween('id_card_prints.printed_at', [$start, (clone $end)->endOfMonth()]);
+        if ($branchId) {
+            $query->join('users', 'users.id', '=', 'id_card_prints.user_id')
+                ->where('users.branch_id', $branchId);
+        }
 
-            if ($branchId) {
-                $query->join('users', 'users.id', '=', 'id_card_prints.user_id')
-                    ->where('users.branch_id', $branchId);
-            }
+        $rows = $query->groupBy('ym')->orderBy('ym')->get();
 
-            $rows = $query->groupBy('ym')->orderBy('ym')->get();
-
-            return $this->buildMonthlySeries($rows, $start, $end);
-        });
+        return $this->buildMonthlySeries($rows, $start, $end);
     }
 
     /**
@@ -102,24 +76,20 @@ class AdminActivityStatsService
     {
         [$start, $end] = $this->rollingWindow($trendYears);
 
-        $cacheKey = 'admin_activity_idcard_summary_branch_' . $trendYears;
+        $counts = IdCardPrint::query()
+            ->join('users', 'users.id', '=', 'id_card_prints.user_id')
+            ->whereBetween('id_card_prints.printed_at', [$start, $end])
+            ->whereNotNull('users.branch_id')
+            ->selectRaw('users.branch_id, COUNT(*) as cnt')
+            ->groupBy('users.branch_id')
+            ->pluck('cnt', 'branch_id');
 
-        return $this->remember($cacheKey, function () use ($start, $end) {
-            $counts = IdCardPrint::query()
-                ->join('users', 'users.id', '=', 'id_card_prints.user_id')
-                ->whereBetween('id_card_prints.printed_at', [$start, $end])
-                ->whereNotNull('users.branch_id')
-                ->selectRaw('users.branch_id, COUNT(*) as cnt')
-                ->groupBy('users.branch_id')
-                ->pluck('cnt', 'branch_id');
-
-            return Branch::active()->orderBy('name')->get(['id', 'name'])
-                ->map(fn ($branch) => [
-                    'id'    => $branch->id,
-                    'name'  => $branch->name,
-                    'total' => (int) ($counts[$branch->id] ?? 0),
-                ]);
-        });
+        return Branch::active()->orderBy('name')->get(['id', 'name'])
+            ->map(fn ($branch) => [
+                'id'    => $branch->id,
+                'name'  => $branch->name,
+                'total' => (int) ($counts[$branch->id] ?? 0),
+            ]);
     }
 
     /**
@@ -130,25 +100,21 @@ class AdminActivityStatsService
     {
         [$start, $end] = $this->rollingWindow($trendYears);
 
-        $cacheKey = 'admin_activity_idcard_summary_division_' . $trendYears . '_branch_' . $branchId;
+        $counts = IdCardPrint::query()
+            ->join('users', 'users.id', '=', 'id_card_prints.user_id')
+            ->where('users.branch_id', $branchId)
+            ->whereBetween('id_card_prints.printed_at', [$start, $end])
+            ->whereNotNull('users.division_id')
+            ->selectRaw('users.division_id, COUNT(*) as cnt')
+            ->groupBy('users.division_id')
+            ->pluck('cnt', 'division_id');
 
-        return $this->remember($cacheKey, function () use ($start, $end, $branchId) {
-            $counts = IdCardPrint::query()
-                ->join('users', 'users.id', '=', 'id_card_prints.user_id')
-                ->where('users.branch_id', $branchId)
-                ->whereBetween('id_card_prints.printed_at', [$start, $end])
-                ->whereNotNull('users.division_id')
-                ->selectRaw('users.division_id, COUNT(*) as cnt')
-                ->groupBy('users.division_id')
-                ->pluck('cnt', 'division_id');
-
-            return Division::where('branch_id', $branchId)->orderBy('name')->get(['id', 'name'])
-                ->map(fn ($division) => [
-                    'id'    => $division->id,
-                    'name'  => $division->name,
-                    'total' => (int) ($counts[$division->id] ?? 0),
-                ]);
-        });
+        return Division::where('branch_id', $branchId)->orderBy('name')->get(['id', 'name'])
+            ->map(fn ($division) => [
+                'id'    => $division->id,
+                'name'  => $division->name,
+                'total' => (int) ($counts[$division->id] ?? 0),
+            ]);
     }
 
     /**
@@ -162,42 +128,38 @@ class AdminActivityStatsService
     {
         [$start, $end] = $this->rollingWindow($trendYears);
 
-        $cacheKey = 'admin_activity_idcard_summary_unit_' . $trendYears . '_division_' . $divisionId;
+        $counts = IdCardPrint::query()
+            ->join('users', 'users.id', '=', 'id_card_prints.user_id')
+            ->where('users.division_id', $divisionId)
+            ->whereBetween('id_card_prints.printed_at', [$start, $end])
+            ->whereNotNull('users.red_cross_unit_id')
+            ->selectRaw('users.red_cross_unit_id, COUNT(*) as cnt')
+            ->groupBy('users.red_cross_unit_id')
+            ->pluck('cnt', 'red_cross_unit_id');
 
-        return $this->remember($cacheKey, function () use ($start, $end, $divisionId) {
-            $counts = IdCardPrint::query()
+        $rows = RedCrossUnit::where('division_id', $divisionId)->orderBy('name')->get(['id', 'name'])
+            ->map(fn ($unit) => [
+                'id'    => $unit->id,
+                'name'  => $unit->name,
+                'total' => (int) ($counts[$unit->id] ?? 0),
+            ]);
+
+        if (User::where('division_id', $divisionId)->whereNull('red_cross_unit_id')->exists()) {
+            $noUnitTotal = IdCardPrint::query()
                 ->join('users', 'users.id', '=', 'id_card_prints.user_id')
                 ->where('users.division_id', $divisionId)
+                ->whereNull('users.red_cross_unit_id')
                 ->whereBetween('id_card_prints.printed_at', [$start, $end])
-                ->whereNotNull('users.red_cross_unit_id')
-                ->selectRaw('users.red_cross_unit_id, COUNT(*) as cnt')
-                ->groupBy('users.red_cross_unit_id')
-                ->pluck('cnt', 'red_cross_unit_id');
+                ->count();
 
-            $rows = RedCrossUnit::where('division_id', $divisionId)->orderBy('name')->get(['id', 'name'])
-                ->map(fn ($unit) => [
-                    'id'    => $unit->id,
-                    'name'  => $unit->name,
-                    'total' => (int) ($counts[$unit->id] ?? 0),
-                ]);
+            $rows->push([
+                'id'    => null,
+                'name'  => '(No RC Unit)',
+                'total' => $noUnitTotal,
+            ]);
+        }
 
-            if (User::where('division_id', $divisionId)->whereNull('red_cross_unit_id')->exists()) {
-                $noUnitTotal = IdCardPrint::query()
-                    ->join('users', 'users.id', '=', 'id_card_prints.user_id')
-                    ->where('users.division_id', $divisionId)
-                    ->whereNull('users.red_cross_unit_id')
-                    ->whereBetween('id_card_prints.printed_at', [$start, $end])
-                    ->count();
-
-                $rows->push([
-                    'id'    => null,
-                    'name'  => '(No RC Unit)',
-                    'total' => $noUnitTotal,
-                ]);
-            }
-
-            return $rows;
-        });
+        return $rows;
     }
 
     /**
@@ -219,36 +181,32 @@ class AdminActivityStatsService
         // Clamp years between 1 and 10, just to be safe
         $trendYears = max(1, min($trendYears, 10));
 
-        $cacheKey = 'admin_activity_certificate_trend_' . $trendYears . '_' . $certificateType . ($branchId ? '_branch_' . $branchId : '');
+        // End = current month, start = N years back
+        $end   = now()->startOfMonth();
+        $start = (clone $end)->subYears($trendYears)->startOfMonth();
 
-        return $this->remember($cacheKey, function () use ($trendYears, $branchId, $certificateType) {
-            // End = current month, start = N years back
-            $end   = now()->startOfMonth();
-            $start = (clone $end)->subYears($trendYears)->startOfMonth();
+        $query = CertificatePrint::query()
+            ->selectRaw("DATE_FORMAT(certificates_print.printed_at, '%Y-%m') as ym, COUNT(*) as cnt")
+            ->where('certificates_print.certificate_type', $certificateType)
+            ->whereBetween('certificates_print.printed_at', [$start, (clone $end)->endOfMonth()]);
 
-            $query = CertificatePrint::query()
-                ->selectRaw("DATE_FORMAT(certificates_print.printed_at, '%Y-%m') as ym, COUNT(*) as cnt")
-                ->where('certificates_print.certificate_type', $certificateType)
-                ->whereBetween('certificates_print.printed_at', [$start, (clone $end)->endOfMonth()]);
+        $organisationCertificateTypes = ['organisation_membership', 'organisation_donation'];
 
-            $organisationCertificateTypes = ['organisation_membership', 'organisation_donation'];
-
-            if (in_array($certificateType, $organisationCertificateTypes, true)) {
-                if ($branchId) {
-                    $query->join('organisations', 'organisations.id', '=', 'certificates_print.organisation_id')
-                        ->where('organisations.branch_id', $branchId);
-                }
-            } else {
-                if ($branchId) {
-                    $query->join('users', 'users.id', '=', 'certificates_print.user_id')
-                        ->where('users.branch_id', $branchId);
-                }
+        if (in_array($certificateType, $organisationCertificateTypes, true)) {
+            if ($branchId) {
+                $query->join('organisations', 'organisations.id', '=', 'certificates_print.organisation_id')
+                    ->where('organisations.branch_id', $branchId);
             }
+        } else {
+            if ($branchId) {
+                $query->join('users', 'users.id', '=', 'certificates_print.user_id')
+                    ->where('users.branch_id', $branchId);
+            }
+        }
 
-            $rows = $query->groupBy('ym')->orderBy('ym')->get();
+        $rows = $query->groupBy('ym')->orderBy('ym')->get();
 
-            return $this->buildMonthlySeries($rows, $start, $end);
-        });
+        return $this->buildMonthlySeries($rows, $start, $end);
     }
 
     /**
@@ -269,36 +227,32 @@ class AdminActivityStatsService
         [$start, $end] = $this->rollingWindow($trendYears);
         $isOrganisation = in_array($certificateType, self::ORGANISATION_CERTIFICATE_TYPES, true);
 
-        $cacheKey = 'admin_activity_certificate_summary_branch_' . $trendYears . '_' . $certificateType;
+        if ($isOrganisation) {
+            $counts = CertificatePrint::query()
+                ->join('organisations', 'organisations.id', '=', 'certificates_print.organisation_id')
+                ->where('certificates_print.certificate_type', $certificateType)
+                ->whereBetween('certificates_print.printed_at', [$start, $end])
+                ->whereNotNull('organisations.branch_id')
+                ->selectRaw('organisations.branch_id, COUNT(*) as cnt')
+                ->groupBy('organisations.branch_id')
+                ->pluck('cnt', 'branch_id');
+        } else {
+            $counts = CertificatePrint::query()
+                ->join('users', 'users.id', '=', 'certificates_print.user_id')
+                ->where('certificates_print.certificate_type', $certificateType)
+                ->whereBetween('certificates_print.printed_at', [$start, $end])
+                ->whereNotNull('users.branch_id')
+                ->selectRaw('users.branch_id, COUNT(*) as cnt')
+                ->groupBy('users.branch_id')
+                ->pluck('cnt', 'branch_id');
+        }
 
-        return $this->remember($cacheKey, function () use ($start, $end, $certificateType, $isOrganisation) {
-            if ($isOrganisation) {
-                $counts = CertificatePrint::query()
-                    ->join('organisations', 'organisations.id', '=', 'certificates_print.organisation_id')
-                    ->where('certificates_print.certificate_type', $certificateType)
-                    ->whereBetween('certificates_print.printed_at', [$start, $end])
-                    ->whereNotNull('organisations.branch_id')
-                    ->selectRaw('organisations.branch_id, COUNT(*) as cnt')
-                    ->groupBy('organisations.branch_id')
-                    ->pluck('cnt', 'branch_id');
-            } else {
-                $counts = CertificatePrint::query()
-                    ->join('users', 'users.id', '=', 'certificates_print.user_id')
-                    ->where('certificates_print.certificate_type', $certificateType)
-                    ->whereBetween('certificates_print.printed_at', [$start, $end])
-                    ->whereNotNull('users.branch_id')
-                    ->selectRaw('users.branch_id, COUNT(*) as cnt')
-                    ->groupBy('users.branch_id')
-                    ->pluck('cnt', 'branch_id');
-            }
-
-            return Branch::active()->orderBy('name')->get(['id', 'name'])
-                ->map(fn ($branch) => [
-                    'id'    => $branch->id,
-                    'name'  => $branch->name,
-                    'total' => (int) ($counts[$branch->id] ?? 0),
-                ]);
-        });
+        return Branch::active()->orderBy('name')->get(['id', 'name'])
+            ->map(fn ($branch) => [
+                'id'    => $branch->id,
+                'name'  => $branch->name,
+                'total' => (int) ($counts[$branch->id] ?? 0),
+            ]);
     }
 
     /**
@@ -316,26 +270,22 @@ class AdminActivityStatsService
 
         [$start, $end] = $this->rollingWindow($trendYears);
 
-        $cacheKey = 'admin_activity_certificate_summary_division_' . $trendYears . '_' . $certificateType . '_branch_' . $branchId;
+        $counts = CertificatePrint::query()
+            ->join('users', 'users.id', '=', 'certificates_print.user_id')
+            ->where('certificates_print.certificate_type', $certificateType)
+            ->where('users.branch_id', $branchId)
+            ->whereBetween('certificates_print.printed_at', [$start, $end])
+            ->whereNotNull('users.division_id')
+            ->selectRaw('users.division_id, COUNT(*) as cnt')
+            ->groupBy('users.division_id')
+            ->pluck('cnt', 'division_id');
 
-        return $this->remember($cacheKey, function () use ($start, $end, $certificateType, $branchId) {
-            $counts = CertificatePrint::query()
-                ->join('users', 'users.id', '=', 'certificates_print.user_id')
-                ->where('certificates_print.certificate_type', $certificateType)
-                ->where('users.branch_id', $branchId)
-                ->whereBetween('certificates_print.printed_at', [$start, $end])
-                ->whereNotNull('users.division_id')
-                ->selectRaw('users.division_id, COUNT(*) as cnt')
-                ->groupBy('users.division_id')
-                ->pluck('cnt', 'division_id');
-
-            return Division::where('branch_id', $branchId)->orderBy('name')->get(['id', 'name'])
-                ->map(fn ($division) => [
-                    'id'    => $division->id,
-                    'name'  => $division->name,
-                    'total' => (int) ($counts[$division->id] ?? 0),
-                ]);
-        });
+        return Division::where('branch_id', $branchId)->orderBy('name')->get(['id', 'name'])
+            ->map(fn ($division) => [
+                'id'    => $division->id,
+                'name'  => $division->name,
+                'total' => (int) ($counts[$division->id] ?? 0),
+            ]);
     }
 
     /**
@@ -352,44 +302,40 @@ class AdminActivityStatsService
 
         [$start, $end] = $this->rollingWindow($trendYears);
 
-        $cacheKey = 'admin_activity_certificate_summary_unit_' . $trendYears . '_' . $certificateType . '_division_' . $divisionId;
+        $counts = CertificatePrint::query()
+            ->join('users', 'users.id', '=', 'certificates_print.user_id')
+            ->where('certificates_print.certificate_type', $certificateType)
+            ->where('users.division_id', $divisionId)
+            ->whereBetween('certificates_print.printed_at', [$start, $end])
+            ->whereNotNull('users.red_cross_unit_id')
+            ->selectRaw('users.red_cross_unit_id, COUNT(*) as cnt')
+            ->groupBy('users.red_cross_unit_id')
+            ->pluck('cnt', 'red_cross_unit_id');
 
-        return $this->remember($cacheKey, function () use ($start, $end, $certificateType, $divisionId) {
-            $counts = CertificatePrint::query()
+        $rows = RedCrossUnit::where('division_id', $divisionId)->orderBy('name')->get(['id', 'name'])
+            ->map(fn ($unit) => [
+                'id'    => $unit->id,
+                'name'  => $unit->name,
+                'total' => (int) ($counts[$unit->id] ?? 0),
+            ]);
+
+        if (User::where('division_id', $divisionId)->whereNull('red_cross_unit_id')->exists()) {
+            $noUnitTotal = CertificatePrint::query()
                 ->join('users', 'users.id', '=', 'certificates_print.user_id')
                 ->where('certificates_print.certificate_type', $certificateType)
                 ->where('users.division_id', $divisionId)
+                ->whereNull('users.red_cross_unit_id')
                 ->whereBetween('certificates_print.printed_at', [$start, $end])
-                ->whereNotNull('users.red_cross_unit_id')
-                ->selectRaw('users.red_cross_unit_id, COUNT(*) as cnt')
-                ->groupBy('users.red_cross_unit_id')
-                ->pluck('cnt', 'red_cross_unit_id');
+                ->count();
 
-            $rows = RedCrossUnit::where('division_id', $divisionId)->orderBy('name')->get(['id', 'name'])
-                ->map(fn ($unit) => [
-                    'id'    => $unit->id,
-                    'name'  => $unit->name,
-                    'total' => (int) ($counts[$unit->id] ?? 0),
-                ]);
+            $rows->push([
+                'id'    => null,
+                'name'  => '(No RC Unit)',
+                'total' => $noUnitTotal,
+            ]);
+        }
 
-            if (User::where('division_id', $divisionId)->whereNull('red_cross_unit_id')->exists()) {
-                $noUnitTotal = CertificatePrint::query()
-                    ->join('users', 'users.id', '=', 'certificates_print.user_id')
-                    ->where('certificates_print.certificate_type', $certificateType)
-                    ->where('users.division_id', $divisionId)
-                    ->whereNull('users.red_cross_unit_id')
-                    ->whereBetween('certificates_print.printed_at', [$start, $end])
-                    ->count();
-
-                $rows->push([
-                    'id'    => null,
-                    'name'  => '(No RC Unit)',
-                    'total' => $noUnitTotal,
-                ]);
-            }
-
-            return $rows;
-        });
+        return $rows;
     }
 
     /**
@@ -421,69 +367,65 @@ class AdminActivityStatsService
         // Clamp years between 1 and 10, just to be safe
         $trendYears = max(1, min($trendYears, 10));
 
-        $cacheKey = 'admin_activity_message_trend_' . $trendYears . ($branchId ? '_branch_' . $branchId : '');
+        // End = current month, start = N years back
+        $end   = now()->startOfMonth();
+        $start = (clone $end)->subYears($trendYears)->startOfMonth();
+        $windowEnd = (clone $end)->endOfMonth();
 
-        return $this->remember($cacheKey, function () use ($trendYears, $branchId) {
-            // End = current month, start = N years back
-            $end   = now()->startOfMonth();
-            $start = (clone $end)->subYears($trendYears)->startOfMonth();
-            $windowEnd = (clone $end)->endOfMonth();
+        // Query A: User recipients
+        $userRows = DB::table('messaging_recipients')
+            ->join('messaging_campaigns', 'messaging_campaigns.id', '=', 'messaging_recipients.messaging_campaign_id')
+            ->join('users', 'users.id', '=', 'messaging_recipients.recipient_id')
+            ->where('messaging_recipients.recipient_type', 'App\\Models\\User')
+            ->where('messaging_recipients.status', 'sent')
+            ->whereBetween('messaging_recipients.sent_at', [$start, $windowEnd])
+            ->when($branchId, fn ($q) => $q->where('users.branch_id', $branchId))
+            ->selectRaw("DATE_FORMAT(messaging_recipients.sent_at, '%Y-%m') as ym, messaging_campaigns.channel as channel, COUNT(*) as cnt")
+            ->groupBy('ym', 'channel')
+            ->get();
 
-            // Query A: User recipients
-            $userRows = DB::table('messaging_recipients')
-                ->join('messaging_campaigns', 'messaging_campaigns.id', '=', 'messaging_recipients.messaging_campaign_id')
-                ->join('users', 'users.id', '=', 'messaging_recipients.recipient_id')
-                ->where('messaging_recipients.recipient_type', 'App\\Models\\User')
-                ->where('messaging_recipients.status', 'sent')
-                ->whereBetween('messaging_recipients.sent_at', [$start, $windowEnd])
-                ->when($branchId, fn ($q) => $q->where('users.branch_id', $branchId))
-                ->selectRaw("DATE_FORMAT(messaging_recipients.sent_at, '%Y-%m') as ym, messaging_campaigns.channel as channel, COUNT(*) as cnt")
-                ->groupBy('ym', 'channel')
-                ->get();
+        // Query B: Organisation recipients
+        $orgRows = DB::table('messaging_recipients')
+            ->join('messaging_campaigns', 'messaging_campaigns.id', '=', 'messaging_recipients.messaging_campaign_id')
+            ->join('organisations', 'organisations.id', '=', 'messaging_recipients.recipient_id')
+            ->where('messaging_recipients.recipient_type', 'App\\Models\\Organisation')
+            ->where('messaging_recipients.status', 'sent')
+            ->whereBetween('messaging_recipients.sent_at', [$start, $windowEnd])
+            ->when($branchId, fn ($q) => $q->where('organisations.branch_id', $branchId))
+            ->selectRaw("DATE_FORMAT(messaging_recipients.sent_at, '%Y-%m') as ym, messaging_campaigns.channel as channel, COUNT(*) as cnt")
+            ->groupBy('ym', 'channel')
+            ->get();
 
-            // Query B: Organisation recipients
-            $orgRows = DB::table('messaging_recipients')
-                ->join('messaging_campaigns', 'messaging_campaigns.id', '=', 'messaging_recipients.messaging_campaign_id')
-                ->join('organisations', 'organisations.id', '=', 'messaging_recipients.recipient_id')
-                ->where('messaging_recipients.recipient_type', 'App\\Models\\Organisation')
-                ->where('messaging_recipients.status', 'sent')
-                ->whereBetween('messaging_recipients.sent_at', [$start, $windowEnd])
-                ->when($branchId, fn ($q) => $q->where('organisations.branch_id', $branchId))
-                ->selectRaw("DATE_FORMAT(messaging_recipients.sent_at, '%Y-%m') as ym, messaging_campaigns.channel as channel, COUNT(*) as cnt")
-                ->groupBy('ym', 'channel')
-                ->get();
+        // Merge both result sets in PHP: [ym][channel] => cnt
+        $byMonthChannel = [];
 
-            // Merge both result sets in PHP: [ym][channel] => cnt
-            $byMonthChannel = [];
+        foreach ($userRows->merge($orgRows) as $row) {
+            $byMonthChannel[$row->ym][$row->channel] = ($byMonthChannel[$row->ym][$row->channel] ?? 0) + (int) $row->cnt;
+        }
 
-            foreach ($userRows->merge($orgRows) as $row) {
-                $byMonthChannel[$row->ym][$row->channel] = ($byMonthChannel[$row->ym][$row->channel] ?? 0) + (int) $row->cnt;
-            }
+        $labels = [];
+        $email  = [];
+        $sms    = [];
 
-            $labels = [];
-            $email  = [];
-            $sms    = [];
+        $cursor = $start->copy();
+        while ($cursor <= $end) {
+            $ym = $cursor->format('Y-m');
+            $labels[] = $cursor->format('M Y'); // e.g. "Jan 2024"
 
-            $cursor = $start->copy();
-            while ($cursor <= $end) {
-                $ym = $cursor->format('Y-m');
-                $labels[] = $cursor->format('M Y'); // e.g. "Jan 2024"
+            $monthChannels = $byMonthChannel[$ym] ?? [];
 
-                $monthChannels = $byMonthChannel[$ym] ?? [];
+            // 'both' and 'email_fallback_sms' count once, on the email series only — never double-counted.
+            $email[] = ($monthChannels['email'] ?? 0) + ($monthChannels['both'] ?? 0) + ($monthChannels['email_fallback_sms'] ?? 0);
+            $sms[]   = $monthChannels['sms'] ?? 0;
 
-                // 'both' and 'email_fallback_sms' count once, on the email series only — never double-counted.
-                $email[] = ($monthChannels['email'] ?? 0) + ($monthChannels['both'] ?? 0) + ($monthChannels['email_fallback_sms'] ?? 0);
-                $sms[]   = $monthChannels['sms'] ?? 0;
+            $cursor->addMonth();
+        }
 
-                $cursor->addMonth();
-            }
-
-            return [
-                'labels' => $labels,
-                'email'  => $email,
-                'sms'    => $sms,
-            ];
-        });
+        return [
+            'labels' => $labels,
+            'email'  => $email,
+            'sms'    => $sms,
+        ];
     }
 
     /**
@@ -505,42 +447,38 @@ class AdminActivityStatsService
     {
         [$start, $end] = $this->rollingWindow($trendYears);
 
-        $cacheKey = 'admin_activity_message_summary_branch_' . $trendYears;
+        $userCounts = DB::table('messaging_recipients')
+            ->join('users', 'users.id', '=', 'messaging_recipients.recipient_id')
+            ->where('messaging_recipients.recipient_type', 'App\\Models\\User')
+            ->where('messaging_recipients.status', 'sent')
+            ->whereBetween('messaging_recipients.sent_at', [$start, $end])
+            ->whereNotNull('users.branch_id')
+            ->selectRaw('users.branch_id, COUNT(*) as cnt')
+            ->groupBy('users.branch_id')
+            ->pluck('cnt', 'branch_id');
 
-        return $this->remember($cacheKey, function () use ($start, $end) {
-            $userCounts = DB::table('messaging_recipients')
-                ->join('users', 'users.id', '=', 'messaging_recipients.recipient_id')
-                ->where('messaging_recipients.recipient_type', 'App\\Models\\User')
-                ->where('messaging_recipients.status', 'sent')
-                ->whereBetween('messaging_recipients.sent_at', [$start, $end])
-                ->whereNotNull('users.branch_id')
-                ->selectRaw('users.branch_id, COUNT(*) as cnt')
-                ->groupBy('users.branch_id')
-                ->pluck('cnt', 'branch_id');
+        $orgCounts = DB::table('messaging_recipients')
+            ->join('organisations', 'organisations.id', '=', 'messaging_recipients.recipient_id')
+            ->where('messaging_recipients.recipient_type', 'App\\Models\\Organisation')
+            ->where('messaging_recipients.status', 'sent')
+            ->whereBetween('messaging_recipients.sent_at', [$start, $end])
+            ->whereNotNull('organisations.branch_id')
+            ->selectRaw('organisations.branch_id, COUNT(*) as cnt')
+            ->groupBy('organisations.branch_id')
+            ->pluck('cnt', 'branch_id');
 
-            $orgCounts = DB::table('messaging_recipients')
-                ->join('organisations', 'organisations.id', '=', 'messaging_recipients.recipient_id')
-                ->where('messaging_recipients.recipient_type', 'App\\Models\\Organisation')
-                ->where('messaging_recipients.status', 'sent')
-                ->whereBetween('messaging_recipients.sent_at', [$start, $end])
-                ->whereNotNull('organisations.branch_id')
-                ->selectRaw('organisations.branch_id, COUNT(*) as cnt')
-                ->groupBy('organisations.branch_id')
-                ->pluck('cnt', 'branch_id');
+        return Branch::active()->orderBy('name')->get(['id', 'name'])
+            ->map(function ($branch) use ($userCounts, $orgCounts) {
+                $userTotal = (int) ($userCounts[$branch->id] ?? 0);
+                $orgTotal  = (int) ($orgCounts[$branch->id] ?? 0);
 
-            return Branch::active()->orderBy('name')->get(['id', 'name'])
-                ->map(function ($branch) use ($userCounts, $orgCounts) {
-                    $userTotal = (int) ($userCounts[$branch->id] ?? 0);
-                    $orgTotal  = (int) ($orgCounts[$branch->id] ?? 0);
-
-                    return [
-                        'id'        => $branch->id,
-                        'name'      => $branch->name,
-                        'total'     => $userTotal + $orgTotal,
-                        'org_total' => $orgTotal,
-                    ];
-                });
-        });
+                return [
+                    'id'        => $branch->id,
+                    'name'      => $branch->name,
+                    'total'     => $userTotal + $orgTotal,
+                    'org_total' => $orgTotal,
+                ];
+            });
     }
 
     /**
@@ -554,27 +492,23 @@ class AdminActivityStatsService
     {
         [$start, $end] = $this->rollingWindow($trendYears);
 
-        $cacheKey = 'admin_activity_message_summary_division_' . $trendYears . '_branch_' . $branchId;
+        $counts = DB::table('messaging_recipients')
+            ->join('users', 'users.id', '=', 'messaging_recipients.recipient_id')
+            ->where('messaging_recipients.recipient_type', 'App\\Models\\User')
+            ->where('messaging_recipients.status', 'sent')
+            ->where('users.branch_id', $branchId)
+            ->whereBetween('messaging_recipients.sent_at', [$start, $end])
+            ->whereNotNull('users.division_id')
+            ->selectRaw('users.division_id, COUNT(*) as cnt')
+            ->groupBy('users.division_id')
+            ->pluck('cnt', 'division_id');
 
-        return $this->remember($cacheKey, function () use ($start, $end, $branchId) {
-            $counts = DB::table('messaging_recipients')
-                ->join('users', 'users.id', '=', 'messaging_recipients.recipient_id')
-                ->where('messaging_recipients.recipient_type', 'App\\Models\\User')
-                ->where('messaging_recipients.status', 'sent')
-                ->where('users.branch_id', $branchId)
-                ->whereBetween('messaging_recipients.sent_at', [$start, $end])
-                ->whereNotNull('users.division_id')
-                ->selectRaw('users.division_id, COUNT(*) as cnt')
-                ->groupBy('users.division_id')
-                ->pluck('cnt', 'division_id');
-
-            return Division::where('branch_id', $branchId)->orderBy('name')->get(['id', 'name'])
-                ->map(fn ($division) => [
-                    'id'    => $division->id,
-                    'name'  => $division->name,
-                    'total' => (int) ($counts[$division->id] ?? 0),
-                ]);
-        });
+        return Division::where('branch_id', $branchId)->orderBy('name')->get(['id', 'name'])
+            ->map(fn ($division) => [
+                'id'    => $division->id,
+                'name'  => $division->name,
+                'total' => (int) ($counts[$division->id] ?? 0),
+            ]);
     }
 
     /**
@@ -586,46 +520,42 @@ class AdminActivityStatsService
     {
         [$start, $end] = $this->rollingWindow($trendYears);
 
-        $cacheKey = 'admin_activity_message_summary_unit_' . $trendYears . '_division_' . $divisionId;
+        $counts = DB::table('messaging_recipients')
+            ->join('users', 'users.id', '=', 'messaging_recipients.recipient_id')
+            ->where('messaging_recipients.recipient_type', 'App\\Models\\User')
+            ->where('messaging_recipients.status', 'sent')
+            ->where('users.division_id', $divisionId)
+            ->whereBetween('messaging_recipients.sent_at', [$start, $end])
+            ->whereNotNull('users.red_cross_unit_id')
+            ->selectRaw('users.red_cross_unit_id, COUNT(*) as cnt')
+            ->groupBy('users.red_cross_unit_id')
+            ->pluck('cnt', 'red_cross_unit_id');
 
-        return $this->remember($cacheKey, function () use ($start, $end, $divisionId) {
-            $counts = DB::table('messaging_recipients')
+        $rows = RedCrossUnit::where('division_id', $divisionId)->orderBy('name')->get(['id', 'name'])
+            ->map(fn ($unit) => [
+                'id'    => $unit->id,
+                'name'  => $unit->name,
+                'total' => (int) ($counts[$unit->id] ?? 0),
+            ]);
+
+        if (User::where('division_id', $divisionId)->whereNull('red_cross_unit_id')->exists()) {
+            $noUnitTotal = DB::table('messaging_recipients')
                 ->join('users', 'users.id', '=', 'messaging_recipients.recipient_id')
                 ->where('messaging_recipients.recipient_type', 'App\\Models\\User')
                 ->where('messaging_recipients.status', 'sent')
                 ->where('users.division_id', $divisionId)
+                ->whereNull('users.red_cross_unit_id')
                 ->whereBetween('messaging_recipients.sent_at', [$start, $end])
-                ->whereNotNull('users.red_cross_unit_id')
-                ->selectRaw('users.red_cross_unit_id, COUNT(*) as cnt')
-                ->groupBy('users.red_cross_unit_id')
-                ->pluck('cnt', 'red_cross_unit_id');
+                ->count();
 
-            $rows = RedCrossUnit::where('division_id', $divisionId)->orderBy('name')->get(['id', 'name'])
-                ->map(fn ($unit) => [
-                    'id'    => $unit->id,
-                    'name'  => $unit->name,
-                    'total' => (int) ($counts[$unit->id] ?? 0),
-                ]);
+            $rows->push([
+                'id'    => null,
+                'name'  => '(No RC Unit)',
+                'total' => $noUnitTotal,
+            ]);
+        }
 
-            if (User::where('division_id', $divisionId)->whereNull('red_cross_unit_id')->exists()) {
-                $noUnitTotal = DB::table('messaging_recipients')
-                    ->join('users', 'users.id', '=', 'messaging_recipients.recipient_id')
-                    ->where('messaging_recipients.recipient_type', 'App\\Models\\User')
-                    ->where('messaging_recipients.status', 'sent')
-                    ->where('users.division_id', $divisionId)
-                    ->whereNull('users.red_cross_unit_id')
-                    ->whereBetween('messaging_recipients.sent_at', [$start, $end])
-                    ->count();
-
-                $rows->push([
-                    'id'    => null,
-                    'name'  => '(No RC Unit)',
-                    'total' => $noUnitTotal,
-                ]);
-            }
-
-            return $rows;
-        });
+        return $rows;
     }
 
     /**
@@ -634,8 +564,7 @@ class AdminActivityStatsService
      * logic in RegistrationStatsService::getRegistrationTrendForChart() —
      * duplicated here rather than extracted to a shared base class, since
      * RegistrationStatsService (and its siblings, e.g. MembershipStatsService)
-     * don't extend a common parent; each service in this codebase already
-     * duplicates its own remember()/cache boilerplate independently.
+     * don't extend a common parent.
      *
      * @param  \Illuminate\Support\Collection  $rows  each row has ->ym and ->cnt
      */

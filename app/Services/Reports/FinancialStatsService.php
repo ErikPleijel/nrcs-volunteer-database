@@ -11,24 +11,11 @@ use App\Models\RedCrossUnit;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 
 class FinancialStatsService
 {
-    protected string $cachePrefix = 'financial_stats_';
-
-    /**
-     * Simple cache wrapper so we can swap TTL centrally if needed.
-     */
-    protected function remember(string $key, \Closure $callback, ?int $minutes = null)
-    {
-        $minutes ??= 60; // or config('reports.cache_ttl', 60);
-
-        return Cache::remember($this->cachePrefix . $key, $minutes, $callback);
-    }
-
     /**
      * Membership fee revenue trend for charts.
      *
@@ -46,74 +33,66 @@ class FinancialStatsService
             $years = 4;
         }
 
-        $scopeKey =
-            ($branchId ? "_branch_{$branchId}" : '') .
-            ($divisionId ? "_division_{$divisionId}" : '');
+        $quartersCount = $years * 4;
 
-        $cacheKey = "membership_revenue_trend_{$years}{$scopeKey}";
+        // End at current quarter, start N-1 quarters back
+        $endQuarter   = Carbon::now()->startOfQuarter();
+        $startQuarter = $endQuarter->copy()->subQuarters($quartersCount - 1);
 
-        return $this->remember($cacheKey, function () use ($years, $branchId, $divisionId) {
-            $quartersCount = $years * 4;
+        $startDate = $startQuarter->copy()->startOfQuarter();
+        $endDate   = $endQuarter->copy()->endOfQuarter();
 
-            // End at current quarter, start N-1 quarters back
-            $endQuarter   = Carbon::now()->startOfQuarter();
-            $startQuarter = $endQuarter->copy()->subQuarters($quartersCount - 1);
+        // One query to get all sums per year/quarter
+        $query = MembershipPayment::query()
+            ->where('is_deleted', false)
+            ->whereBetween('payment_date', [$startDate, $endDate])
+            ->join('membership_fees', 'membership_payments.membership_fee_id', '=', 'membership_fees.id');
 
-            $startDate = $startQuarter->copy()->startOfQuarter();
-            $endDate   = $endQuarter->copy()->endOfQuarter();
+        if ($branchId) {
+            $query->where('membership_payments.branch_id', $branchId);
+        }
 
-            // One query to get all sums per year/quarter
-            $query = MembershipPayment::query()
-                ->where('is_deleted', false)
-                ->whereBetween('payment_date', [$startDate, $endDate])
-                ->join('membership_fees', 'membership_payments.membership_fee_id', '=', 'membership_fees.id');
+        if ($divisionId) {
+            $query->where('membership_payments.division_id', $divisionId);
+        }
 
-            if ($branchId) {
-                $query->where('membership_payments.branch_id', $branchId);
-            }
+        $rows = $query
+            ->selectRaw('YEAR(payment_date) as year_num')
+            ->selectRaw('QUARTER(payment_date) as quarter_num')
+            ->selectRaw('SUM(membership_fees.amount) as total_amount')
+            ->groupBy('year_num', 'quarter_num')
+            ->orderBy('year_num')
+            ->orderBy('quarter_num')
+            ->get();
 
-            if ($divisionId) {
-                $query->where('membership_payments.division_id', $divisionId);
-            }
+        // Index by "YYYY-Qn" for fast lookup
+        $indexed = [];
+        foreach ($rows as $row) {
+            $key = sprintf('%d-Q%d', $row->year_num, $row->quarter_num);
+            $indexed[$key] = (float) $row->total_amount;
+        }
 
-            $rows = $query
-                ->selectRaw('YEAR(payment_date) as year_num')
-                ->selectRaw('QUARTER(payment_date) as quarter_num')
-                ->selectRaw('SUM(membership_fees.amount) as total_amount')
-                ->groupBy('year_num', 'quarter_num')
-                ->orderBy('year_num')
-                ->orderBy('quarter_num')
-                ->get();
+        $labels = [];
+        $values = [];
 
-            // Index by "YYYY-Qn" for fast lookup
-            $indexed = [];
-            foreach ($rows as $row) {
-                $key = sprintf('%d-Q%d', $row->year_num, $row->quarter_num);
-                $indexed[$key] = (float) $row->total_amount;
-            }
+        // Build continuous quarter timeline from start → end
+        $cursor = $startQuarter->copy();
+        for ($i = 0; $i < $quartersCount; $i++) {
+            $year    = $cursor->year;
+            $quarter = (int) ceil($cursor->month / 3);
 
-            $labels = [];
-            $values = [];
+            $key = sprintf('%d-Q%d', $year, $quarter);
 
-            // Build continuous quarter timeline from start → end
-            $cursor = $startQuarter->copy();
-            for ($i = 0; $i < $quartersCount; $i++) {
-                $year    = $cursor->year;
-                $quarter = (int) ceil($cursor->month / 3);
+            $labels[] = $year . ' Q' . $quarter;
+            $values[] = $indexed[$key] ?? 0.0;
 
-                $key = sprintf('%d-Q%d', $year, $quarter);
+            $cursor->addQuarter();
+        }
 
-                $labels[] = $year . ' Q' . $quarter;
-                $values[] = $indexed[$key] ?? 0.0;
-
-                $cursor->addQuarter();
-            }
-
-            return [
-                'labels' => $labels,
-                'values' => $values,
-            ];
-        });
+        return [
+            'labels' => $labels,
+            'values' => $values,
+        ];
     }
 
 
@@ -127,99 +106,90 @@ class FinancialStatsService
         ?int $branchId = null,
         ?int $divisionId = null
     ): Collection {
-        // Normalise for cache key: 0 / null → "all"
-        $branchKey   = ($branchId === null || $branchId === 0) ? 'all' : $branchId;
-        $divisionKey = ($divisionId === null || $divisionId === 0) ? 'all' : $divisionId;
+        // 🔹 CASE 1: National – group by BRANCH
+        if ($branchId === null || $branchId === 0) {
+            $query = MembershipPayment::query()
+                ->where('is_deleted', false)
+                ->whereYear('payment_date', $year)
+                ->join('membership_fees', 'membership_payments.membership_fee_id', '=', 'membership_fees.id')
+                ->join('branches', 'membership_payments.branch_id', '=', 'branches.id');
 
-        $cacheKey = "membership_quarters_{$year}_branch_{$branchKey}_division_{$divisionKey}";
-
-        return $this->remember($cacheKey, function () use ($year, $branchId, $divisionId) {
-
-            // 🔹 CASE 1: National – group by BRANCH
-            if ($branchId === null || $branchId === 0) {
-                $query = MembershipPayment::query()
-                    ->where('is_deleted', false)
-                    ->whereYear('payment_date', $year)
-                    ->join('membership_fees', 'membership_payments.membership_fee_id', '=', 'membership_fees.id')
-                    ->join('branches', 'membership_payments.branch_id', '=', 'branches.id');
-
-                // (Optional) you *could* still allow division filter here
-                if (!is_null($divisionId) && $divisionId !== 0) {
-                    $query->where('membership_payments.division_id', $divisionId);
-                }
-
-                $rows = $query
-                    ->select([
-                        'branches.id as branch_id',
-                        'branches.name as branch_name',
-                        DB::raw("QUARTER(payment_date) as quarter"),
-                        DB::raw("SUM(membership_fees.amount) as total_amount"),
-                        DB::raw("COUNT(membership_payments.id) as payment_count"),
-                    ])
-                    ->groupBy('branches.id', 'branches.name', DB::raw("QUARTER(payment_date)"))
-                    ->orderBy('branches.name')
-                    ->get();
-
-            } else {
-                // 🔹 CASE 2: Branch selected – group by DIVISIONS in that branch
-                $query = MembershipPayment::query()
-                    ->where('is_deleted', false)
-                    ->whereYear('payment_date', $year)
-                    ->where('membership_payments.branch_id', $branchId)
-                    ->join('membership_fees', 'membership_payments.membership_fee_id', '=', 'membership_fees.id')
-                    ->join('divisions', 'membership_payments.division_id', '=', 'divisions.id');
-
-                // Optional single-division filter
-                if (!is_null($divisionId) && $divisionId !== 0) {
-                    $query->where('membership_payments.division_id', $divisionId);
-                }
-
-                // ⚠️ Here we alias division fields as branch_* to keep blades unchanged
-                $rows = $query
-                    ->select([
-                        'divisions.id as branch_id',
-                        'divisions.name as branch_name',
-                        DB::raw("QUARTER(payment_date) as quarter"),
-                        DB::raw("SUM(membership_fees.amount) as total_amount"),
-                        DB::raw("COUNT(membership_payments.id) as payment_count"),
-                    ])
-                    ->groupBy('divisions.id', 'divisions.name', DB::raw("QUARTER(payment_date)"))
-                    ->orderBy('divisions.name')
-                    ->get();
+            // (Optional) you *could* still allow division filter here
+            if (!is_null($divisionId) && $divisionId !== 0) {
+                $query->where('membership_payments.division_id', $divisionId);
             }
 
-            // 👇 reshaping stays exactly as you had it
-            $grouped = $rows->groupBy('branch_id');
+            $rows = $query
+                ->select([
+                    'branches.id as branch_id',
+                    'branches.name as branch_name',
+                    DB::raw("QUARTER(payment_date) as quarter"),
+                    DB::raw("SUM(membership_fees.amount) as total_amount"),
+                    DB::raw("COUNT(membership_payments.id) as payment_count"),
+                ])
+                ->groupBy('branches.id', 'branches.name', DB::raw("QUARTER(payment_date)"))
+                ->orderBy('branches.name')
+                ->get();
 
-            return $grouped->map(function ($items) {
-                $branchName = $items->first()->branch_name;
+        } else {
+            // 🔹 CASE 2: Branch selected – group by DIVISIONS in that branch
+            $query = MembershipPayment::query()
+                ->where('is_deleted', false)
+                ->whereYear('payment_date', $year)
+                ->where('membership_payments.branch_id', $branchId)
+                ->join('membership_fees', 'membership_payments.membership_fee_id', '=', 'membership_fees.id')
+                ->join('divisions', 'membership_payments.division_id', '=', 'divisions.id');
 
-                $quarters = [
-                    'q1' => 0,
-                    'q2' => 0,
-                    'q3' => 0,
-                    'q4' => 0,
-                ];
+            // Optional single-division filter
+            if (!is_null($divisionId) && $divisionId !== 0) {
+                $query->where('membership_payments.division_id', $divisionId);
+            }
 
-                $total = 0;
+            // ⚠️ Here we alias division fields as branch_* to keep blades unchanged
+            $rows = $query
+                ->select([
+                    'divisions.id as branch_id',
+                    'divisions.name as branch_name',
+                    DB::raw("QUARTER(payment_date) as quarter"),
+                    DB::raw("SUM(membership_fees.amount) as total_amount"),
+                    DB::raw("COUNT(membership_payments.id) as payment_count"),
+                ])
+                ->groupBy('divisions.id', 'divisions.name', DB::raw("QUARTER(payment_date)"))
+                ->orderBy('divisions.name')
+                ->get();
+        }
 
-                foreach ($items as $row) {
-                    $key = 'q' . $row->quarter;
-                    $quarters[$key] = (float) $row->total_amount;
-                    $total += (float) $row->total_amount;
-                }
+        // 👇 reshaping stays exactly as you had it
+        $grouped = $rows->groupBy('branch_id');
 
-                return (object)[
-                    'branch_id'   => $items->first()->branch_id,
-                    'branch_name' => $branchName, // at branch level this is actually division name
-                    'q1'          => $quarters['q1'],
-                    'q2'          => $quarters['q2'],
-                    'q3'          => $quarters['q3'],
-                    'q4'          => $quarters['q4'],
-                    'total'       => $total,
-                ];
-            })->values();
-        });
+        return $grouped->map(function ($items) {
+            $branchName = $items->first()->branch_name;
+
+            $quarters = [
+                'q1' => 0,
+                'q2' => 0,
+                'q3' => 0,
+                'q4' => 0,
+            ];
+
+            $total = 0;
+
+            foreach ($items as $row) {
+                $key = 'q' . $row->quarter;
+                $quarters[$key] = (float) $row->total_amount;
+                $total += (float) $row->total_amount;
+            }
+
+            return (object)[
+                'branch_id'   => $items->first()->branch_id,
+                'branch_name' => $branchName, // at branch level this is actually division name
+                'q1'          => $quarters['q1'],
+                'q2'          => $quarters['q2'],
+                'q3'          => $quarters['q3'],
+                'q4'          => $quarters['q4'],
+                'total'       => $total,
+            ];
+        })->values();
     }
 
 
@@ -228,58 +198,53 @@ class FinancialStatsService
         int $year,
         int $branchId
     ): Collection {
-        $cacheKey = "division_membership_quarters_{$year}_branch_{$branchId}";
+        $rows = MembershipPayment::query()
+            ->where('is_deleted', false)
+            ->whereYear('payment_date', $year)
+            ->where('membership_payments.branch_id', $branchId)
+            ->join('membership_fees', 'membership_payments.membership_fee_id', '=', 'membership_fees.id')
+            ->join('divisions', 'membership_payments.division_id', '=', 'divisions.id')
+            ->select([
+                'divisions.id   as division_id',
+                'divisions.name as division_name',
+                DB::raw("QUARTER(payment_date) as quarter"),
+                DB::raw("SUM(membership_fees.amount) as total_amount"),
+                DB::raw("COUNT(membership_payments.id) as payment_count"),
+            ])
+            ->groupBy('divisions.id', 'divisions.name', DB::raw("QUARTER(payment_date)"))
+            ->orderBy('divisions.name')
+            ->get();
 
-        return $this->remember($cacheKey, function () use ($year, $branchId) {
+        $grouped = $rows->groupBy('division_id');
 
-            $rows = MembershipPayment::query()
-                ->where('is_deleted', false)
-                ->whereYear('payment_date', $year)
-                ->where('membership_payments.branch_id', $branchId)
-                ->join('membership_fees', 'membership_payments.membership_fee_id', '=', 'membership_fees.id')
-                ->join('divisions', 'membership_payments.division_id', '=', 'divisions.id')
-                ->select([
-                    'divisions.id   as division_id',
-                    'divisions.name as division_name',
-                    DB::raw("QUARTER(payment_date) as quarter"),
-                    DB::raw("SUM(membership_fees.amount) as total_amount"),
-                    DB::raw("COUNT(membership_payments.id) as payment_count"),
-                ])
-                ->groupBy('divisions.id', 'divisions.name', DB::raw("QUARTER(payment_date)"))
-                ->orderBy('divisions.name')
-                ->get();
+        return $grouped->map(function ($items) {
+            $divisionName = $items->first()->division_name;
 
-            $grouped = $rows->groupBy('division_id');
+            $quarters = [
+                'q1' => 0,
+                'q2' => 0,
+                'q3' => 0,
+                'q4' => 0,
+            ];
 
-            return $grouped->map(function ($items) {
-                $divisionName = $items->first()->division_name;
+            $total = 0;
 
-                $quarters = [
-                    'q1' => 0,
-                    'q2' => 0,
-                    'q3' => 0,
-                    'q4' => 0,
-                ];
+            foreach ($items as $row) {
+                $key = 'q' . $row->quarter;
+                $quarters[$key] = (float) $row->total_amount;
+                $total += (float) $row->total_amount;
+            }
 
-                $total = 0;
-
-                foreach ($items as $row) {
-                    $key = 'q' . $row->quarter;
-                    $quarters[$key] = (float) $row->total_amount;
-                    $total += (float) $row->total_amount;
-                }
-
-                return (object)[
-                    'division_id'   => $items->first()->division_id,
-                    'division_name' => $divisionName,
-                    'q1'            => $quarters['q1'],
-                    'q2'            => $quarters['q2'],
-                    'q3'            => $quarters['q3'],
-                    'q4'            => $quarters['q4'],
-                    'total'         => $total,
-                ];
-            })->values();
-        });
+            return (object)[
+                'division_id'   => $items->first()->division_id,
+                'division_name' => $divisionName,
+                'q1'            => $quarters['q1'],
+                'q2'            => $quarters['q2'],
+                'q3'            => $quarters['q3'],
+                'q4'            => $quarters['q4'],
+                'total'         => $total,
+            ];
+        })->values();
     }
 
 
@@ -319,31 +284,24 @@ class FinancialStatsService
         ?int $divisionId = null,
         ?int $redCrossUnitId = null
     ): float {
-        $cacheKey = "membership_revenue_{$startDate->toDateString()}_{$endDate->toDateString()}"
-            . ($branchId ? "_branch_{$branchId}" : "")
-            . ($divisionId ? "_division_{$divisionId}" : "")
-            . ($redCrossUnitId ? "_unit_{$redCrossUnitId}" : "");
+        $query = MembershipPayment::where('is_deleted', false)
+            ->whereBetween('payment_date', [$startDate, $endDate])
+            ->join('membership_fees', 'membership_payments.membership_fee_id', '=', 'membership_fees.id');
 
-        return $this->remember($cacheKey, function () use ($startDate, $endDate, $branchId, $divisionId, $redCrossUnitId) {
-            $query = MembershipPayment::where('is_deleted', false)
-                ->whereBetween('payment_date', [$startDate, $endDate])
-                ->join('membership_fees', 'membership_payments.membership_fee_id', '=', 'membership_fees.id');
+        if ($branchId) {
+            $query->where('membership_payments.branch_id', $branchId);
+        }
 
-            if ($branchId) {
-                $query->where('membership_payments.branch_id', $branchId);
-            }
+        if ($divisionId) {
+            $query->where('membership_payments.division_id', $divisionId);
+        }
 
-            if ($divisionId) {
-                $query->where('membership_payments.division_id', $divisionId);
-            }
+        if ($redCrossUnitId) {
+            $query->join('users', 'membership_payments.user_id', '=', 'users.id')
+                ->where('users.red_cross_unit_id', $redCrossUnitId);
+        }
 
-            if ($redCrossUnitId) {
-                $query->join('users', 'membership_payments.user_id', '=', 'users.id')
-                    ->where('users.red_cross_unit_id', $redCrossUnitId);
-            }
-
-            return (float) $query->sum('membership_fees.amount');
-        });
+        return (float) $query->sum('membership_fees.amount');
     }
 
     /**
@@ -356,28 +314,15 @@ class FinancialStatsService
         ?int $divisionId = null,
         ?int $redCrossUnitId = null
     ): float {
-        $cacheKey = "cash_donation_revenue_{$startDate->toDateString()}_{$endDate->toDateString()}"
-            . ($branchId ? "_branch_{$branchId}" : "")
-            . ($divisionId ? "_division_{$divisionId}" : "")
-            . ($redCrossUnitId ? "_unit_{$redCrossUnitId}" : "");
+        $query = $this->baseDonationQuery($branchId, $divisionId)
+            ->whereBetween('date_donation', [$startDate, $endDate]);
 
-        return $this->remember($cacheKey, function () use (
-            $startDate,
-            $endDate,
-            $branchId,
-            $divisionId,
-            $redCrossUnitId
-        ) {
-            $query = $this->baseDonationQuery($branchId, $divisionId)
-                ->whereBetween('date_donation', [$startDate, $endDate]);
+        if ($redCrossUnitId) {
+            $query->join('users', 'donations.user_id', '=', 'users.id')
+                ->where('users.red_cross_unit_id', $redCrossUnitId);
+        }
 
-            if ($redCrossUnitId) {
-                $query->join('users', 'donations.user_id', '=', 'users.id')
-                    ->where('users.red_cross_unit_id', $redCrossUnitId);
-            }
-
-            return (float) $query->sum('donations.amount');
-        });
+        return (float) $query->sum('donations.amount');
     }
 
     /**
@@ -387,31 +332,23 @@ class FinancialStatsService
         ?Carbon $startDate = null,
         ?Carbon $endDate = null
     ): Collection {
-        $keyPart = ($startDate && $endDate)
-            ? "{$startDate->toDateString()}_{$endDate->toDateString()}"
-            : 'all_time';
+        $query = $this->baseDonationQuery(null, null);
 
-        $cacheKey = "national_branch_summaries_{$keyPart}";
+        if ($startDate && $endDate) {
+            $query->whereBetween('date_donation', [$startDate, $endDate]);
+        }
 
-        return $this->remember($cacheKey, function () use ($startDate, $endDate) {
-            $query = $this->baseDonationQuery(null, null);
+        $query->join('branches', 'donations.branch_id', '=', 'branches.id')
+            ->select([
+                'branches.id as branch_id',
+                'branches.name as branch_name',
+                DB::raw("SUM(donations.amount) AS total_cash_donations"),
+                DB::raw("COUNT(donations.id) AS donation_count"),
+            ])
+            ->groupBy('branches.id', 'branches.name')
+            ->orderBy('branches.name');
 
-            if ($startDate && $endDate) {
-                $query->whereBetween('date_donation', [$startDate, $endDate]);
-            }
-
-            $query->join('branches', 'donations.branch_id', '=', 'branches.id')
-                ->select([
-                    'branches.id as branch_id',
-                    'branches.name as branch_name',
-                    DB::raw("SUM(donations.amount) AS total_cash_donations"),
-                    DB::raw("COUNT(donations.id) AS donation_count"),
-                ])
-                ->groupBy('branches.id', 'branches.name')
-                ->orderBy('branches.name');
-
-            return $query->get();
-        });
+        return $query->get();
     }
 
     /**
@@ -422,31 +359,23 @@ class FinancialStatsService
         ?Carbon $startDate = null,
         ?Carbon $endDate = null
     ): Collection {
-        $keyPart = ($startDate && $endDate)
-            ? "{$startDate->toDateString()}_{$endDate->toDateString()}"
-            : 'all_time';
+        $query = $this->baseDonationQuery($branch->id, null);
 
-        $cacheKey = "branch_division_summaries_{$branch->id}_{$keyPart}";
+        if ($startDate && $endDate) {
+            $query->whereBetween('date_donation', [$startDate, $endDate]);
+        }
 
-        return $this->remember($cacheKey, function () use ($branch, $startDate, $endDate) {
-            $query = $this->baseDonationQuery($branch->id, null);
+        $query->join('divisions', 'donations.division_id', '=', 'divisions.id')
+            ->select([
+                'divisions.id as division_id',
+                'divisions.name as division_name',
+                DB::raw("SUM(donations.amount) AS total_cash_donations"),
+                DB::raw("COUNT(donations.id) AS donation_count"),
+            ])
+            ->groupBy('divisions.id', 'divisions.name')
+            ->orderBy('divisions.name');
 
-            if ($startDate && $endDate) {
-                $query->whereBetween('date_donation', [$startDate, $endDate]);
-            }
-
-            $query->join('divisions', 'donations.division_id', '=', 'divisions.id')
-                ->select([
-                    'divisions.id as division_id',
-                    'divisions.name as division_name',
-                    DB::raw("SUM(donations.amount) AS total_cash_donations"),
-                    DB::raw("COUNT(donations.id) AS donation_count"),
-                ])
-                ->groupBy('divisions.id', 'divisions.name')
-                ->orderBy('divisions.name');
-
-            return $query->get();
-        });
+        return $query->get();
     }
 
     /**
@@ -457,31 +386,23 @@ class FinancialStatsService
         ?Carbon $startDate = null,
         ?Carbon $endDate = null
     ): Collection {
-        $keyPart = ($startDate && $endDate)
-            ? "{$startDate->toDateString()}_{$endDate->toDateString()}"
-            : 'all_time';
+        $query = $this->baseDonationQuery(null, $division->id);
 
-        $cacheKey = "division_unit_summaries_{$division->id}_{$keyPart}";
+        if ($startDate && $endDate) {
+            $query->whereBetween('date_donation', [$startDate, $endDate]);
+        }
 
-        return $this->remember($cacheKey, function () use ($division, $startDate, $endDate) {
-            $query = $this->baseDonationQuery(null, $division->id);
+        $query->join('red_cross_units', 'donations.red_cross_unit_id', '=', 'red_cross_units.id')
+            ->select([
+                'red_cross_units.id as unit_id',
+                'red_cross_units.name as unit_name',
+                DB::raw("SUM(donations.amount) AS total_cash_donations"),
+                DB::raw("COUNT(donations.id) AS donation_count"),
+            ])
+            ->groupBy('red_cross_units.id', 'red_cross_units.name')
+            ->orderBy('red_cross_units.name');
 
-            if ($startDate && $endDate) {
-                $query->whereBetween('date_donation', [$startDate, $endDate]);
-            }
-
-            $query->join('red_cross_units', 'donations.red_cross_unit_id', '=', 'red_cross_units.id')
-                ->select([
-                    'red_cross_units.id as unit_id',
-                    'red_cross_units.name as unit_name',
-                    DB::raw("SUM(donations.amount) AS total_cash_donations"),
-                    DB::raw("COUNT(donations.id) AS donation_count"),
-                ])
-                ->groupBy('red_cross_units.id', 'red_cross_units.name')
-                ->orderBy('red_cross_units.name');
-
-            return $query->get();
-        });
+        return $query->get();
     }
 
     /**
@@ -492,32 +413,24 @@ class FinancialStatsService
         ?Carbon $startDate = null,
         ?Carbon $endDate = null
     ): Collection {
-        $keyPart = ($startDate && $endDate)
-            ? "{$startDate->toDateString()}_{$endDate->toDateString()}"
-            : 'all_time';
+        $query = $this->baseDonationQuery(null, null)
+            ->where('donations.red_cross_unit_id', $unit->id);
 
-        $cacheKey = "unit_member_summaries_{$unit->id}_{$keyPart}";
+        if ($startDate && $endDate) {
+            $query->whereBetween('date_donation', [$startDate, $endDate]);
+        }
 
-        return $this->remember($cacheKey, function () use ($unit, $startDate, $endDate) {
-            $query = $this->baseDonationQuery(null, null)
-                ->where('donations.red_cross_unit_id', $unit->id);
+        $query->join('users', 'donations.user_id', '=', 'users.id')
+            ->select([
+                'users.id as user_id',
+                'users.name as user_name',
+                DB::raw("SUM(donations.amount) AS total_cash_donations"),
+                DB::raw("COUNT(donations.id) AS donation_count"),
+            ])
+            ->groupBy('users.id', 'users.name')
+            ->orderBy('users.name');
 
-            if ($startDate && $endDate) {
-                $query->whereBetween('date_donation', [$startDate, $endDate]);
-            }
-
-            $query->join('users', 'donations.user_id', '=', 'users.id')
-                ->select([
-                    'users.id as user_id',
-                    'users.name as user_name',
-                    DB::raw("SUM(donations.amount) AS total_cash_donations"),
-                    DB::raw("COUNT(donations.id) AS donation_count"),
-                ])
-                ->groupBy('users.id', 'users.name')
-                ->orderBy('users.name');
-
-            return $query->get();
-        });
+        return $query->get();
     }
 
     /**
@@ -529,41 +442,31 @@ class FinancialStatsService
         ?int $divisionId = null,
         ?int $redCrossUnitId = null
     ): array {
-        $scopeKey =
-            ($branchId ? "_branch_{$branchId}" : '') .
-            ($divisionId ? "_division_{$divisionId}" : '') .
-            ($redCrossUnitId ? "_unit_{$redCrossUnitId}" : '');
+        $labels = [];
+        $cash   = [];
 
-        $cacheKey = "donation_trend_{$months}{$scopeKey}";
+        $end   = now()->startOfMonth();
+        $start = $end->copy()->subMonths($months - 1);
 
-        return $this->remember($cacheKey, function () use ($months, $branchId, $divisionId, $redCrossUnitId) {
-            $labels = [];
-            $cash   = [];
+        for ($i = 0; $i < $months; $i++) {
+            $month = $start->copy()->addMonths($i);
+            $labels[] = $month->format('Y-m');
 
-            $end   = now()->startOfMonth();
-            $start = $end->copy()->subMonths($months - 1);
+            $monthQuery = $this->baseDonationQuery($branchId, $divisionId)
+                ->whereYear('date_donation', $month->year)
+                ->whereMonth('date_donation', $month->month);
 
-            for ($i = 0; $i < $months; $i++) {
-                $month = $start->copy()->addMonths($i);
-                $labels[] = $month->format('Y-m');
-
-                $monthQuery = $this->baseDonationQuery($branchId, $divisionId)
-                    ->whereYear('date_donation', $month->year)
-                    ->whereMonth('date_donation', $month->month);
-
-                if ($redCrossUnitId) {
-                    $monthQuery->join('users', 'donations.user_id', '=', 'users.id')
-                        ->where('users.red_cross_unit_id', $redCrossUnitId);
-                }
-
-                $cash[] = (float) $monthQuery->sum('donations.amount');
+            if ($redCrossUnitId) {
+                $monthQuery->join('users', 'donations.user_id', '=', 'users.id')
+                    ->where('users.red_cross_unit_id', $redCrossUnitId);
             }
 
-            return [
-                'labels' => $labels,
-                'values' => $cash,
-            ];
-        });
+            $cash[] = (float) $monthQuery->sum('donations.amount');
+        }
+
+        return [
+            'labels' => $labels,
+            'values' => $cash,
+        ];
     }
 }
-
