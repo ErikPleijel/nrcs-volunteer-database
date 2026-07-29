@@ -3,6 +3,8 @@
     $pageHeader = 'Donations – Breakdown';
     $typeLabel  = $type === 'in-kind' ? 'In-kind' : 'Cash';
 
+    $areaLabel = $level === 'division' ? "Division: {$area->name}" : "Branch: {$area->name}";
+
     $breadcrumbs = [
         ['label' => 'Dashboard', 'route' => 'reports.dashboard'],
         ['label' => 'Donations National', 'route' => 'reports.donations.national'],
@@ -18,13 +20,24 @@
     <div class="max-w-3xl mx-auto">
         <div class="flex items-center justify-between mb-4">
             <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
-                {{ $branch->name }} &mdash; {{ $year }} Q{{ $quarter }} &mdash; {{ $typeLabel }} donations
+                {{ $areaLabel }} &mdash; {{ $year }} Q{{ $quarter }} &mdash; {{ $typeLabel }} donations
             </h2>
 
-            <a href="{{ route('reports.donations.national', ['year' => $year]) }}"
-               class="filter-btn-secondary">
-                <i class="fas fa-arrow-left mr-1"></i>Back to summary
-            </a>
+            {{-- Division-level breakdowns land on the branch view (the actual
+                 page with division-level donation data); branch-level ones
+                 land on the national summary — donations.branch has no
+                 division-scoped mode the way financial.index lacks one. --}}
+            @if ($level === 'division')
+                <a href="{{ route('reports.donations.branch', ['branch' => $area->branch_id, 'year' => $year]) }}"
+                   class="filter-btn-secondary">
+                    <i class="fas fa-arrow-left mr-1"></i>Back to summary
+                </a>
+            @else
+                <a href="{{ route('reports.donations.national', ['year' => $year]) }}"
+                   class="filter-btn-secondary">
+                    <i class="fas fa-arrow-left mr-1"></i>Back to summary
+                </a>
+            @endif
         </div>
 
         <div class="table-container">

@@ -1444,7 +1444,7 @@
                 Financial Trends
             </a>
             <a href="{{ route('reports.financial.index') }}" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded shadow">
-                Financial Breakdown
+                Membership Revenue Report
             </a>
             <a href="{{ route('reports.donations.national') }}" class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded shadow">
                 Donation Reports

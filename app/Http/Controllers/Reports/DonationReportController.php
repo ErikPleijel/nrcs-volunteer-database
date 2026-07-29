@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Reports;
 
 use App\Http\Controllers\Controller;
 use App\Models\Branch;
+use App\Models\Division;
 use App\Models\Donation;
 use App\Services\Reports\DonationStatsService;
 use Carbon\Carbon;
@@ -163,36 +164,64 @@ class DonationReportController extends Controller
 
     /**
      * Breakdown: the individual donations behind one Quarterly Donations
-     * Summary cell (branch + year + quarter + cash/in-kind). Reproduces the
-     * exact same filter predicate as
-     * DonationStatsService::getBranchDonationQuarterlySummary() so this list's
-     * total always matches the summary cell that was clicked.
+     * Summary cell (branch OR division + year + quarter + cash/in-kind).
+     * Reproduces the exact same filter predicate as
+     * DonationStatsService::getBranchDonationQuarterlySummary() /
+     * getDivisionDonationQuarterlySummary() so this list's total always
+     * matches the summary cell that was clicked.
+     *
+     * $level distinguishes a branch-level row (national summary, one row
+     * per branch) from a division-level row (branch view, one row per
+     * division) — mirrors FinancialOverviewReportController::breakdown()'s
+     * level param exactly. The 'branch_id' param name is kept (not
+     * renamed) for signature stability; its value is interpreted as a
+     * division_id when $level === 'division'.
      */
     public function breakdown(Request $request)
     {
-        $branchId = (int) $request->input('branch_id');
+        $id       = (int) $request->input('branch_id');
+        $level    = $request->input('level', 'branch') === 'division' ? 'division' : 'branch';
         $year     = (int) $request->input('year');
         $quarter  = (int) $request->input('quarter');
         $type     = $request->input('type') === 'in-kind' ? 'in-kind' : 'cash';
 
-        // Branch/division-level viewers may only drill into their own branch —
-        // national-level viewers (including observer_national_level, per
-        // User::NATIONAL_ROLES) are unrestricted, matching getAccessLevel().
-        $accessLevel = auth()->user()->getAccessLevel();
-        $scopedBranchId = auth()->user()->getScopedBranchId();
+        $area = $level === 'division'
+            ? Division::findOrFail($id)
+            : Branch::findOrFail($id);
 
-        if (in_array($accessLevel, ['branch', 'division'], true) && $scopedBranchId !== $branchId) {
+        // Hierarchy-aware scope check — matches
+        // FinancialOverviewReportController::breakdown() exactly. Branch-level
+        // viewers may drill into their own branch OR any division within it
+        // (checked via that division's own branch_id); division-level viewers
+        // may only drill into their own division, never a branch-level
+        // breakdown even for their own enclosing branch; national-level
+        // viewers (including observer_national_level, per
+        // User::NATIONAL_ROLES) are unrestricted. getScopedId() (not
+        // getScopedBranchId()) is used deliberately, per the same correction
+        // applied to Financial's breakdown().
+        $accessLevel = auth()->user()->getAccessLevel();
+        $scopedId = auth()->user()->getScopedId();
+
+        $inScope = match ($accessLevel) {
+            'national' => true,
+            'branch'   => ($level === 'branch' && $id === $scopedId)
+                || ($level === 'division' && $area->branch_id === $scopedId),
+            'division' => $level === 'division' && $id === $scopedId,
+            default    => false,
+        };
+
+        if (! $inScope) {
             abort(403);
         }
 
-        $branch = Branch::findOrFail($branchId);
-
-        $donations = Donation::where('branch_id', $branchId)
+        $donations = Donation::query()
             ->where('is_deleted', 0)
             ->where('approval_status', 'approved')
             ->whereYear('date_donation', $year)
             ->whereRaw('QUARTER(date_donation) = ?', [$quarter])
             ->where('in_kind_donation', $type === 'in-kind' ? 1 : 0)
+            ->when($level === 'division', fn ($q) => $q->where('division_id', $id))
+            ->when($level === 'branch', fn ($q) => $q->where('branch_id', $id))
             ->with(['user', 'organisation'])
             ->orderBy('date_donation', 'desc')
             ->get();
@@ -205,7 +234,8 @@ class DonationReportController extends Controller
             : $donations->sum('amount');
 
         return view('reports.donations.breakdown', [
-            'branch'     => $branch,
+            'area'       => $area,
+            'level'      => $level,
             'year'       => $year,
             'quarter'    => $quarter,
             'type'       => $type,

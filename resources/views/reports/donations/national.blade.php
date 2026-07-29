@@ -119,9 +119,6 @@
             <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
                 Quarterly Donations Summary by Branch – {{ $selectedYear }}
             </h2>
-            <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                Cash values are in ₦. In-kind figures show the number of in-kind donations (not individual items).
-            </p>
         </div>
 
         <div class="overflow-x-auto">

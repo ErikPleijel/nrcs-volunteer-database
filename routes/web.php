@@ -782,6 +782,17 @@ Route::middleware(['auth', 'verified.or.absent'])->group(function () {
             Route::get('financial', [\App\Http\Controllers\Reports\FinancialOverviewReportController::class, 'index'])
                 ->name('financial.index');
 
+            // Breakdown: individual payments behind one Payments/Fee Breakdown
+            // figure. Gated on the underlying data's own permission
+            // (view_payments) rather than the enclosing group's view_reports,
+            // so viewers without financial permissions (e.g.
+            // division_db_assistant_operations) can't reach it just because
+            // they can see reports — same reasoning as the donations breakdown route.
+            Route::get('financial/breakdown', [\App\Http\Controllers\Reports\FinancialOverviewReportController::class, 'breakdown'])
+                ->name('financial.breakdown')
+                ->withoutMiddleware('can:view_reports')
+                ->middleware('can:view_payments');
+
             // --- MAPS ---
             Route::prefix('maps')->name('maps.')->group(function () {
                 Route::get('volunteers/branches', [\App\Http\Controllers\Reports\VolunteerMapController::class, 'branches'])->name('volunteers.branches');

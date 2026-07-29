@@ -33,6 +33,13 @@
     $totalQ4InKind    = $divisionQuarterlySummaries->sum('q4_in_kind');
     $totalCashAll     = $divisionQuarterlySummaries->sum('total_cash');
     $totalInKindAll   = $divisionQuarterlySummaries->sum('total_in_kind');
+
+    // Breakdown links: same hierarchy-aware rule as national.blade.php.
+    // Every division row on this page belongs to the same $branch, so a
+    // branch-level viewer's check reduces to "is this my own branch" —
+    // if so, every division row here is linkable.
+    $viewerAccessLevel = auth()->user()->getAccessLevel();
+    $viewerScopedId    = auth()->user()->getScopedId();
 @endphp
 
 <x-reports.reports-layout
@@ -56,6 +63,13 @@
         <button type="button" onclick="window.print()" class="filter-btn-secondary">
             <i class="fas fa-print mr-1"></i>Print
         </button>
+    </div>
+
+    <div class="text-center mb-6">
+        <a href="{{ route('reports.donations.national', ['year' => $selectedYear]) }}"
+           class="text-blue-600 hover:text-blue-800 hover:underline">
+            <i class="fas fa-arrow-left mr-1"></i>Back to National
+        </a>
     </div>
 
     {{-- 💹 Combined Donations Trend (Cash + In-kind, Branch) --}}
@@ -105,9 +119,6 @@
             <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
                 Quarterly Donations by Division – {{ $selectedYear }}
             </h2>
-            <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                Cash values are in ₦. In-kind figures show the number of in-kind donations (not individual items).
-            </p>
         </div>
 
         <div class="overflow-x-auto">
@@ -162,6 +173,14 @@
 
                 <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
                 @forelse ($divisionQuarterlySummaries as $row)
+                    @php
+                        $canLinkBreakdown = match ($viewerAccessLevel) {
+                            'national' => true,
+                            'branch' => $branch->id === $viewerScopedId,
+                            'division' => $row->division_id === $viewerScopedId,
+                            default => false,
+                        };
+                    @endphp
                     <tr class="hover:bg-gray-50 dark:hover:bg-gray-900/50">
                         <td class="px-4 py-2 text-gray-900 dark:text-gray-100 whitespace-nowrap">
                             {{ $row->division_name }}
@@ -169,34 +188,90 @@
 
                         {{-- Q1 --}}
                         <td class="px-2 py-2 text-right text-gray-900 dark:text-gray-100 border-l border-gray-200 dark:border-gray-700">
-                            {{ number_format($row->q1_cash, 2) }}
+                            @if ($canLinkBreakdown)
+                                <a href="{{ route('reports.donations.breakdown', ['branch_id' => $row->division_id, 'level' => 'division', 'year' => $selectedYear, 'quarter' => 1, 'type' => 'cash']) }}"
+                                   class="text-blue-600 hover:text-blue-800 hover:underline">
+                                    {{ number_format($row->q1_cash, 2) }}
+                                </a>
+                            @else
+                                {{ number_format($row->q1_cash, 2) }}
+                            @endif
                         </td>
                         <td class="px-2 py-2 text-right text-gray-900 dark:text-gray-100">
-                            {{ number_format($row->q1_in_kind) }}
+                            @if ($canLinkBreakdown)
+                                <a href="{{ route('reports.donations.breakdown', ['branch_id' => $row->division_id, 'level' => 'division', 'year' => $selectedYear, 'quarter' => 1, 'type' => 'in-kind']) }}"
+                                   class="text-blue-600 hover:text-blue-800 hover:underline">
+                                    {{ number_format($row->q1_in_kind) }}
+                                </a>
+                            @else
+                                {{ number_format($row->q1_in_kind) }}
+                            @endif
                         </td>
 
                         {{-- Q2 --}}
                         <td class="px-2 py-2 text-right text-gray-900 dark:text-gray-100 border-l border-gray-200 dark:border-gray-700">
-                            {{ number_format($row->q2_cash, 2) }}
+                            @if ($canLinkBreakdown)
+                                <a href="{{ route('reports.donations.breakdown', ['branch_id' => $row->division_id, 'level' => 'division', 'year' => $selectedYear, 'quarter' => 2, 'type' => 'cash']) }}"
+                                   class="text-blue-600 hover:text-blue-800 hover:underline">
+                                    {{ number_format($row->q2_cash, 2) }}
+                                </a>
+                            @else
+                                {{ number_format($row->q2_cash, 2) }}
+                            @endif
                         </td>
                         <td class="px-2 py-2 text-right text-gray-900 dark:text-gray-100">
-                            {{ number_format($row->q2_in_kind) }}
+                            @if ($canLinkBreakdown)
+                                <a href="{{ route('reports.donations.breakdown', ['branch_id' => $row->division_id, 'level' => 'division', 'year' => $selectedYear, 'quarter' => 2, 'type' => 'in-kind']) }}"
+                                   class="text-blue-600 hover:text-blue-800 hover:underline">
+                                    {{ number_format($row->q2_in_kind) }}
+                                </a>
+                            @else
+                                {{ number_format($row->q2_in_kind) }}
+                            @endif
                         </td>
 
                         {{-- Q3 --}}
                         <td class="px-2 py-2 text-right text-gray-900 dark:text-gray-100 border-l border-gray-200 dark:border-gray-700">
-                            {{ number_format($row->q3_cash, 2) }}
+                            @if ($canLinkBreakdown)
+                                <a href="{{ route('reports.donations.breakdown', ['branch_id' => $row->division_id, 'level' => 'division', 'year' => $selectedYear, 'quarter' => 3, 'type' => 'cash']) }}"
+                                   class="text-blue-600 hover:text-blue-800 hover:underline">
+                                    {{ number_format($row->q3_cash, 2) }}
+                                </a>
+                            @else
+                                {{ number_format($row->q3_cash, 2) }}
+                            @endif
                         </td>
                         <td class="px-2 py-2 text-right text-gray-900 dark:text-gray-100">
-                            {{ number_format($row->q3_in_kind) }}
+                            @if ($canLinkBreakdown)
+                                <a href="{{ route('reports.donations.breakdown', ['branch_id' => $row->division_id, 'level' => 'division', 'year' => $selectedYear, 'quarter' => 3, 'type' => 'in-kind']) }}"
+                                   class="text-blue-600 hover:text-blue-800 hover:underline">
+                                    {{ number_format($row->q3_in_kind) }}
+                                </a>
+                            @else
+                                {{ number_format($row->q3_in_kind) }}
+                            @endif
                         </td>
 
                         {{-- Q4 --}}
                         <td class="px-2 py-2 text-right text-gray-900 dark:text-gray-100 border-l border-gray-200 dark:border-gray-700">
-                            {{ number_format($row->q4_cash, 2) }}
+                            @if ($canLinkBreakdown)
+                                <a href="{{ route('reports.donations.breakdown', ['branch_id' => $row->division_id, 'level' => 'division', 'year' => $selectedYear, 'quarter' => 4, 'type' => 'cash']) }}"
+                                   class="text-blue-600 hover:text-blue-800 hover:underline">
+                                    {{ number_format($row->q4_cash, 2) }}
+                                </a>
+                            @else
+                                {{ number_format($row->q4_cash, 2) }}
+                            @endif
                         </td>
                         <td class="px-2 py-2 text-right text-gray-900 dark:text-gray-100">
-                            {{ number_format($row->q4_in_kind) }}
+                            @if ($canLinkBreakdown)
+                                <a href="{{ route('reports.donations.breakdown', ['branch_id' => $row->division_id, 'level' => 'division', 'year' => $selectedYear, 'quarter' => 4, 'type' => 'in-kind']) }}"
+                                   class="text-blue-600 hover:text-blue-800 hover:underline">
+                                    {{ number_format($row->q4_in_kind) }}
+                                </a>
+                            @else
+                                {{ number_format($row->q4_in_kind) }}
+                            @endif
                         </td>
 
                         {{-- Totals --}}
