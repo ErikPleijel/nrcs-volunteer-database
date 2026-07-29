@@ -1197,6 +1197,46 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->last_admin_activity_at->lt(now()->subMonths($months));
     }
 
+    /**
+     * Derive a display label and a green/black-and-white recency flag from the
+     * SAME floored diff, using <x-time-ago>'s own unit cascade (yr/mo/d/h/min),
+     * so the two can never disagree at month-overflow edges the way
+     * subMonths()-based comparisons can.
+     */
+    public function formatActivityRecency(?Carbon $date, string $verb): array
+    {
+        if (! $date) {
+            return ['label' => 'Never logged in', 'isRecent' => false, 'hasData' => false];
+        }
+
+        $months = (int) abs($date->diffInMonths(now()));
+        $isRecent = $months <= 3; // 0,1,2,3 = green; 4+ = black-and-white
+
+        $years = (int) abs($date->diffInYears(now()));
+
+        if ($years >= 1) {
+            $unit = $years . 'yr';
+        } elseif ($months >= 1) {
+            $unit = $months . 'mo';
+        } else {
+            $days = (int) abs($date->diffInDays(now()));
+
+            if ($days >= 1) {
+                $unit = $days . 'd';
+            } else {
+                $hours = (int) abs($date->diffInHours(now()));
+
+                if ($hours >= 1) {
+                    $unit = $hours . 'h';
+                } else {
+                    $unit = (int) abs($date->diffInMinutes(now())) . 'min';
+                }
+            }
+        }
+
+        return ['label' => "{$verb} ({$unit})", 'isRecent' => $isRecent, 'hasData' => true];
+    }
+
     public function scopeDormancyFilter($query, ?string $filter)
     {
         if (! $filter) {

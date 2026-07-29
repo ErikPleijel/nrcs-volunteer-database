@@ -576,25 +576,10 @@
                         </td>
                     </tr>
 
-                    {{-- Login --}}
+
+                    {{-- Last Login --}}
                     <tr>
                         <td>Last Login</td>
-                        <td>
-                            @if($user->last_login_at)
-                                <x-time-ago :date="$user->last_login_at" />
-                            @else
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                                    <i class="fas fa-ban mr-1"></i>Never logged in
-                                </span>
-                            @endif
-                        </td>
-                    </tr>
-
-
-
-                    {{-- Digital Status --}}
-                    <tr>
-                        <td>Digital Status</td>
                         <td><x-user-digital-status-badge :user="$user"/></td>
                     </tr>
 
@@ -614,15 +599,17 @@
                             </td>
                         </tr>
 
-                        <tr>
-                            <td>Admin Status</td>
-                            <td><x-user-admin-status-badge :user="$user"/></td>
-                        </tr>
+
 
                         <tr>
                             <td>Last Admin Activity</td>
-                            <td>
-                                <x-time-ago :date="$user->last_admin_activity_at" />
+                            <td class="flex flex-col gap-1">
+                                <div>
+                                    <x-user-admin-status-badge :user="$user"/>
+                                </div>
+                                <span class="text-sm text-gray-500">
+                                    {{ $user->last_admin_activity_at ? $user->last_admin_activity_at->format('Y-m-d') : '-' }}
+                                </span>
                             </td>
                         </tr>
                     @endif

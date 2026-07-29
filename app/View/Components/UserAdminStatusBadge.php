@@ -18,8 +18,6 @@ class UserAdminStatusBadge extends Component
 
     public bool $shouldRender = true;
 
-    protected int $thresholdMonths = 3;
-
     protected array $adminRoles = [];
 
     public function __construct(User $user)
@@ -50,7 +48,9 @@ class UserAdminStatusBadge extends Component
             return;
         }
 
-        if (! $this->user->last_admin_activity_at) {
+        $recency = $this->user->formatActivityRecency($this->user->last_admin_activity_at, 'Admin activity');
+
+        if (! $recency['hasData']) {
             $this->label  = 'No admin activity yet';
             $this->icon   = 'fa-circle-minus';
             $this->styles = 'bg-gray-100 text-gray-800';
@@ -58,8 +58,8 @@ class UserAdminStatusBadge extends Component
             return;
         }
 
-        if (! $this->user->isAdministrativelyDormant($this->thresholdMonths)) {
-            $this->label  = 'Admin active';
+        if ($recency['isRecent']) {
+            $this->label  = $recency['label'];
             $this->icon   = 'fa-user-cog';
             $this->styles = 'bg-green-100 text-green-800';
             $this->title  = 'Last admin activity: ' . $this->user->last_admin_activity_at->format('Y-m-d');
@@ -67,11 +67,10 @@ class UserAdminStatusBadge extends Component
         }
 
         // Dormant admin
-        $this->label  = 'Admin dormant';
+        $this->label  = $recency['label'];
         $this->icon   = 'fa-user-clock';
-        $this->styles = 'bg-amber-100 text-amber-800';
-        $this->title  = 'No admin updates in the last ' . $this->thresholdMonths . ' months. Last activity: '
-            . $this->user->last_admin_activity_at->format('Y-m-d');
+        $this->styles = 'bg-gray-800 text-white';
+        $this->title  = 'Last admin activity: ' . $this->user->last_admin_activity_at->format('Y-m-d');
     }
 
     public function render(): View

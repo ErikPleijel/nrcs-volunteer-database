@@ -14,8 +14,6 @@ class UserDigitalStatusBadge extends Component
     public string $styles;
     public string $title;
 
-    protected int $thresholdMonths = 3;
-
     public function __construct(User $user)
     {
         $this->user = $user;
@@ -25,9 +23,10 @@ class UserDigitalStatusBadge extends Component
 
     protected function resolveStatus(): void
     {
-        $neverLoggedIn = is_null($this->user->last_login_at);
+        $recency = $this->user->formatActivityRecency($this->user->last_login_at, 'Logged in');
+        $lastLogin = $this->user->last_login_at?->format('Y-m-d');
 
-        if ($neverLoggedIn) {
+        if (! $recency['hasData']) {
             $this->label  = 'Never logged in';
             $this->icon   = 'fa-user-slash';
             $this->styles = 'bg-gray-100 text-gray-800';
@@ -35,22 +34,18 @@ class UserDigitalStatusBadge extends Component
             return;
         }
 
-        // Assumes you have isDigitallyDormant(int $months) on User
-        $isDormant = $this->user->isDigitallyDormant($this->thresholdMonths);
-        $lastLogin = $this->user->last_login_at?->format('Y-m-d');
-
-        if (! $isDormant) {
-            $this->label  = 'Digitally active';
+        if ($recency['isRecent']) {
+            $this->label  = $recency['label'];
             $this->icon   = 'fa-wifi';
             $this->styles = 'bg-green-100 text-green-800';
             $this->title  = 'Last login: ' . $lastLogin;
             return;
         }
 
-        $this->label  = 'Digitally dormant';
+        $this->label  = $recency['label'];
         $this->icon   = 'fa-plug';
-        $this->styles = 'bg-amber-100 text-amber-800';
-        $this->title  = 'No login in the last ' . $this->thresholdMonths . ' months. Last login: ' . $lastLogin;
+        $this->styles = 'bg-gray-800 text-white';
+        $this->title  = 'Last login: ' . $lastLogin;
     }
 
     public function render()

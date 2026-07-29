@@ -261,7 +261,7 @@
                 </div>
                 @unless($organisation->trashed())
                     <a href="{{ route('organisations.payments.create', $organisation) }}"
-                       class="btn-primary">
+                       class="btn-primary-small whitespace-nowrap">
                         <i class="fas fa-plus mr-2"></i>Add Payment
                     </a>
                 @endunless
@@ -285,70 +285,78 @@
 
             @php
                 $orgPayments = $organisation->membershipPayments()
-                    ->with(['user', 'membershipFee', 'submittedByUser', 'branch'])
+                    ->withAnyApprovalStatus()
+                    ->whereIn('approval_status', ['approved', 'pending'])
+                    ->with(['user', 'membershipFee'])
                     ->where('is_deleted', false)
                     ->orderBy('payment_date', 'desc')
                     ->get();
             @endphp
 
-            @if($orgPayments->isNotEmpty())
-                <div class="border-t px-6 pb-4">
-                    <div class="overflow-x-auto mt-4">
-                        <table class="w-full text-sm">
-                            <thead>
-                                <tr class="border-b border-gray-200">
-                                    <th class="text-left py-2 text-gray-600 bg-white">Date</th>
-                                    <th class="text-left py-2 text-gray-600 bg-white">Reference</th>
-                                    <th class="text-left py-2 text-gray-600 bg-white">Fee</th>
-                                    <th class="text-left py-2 text-gray-600 bg-white">Paid By</th>
-                                    <th class="text-left py-2 text-gray-600 bg-white">Expiry</th>
-                                    <th class="text-left py-2 text-gray-600 bg-white">Submitted By</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach($orgPayments as $payment)
-                                    <tr class="border-b border-gray-100">
-                                        <td class="py-2"><x-time-ago :date="$payment->payment_date" :today="true" placeholder="—" /></td>
-                                        <td class="py-2">
-                                            <div class="font-mono font-semibold">{{ $payment->payment_reference }}</div>
-                                            <div class="text-sm text-gray-400 mt-0.5">{{ $payment->reference ?? '—' }}</div>
-                                        </td>
-                                        <td class="py-2">{{ $payment->membershipFee->name ?? '—' }}</td>
-                                        <td class="py-2">
-                                            @if($payment->user)
-                                                {{ $payment->user->first_name }} {{ $payment->user->last_name }}
-                                            @else
-                                                <span class="text-gray-400">—</span>
-                                            @endif
-                                        </td>
-                                        <td class="py-2"><x-time-ago :date="$payment->expiry_date" :today="true" placeholder="—" /></td>
-                                        <td class="py-2">
-                                            @if($payment->submittedByUser)
-                                                {{ $payment->submittedByUser->first_name }} {{ $payment->submittedByUser->last_name }}
-                                            @else
-                                                <span class="text-gray-400">—</span>
-                                            @endif
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
-                    @can('print_certificates')
-                    <div class="mt-3">
-                        <a href="{{ route('organisations.certificates.index', [
-                                'certificate_type' => 'organisation_membership',
-                                'search' => $organisation->id,
-                                'branch_id' => '',
-                            ]) }}"
-                           class="btn-certificates">
-                            <i class="fas fa-certificate"></i>
-                            Print membership certificate
-                        </a>
-                    </div>
-                    @endcan
+            <div class="border-t px-6 pb-4">
+                <div class="overflow-x-auto mt-4">
+                    <table class="min-w-full text-sm">
+                        <tbody>
+                        @forelse($orgPayments as $payment)
+                            @php
+                                $isValid = $payment->expiry_date && $payment->expiry_date->isFuture();
+                                if ($payment->expiry_date) {
+                                    $statusClass = $isValid ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
+                                    $statusText = ($isValid ? 'Valid until ' : 'Expired ') . $payment->expiry_date->format('M d, Y');
+                                } else {
+                                    $statusClass = 'bg-gray-100 text-gray-800';
+                                    $statusText = 'Unknown';
+                                }
+                            @endphp
+                            <tr class="border-b border-gray-100 gap-2">
+                                <td class="py-1 pr-1 text-xs text-gray-500"><x-time-ago :date="$payment->payment_date" :today="true" placeholder="—" /></td>
+                                <td class="py-1 pr-1 text-xs text-gray-500">
+                                    <div>{{ $payment->membershipFee->name ?? '—' }}</div>
+                                    <div class="text-xs">{!! $payment->payment_reference_link !!}</div>
+                                </td>
+                                <td class="py-1 pr-1 text-xs text-gray-500">₦{{ number_format($payment->membershipFee->amount ?? 0, 2) }}</td>
+                                <td class="py-1">
+                                    <span class="{{ $statusClass }} px-1 py-1 rounded-full text-xs">
+                                        {{ $statusText }}
+                                    </span>
+                                    @if($payment->approval_status === 'pending')
+                                        <x-approval-status-badge status="pending" class="ml-1" />
+                                    @endif
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="4" class="py-4 text-center text-gray-500 italic">
+                                    No membership payments found
+                                </td>
+                            </tr>
+                        @endforelse
+                        </tbody>
+                    </table>
                 </div>
-            @endif
+                @can('print_certificates')
+                <div class="mt-3">
+                    <a
+                        @if($orgPayments->count() === 0)
+                            href="#"
+                            class="btn-certificates opacity-40 pointer-events-none"
+                            aria-disabled="true"
+                            tabindex="-1"
+                        @else
+                            href="{{ route('organisations.certificates.index', [
+                            'certificate_type' => 'organisation_membership',
+                            'search' => $organisation->id,
+                            'branch_id' => '',
+                        ]) }}"
+                            class="btn-certificates"
+                        @endif
+                    >
+                        <i class="fas fa-certificate"></i>
+                        Print membership certificate
+                    </a>
+                </div>
+                @endcan
+            </div>
         </div>
 
         <!-- 4. Donations -->
@@ -362,7 +370,7 @@
                 </div>
                 @unless($organisation->trashed())
                     <a href="{{ route('organisations.donations.create', $organisation) }}"
-                       class="btn-primary">
+                       class="btn-primary-small whitespace-nowrap">
                         <i class="fas fa-plus mr-2"></i>Add Donation
                     </a>
                 @endunless
@@ -370,7 +378,9 @@
 
             @php
                 $orgDonations = $organisation->donations()
-                    ->with(['user', 'enteredBy', 'branch'])
+                    ->withAnyApprovalStatus()
+                    ->whereIn('approval_status', ['approved', 'pending'])
+                    ->with(['user'])
                     ->orderBy('date_donation', 'desc')
                     ->get();
                 $inKindCount  = $orgDonations->where('in_kind_donation', true)->count();
@@ -390,78 +400,68 @@
                 @endif
             </div>
 
-            @if($orgDonations->isNotEmpty())
-                <div class="border-t px-6 pb-4">
-                    <div class="overflow-x-auto mt-4">
-                        <table class="w-full text-sm">
-                            <thead>
-                                <tr class="border-b border-gray-200">
-                                    <th class="text-left py-2 text-gray-600 bg-white">Date</th>
-                                    <th class="text-left py-2 text-gray-600 bg-white">Type</th>
-                                    <th class="text-left py-2 text-gray-600 bg-white">Amount / Item</th>
-                                    <th class="text-left py-2 text-gray-600 bg-white">Purpose</th>
-                                    <th class="text-left py-2 text-gray-600 bg-white">Reference</th>
-                                    <th class="text-left py-2 text-gray-600 bg-white">Entered By</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach($orgDonations as $donation)
-                                    <tr class="border-b border-gray-100">
-                                        <td class="py-2"><x-time-ago :date="$donation->date_donation" :today="true" placeholder="—" /></td>
-                                        <td class="py-2">
-                                            @if($donation->in_kind_donation)
-                                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">In Kind</span>
-                                            @else
-                                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Cash</span>
-                                            @endif
-                                        </td>
-                                        <td class="py-2">
-                                            @if($donation->in_kind_donation)
-                                                {{ $donation->donation_item ?? '—' }}
-                                                @if($donation->amount)
-                                                    <span class="text-gray-400">({{ $donation->amount }})</span>
-                                                @endif
-                                            @else
-                                                ₦{{ number_format($donation->amount) }}
-                                            @endif
-                                        </td>
-                                        <td class="py-2">{{ $donation->purpose ?? '—' }}</td>
-                                        <td class="py-2">
-                                            @php
-                                                $donBranchCode = $donation->branch
-                                                    ? strtoupper($donation->branch->code ?? substr($donation->branch->name, 0, 3))
-                                                    : 'UNK';
-                                            @endphp
-                                            <div class="font-mono font-semibold">DON-{{ $donation->id }}/{{ $donBranchCode }}</div>
-                                            <div class="text-sm text-gray-400 mt-0.5">{{ $donation->reference ?? '—' }}</div>
-                                        </td>
-                                        <td class="py-2">
-                                            @if($donation->enteredBy)
-                                                {{ $donation->enteredBy->first_name }} {{ $donation->enteredBy->last_name }}
-                                            @else
-                                                <span class="text-gray-400">—</span>
-                                            @endif
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
-                    @can('print_certificates')
-                    <div class="mt-3">
-                        <a href="{{ route('organisations.certificates.index', [
-                                'certificate_type' => 'organisation_donation',
-                                'search' => $organisation->id,
-                                'branch_id' => '',
-                            ]) }}"
-                           class="btn-certificates">
-                            <i class="fas fa-certificate"></i>
-                            Print donation certificate
-                        </a>
-                    </div>
-                    @endcan
+            <div class="border-t px-6 pb-4">
+                <div class="overflow-x-auto mt-4">
+                    <table class="min-w-full text-sm">
+                        <tbody>
+                        @forelse($orgDonations as $donation)
+                            <tr class="border-b border-gray-100">
+                                <td class="py-2"><x-time-ago :date="$donation->date_donation" :today="true" placeholder="—" /></td>
+                                <td class="py-2">
+                                    @if($donation->in_kind_donation)
+                                        {{ $donation->donation_item ?? '—' }}
+                                        @if($donation->amount)
+                                            <span class="text-gray-400">({{ $donation->amount }})</span>
+                                        @endif
+                                    @else
+                                        ₦{{ number_format($donation->amount) }}
+                                    @endif
+                                    <div class="text-xs">{!! $donation->donation_reference_link !!}</div>
+                                </td>
+                                <td class="py-2">
+                                    @if($donation->in_kind_donation)
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">In Kind</span>
+                                    @else
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Cash</span>
+                                    @endif
+                                    @if($donation->approval_status === 'pending')
+                                        <x-approval-status-badge status="pending" class="ml-1" />
+                                    @endif
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="4" class="py-4 text-center text-gray-500 italic">
+                                    No donations found
+                                </td>
+                            </tr>
+                        @endforelse
+                        </tbody>
+                    </table>
                 </div>
-            @endif
+                @can('print_certificates')
+                <div class="mt-3">
+                    <a
+                        @if($orgDonations->count() === 0)
+                            href="#"
+                            class="btn-certificates opacity-40 pointer-events-none"
+                            aria-disabled="true"
+                            tabindex="-1"
+                        @else
+                            href="{{ route('organisations.certificates.index', [
+                            'certificate_type' => 'organisation_donation',
+                            'search' => $organisation->id,
+                            'branch_id' => '',
+                        ]) }}"
+                            class="btn-certificates"
+                        @endif
+                    >
+                        <i class="fas fa-certificate"></i>
+                        Print donation certificate
+                    </a>
+                </div>
+                @endcan
+            </div>
         </div>
 
         <!-- 5. Printed Certificates -->

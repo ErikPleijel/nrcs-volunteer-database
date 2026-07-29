@@ -949,10 +949,11 @@
                                         </div>
                                         @php $roleName = $user->getRoleNames()->first(); @endphp
                                         @if($roleName)
-                                            <div class="mb-1">
+                                            <div class="mb-1 flex flex-col items-start">
                                                 <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-700">
                                                     {{ Str::title(str_replace('_', ' ', $roleName)) }}
                                                 </span>
+                                                <x-user-admin-status-badge :user="$user"/>
                                             </div>
                                         @endif
                                         <div class="mb-1">
