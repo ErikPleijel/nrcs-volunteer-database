@@ -64,6 +64,15 @@
                         </td>
                     </tr>
 
+                    @if($donation->organisation_id && $donation->organisation)
+                        <tr>
+                            <td>Organisation</td>
+                            <td>
+                                <span class="db-code">{!! $donation->organisation->org_reference_link !!}</span>
+                            </td>
+                        </tr>
+                    @endif
+
                     <tr class="bg-blue-50">
                         <td class="text-blue-700">Reference</td>
                         <td>

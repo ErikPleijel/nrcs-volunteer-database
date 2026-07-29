@@ -169,6 +169,10 @@ class MembershipPayment extends Model
      */
     public function contributionMismatchNote(): ?string
     {
+        if ($this->organisation_id !== null) {
+            return null;
+        }
+
         $wantsVolunteering = (bool) $this->user->can_contribute_volunteering;
         $wantsMember = (bool) $this->user->can_contribute_member && ! $wantsVolunteering;
 

@@ -57,6 +57,14 @@
                 @endif
             </div>
 
+            @if($record->organisation_id && $record->organisation)
+                <div class="px-6 py-4 border-b border-gray-100">
+                    <div class="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1">Organisation</div>
+                    <div class="text-base font-medium text-gray-900">{{ $record->organisation->name }}</div>
+                    <div class="text-sm text-gray-500">{!! $record->organisation->org_reference_link !!}</div>
+                </div>
+            @endif
+
             {{-- Detail rows --}}
             <dl class="divide-y divide-gray-100">
                 @foreach($record->approvalDetailRows() as $label => $value)

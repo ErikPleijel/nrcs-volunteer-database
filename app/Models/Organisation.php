@@ -110,6 +110,14 @@ class Organisation extends Model
         return 'ORG-' . $this->id;
     }
 
+    public function getOrgReferenceLinkAttribute(): string
+    {
+        $reference = $this->org_reference;
+        $url = route('organisations.show', $this->id);
+
+        return "<a href=\"{$url}\" class=\"db-code underline\">{$reference}</a>";
+    }
+
     public function getMembershipExpiryDateAttribute()
     {
         return $this->activeMembership()->first()?->expiry_date;

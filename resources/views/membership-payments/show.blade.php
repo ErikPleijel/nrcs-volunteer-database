@@ -68,6 +68,15 @@
                         </td>
                     </tr>
 
+                    @if($membershipPayment->organisation_id && $membershipPayment->organisation)
+                        <tr>
+                            <td>Organisation</td>
+                            <td>
+                                <span class="db-code">{!! $membershipPayment->organisation->org_reference_link !!}</span>
+                            </td>
+                        </tr>
+                    @endif
+
                     <tr class="bg-blue-50">
                         <td class="text-blue-700">Reference</td>
                         <td>
