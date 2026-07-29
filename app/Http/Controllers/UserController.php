@@ -1479,13 +1479,9 @@ class UserController extends Controller
             return response()->json([]);
         }
 
-        $authUser = Auth::user();
-        $accessLevel = $authUser->getAccessLevel();
-        $scopedId = $authUser->getScopedId();
-
         $idCandidate = preg_replace('/^db-/i', '', trim($query));
 
-        $usersQuery = User::selectableForEntry()->where(function ($q) use ($query, $idCandidate) {
+        $usersQuery = User::selectableForEntry()->notInactive()->where(function ($q) use ($query, $idCandidate) {
             $q->where('first_name', 'like', "%{$query}%")
                 ->orWhere('last_name', 'like', "%{$query}%")
                 ->orWhere('middle_name', 'like', "%{$query}%")
@@ -1494,12 +1490,6 @@ class UserController extends Controller
                 ->orWhereRaw("CONCAT(first_name, ' ', IFNULL(middle_name, ''), ' ', last_name) LIKE ?", ["%{$query}%"])
                 ->orWhere('id', is_numeric($idCandidate) ? (int)$idCandidate : -1);
         });
-
-        if ($accessLevel === 'branch' && $scopedId) {
-            $usersQuery->where('branch_id', $scopedId);
-        } elseif ($accessLevel === 'division' && $scopedId) {
-            $usersQuery->where('division_id', $scopedId);
-        }
 
         $users = $usersQuery
             ->select('id', 'first_name', 'middle_name', 'last_name')
