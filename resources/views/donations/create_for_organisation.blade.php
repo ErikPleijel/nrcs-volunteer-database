@@ -91,6 +91,7 @@
                             <!-- In-Kind toggle -->
                             <div class="flex items-center">
                                 <label class="flex items-center gap-2">
+                                    <input type="hidden" name="in_kind_donation" value="0">
                                     <input type="checkbox" name="in_kind_donation" value="1"
                                            id="in_kind_donation" {{ old('in_kind_donation') ? 'checked' : '' }}
                                            class="rounded border-gray-300 text-blue-600 shadow-sm focus:ring-blue-500">

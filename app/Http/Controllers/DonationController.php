@@ -368,6 +368,7 @@ class DonationController extends Controller
             $validated['donation_item'] = 'Naira';
         }
 
+        $validated['in_kind_donation'] = $request->boolean('in_kind_donation');
         $validated['entered_by_user_id'] = auth()->id();
         $validated['is_deleted'] = false;
 

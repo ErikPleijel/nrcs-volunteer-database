@@ -123,6 +123,7 @@
                                             <!-- Checkboxes stacked: In-Kind + Anonymous -->
                                             <div class="flex flex-col justify-center gap-3">
                                                 <label class="flex items-center">
+                                                    <input type="hidden" name="in_kind_donation" value="0">
                                                     <input type="checkbox" name="in_kind_donation" value="1"
                                                            id="in_kind_donation" {{ old('in_kind_donation') ? 'checked' : '' }}
                                                            class="rounded border-gray-300 text-blue-600 shadow-sm focus:ring-blue-500">
