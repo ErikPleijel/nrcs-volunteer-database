@@ -183,6 +183,15 @@ class DonationController extends Controller
             });
         }
 
+        // Handle person vs. organisation filter
+        if ($request->filled('organisation_scope')) {
+            match ($request->organisation_scope) {
+                'person' => $query->personal(),
+                'organisation' => $query->organisational(),
+                default => null,
+            };
+        }
+
         // Sorting
         $sortBy = $request->get('sort_by', 'date_desc');
 

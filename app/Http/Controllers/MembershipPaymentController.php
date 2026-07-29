@@ -95,6 +95,15 @@ class MembershipPaymentController extends Controller
             });
         }
 
+        // Handle person vs. organisation filter
+        if ($request->filled('organisation_scope')) {
+            match ($request->organisation_scope) {
+                'person' => $query->personal(),
+                'organisation' => $query->organisational(),
+                default => null,
+            };
+        }
+
         // Handle branch filter (only if not restricted by user's access level)
         if ($accessLevel === 'national' && $request->filled('branch_id')) {
             $query->where('branch_id', $request->branch_id);

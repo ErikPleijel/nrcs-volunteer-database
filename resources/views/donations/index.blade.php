@@ -344,6 +344,18 @@
                                 </div>
                             </div>
                         </div>
+
+                        <!-- Column 4: Person / Organisation -->
+                        <div class="flex flex-col gap-2">
+                            <div>
+                                <label for="organisation_scope" class="filter-label-small">Type</label>
+                                <select name="organisation_scope" id="organisation_scope" class="filter-select-small {{ request('organisation_scope') ? 'filter-active' : '' }}">
+                                    <option value="">All</option>
+                                    <option value="person" {{ request('organisation_scope') == 'person' ? 'selected' : '' }}>Person</option>
+                                    <option value="organisation" {{ request('organisation_scope') == 'organisation' ? 'selected' : '' }}>Organisation</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Actions -->
@@ -482,6 +494,9 @@
                                                 <i class="fas fa-hashtag mr-1"></i>{{ $donation->reference }}
                                             </div>
                                         @endif
+                                        @if($donation->organisation)
+                                            <div class="text-xs font-medium text-purple-800">Organisation</div>
+                                        @endif
                                         @if($donation->is_deleted)
                                             <div class="text-xs font-semibold text-red-700 tracking-wide mt-1">
                                                 DELETED
@@ -560,6 +575,9 @@
                                             <div class="text-xs {{ $donation->is_deleted ? 'text-red-800' : 'text-gray-500' }} mt-0.5">
                                                 <i class="fas fa-hashtag mr-1"></i>{{ $donation->reference }}
                                             </div>
+                                        @endif
+                                        @if($donation->organisation)
+                                            <div class="text-xs font-medium text-purple-800">Organisation</div>
                                         @endif
                                         @if($donation->is_deleted)
                                             <div class="text-xs font-semibold text-red-700 tracking-wide mt-1">DELETED</div>

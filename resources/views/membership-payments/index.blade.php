@@ -283,6 +283,16 @@
                                     <option value="expired" {{ request('validity_status') == 'expired' ? 'selected' : '' }}>Expired</option>
                                 </select>
                             </div>
+
+                            <!-- Person vs. Organisation Filter -->
+                            <div>
+                                <label for="organisation_scope" class="filter-label-small">Type</label>
+                                <select name="organisation_scope" id="organisation_scope" class="filter-select-small {{ request('organisation_scope') ? 'filter-active' : '' }}">
+                                    <option value="">All</option>
+                                    <option value="person" {{ request('organisation_scope') == 'person' ? 'selected' : '' }}>Person</option>
+                                    <option value="organisation" {{ request('organisation_scope') == 'organisation' ? 'selected' : '' }}>Organisation</option>
+                                </select>
+                            </div>
                         </div>
 
                         <div class="flex flex-col gap-2">
@@ -510,6 +520,9 @@
                                             <i class="fas fa-hashtag mr-1"></i>{{ $payment->reference }}
                                         </div>
                                     @endif
+                                    @if($payment->organisation)
+                                        <div class="text-xs font-medium text-purple-800">Organisation</div>
+                                    @endif
                                     @if($payment->is_deleted)
                                         <div class="text-xs font-semibold text-red-700 tracking-wide mt-1">
                                             DELETED
@@ -590,6 +603,9 @@
                                         <div class="text-xs {{ $payment->is_deleted ? 'text-red-800' : 'text-gray-500' }} mt-0.5">
                                             <i class="fas fa-hashtag mr-1"></i>{{ $payment->reference }}
                                         </div>
+                                    @endif
+                                    @if($payment->organisation)
+                                        <div class="text-xs font-medium text-purple-800">Organisation</div>
                                     @endif
                                     @if($payment->is_deleted)
                                         <div class="text-xs font-semibold text-red-700 tracking-wide mt-1">

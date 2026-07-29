@@ -342,7 +342,7 @@
                                 <td><x-user-admin-status-badge :user="$user" /></td>
                                 <td><x-user-digital-status-badge :user="$user" /></td>
 
-                                @if($user->role_name === 'national_db_administrator')
+                                @if($user->role_name === 'national_db_administrator' && !$isSuperAdmin)
                                     <td class="border px-3 py-1 text-sm text-gray-400 italic text-center">
                                         Edit by super-admin
                                     </td>

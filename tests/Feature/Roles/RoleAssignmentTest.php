@@ -310,3 +310,37 @@ test('searchUsersForRoles excludes self, national-role holders, and branch_secre
         ->and($ids)->not->toContain($peerAdmin->id)
         ->and($ids)->toContain($assistant->id);
 });
+
+/*
+|--------------------------------------------------------------------------
+| PART 3 — "Edit by super-admin" table fallback (edit-roles.blade.php)
+|--------------------------------------------------------------------------
+*/
+
+test('a super-admin viewer sees a real Edit link for a national_db_administrator row, not the fallback text', function () {
+    $actor = User::factory()->create();
+    $actor->assignRole('super-admin');
+
+    $target = User::factory()->create();
+    $target->assignRole('national_db_administrator');
+
+    $response = actingWithConfirmedPassword($actor)->get(route('users.roles.edit'));
+
+    $response->assertOk();
+    $response->assertSee(route('users.roles.edit', ['user_id' => $target->id]), false);
+    $response->assertDontSee('Edit by super-admin');
+});
+
+test('a non-super-admin national_db_administrator viewer still sees the fallback text for that row', function () {
+    $actor = User::factory()->create();
+    $actor->assignRole('national_db_administrator');
+
+    $target = User::factory()->create();
+    $target->assignRole('national_db_administrator');
+
+    $response = actingWithConfirmedPassword($actor)->get(route('users.roles.edit'));
+
+    $response->assertOk();
+    $response->assertSee('Edit by super-admin');
+    $response->assertDontSee(route('users.roles.edit', ['user_id' => $target->id]), false);
+});
