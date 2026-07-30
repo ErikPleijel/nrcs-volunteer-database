@@ -145,11 +145,64 @@
                             <div class="text-center">
                                 <i class="fas fa-exclamation-triangle text-orange-500 text-2xl mb-2"></i>
                                 <p class="text-orange-700 font-medium">No Active Membership</p>
-                                <p class="text-sm text-gray-600 mt-1">Please contact your branch to renew the organisation's membership</p>
                             </div>
                         </div>
                     @endif
                 </div>
+
+                @php
+                    // Mirrors $membershipCtaSubcase from profile/show.blade.php's
+                    // Member path — an organisation is always effectively on that
+                    // path (no volunteer/archived/pending_engagement branching
+                    // applies to an organisation).
+                    $membershipCtaSubcase = null;
+                    if (! $currentMembership) {
+                        $membershipCtaSubcase = $hasEverHadOrgPayment ? 'lapsed' : 'new';
+                    } elseif ($currentMembership['expiring_soon'] ?? false) {
+                        $membershipCtaSubcase = 'expiring_soon';
+                    } else {
+                        $membershipCtaSubcase = 'valid';
+                    }
+                @endphp
+
+                @if($membershipCtaSubcase === 'new')
+                    @if($canPayOnline)
+                        <p class="text-gray-600 text-sm mb-2">Pay the organisation's membership fee online to activate its membership.</p>
+                        <div class="mb-6 flex justify-start">
+                            <a href="{{ route('make-payment.show', ['payment_type' => 'membership', 'organisation_id' => $organisation->id]) }}" class="btn-primary">
+                                <i class="fas fa-credit-card mr-1"></i>Make a Payment
+                            </a>
+                        </div>
+                    @else
+                        <p class="text-gray-600 text-sm mb-6">Add an email address to your profile to pay online, or contact your branch to pay directly.</p>
+                    @endif
+                @elseif($membershipCtaSubcase === 'lapsed')
+                    @if($canPayOnline)
+                        <p class="text-gray-600 text-sm mb-2">The organisation's membership has expired. Renew online to continue.</p>
+                        <div class="mb-6 flex justify-start">
+                            <a href="{{ route('make-payment.show', ['payment_type' => 'membership', 'organisation_id' => $organisation->id]) }}" class="btn-primary">
+                                <i class="fas fa-credit-card mr-1"></i>Renew Membership
+                            </a>
+                        </div>
+                    @else
+                        <p class="text-gray-600 text-sm mb-6">Add an email address to your profile to renew online, or contact your branch to renew directly.</p>
+                    @endif
+                @elseif($membershipCtaSubcase === 'expiring_soon')
+                    @if($canPayOnline)
+                        <p class="text-gray-600 text-sm mb-2">The organisation's membership expires in {{ floor($currentMembership['days_until_expiry']) }} days. Renew now to avoid a lapse.</p>
+                        <div class="mb-6 flex justify-start">
+                            <a href="{{ route('make-payment.show', ['payment_type' => 'membership', 'organisation_id' => $organisation->id]) }}" class="btn-primary">
+                                <i class="fas fa-credit-card mr-1"></i>Renew Early
+                            </a>
+                        </div>
+                    @else
+                        <p class="text-gray-600 text-sm mb-6">The organisation's membership expires in {{ floor($currentMembership['days_until_expiry']) }} days. Add an email address to your profile to renew online, or contact your branch to renew directly.</p>
+                    @endif
+                @else
+                    <p class="text-3xl font-bold text-center text-gray-900 mb-6">
+                        {{ floor($currentMembership['days_until_expiry']) }} days to renewal
+                    </p>
+                @endif
 
                 @if($showingLimitMessage)
                     <div class="mb-2 p-2 bg-blue-50 border border-blue-200 rounded text-center">
@@ -203,6 +256,16 @@
                     </div>
                     <h2 class="text-xl font-bold text-gray-900">YOUR DONATIONS</h2>
                 </div>
+
+                @if($canPayOnline)
+                    <div class="mb-4 flex justify-start">
+                        <a href="{{ route('make-payment.show', ['payment_type' => 'donation', 'organisation_id' => $organisation->id]) }}" class="btn-primary">
+                            <i class="fas fa-hand-holding-heart mr-1"></i>Make a Donation
+                        </a>
+                    </div>
+                @else
+                    <p class="text-gray-600 text-sm mb-4">Add an email address to your profile to donate online on behalf of this organisation.</p>
+                @endif
 
                 @if($donationsLimitMessage)
                     <div class="mb-2 p-2 bg-green-50 border border-green-200 rounded text-center">

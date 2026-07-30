@@ -655,7 +655,7 @@
             });
 
             function fetchUsers(query) {
-                fetch(`{{ route('users.search') }}?query=${encodeURIComponent(query)}`)
+                fetch(`{{ route('users.search') }}?query=${encodeURIComponent(query)}&require_email=1`)
                     .then(r => r.json())
                     .then(users => {
                         resultsList.innerHTML = '';

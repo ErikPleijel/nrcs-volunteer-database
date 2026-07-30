@@ -486,7 +486,7 @@
 
                         {{-- DB reference --}}
                         <p class="text-xs text-gray-500 break-words mb-1">
-                            {!! str_replace('/', '/<wbr>', $user->user_id_reference) !!}
+                            {!! $user->user_id_reference_link !!}
                             @if(!$user->redCrossUnit)
                                 <span class="text-red-600 font-bold ml-1">NO RED CROSS UNIT</span>
                             @endif

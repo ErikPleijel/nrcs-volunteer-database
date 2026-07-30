@@ -262,6 +262,67 @@ trait Approvable
     }
 
     /**
+     * Auto-approve a pending record following a gateway-confirmed payment
+     * (e.g. a verified Paystack transaction), where there is no human
+     * decider. Deliberately NOT routed through approve(): that method
+     * assumes a User is doing the approving (guardNotSelf() checks the
+     * approver against the submitter), and forcing a synthetic "system"
+     * user through it would misrepresent what actually happened.
+     *
+     * decided_by_user_id is left untouched (null, as it already is on any
+     * pending record) rather than populated with a placeholder id — this is
+     * precisely the signal that, combined with the payable record's own
+     * payment_channel column, distinguishes a gateway auto-approval from a
+     * staff approval in later queries/reports.
+     *
+     * $channel is accepted for a future multi-gateway distinction but is not
+     * persisted here — payment_channel lives on the payable record itself,
+     * set separately by the caller.
+     *
+     * @return bool true if the record was approved, false if it was not
+     *              pending (no changes made).
+     */
+    public function markApprovedViaGateway(string $channel = 'paystack'): bool
+    {
+        if (! $this->isPendingApproval()) {
+            return false;
+        }
+
+        DB::transaction(function () {
+            $this->forceFill([
+                'approval_status' => self::APPROVED,
+                'decided_at' => now(),
+                'rejection_reason' => null,
+            ])->save();
+
+            $member = $this->user;
+
+            if ($member) {
+                // Silently lift a dormant member back to active before recompute.
+                if ($member->lifecycle_status === 'dormant') {
+                    $member->update(['lifecycle_status' => 'active']);
+                }
+                // Silently lift a pending_engagement member back to active before
+                // recompute, unless the module opts out (e.g. Donation).
+                if ($member->lifecycle_status === 'pending_engagement' && $this->promotesFromPendingEngagement()) {
+                    $member->update(['lifecycle_status' => 'active']);
+                }
+                // No archived-member branch here (unlike approve()): a gateway
+                // payment is never expected to reach this method for an archived
+                // member — that's rejected upstream at initiation time, before any
+                // transaction exists for this method to act on. If it somehow did
+                // reach here, lifecycle_status simply wouldn't match either branch
+                // above and would fall through to recalculateLifecycle() untouched.
+                $member->recalculateLifecycle();
+            }
+
+            $this->afterApproved($member);
+        });
+
+        return true;
+    }
+
+    /**
      * Whether approving this record should promote a pending_engagement member
      * to active. Default true; modules override to opt out (e.g. Donation,
      * where a single donation alone shouldn't mark a donor as an active

@@ -22,35 +22,6 @@
             </div>
         @endif
 
-            @if (blank(auth()->user()->email))
-                <div class="mb-6 flex justify-center">
-                    <div class="w-full max-w-2xl rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-amber-900">
-                        <div class="flex items-start gap-3">
-                            <i class="fas fa-triangle-exclamation mt-0.5 text-amber-600"></i>
-
-                            <div class="text-sm leading-relaxed">
-                                <div class="font-semibold">
-                                    Email address missing
-                                </div>
-
-                                <p class="mt-1">
-                                    It is strongly recommended that you add an email address if you have one.
-                                    This helps us contact you about important updates and membership matters.
-                                </p>
-
-                                <p class="mt-2">
-                                    Please scroll down and click
-                                    <span class="font-semibold">“Update personal details”</span>
-                                    to add your email.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            @endif
-
-
-
     @endauth
 
     <div class="py-8">
@@ -116,13 +87,16 @@
                 <!-- Mission Statement -->
                 <div class="mt-6 p-4 sm:p-6 bg-gray-50 rounded-lg">
                     <div class="max-w-2xl mx-auto"> {{-- Limits width and centers the container --}}
-                        <p class="text-sm text-gray-700 italic text-left leading-relaxed"> {{-- text-center fixes the stretching --}}
+                        <p class="text-base text-gray-700 italic text-left leading-relaxed"> {{-- text-center fixes the stretching --}}
                             Your primary responsibility as a member or volunteer of the Nigerian Red Cross Society is to serve those most at risk. We encourage you to actively participate in our core activities, including first aid and emergency preparedness and response.
                         </p>
 
-                        <p class="text-sm text-gray-700 italic text-left leading-relaxed mt-4">
-                            When an emergency strikes anywhere in Nigeria, you may be called upon. In all of your actions, you are expected to uphold our seven fundamental principles: Humanity, Impartiality, Neutrality, Independence, Voluntary Service, Unity, and Universality.
+                        <p class="text-base text-gray-700 italic text-left leading-relaxed mt-4">
+                            When an emergency strikes anywhere in Nigeria, you may be called upon to respond, or to help through your support and contributions. In all of your actions, you are expected to uphold our seven fundamental principles:
                         </p>
+                        <div class="max-w-[400px] mx-auto">
+                            <p class="text-base text-gray-700 italic text-center leading-relaxed mt-2"><strong>Humanity</strong> · <strong>Impartiality</strong> · <strong>Neutrality</strong> · <strong>Independence</strong> · <strong>Voluntary Service</strong> · <strong>Unity</strong> · <strong>Universality</strong></p>
+                        </div>
 
                         @php
                             $wantsVolunteering = (bool) $user->can_contribute_volunteering;
@@ -139,39 +113,6 @@
                                     </div>
                                 </div>
                             </div>
-                        @elseif($wantsMember && !$currentMembership && !$hasEverHadPersonalPayment)
-                            <div class="mt-6 p-5 bg-blue-50 border border-blue-200 rounded-lg">
-                                <div class="flex items-start gap-3">
-                                    <i class="fas fa-id-card text-blue-500 mt-1"></i>
-                                    <div class="text-sm text-blue-900">
-                                        <p><strong>Pay your membership fee to activate your membership.</strong></p>
-                                        <p class="mt-1 text-blue-700 italic">Online payment via Paystack — to be implemented.</p>
-
-                                    </div>
-                                </div>
-                            </div>
-                        @elseif($wantsMember && !$currentMembership && $hasEverHadPersonalPayment)
-                            <div class="mt-6 p-5 bg-blue-50 border border-blue-200 rounded-lg">
-                                <div class="flex items-start gap-3">
-                                    <i class="fas fa-id-card text-blue-500 mt-1"></i>
-                                    <div class="text-sm text-blue-900">
-                                        <p><strong>Your membership has expired.</strong> Pay your membership fee to activate it.</p>
-                                        <p class="mt-1 text-blue-700 italic">Online payment via Paystack — to be implemented.</p>
-
-                                    </div>
-                                </div>
-                            </div>
-                        @elseif($wantsMember && $currentMembership && ($currentMembership['expiring_soon'] ?? false))
-                            <div class="mt-6 p-5 bg-blue-50 border border-blue-200 rounded-lg">
-                                <div class="flex items-start gap-3">
-                                    <i class="fas fa-id-card text-blue-500 mt-1"></i>
-                                    <div class="text-sm text-blue-900">
-                                        <p><strong>Membership expires in {{ $currentMembership['days_until_expiry'] }} days</strong> ({{ $currentMembership['expiry_date'] }}).</p>
-                                        <p class="mt-1 text-blue-700 italic">Online renewal via Paystack — to be implemented.</p>
-                                        {{-- Note for implementation of Paystack: For persons linke to an organisation(s), list payments to organisation if renewal needed, and also show if the payment was recently done; there might be a conflict since 2 or more persons might be linked to an org, all of them got a reminder by renewal membership campaigns, and we have do make sure they pay again to same org, but get a msg, that X already did a payment --}}
-                                    </div>
-                                </div>
-                            </div>
                         @elseif(!$wantsVolunteering && !$wantsMember)
                             <div class="mt-6 p-5 bg-sky-50 border border-sky-200 rounded-lg">
                                 <div class="flex items-start gap-3">
@@ -184,18 +125,13 @@
                             </div>
                         @endif
 
-                        @if($user->primary_role_name)
-                            <div class="mt-6">
-                                <x-role-description-card :user="$user" />
-                            </div>
-                        @endif
 
                         {{-- RC Unit & Task Force membership --}}
                         @if($user->redCrossUnit || $user->taskForces->isNotEmpty())
                             <div class="mt-6 p-5 bg-blue-50 border border-blue-200 rounded-lg">
                                 <div class="flex items-start gap-3">
                                     <div class="flex-shrink-0 w-9 h-9 bg-blue-100 rounded-lg flex items-center justify-center">
-                                        <i class="fas fa-shield-alt text-red-600 text-sm"></i>
+                                        <i class="fas fa-shield-alt text-red-500 text-2xl"></i>
                                     </div>
                                     <div class="flex-1">
 
@@ -211,14 +147,14 @@
                                                     $rcuRole = 'member';
                                                 }
                                             @endphp
-                                            <p class="text-sm text-blue-900">
+                                            <p class="text-lg text-blue-900">
                                                 @if($rcuRole === 'member')
-                                                    You are a member of <strong>{{ $rcu->name }}</strong> Red Cross Unit.
+                                                    You are a member of <strong>{{ $rcu->name }}</strong>.
                                                 @else
-                                                    You serve as <strong>{{ $rcuRole }}</strong> of <strong>{{ $rcu->name }}</strong> Red Cross Unit.
+                                                    You serve as <strong>{{ $rcuRole }}</strong> of <strong>{{ $rcu->name }}</strong>.
                                                 @endif
                                                 <a href="{{ route('red-cross-units.my-unit') }}"
-                                                   class="ml-2 text-xs text-blue-600 hover:text-blue-800 underline underline-offset-2">
+                                                   class="ml-2 text-lg text-blue-600 hover:text-blue-800 underline underline-offset-2">
                                                     View unit &rarr;
                                                 </a>
                                             </p>
@@ -285,9 +221,10 @@
                                 </div>
                                 <h2 class="text-xl font-bold text-gray-900">YOUR ORGANISATIONS</h2>
                             </div>
-                            <p class="text-gray-600 text-sm mb-4">
-                                You are registered as a contact person for the following organisation(s):
+                            <p class="text-base text-gray-600">
+                                You are registered as a contact person for the following organisation(s). Click on an organisation to view its details and make membership payments or donations on its behalf:
                             </p>
+
                             <div class="space-y-3">
                                 @foreach($user->organisations as $linkedOrg)
                                     <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
@@ -309,6 +246,7 @@
                                     </div>
                                 @endforeach
                             </div>
+
                         </div>
                     @endif
 
@@ -321,9 +259,57 @@
                             <h2 class="text-xl font-bold text-gray-900">YOUR MEMBERSHIP</h2>
                         </div>
 
+                        @php
+                            // Shared source of truth for Member-vs-Volunteer wording throughout
+                            // this whole section (the status box below, the intro paragraph, and
+                            // the a/a2/b/c conditional texts) — computed once, here, so nothing
+                            // downstream recomputes or duplicates this logic.
+                            //
+                            // Matches the "email missing" banner check at the top of this file
+                            // (blank(auth()->user()->email)) — archived still takes precedence
+                            // over this below, since it's checked first in $membershipCtaPath.
+                            $canPayOnline = ! blank($user->email);
+
+                            // Path precedence: archived overrides everything; pending_engagement
+                            // decides member-vs-volunteer purely from contribution preference (no
+                            // RC Unit yet to check); active/dormant decides from RC Unit assignment
+                            // instead. Any other lifecycle_status is deliberately left unhandled —
+                            // render nothing rather than guess.
+                            $membershipCtaPath = null;
+
+                            if ($user->lifecycle_status === 'archived') {
+                                $membershipCtaPath = 'archived';
+                            } elseif ($user->lifecycle_status === 'pending_engagement') {
+                                if ($user->can_contribute_volunteering) {
+                                    $membershipCtaPath = 'volunteer';
+                                } elseif ($user->can_contribute_member) {
+                                    $membershipCtaPath = 'member';
+                                } else {
+                                    // Neither preference set — the top mission-statement banner
+                                    // already prompts for this; don't duplicate it here.
+                                    $membershipCtaPath = 'none';
+                                }
+                            } elseif (in_array($user->lifecycle_status, ['active', 'dormant'], true)) {
+                                $membershipCtaPath = $user->redCrossUnit ? 'volunteer' : 'member';
+                            } else {
+                                $membershipCtaPath = 'unknown';
+                            }
+
+                            $membershipCtaSubcase = null;
+                            if (in_array($membershipCtaPath, ['member', 'volunteer'], true)) {
+                                if (! $currentMembership) {
+                                    $membershipCtaSubcase = $hasEverHadPersonalPayment ? 'lapsed' : 'new';
+                                } elseif ($currentMembership['expiring_soon'] ?? false) {
+                                    $membershipCtaSubcase = 'expiring_soon';
+                                } else {
+                                    $membershipCtaSubcase = 'valid';
+                                }
+                            }
+                        @endphp
+
                         <!-- Current Valid Membership Status -->
                         <div class="mb-6 p-4 border-2 border-dashed border-gray-200 rounded-lg bg-gray-50">
-                            <h3 class="text-lg font-semibold text-gray-900 mb-3">Current Membership Status</h3>
+
 
                             @if($currentMembership)
                                 <div class="flex items-center justify-between">
@@ -345,71 +331,166 @@
                                         </span>
                                     </div>
                                 </div>
+                            @elseif($membershipCtaPath === 'volunteer')
+                                <div class="flex items-center justify-center py-4">
+                                    <div class="text-center">
+                                        <i class="fas fa-exclamation-triangle text-orange-500 text-2xl mb-2"></i>
+                                        <p class="text-orange-700 font-medium">No Active Fee Payment</p>
+                                    </div>
+                                </div>
                             @else
                                 <div class="flex items-center justify-center py-4">
                                     <div class="text-center">
                                         <i class="fas fa-exclamation-triangle text-orange-500 text-2xl mb-2"></i>
                                         <p class="text-orange-700 font-medium">No Active Membership</p>
-                                        <p class="text-sm text-gray-600 mt-1">Please renew your membership to continue enjoying member benefits</p>
                                     </div>
                                 </div>
                             @endif
                         </div>
 
-                        <p class="text-gray-600 text-sm mb-4">
-                            In order to be a member of the Nigerian Red Cross, you should contribute with an annual membership fee.
-                            This fee shall be paid to your Red Cross branch or division.
-                        </p>
-
-                        <!-- Payment History with Scrollable Container -->
-                        @if($showingLimitMessage)
-                            <div class="mb-2 p-2 bg-blue-50 border border-blue-200 rounded text-center">
-                                <span class="text-blue-800 text-xs font-medium">
-                                    <i class="fas fa-info-circle mr-1"></i>Showing recent payments - scroll to view more
-                                </span>
-                            </div>
+                        @if($membershipCtaPath === 'archived')
+                            <p class="profile-instruction-text mb-6">
+                                Your account is archived. Please contact your branch or Red Cross Unit directly to renew your membership.
+                            </p>
+                        @elseif($membershipCtaPath === 'member')
+                            @if(! $canPayOnline)
+                                {{-- No email on file: the online-payment button is never shown
+                                     here, regardless of path or sub-case — wording instead points
+                                     to adding an email or paying at the branch. --}}
+                                @if($membershipCtaSubcase === 'new')
+                                    <p class="profile-instruction-text mb-6">Pay your membership fee directly at your branch.</p>
+                                @elseif($membershipCtaSubcase === 'lapsed')
+                                    <p class="profile-instruction-text mb-6">Your membership has expired. Add an email address to your profile to renew online, or renew directly at your branch.</p>
+                                @elseif($membershipCtaSubcase === 'expiring_soon')
+                                    <p class="profile-instruction-text mb-6">Your membership expires in {{ floor($currentMembership['days_until_expiry']) }} days. Add an email address to your profile to renew online, or renew at your branch.</p>
+                                @else
+                                    <p class="text-xl font-bold text-center text-gray-700 mb-6">
+                                        {{ floor($currentMembership['days_until_expiry']) }} days to renewal
+                                    </p>
+                                @endif
+                            @else
+                                @if($membershipCtaSubcase === 'new')
+                                    <p class="profile-instruction-text mb-2">Pay your membership fee online to activate your membership.</p>
+                                    <div class="mb-6 flex justify-start">
+                                        <a href="{{ route('make-payment.show', ['payment_type' => 'membership']) }}" class="btn-primary">
+                                            <i class="fas fa-credit-card mr-1"></i>Make a Payment
+                                        </a>
+                                    </div>
+                                @elseif($membershipCtaSubcase === 'lapsed')
+                                    <p class="profile-instruction-text mb-2">Your membership has expired. Renew online to remain an active member.</p>
+                                    <div class="mb-6 flex justify-start">
+                                        <a href="{{ route('make-payment.show', ['payment_type' => 'membership']) }}" class="btn-primary">
+                                            <i class="fas fa-credit-card mr-1"></i>Renew Membership
+                                        </a>
+                                    </div>
+                                @elseif($membershipCtaSubcase === 'expiring_soon')
+                                    <p class="profile-instruction-text mb-2">Your membership expires in {{ floor($currentMembership['days_until_expiry']) }} days. Renew now to avoid a lapse in your membership.</p>
+                                    <div class="mb-6 flex justify-start">
+                                        <a href="{{ route('make-payment.show', ['payment_type' => 'membership']) }}" class="btn-primary">
+                                            <i class="fas fa-credit-card mr-1"></i>Renew Early
+                                        </a>
+                                    </div>
+                                @else
+                                    <p class="text-xl font-bold text-center text-gray-700 mb-6">
+                                        {{ floor($currentMembership['days_until_expiry']) }} days to renewal
+                                    </p>
+                                @endif
+                            @endif
+                        @elseif($membershipCtaPath === 'volunteer')
+                            @if($membershipCtaSubcase === 'new')
+                                <p class="profile-instruction-text mb-6">As a volunteer, your annual fee is paid at your branch, not online. Your branch will let you know how to proceed.</p>
+                            @elseif($membershipCtaSubcase === 'lapsed')
+                                <p class="profile-instruction-text mb-6">Your membership has expired. Please renew at your branch.</p>
+                            @elseif($membershipCtaSubcase === 'expiring_soon')
+                                <p class="profile-instruction-text mb-6">Your membership will expire in {{ floor($currentMembership['days_until_expiry']) }} days. Please renew at your branch soon.</p>
+                            @else
+                                <p class="text-xl font-bold text-center text-gray-700 mb-6">
+                                    {{ floor($currentMembership['days_until_expiry']) }} days to renewal
+                                </p>
+                            @endif
                         @endif
 
-                        <div class="overflow-x-auto">
-                            <div class="@if($showingLimitMessage) max-h-64 overflow-y-auto @endif">
-                                <table class="w-full text-sm">
-                                    <thead class="sticky top-0 bg-white">
-                                    <tr class="border-b border-gray-200">
-                                        <th class="text-left py-2 text-gray-600 bg-white">Payment date</th>
-                                        <th class="text-left py-2 text-gray-600 bg-white">Membership Type</th>
-                                        <th class="text-left py-2 text-gray-600 bg-white">Amount</th>
-                                        <th class="text-left py-2 text-gray-600 bg-white">Status</th>
-                                    </tr>
-                                    </thead>
-                                    <tbody>
-                                    @forelse($membershipPayments as $payment)
-                                        <tr class="border-b border-gray-100">
-                                            <td class="py-2">{{ $payment['payment_date'] }}</td>
-                                            <td class="py-2">
-                                                {{ $payment['membership_type'] }}
-                                                @if($payment['organisation_name'])
-                                                    <span class="block text-xs text-indigo-600 italic">On behalf of {{ $payment['organisation_name'] }}</span>
-                                                @endif
-                                            </td>
-                                            <td class="py-2">{{ $payment['formatted_amount'] }}</td>
-                                            <td class="py-2">
-                                                    <span class="{{ $payment['status']['class'] }} px-2 py-1 rounded-full text-xs">
-                                                        {{ $payment['status']['text'] }}
-                                                    </span>
-                                            </td>
+
+
+                        <button type="button" id="membershipHistoryToggle" class="text-sm text-blue-600 hover:text-blue-800 underline underline-offset-2">
+                            View payment history
+                        </button>
+
+                        <div id="membershipHistoryContent" class="hidden mt-4">
+                            <!-- Payment History with Scrollable Container -->
+                            @if($showingLimitMessage)
+                                <div class="mb-2 p-2 bg-blue-50 border border-blue-200 rounded text-center">
+                                    <span class="text-blue-800 text-xs font-medium">
+                                        <i class="fas fa-info-circle mr-1"></i>Showing recent payments - scroll to view more
+                                    </span>
+                                </div>
+                            @endif
+
+                            <div class="overflow-x-auto">
+                                <div class="@if($showingLimitMessage) max-h-64 overflow-y-auto @endif">
+                                    <table class="w-full text-sm">
+                                        <thead class="sticky top-0 bg-white">
+                                        <tr class="border-b border-gray-200">
+                                            <th class="text-left py-2 text-gray-600 bg-white">Payment date</th>
+                                            <th class="text-left py-2 text-gray-600 bg-white">Membership Type</th>
+                                            <th class="text-left py-2 text-gray-600 bg-white">Amount</th>
+                                            <th class="text-left py-2 text-gray-600 bg-white">Status</th>
                                         </tr>
-                                    @empty
-                                        <tr>
-                                            <td colspan="4" class="py-4 text-center text-gray-500 italic">
-                                                No membership payments found
-                                            </td>
-                                        </tr>
-                                    @endforelse
-                                    </tbody>
-                                </table>
+                                        </thead>
+                                        <tbody>
+                                        @forelse($membershipPayments as $payment)
+                                            <tr class="border-b border-gray-100">
+                                                <td class="py-2">{{ $payment['payment_date'] }}</td>
+                                                <td class="py-2">
+                                                    {{ $payment['membership_type'] }}
+                                                    @if($payment['organisation_name'])
+                                                        <span class="block text-xs text-indigo-600 italic">On behalf of {{ $payment['organisation_name'] }}</span>
+                                                    @endif
+                                                </td>
+                                                <td class="py-2">{{ $payment['formatted_amount'] }}</td>
+                                                <td class="py-2">
+                                                        <span class="{{ $payment['status']['class'] }} px-2 py-1 rounded-full text-xs">
+                                                            {{ $payment['status']['text'] }}
+                                                        </span>
+                                                </td>
+                                            </tr>
+                                        @empty
+                                            <tr>
+                                                <td colspan="4" class="py-4 text-center text-gray-500 italic">
+                                                    No membership payments found
+                                                </td>
+                                            </tr>
+                                        @endforelse
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
                     </div>
+
+                    @if(blank($user->email))
+                        <div class="mb-6 flex justify-center">
+                            <div class="w-full max-w-2xl rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-amber-900">
+                                <div class="flex items-start gap-3">
+                                    <i class="fas fa-triangle-exclamation mt-0.5 text-amber-600"></i>
+                                    <div class="text-sm leading-relaxed">
+                                        <div class="font-semibold">
+                                            Missing an email address
+                                        </div>
+                                        <p class="mt-1">
+                                            Adding an email helps us keep you informed, and lets you pay
+                                            your membership fee or make a donation online instead of
+                                            visiting your branch.
+                                        </p>
+                                        <p class="mt-2">
+                                            Click <span class="font-semibold">"Update personal details"</span>
+                                            below to add one.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
 
                     <!-- Donations Section -->
                     <div class="bg-white rounded-lg shadow-lg p-6">
@@ -419,10 +500,20 @@
                             </div>
                             <h2 class="text-xl font-bold text-gray-900">YOUR DONATIONS</h2>
                         </div>
-                        <p class="text-gray-600 text-sm mb-4">
+                        <p class="text-base text-gray-600 mb-4">
                             Your contribution can help achieve solutions to problems among vulnerable people in our society.
                             You can donate money, food, clothes, hygiene materials etc. Contact your branch for more information.
                         </p>
+
+                        @if($canPayOnline)
+                            <div class="mb-4 flex justify-start">
+                                <a href="{{ route('make-payment.show', ['payment_type' => 'donation']) }}" class="btn-primary">
+                                    <i class="fas fa-hand-holding-heart mr-1"></i>Make a Donation
+                                </a>
+                            </div>
+                        @else
+                            <p class="profile-instruction-text mb-4">Add an email address to your profile to donate online.</p>
+                        @endif
 
                         <!-- Donation History with Scrollable Container -->
                         @if($donationsLimitMessage)
@@ -489,7 +580,6 @@
                     </div>
 
                     <!-- Volunteering Section -->
-                    @if($user->isVolunteer())
                     <div class="bg-white rounded-lg shadow-lg p-6">
                         <div class="flex items-center mb-4">
                             <div class="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center mr-4">
@@ -497,10 +587,15 @@
                             </div>
                             <h2 class="text-xl font-bold text-gray-900">YOUR VOLUNTEERING</h2>
                         </div>
-                        <p class="text-gray-600 text-sm mb-4">
-                            Nobody can do everything, but everyone can do something. Can you spare 2 or 3 hours per week?
-                            The Nigerian Red Cross needs people, from all walks of life. As a volunteer you will be assigned to a Red Cross Unit or a Task Force.
+                        <p class="text-base text-gray-600 mb-4">
+                            Nobody can do everything, but everyone can do something. Can you spare 2 or 3 hours per week? The Nigerian Red Cross needs people from all walks of life. If you already volunteer, your hours are recorded below."
                         </p>
+
+                        @unless($user->isVolunteer())
+                            <p class="profile-instruction-text mb-4">
+                                Interested in volunteering? Contact your branch to get started.
+                            </p>
+                        @endunless
 
                         <!-- Volunteering History with Scrollable Container -->
                         @if($activitiesLimitMessage)
@@ -578,7 +673,7 @@
                             </div>
                         @endif
                     </div>
-                    @endif {{-- can_contribute_volunteering --}}
+
 
                     <!-- Training Section -->
                     <div class="bg-white rounded-lg shadow-lg p-6">
@@ -588,7 +683,7 @@
                             </div>
                             <h2 class="text-xl font-bold text-gray-900">YOUR TRAINING</h2>
                         </div>
-                        <p class="text-gray-600 text-sm mb-4">
+                        <p class="text-base text-gray-600 mb-4">
                             As a member you are entitled to attend training courses, such as First Aid, Leadership and Disaster Management. Please note that First Aid certifications must be renewed periodically to remain valid.
                         </p>
 
@@ -653,15 +748,15 @@
                             <h2 class="text-xl font-bold text-gray-900">PRINTED CERTIFICATES</h2>
                         </div>
 
-                        <p class="text-gray-600 text-sm mb-4">
+                        <p class="text-base text-gray-600 mb-4">
                             This section shows certificates that have been printed for you.
                         </p>
 
                         @if($certificatePrintsLimitMessage)
                             <div class="mb-2 p-2 bg-indigo-50 border border-indigo-200 rounded text-center">
-            <span class="text-indigo-800 text-xs font-medium">
-                <i class="fas fa-info-circle mr-1"></i>Showing recent printed certificates - scroll to view more
-            </span>
+                                <span class="text-indigo-800 text-xs font-medium">
+                                    <i class="fas fa-info-circle mr-1"></i>Showing recent printed certificates - scroll to view more
+                                </span>
                             </div>
                         @endif
 
@@ -716,15 +811,15 @@
                             <h2 class="text-xl font-bold text-gray-900">PRINTED ID CARDS</h2>
                         </div>
 
-                        <p class="text-gray-600 text-sm mb-4">
+                        <p class="text-base text-gray-600 mb-4">
                             This section shows ID cards that have been printed for you.
                         </p>
 
                         @if($idCardPrintsLimitMessage)
                             <div class="mb-2 p-2 bg-emerald-50 border border-emerald-200 rounded text-center">
-            <span class="text-emerald-800 text-xs font-medium">
-                <i class="fas fa-info-circle mr-1"></i>Showing recent printed ID cards - scroll to view more
-            </span>
+                                <span class="text-emerald-800 text-xs font-medium">
+                                    <i class="fas fa-info-circle mr-1"></i>Showing recent printed ID cards - scroll to view more
+                                </span>
                             </div>
                         @endif
 
@@ -760,8 +855,8 @@
                                                 @endphp
 
                                                 <span class="{{ $statusClass }} px-2 py-1 rounded-full text-xs">
-                                {{ $print['status'] }}
-                            </span>
+                                                    {{ $print['status'] }}
+                                                </span>
 
                                                 @if(!empty($print['notes']))
                                                     <div class="text-xs text-gray-500 mt-1">
@@ -1108,7 +1203,7 @@
                     @if($user->isVolunteer())
                     <div class="bg-white rounded-lg shadow-lg p-6">
                         <h2 class="text-xl font-bold text-gray-900 mb-4">Signature</h2>
-                        <p class="text-sm text-gray-600 mb-4">The signature image will be used for making ID-cards for volunteers.</p>
+                        <p class="profile-instruction-text mb-4">The signature image will be used for making ID-cards for volunteers.</p>
                         <div class="flex flex-col items-center justify-center border border-gray-300 bg-gray-50 p-4 rounded-lg w-48 h-24 mx-auto">
                             @if($user->hasSignature())
                                 <img src="{{ $user->getSignatureUrlAttribute() }}" alt="User Signature" class="max-w-full h-auto max-h-48 object-contain">
@@ -1180,9 +1275,7 @@
                             </div>
                         </form>
 
-                        <p class="mt-4 text-xs text-gray-400 italic">
-                            You can also unsubscribe directly from any campaign message you receive.
-                        </p>
+
                     </div>
 
                     <!-- Archive My Account -->
@@ -1252,11 +1345,21 @@
         (function () {
             const revealBtn = document.getElementById('archiveAccountRevealBtn');
             const card = document.getElementById('archiveAccountCard');
-            if (!revealBtn || !card) return;
-            revealBtn.addEventListener('click', function () {
-                revealBtn.classList.add('hidden');
-                card.classList.remove('hidden');
-            });
+            if (revealBtn && card) {
+                revealBtn.addEventListener('click', function () {
+                    revealBtn.classList.add('hidden');
+                    card.classList.remove('hidden');
+                });
+            }
+
+            const membershipHistoryToggle = document.getElementById('membershipHistoryToggle');
+            const membershipHistoryContent = document.getElementById('membershipHistoryContent');
+            if (membershipHistoryToggle && membershipHistoryContent) {
+                membershipHistoryToggle.addEventListener('click', function () {
+                    const isHidden = membershipHistoryContent.classList.toggle('hidden');
+                    membershipHistoryToggle.textContent = isHidden ? 'View payment history' : 'Hide payment history';
+                });
+            }
         })();
     </script>
 </x-layouts.app>

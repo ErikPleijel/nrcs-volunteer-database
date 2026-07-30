@@ -44,6 +44,9 @@ class MembershipPayment extends Model
         'id_card_included',
         'removed_date',
         'removed_by_user_id',
+        'payment_channel',
+        'gateway_reference',
+        'gateway_response',
     ];
 
     /**
@@ -63,6 +66,7 @@ class MembershipPayment extends Model
         'id_card_included' => 'boolean',
         'removed_date' => 'datetime',
         'removed_by_user_id' => 'integer',
+        'gateway_response' => 'array',
     ];
 
     /**

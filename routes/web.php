@@ -26,6 +26,7 @@ use App\Http\Controllers\MembershipPaymentController;
 use App\Http\Controllers\MessagingCampaignController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OrganisationController;
+use App\Http\Controllers\PaystackPaymentController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RedCrossUnitController;
 use App\Http\Controllers\Reports\AdminActivityReportController;
@@ -177,6 +178,12 @@ Route::post('/u/{token}/email', [UnsubscribeController::class, 'handleEmail'])->
 Route::get('/u/{token}/sms', [UnsubscribeController::class, 'showSms'])->name('unsubscribe.sms.show');
 Route::post('/u/{token}/sms', [UnsubscribeController::class, 'handleSms'])->name('unsubscribe.sms.handle');
 
+// Paystack server-to-server webhook — Paystack's servers call this, not a
+// logged-in user, so it carries no 'auth' middleware and is CSRF-exempted
+// in bootstrap/app.php.
+Route::post('/webhooks/paystack', [PaystackPaymentController::class, 'webhook'])
+    ->name('webhooks.paystack');
+
 /*
 |--------------------------------------------------------------------------
 | Authenticated User Routes
@@ -246,11 +253,29 @@ Route::middleware(['auth', 'verified.or.absent'])->group(function () {
             Route::post('/self-archive', [ProfileController::class, 'selfArchive'])->name('self-archive');
         });
 
+    // Member/org-contact self-service Paystack payments. No can:... gate —
+    // unlike the staff-facing membership-payments/donations flows, access
+    // control here is simply "is this an authenticated person", matching
+    // the profile.* routes above.
+    Route::prefix('make-payment')->name('make-payment.')->group(function () {
+        Route::get('/', [PaystackPaymentController::class, 'show'])->name('show');
+        Route::post('/initiate', [PaystackPaymentController::class, 'initiate'])->name('initiate');
+        Route::get('/callback', [PaystackPaymentController::class, 'callback'])->name('callback');
+    });
+
     // User-specific Red Cross Unit and Task Force views
     Route::get('/my-unit', [RedCrossUnitController::class, 'myUnit'])->name('red-cross-units.my-unit');
     Route::get('my-unit/report', [RedCrossUnitController::class, 'myUnitReport'])->name('red-cross-units.my-unit-report');
     Route::get('/my-unit/tables', [RedCrossUnitController::class, 'myUnitTables'])->name('red-cross-units.my-unit-tables');
     Route::get('/my-unit/comparison', [RedCrossUnitController::class, 'myUnitComparison'])->name('red-cross-units.my-unit-comparison');
+    // Non-admin volunteer/first-aid maps — same aggregate data as the
+    // admin reports.maps.* routes, no can:view_reports gate (matches every
+    // other my-unit-* route: auth + verified.or.absent only, inherited from
+    // the enclosing group). See Decisions.md's /learn precedent — these stay
+    // OUTSIDE the red-cross-units.* CRUD prefix group (routes/web.php ~512)
+    // to avoid colliding with that group's dynamic {red_cross_unit} segment.
+    Route::get('/my-unit/volunteer-map', [RedCrossUnitController::class, 'myUnitVolunteerMap'])->name('red-cross-units.my-unit-volunteer-map');
+    Route::get('/my-unit/first-aid-map', [RedCrossUnitController::class, 'myUnitFirstAidMap'])->name('red-cross-units.my-unit-first-aid-map');
     Route::get('/my-task-force/{taskForce}', [TaskForceController::class, 'myShow'])->name('my-task-force.show');
 
     /*

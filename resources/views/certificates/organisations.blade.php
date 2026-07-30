@@ -284,6 +284,10 @@
                                     {{ $organisation->branch->name ?? '—' }}
                                 </p>
 
+                                <p class="text-xs text-gray-500 break-words mb-2">
+                                    {!! $organisation->org_reference_link !!}
+                                </p>
+
                                 @switch($certificateType)
                                     @case('membership')
                                         @if($organisation->activeMembership)

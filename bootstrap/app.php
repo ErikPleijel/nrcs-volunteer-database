@@ -23,6 +23,10 @@ $app = Application::configure(basePath: dirname(__DIR__))
         // (users index "Show profile photos"). Exempt it from encryption so
         // the server can read it back via $request->cookie().
         $middleware->encryptCookies(except: ['users_show_photos']);
+
+        // Paystack's servers POST here directly and cannot supply a CSRF
+        // token — this is the only route this app exempts.
+        $middleware->validateCsrfTokens(except: ['webhooks/paystack']);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->renderable(function (\Symfony\Component\HttpKernel\Exception\HttpExceptionInterface $e, \Illuminate\Http\Request $request) {

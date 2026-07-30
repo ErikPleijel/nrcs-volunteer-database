@@ -1491,6 +1491,15 @@ class UserController extends Controller
                 ->orWhere('id', is_numeric($idCandidate) ? (int)$idCandidate : -1);
         });
 
+        // A person without an email cannot receive campaign messages or make
+        // payments/donations online, so cannot usefully serve as an
+        // organisation contact — this filter is opt-in via require_email,
+        // scoped to the organisation-linking search only, so it doesn't
+        // affect other callers of this shared endpoint.
+        if ($request->boolean('require_email')) {
+            $usersQuery->whereNotNull('email');
+        }
+
         $users = $usersQuery
             ->select('id', 'first_name', 'middle_name', 'last_name')
             ->orderBy('first_name')

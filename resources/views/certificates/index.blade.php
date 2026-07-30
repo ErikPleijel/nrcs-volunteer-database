@@ -551,7 +551,7 @@
 
                                 {{-- Add the User ID reference below the name --}}
                                 <p class="text-xs text-gray-500 break-words mb-2">
-                                    {{ $user->user_id_reference }}
+                                    {!! $user->user_id_reference_link !!}
                                 </p>
 
                                 @switch($certificateType)

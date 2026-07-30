@@ -220,6 +220,12 @@
             <a href="{{ route('red-cross-units.my-unit-comparison') }}" class="btn-primary">
                 <i class="fas fa-chart-bar mr-2"></i>Compare with Other Units
             </a>
+            <a href="{{ route('red-cross-units.my-unit-volunteer-map') }}" class="btn-primary">
+                <i class="fas fa-map-location-dot mr-2"></i>Volunteer Map
+            </a>
+            <a href="{{ route('red-cross-units.my-unit-first-aid-map') }}" class="btn-primary">
+                <i class="fas fa-map-location-dot mr-2"></i>First Aid Coverage
+            </a>
         </div>
 
     </div>

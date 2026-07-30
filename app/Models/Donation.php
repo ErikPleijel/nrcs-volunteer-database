@@ -69,6 +69,9 @@ class Donation extends Model
         'is_deleted',
         'removed_by_user_id',
         'removed_date',
+        'payment_channel',
+        'gateway_reference',
+        'gateway_response',
     ];
 
     protected $casts = [
@@ -77,6 +80,7 @@ class Donation extends Model
         'anonymous' => 'boolean',
         'is_deleted' => 'boolean',
         'removed_date' => 'datetime',
+        'gateway_response' => 'array',
     ];
 
     // Relationships

@@ -526,8 +526,37 @@ class ProfileController extends Controller
             ];
         });
 
-        $currentMembership = $processedPayments->firstWhere('is_valid', true);
+        // Current membership status: mirrors ProfileController::show()'s
+        // $personalCurrentPayment pattern exactly (own query against the
+        // real model, with membershipFee loaded, first valid payment found),
+        // just scoped to the organisation instead of the person — so
+        // expiring_soon/days_until_expiry are available the same way.
+        $currentPayment = $organisation->membershipPayments()
+            ->where('is_deleted', false)
+            ->with('membershipFee')
+            ->get()
+            ->first(fn ($payment) => $payment->isValid());
+
+        $currentMembership = $currentPayment ? [
+            'membership_type' => $currentPayment->membershipFee->name ?? 'N/A',
+            'formatted_amount' => '₦' . number_format($currentPayment->membershipFee->amount ?? 0, 2),
+            'expiry_date' => $currentPayment->expiry_date?->format('M d, Y'),
+            'expiring_soon' => $currentPayment?->expiresSoon(28) ?? false,
+            'days_until_expiry' => $currentPayment?->days_until_expiry,
+        ] : null;
+
         $membershipPayments = $processedPayments;
+
+        // Distinguishes "never paid" from "paid once, now lapsed" for the
+        // membership CTA on profile/organisation.blade.php — mirrors
+        // $hasEverHadPersonalPayment from ProfileController::show(), scoped
+        // to the organisation instead of the person.
+        $hasEverHadOrgPayment = $organisation->membershipPayments()->exists();
+
+        // Paystack charges the logged-in CONTACT PERSON's email, not the
+        // organisation's — matches the blank() convention used throughout
+        // this controller / profile/show.blade.php.
+        $canPayOnline = ! blank($authUser->email);
 
         $allDonations = $organisation->donations()
             ->orderBy('date_donation', 'desc')
@@ -572,7 +601,9 @@ class ProfileController extends Controller
             'donations',
             'donationsLimitMessage',
             'certificatePrints',
-            'certificatePrintsLimitMessage'
+            'certificatePrintsLimitMessage',
+            'hasEverHadOrgPayment',
+            'canPayOnline'
         ));
     }
 

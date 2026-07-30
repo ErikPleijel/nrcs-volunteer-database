@@ -6,6 +6,7 @@ use App\Models\Activity;
 use App\Models\Branch;
 use App\Models\Division;
 use App\Models\RedCrossUnit;
+use App\Models\Setting;
 use App\Models\User; // Import Activity model
 use Carbon\Carbon;
 use Illuminate\Http\Request; // Import DB facade for raw expressions
@@ -423,6 +424,151 @@ class RedCrossUnitController extends Controller
         ]);
 
         return view('red-cross-units.my-unit-report', compact('redCrossUnit'));
+    }
+
+    /**
+     * Non-admin volunteer map, scoped to the ordinary user's own view.
+     * Duplicates the aggregate query logic already in
+     * Reports\VolunteerMapController::branches()/divisions() rather than
+     * extracting a shared helper — those methods are explicitly left
+     * untouched, so this stays a separate, independently-maintained copy.
+     * No individual-level data at all: same aggregate branch/division
+     * counts + precomputed heat_score as the admin map. Level toggle via
+     * ?level=, mirroring myUnitTables()'s ?tab= pattern above.
+     */
+    public function myUnitVolunteerMap(Request $request)
+    {
+        $redCrossUnit = auth()->user()->redCrossUnit;
+
+        if (! $redCrossUnit) {
+            return redirect()->route('red-cross-units.my-unit')
+                ->with('error', 'You are not assigned to a Red Cross Unit.');
+        }
+
+        $level = $request->query('level') === 'division' ? 'division' : 'branch';
+
+        if ($level === 'branch') {
+            $counts = User::volunteers()
+                ->selectRaw('branch_id, COUNT(*) as cnt')
+                ->whereNotNull('branch_id')
+                ->groupBy('branch_id')
+                ->pluck('cnt', 'branch_id');
+
+            $areas = Branch::select('id', 'name', 'latitude', 'longitude', 'heat_score')->get();
+            $title = 'Volunteers by Branch';
+        } else {
+            $counts = User::volunteers()
+                ->selectRaw('division_id, COUNT(*) as cnt')
+                ->whereNotNull('division_id')
+                ->groupBy('division_id')
+                ->pluck('cnt', 'division_id');
+
+            $areas = Division::select('id', 'name', 'latitude', 'longitude', 'heat_score')->get();
+            $title = 'Volunteers by Division';
+        }
+
+        $points = [];
+        $missingCount = 0;
+
+        foreach ($areas as $a) {
+            $cnt = (int) ($counts[$a->id] ?? 0);
+            if ($a->latitude === null || $a->longitude === null) {
+                $missingCount++;
+                continue;
+            }
+            $points[] = [
+                'name' => $a->name,
+                'count' => $cnt,
+                'lat' => (float) $a->latitude,
+                'lng' => (float) $a->longitude,
+                'heat' => $a->heat_score !== null ? (float) $a->heat_score : null,
+            ];
+        }
+
+        $maxCount = collect($points)->max('count') ?: 1;
+
+        return view('red-cross-units.my-unit-volunteer-map', [
+            'redCrossUnit' => $redCrossUnit,
+            'level' => $level,
+            'title' => $title,
+            'points' => $points,
+            'maxCount' => $maxCount,
+            'missingCount' => $missingCount,
+            'hasHeat' => collect($points)->contains(fn ($p) => $p['heat'] !== null),
+        ]);
+    }
+
+    /**
+     * Non-admin first-aid coverage map, scoped to the ordinary user's own
+     * view. Duplicates Reports\FirstAidMapController::render()'s aggregate
+     * query logic (that controller is explicitly left untouched) — same
+     * aggregate first_aid_count/first_aid_avg_days as the admin map, no
+     * individual-level data. Level toggle via ?level=, matching the
+     * volunteer map above.
+     */
+    public function myUnitFirstAidMap(Request $request)
+    {
+        $redCrossUnit = auth()->user()->redCrossUnit;
+
+        if (! $redCrossUnit) {
+            return redirect()->route('red-cross-units.my-unit')
+                ->with('error', 'You are not assigned to a Red Cross Unit.');
+        }
+
+        $level = $request->query('level') === 'division' ? 'division' : 'branch';
+
+        $cap = max(1, Setting::getInt('first_aid.freshness_cap_days', 1095));
+
+        $cols = ['id', 'name', 'latitude', 'longitude',
+            'first_aid_count', 'first_aid_avg_days', 'first_aid_computed_at'];
+
+        if ($level === 'branch') {
+            $areas = Branch::select($cols)->get();
+            $title = 'First Aid Coverage by Branch';
+        } else {
+            $areas = Division::select($cols)->get();
+            $title = 'First Aid Coverage by Division';
+        }
+
+        $points = [];
+        $missingCount = 0;
+
+        foreach ($areas as $a) {
+            if ($a->latitude === null || $a->longitude === null) {
+                $missingCount++;
+                continue;
+            }
+
+            $count = (int) ($a->first_aid_count ?? 0);
+            $avgDays = $a->first_aid_avg_days !== null ? (float) $a->first_aid_avg_days : null;
+
+            // fresh: 1 = freshest (green), 0 = stalest (red); null when no first-aiders / not computed
+            $fresh = ($count > 0 && $avgDays !== null)
+                ? 1 - min(1, max(0, $avgDays) / $cap)
+                : null;
+
+            $points[] = [
+                'name' => $a->name,
+                'count' => $count,
+                'lat' => (float) $a->latitude,
+                'lng' => (float) $a->longitude,
+                'fresh' => $fresh,
+                'avg_days' => $avgDays,
+            ];
+        }
+
+        $maxCount = collect($points)->max('count') ?: 1;
+
+        return view('red-cross-units.my-unit-first-aid-map', [
+            'redCrossUnit' => $redCrossUnit,
+            'level' => $level,
+            'title' => $title,
+            'points' => $points,
+            'maxCount' => $maxCount,
+            'missingCount' => $missingCount,
+            'capDays' => $cap,
+            'hasFreshness' => collect($points)->contains(fn ($p) => $p['fresh'] !== null),
+        ]);
     }
 
     /**
