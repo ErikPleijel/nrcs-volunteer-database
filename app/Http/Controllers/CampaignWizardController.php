@@ -103,11 +103,7 @@ class CampaignWizardController extends Controller
             ? CampaignPurpose::find($data['purpose_id'])
             : null;
 
-        // Auto-fill channel from purpose default if not overridden
         $channel = $data['channel'];
-        if ($purpose && ! $request->filled('channel_override')) {
-            $channel = $purpose->default_channel;
-        }
 
         // Auto-fill subject and body into filter_json['_content']
         // A field is overwritten when it was never filled, or when it still

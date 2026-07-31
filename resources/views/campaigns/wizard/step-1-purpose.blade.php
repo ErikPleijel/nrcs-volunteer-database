@@ -82,18 +82,9 @@
         const channelSelect = document.getElementById('channel');
 
         purposeSelect.addEventListener('change', function () {
-            const selected = this.options[this.selectedIndex];
-            const defaultChannel = selected.dataset.channel;
-            if (defaultChannel) {
-                channelSelect.value = defaultChannel;
-            }
-        });
-
-        // Auto-select channel on page load if purpose is pre-selected
-        document.addEventListener('DOMContentLoaded', function () {
             const selected = purposeSelect.options[purposeSelect.selectedIndex];
             const defaultChannel = selected?.dataset.channel;
-            if (defaultChannel && purposeSelect.value) {
+            if (defaultChannel) {
                 channelSelect.value = defaultChannel;
             }
         });
