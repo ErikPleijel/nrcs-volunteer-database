@@ -70,7 +70,7 @@
 
                         <div class="mt-4 text-sm text-amber-800 text-left max-w-lg mx-auto space-y-2">
                             <p><strong>Moving to another branch?</strong> Option A: They update their branch on My Profile, then the new branch assigns a unit. Option B: National HQ assigns one directly.</p>
-                            <p><strong>Want to become a paying member instead?</strong> a) Edit Person → Contribution preference → Active membership. b) Ensure they make payment.</p>
+                            <p><strong>Want to become a paying member instead?</strong> Ensure they make payment.</p>
                             <p><strong>No longer active?</strong> Archive their account from the Actions menu.</p>
                         </div>
                     </div>

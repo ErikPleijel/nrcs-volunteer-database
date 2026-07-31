@@ -339,7 +339,7 @@
                                             This volunteer is currently unassigned to a Red Cross Unit.
                                             <span class="font-semibold">Please ensure they are assigned to a new unit as soon as possible.</span>
                                             <p class="mt-2"><strong>Moving to another branch?</strong> Option A: They update their branch on My Profile, then the new branch assigns a unit. Option B: National HQ assigns one directly.</p>
-                                            <p class="mt-2"><strong>Want to become a paying member instead?</strong> a)  → Contribution preference → Active membership. b) Ensure they make payment.</p>
+                                            <p class="mt-2"><strong>Want to become a paying member instead?</strong> Ensure they make payment.</p>
                                             <p class="mt-2"><strong>No longer active?</strong> Archive their account from the Actions menu.</p>
                                         </div>
                                     @endif

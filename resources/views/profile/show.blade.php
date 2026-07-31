@@ -99,6 +99,96 @@
                         </div>
 
                         @php
+                            // Shared source of truth for Member-vs-Volunteer wording throughout
+                            // this whole page (the unassigned-unit explainer directly below, and
+                            // the Membership section further down — its status box, intro
+                            // paragraph, and a/a2/b/c conditional texts) — computed once, here, so
+                            // nothing downstream recomputes or duplicates this logic. Hoisted up
+                            // from the Membership section so this page-top explainer can share it.
+                            //
+                            // Matches the "email missing" banner check at the top of this file
+                            // (blank(auth()->user()->email)) — archived still takes precedence
+                            // over this below, since it's checked first in $membershipCtaPath.
+                            $canPayOnline = ! blank($user->email);
+
+                            // Path precedence: archived overrides everything; pending_engagement
+                            // decides member-vs-volunteer purely from contribution preference (no
+                            // RC Unit yet to check); active/dormant decides from RC Unit assignment
+                            // instead. Any other lifecycle_status is deliberately left unhandled —
+                            // render nothing rather than guess.
+                            $membershipCtaPath = null;
+
+                            if ($user->lifecycle_status === 'archived') {
+                                $membershipCtaPath = 'archived';
+                            } elseif ($user->lifecycle_status === 'pending_engagement') {
+                                if ($user->can_contribute_volunteering) {
+                                    $membershipCtaPath = 'volunteer';
+                                } elseif ($user->can_contribute_member) {
+                                    $membershipCtaPath = 'member';
+                                } else {
+                                    // Neither preference set — the top mission-statement banner
+                                    // already prompts for this; don't duplicate it here.
+                                    $membershipCtaPath = 'none';
+                                }
+                            } elseif (in_array($user->lifecycle_status, ['active', 'dormant'], true)) {
+                                $membershipCtaPath = $user->redCrossUnit ? 'volunteer' : 'member';
+                            } else {
+                                $membershipCtaPath = 'unknown';
+                            }
+
+                            $membershipCtaSubcase = null;
+                            if (in_array($membershipCtaPath, ['member', 'volunteer'], true)) {
+                                if (! $currentMembership) {
+                                    $membershipCtaSubcase = $hasEverHadPersonalPayment ? 'lapsed' : 'new';
+                                } elseif ($currentMembership['expiring_soon'] ?? false) {
+                                    $membershipCtaSubcase = 'expiring_soon';
+                                } else {
+                                    $membershipCtaSubcase = 'valid';
+                                }
+                            }
+                        @endphp
+
+                        {{-- Previously-assigned-but-now-unassigned explainer (isUnassignedGhost()):
+                             plain, non-alarming language for the affected person themselves — the
+                             admin-facing "LIMBO" banner on users/show.blade.php covers the same
+                             underlying state but is written for admins and stays as-is. --}}
+                        @if($user->isUnassignedGhost())
+                            <div class="mt-6 p-5 bg-sky-50 border border-sky-200 rounded-lg">
+                                <div class="flex items-start gap-3">
+                                    <i class="fas fa-circle-info text-sky-500 mt-1"></i>
+                                    <div class="text-lg text-sky-900">
+                                        <p class="font-semibold mb-2">You're not currently assigned to a Red Cross Unit</p>
+                                        <p class="mb-3 font-normal">
+                                            You were previously assigned to a Red Cross Unit, but you are not currently
+                                            assigned to one. Here's what this means and what you can do:
+                                        </p>
+                                        <ul class="list-disc list-inside space-y-2 font-normal">
+                                            <li>
+                                                If you've moved to a different area, update your location under
+                                                <span class="font-semibold">"Update personal details"</span>, then
+                                                contact your new branch so they can assign you to a unit there.
+                                            </li>
+                                            <li>
+                                                @if($membershipCtaSubcase === 'valid')
+                                                    Or, become a paying member instead — when your current membership
+                                                    fee expires, you can renew as a regular member rather than waiting
+                                                    for reassignment.
+                                                @else
+                                                    Or, become a paying member instead — pay your membership fee to
+                                                    activate a regular membership without needing a unit assignment.
+                                                @endif
+                                            </li>
+                                            <li>
+                                                If none of the above applies to you, you can archive your own account
+                                                — scroll to the bottom of this page for this option.
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        @endif
+
+                        @php
                             $wantsVolunteering = (bool) $user->can_contribute_volunteering;
                             $wantsMember = (bool) $user->can_contribute_member && !$wantsVolunteering; // prefer volunteering if both are set
                         @endphp
@@ -259,53 +349,10 @@
                             <h2 class="text-xl font-bold text-gray-900">YOUR MEMBERSHIP</h2>
                         </div>
 
-                        @php
-                            // Shared source of truth for Member-vs-Volunteer wording throughout
-                            // this whole section (the status box below, the intro paragraph, and
-                            // the a/a2/b/c conditional texts) — computed once, here, so nothing
-                            // downstream recomputes or duplicates this logic.
-                            //
-                            // Matches the "email missing" banner check at the top of this file
-                            // (blank(auth()->user()->email)) — archived still takes precedence
-                            // over this below, since it's checked first in $membershipCtaPath.
-                            $canPayOnline = ! blank($user->email);
-
-                            // Path precedence: archived overrides everything; pending_engagement
-                            // decides member-vs-volunteer purely from contribution preference (no
-                            // RC Unit yet to check); active/dormant decides from RC Unit assignment
-                            // instead. Any other lifecycle_status is deliberately left unhandled —
-                            // render nothing rather than guess.
-                            $membershipCtaPath = null;
-
-                            if ($user->lifecycle_status === 'archived') {
-                                $membershipCtaPath = 'archived';
-                            } elseif ($user->lifecycle_status === 'pending_engagement') {
-                                if ($user->can_contribute_volunteering) {
-                                    $membershipCtaPath = 'volunteer';
-                                } elseif ($user->can_contribute_member) {
-                                    $membershipCtaPath = 'member';
-                                } else {
-                                    // Neither preference set — the top mission-statement banner
-                                    // already prompts for this; don't duplicate it here.
-                                    $membershipCtaPath = 'none';
-                                }
-                            } elseif (in_array($user->lifecycle_status, ['active', 'dormant'], true)) {
-                                $membershipCtaPath = $user->redCrossUnit ? 'volunteer' : 'member';
-                            } else {
-                                $membershipCtaPath = 'unknown';
-                            }
-
-                            $membershipCtaSubcase = null;
-                            if (in_array($membershipCtaPath, ['member', 'volunteer'], true)) {
-                                if (! $currentMembership) {
-                                    $membershipCtaSubcase = $hasEverHadPersonalPayment ? 'lapsed' : 'new';
-                                } elseif ($currentMembership['expiring_soon'] ?? false) {
-                                    $membershipCtaSubcase = 'expiring_soon';
-                                } else {
-                                    $membershipCtaSubcase = 'valid';
-                                }
-                            }
-                        @endphp
+                        {{-- $canPayOnline / $membershipCtaPath / $membershipCtaSubcase are computed
+                             once, near the top of this page (right after the seven-principles
+                             block), so the unassigned-unit explainer up there can share the same
+                             values — see the PHP block there for the full computation. --}}
 
                         <!-- Current Valid Membership Status -->
                         <div class="mb-6 p-4 border-2 border-dashed border-gray-200 rounded-lg bg-gray-50">
