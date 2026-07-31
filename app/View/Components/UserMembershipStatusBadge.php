@@ -53,8 +53,19 @@ class UserMembershipStatusBadge extends Component
             $this->icon   = 'fa-id-card';
             $this->styles = 'bg-red-100 text-red-800';
 
+        } elseif ($canVolunteer && $user->latestMembershipPayment()->personal()->first()) {
+            // No RC unit, no current valid payment, wants to volunteer —
+            // but has a lapsed payment on record, so "Interested" would
+            // misrepresent them as never having engaged.
+            $this->type   = 'volunteer_expired';
+            $this->line1  = 'Volunteer';
+            $this->line2  = 'Expired fee';
+            $this->line2Danger = true;
+            $this->icon   = 'fa-hands-helping';
+            $this->styles = 'bg-green-100 text-green-800';
+
         } elseif ($canVolunteer) {
-            // No RC unit, no valid payment — wants to volunteer
+            // No RC unit, no valid payment, never paid — wants to volunteer
             // (covers: volunteer only, both ticked)
             $this->type   = 'volunteer_interested';
             $this->line1  = 'Volunteer';

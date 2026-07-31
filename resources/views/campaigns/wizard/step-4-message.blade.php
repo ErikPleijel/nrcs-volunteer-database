@@ -17,6 +17,12 @@
 
         $showEmail = in_array($channel, ['email', 'both', 'email_fallback_sms'], true);
         $showSms   = in_array($channel, ['sms', 'both', 'email_fallback_sms'], true);
+
+        // Both panels always render now; these two control the
+        // disabled+faint treatment for the exclusive-channel cases only.
+        // 'both' and 'email_fallback_sms' leave both false (no change).
+        $emailDisabled = $channel === 'sms';
+        $smsDisabled   = $channel === 'email';
     @endphp
 
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
@@ -42,20 +48,19 @@
                 {{-- SIDE BY SIDE VIEW --}}
                 <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
 
-                    {{-- Email Column --}}
-                    @if($showEmail)
+                    {{-- Email Column (always rendered; disabled+faint when channel is 'sms') --}}
                         <div class="lg:col-span-7" data-panel="email">
                             <h3 class="text-lg font-bold text-gray-900 border-b pb-2">Email Content</h3>
                             <div class="mb-6 pb-6 border-b border-gray-100 space-y-3">
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
                                         <label class="wizard-label">From name</label>
-                                        <input name="from_name" value="{{ old('from_name', $campaign->from_name ?? $defaultFromName) }}" class="wizard-input mt-2" placeholder="NRCS – Your Branch" required>
+                                        <input name="from_name" value="{{ old('from_name', $campaign->from_name ?? $defaultFromName) }}" class="wizard-input mt-2" placeholder="NRCS – Your Branch" {{ $showEmail ? 'required' : '' }}>
                                         @error('from_name') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                                     </div>
                                     <div>
                                         <label class="wizard-label">Reply-to email</label>
-                                        <input name="reply_to_email" value="{{ old('reply_to_email', $campaign->reply_to_email ?? $defaultReplyToEmail) }}" class="wizard-input mt-2" placeholder="your.branch@nrcs.org" required>
+                                        <input name="reply_to_email" value="{{ old('reply_to_email', $campaign->reply_to_email ?? $defaultReplyToEmail) }}" class="wizard-input mt-2" placeholder="your.branch@nrcs.org" {{ $showEmail ? 'required' : '' }}>
                                         @error('reply_to_email') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                                     </div>
                                 </div>
@@ -70,22 +75,26 @@
                                 @error('unresolved_email_subject') <p class="mt-1 text-xs text-amber-700 font-semibold"><i class="fas fa-triangle-exclamation mr-1"></i>{{ $message }}</p> @enderror
                             </div>
                             <div>
+                                <div id="email-editor-wrap" class="{{ $emailDisabled ? 'opacity-50 pointer-events-none' : '' }}">
                                 <div class="mt-6 flex items-center justify-between mb-1">
                                     <label class="wizard-label mb-0">Email body</label>
                                     <div class="flex rounded-md border border-gray-300 overflow-hidden text-xs font-medium">
                                         <button type="button" id="email-tab-wysiwyg"
-                                                class="px-3 py-1 bg-indigo-600 text-white transition-colors"
-                                                onclick="setEmailTab('wysiwyg')">
+                                                class="px-3 py-1 bg-indigo-600 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                                onclick="setEmailTab('wysiwyg')"
+                                                {{ $emailDisabled ? 'disabled' : '' }}>
                                             <i class="fas fa-pen mr-1"></i>Write
                                         </button>
                                         <button type="button" id="email-tab-code"
-                                                class="px-3 py-1 bg-white text-gray-600 hover:bg-gray-50 transition-colors"
-                                                onclick="setEmailTab('code')">
+                                                class="px-3 py-1 bg-white text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                                onclick="setEmailTab('code')"
+                                                {{ $emailDisabled ? 'disabled' : '' }}>
                                             <i class="fas fa-code mr-1"></i>Code
                                         </button>
                                         <button type="button" id="email-tab-preview"
-                                                class="px-3 py-1 bg-white text-gray-600 hover:bg-gray-50 transition-colors"
-                                                onclick="setEmailTab('preview')">
+                                                class="px-3 py-1 bg-white text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                                onclick="setEmailTab('preview')"
+                                                {{ $emailDisabled ? 'disabled' : '' }}>
                                             <i class="fas fa-eye mr-1"></i>Preview
                                         </button>
                                     </div>
@@ -94,7 +103,8 @@
                                 {{-- Code view --}}
                                 <div id="email-code-view" class="hidden mt-1">
                                     <textarea id="email_body" name="email_body" rows="16"
-                                              class="wizard-input mt-1 font-mono text-xs">{{ old('email_body', data_get($content, 'email_body', '')) }}</textarea>
+                                              class="wizard-input mt-1 font-mono text-xs disabled:opacity-50 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                                              {{ $emailDisabled ? 'disabled' : '' }}>{{ old('email_body', data_get($content, 'email_body', '')) }}</textarea>
                                 </div>
 
                                 {{-- Preview view --}}
@@ -120,6 +130,7 @@
                                     </div>
 
                                 </div>
+                                </div>
 
                                 @if($showEmail)
                                     <div class="mt-2 rounded-md border border-gray-200 bg-gray-50 p-3 text-sm text-gray-500">
@@ -139,7 +150,9 @@
                                 </p>
 
                                 <div class="mt-2 flex items-center gap-2">
-                                    <select class="wizard-input flex-1 py-1 text-sm" data-placeholder-select data-target-textarea="email_body">
+                                    <select class="wizard-input flex-1 py-1 text-sm disabled:opacity-50 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                                            data-placeholder-select data-target-textarea="email_body"
+                                            {{ $emailDisabled ? 'disabled' : '' }}>
                                         <option value="">Insert placeholder…</option>
                                         @foreach(($placeholders ?? []) as $token => $label)
                                             <option value="{{ $token }}">{{ $label }}</option>
@@ -149,17 +162,17 @@
 
                             </div>
                         </div>
-                    @endif
 
-                    {{-- SMS Column --}}
-                    @if($showSms)
+                    {{-- SMS Column (always rendered; disabled+faint when channel is 'email') --}}
                         <div class="lg:col-span-5 " data-panel="sms">
                             <h3 class="text-lg font-bold text-gray-900 border-b pb-2">SMS Content</h3>
                             <div class="flex justify-between items-end">
 
                                 <div class="text-base text-gray-700"><span id="smsCharCount">0</span> chars • <span class="text-green-700 font-semibold" id="smsPartsHint">~1 SMS</span></div>
                             </div>
-                            <textarea id="sms_body" name="sms_body" rows="12" class="wizard-input mt-2">{{ old('sms_body', data_get($content, 'sms_body', '')) }}</textarea>
+                            <textarea id="sms_body" name="sms_body" rows="12"
+                                      class="wizard-input mt-2 disabled:opacity-50 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                                      {{ $smsDisabled ? 'disabled' : '' }}>{{ old('sms_body', data_get($content, 'sms_body', '')) }}</textarea>
                             @if($showSms)
                                 <div class="rounded-md border border-gray-200 bg-gray-50 p-3 text-xs text-gray-500" id="sms-footer-preview">
                                     <p class="break-all">To stop: {{ config('app.url') }}/u/<span class="not-italic text-gray-600 bg-gray-200 rounded px-0.5" title="Placeholder only — the real link uses a unique 32-character token per recipient">XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX</span>/sms</p>
@@ -176,7 +189,9 @@
 
 
                             <div class="mt-2 flex items-center gap-2">
-                                <select class="wizard-input flex-1 py-1 text-sm" data-placeholder-select data-target-textarea="sms_body">
+                                <select class="wizard-input flex-1 py-1 text-sm disabled:opacity-50 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                                        data-placeholder-select data-target-textarea="sms_body"
+                                        {{ $smsDisabled ? 'disabled' : '' }}>
                                     <option value="">Insert placeholder…</option>
                                     @foreach(($placeholders ?? []) as $token => $label)
                                         <option value="{{ $token }}">{{ $label }}</option>
@@ -188,8 +203,9 @@
                                 <div class="mt-2 flex items-center gap-2">
                                     <!-- Removed mt-0.5 -->
                                     <input type="checkbox" id="insert-login-sms"
-                                           class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
-                                    <label for="insert-login-sms" class="wizard-hint cursor-pointer">
+                                           class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                                           {{ $smsDisabled ? 'disabled' : '' }}>
+                                    <label for="insert-login-sms" class="wizard-hint cursor-pointer {{ $smsDisabled ? 'opacity-50 cursor-not-allowed' : '' }}">
                                         Encourage recipient to visit the NRCS website
                                         <span class="">(inserts a line at the end of the SMS body)</span>
                                     </label>
@@ -198,7 +214,6 @@
 
 
                         </div>
-                    @endif
                 </div>
 
                 @error('email_body')
@@ -243,6 +258,7 @@
                 // ── EMAIL WYSIWYG / CODE / PREVIEW TOGGLE ────────────────
                 let quill = null;
                 let quillInitialised = false;
+                const emailDisabled = @json($emailDisabled);
 
                 function syncQuillToTextarea() {
                     if (quill) {
@@ -309,6 +325,9 @@
                                 syncQuillToTextarea();
                                 updateWarning(textarea, document.getElementById('emailBodyWarning'));
                             });
+                            if (emailDisabled) {
+                                quill.enable(false);
+                            }
                             quillInitialised = true;
                         } else {
                             syncTextareaToQuill();

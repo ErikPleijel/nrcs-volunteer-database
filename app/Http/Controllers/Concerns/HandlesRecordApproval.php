@@ -267,7 +267,7 @@ trait HandlesRecordApproval
      *
      * Atomic guarded hard-delete: the DELETE itself is the race-safe guard.
      */
-    public function withdraw(Request $request, $id): RedirectResponse
+    public function withdraw(Request $request, $id): RedirectResponse|View
     {
         $modelClass = $this->approvalModelClass();
         $user = Auth::user();
@@ -280,7 +280,12 @@ trait HandlesRecordApproval
             ->delete();
 
         if ($deleted > 0) {
-            return back()->with('success', $this->approvalLabel().' withdrawn.');
+            // Return the confirmation directly rather than back(): the record is
+            // now hard-deleted, so redirecting to the review page it was
+            // submitted from would 404 on the follow-up findOrFail().
+            return view('approvals.withdrawn', [
+                'label' => $this->approvalLabel(),
+            ]);
         }
 
         // 0 rows deleted — reload (scope-lifted) to explain why.
