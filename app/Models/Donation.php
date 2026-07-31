@@ -203,7 +203,7 @@ class Donation extends Model
             $branchCode = strtoupper($this->branch->code ?? $this->branch->name ?? 'UNK');
         }
 
-        return "DON-{$this->id}/{$branchCode}";
+        return "DON-{$this->formatIdForDisplay()}/{$branchCode}";
         //  return "DON-{$this->id}";
     }
 

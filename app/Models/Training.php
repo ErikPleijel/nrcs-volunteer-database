@@ -446,7 +446,7 @@ class Training extends Model
             $branchCode = strtoupper($this->branch->code ?? $this->branch->name ?? 'UNK');
         }
 
-        return "TRN-{$this->id}/{$branchCode}";
+        return "TRN-{$this->formatIdForDisplay()}/{$branchCode}";
         // return "TRN-{$this->id}";
     }
 

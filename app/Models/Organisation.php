@@ -105,9 +105,19 @@ class Organisation extends Model
     public function getOrgReferenceAttribute(): string
     {
         if ($this->branch?->code) {
-            return 'ORG-' . $this->id . '-' . strtoupper($this->branch->code);
+            return 'ORG-' . $this->formatIdForDisplay() . '-' . strtoupper($this->branch->code);
         }
-        return 'ORG-' . $this->id;
+        return 'ORG-' . $this->formatIdForDisplay();
+    }
+
+    private function formatIdForDisplay(): string
+    {
+        // Thin space (U+2009) grouping every 3 digits, for readability as
+        // ids grow. Not a comma (avoids confusion if someone types the
+        // reference into a search box), not a full non-breaking space
+        // (visually too wide). Display-only — never use for route()/lookup
+        // params, which must keep using the raw integer.
+        return number_format($this->id, 0, '.', "\u{2009}");
     }
 
     public function getOrgReferenceLinkAttribute(): string

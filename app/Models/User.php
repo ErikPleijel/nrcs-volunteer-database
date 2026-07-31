@@ -1332,7 +1332,7 @@ class User extends Authenticatable implements MustVerifyEmail
             $redCrossUnitName = $this->formatCodeName($this->redCrossUnit->name);
         }
 
-        return "DB-{$this->id}/{$branchCode}/{$divisionName}/{$redCrossUnitName}";
+        return "DB-{$this->formatUserIdForDisplay()}/{$branchCode}/{$divisionName}/{$redCrossUnitName}";
     }
 
     /**
@@ -1348,7 +1348,18 @@ class User extends Authenticatable implements MustVerifyEmail
             ? $this->formatCodeName($this->division->name)
             : 'UNK';
 
-        return "DB-{$this->id}-{$branchCode}-{$divisionName}";
+        return "DB-{$this->formatUserIdForDisplay()}-{$branchCode}-{$divisionName}";
+    }
+
+    private function formatUserIdForDisplay(): string
+    {
+        // Thin space (U+2009) grouping every 3 digits, for readability as
+        // IDs grow past 5-6 digits. Not a comma (avoids confusion if
+        // someone types the reference into a search box), and not a full
+        // non-breaking space (visually too wide at this size). Display-only
+        // — never use this for route() params, lookups, or anything that
+        // needs the raw integer.
+        return number_format($this->id, 0, '.', "\u{2009}");
     }
 
     public function getUserIdReferenceLinkAttribute(): string
@@ -1361,12 +1372,11 @@ class User extends Authenticatable implements MustVerifyEmail
             ? $this->formatCodeName($this->division->name)
             : 'UNK';
 
-        $reference = "DB-{$this->id}-{$branchCode}-{$divisionName}";
+        $reference = "DB-{$this->formatUserIdForDisplay()}-{$branchCode}-{$divisionName}";
         $url = route('users.show', $this->id);
 
         return "<a href=\"{$url}\" class=\"db-code underline\">{$reference}</a>";
     }
-
     /**
      * Get the access level of the user based on their roles.
      *

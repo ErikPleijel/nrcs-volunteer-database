@@ -237,7 +237,7 @@ class Activity extends Model
             $branchCode = strtoupper($this->branch->code ?? $this->branch->name ?? 'UNK');
         }
 
-        return "VOL-{$this->id}/{$branchCode}";
+        return "VOL-{$this->formatIdForDisplay()}/{$branchCode}";
         // return "VOL-{$this->id}";
     }
 

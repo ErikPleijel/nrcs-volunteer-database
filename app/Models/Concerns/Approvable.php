@@ -179,6 +179,16 @@ trait Approvable
             : route("{$module}.review", $this->id);
     }
 
+    protected function formatIdForDisplay(): string
+    {
+        // Thin space (U+2009) grouping every 3 digits, for readability as
+        // ids grow. Not a comma (avoids confusion if someone types the
+        // reference into a search box), not a full non-breaking space
+        // (visually too wide). Display-only — never use for route()/lookup
+        // params, which must keep using the raw integer.
+        return number_format($this->id, 0, '.', "\u{2009}");
+    }
+
     /**
      * Whether $user may withdraw this record (pending AND its submitter).
      * The actual guarded delete is implemented in Phase 2; this is for the UI.

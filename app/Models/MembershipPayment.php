@@ -242,7 +242,7 @@ class MembershipPayment extends Model
             $branchCode = strtoupper($this->branch->code ?? $this->branch->name ?? 'UNK');
         }
 
-        return "FEE-{$this->id}/{$branchCode}";
+        return "FEE-{$this->formatIdForDisplay()}/{$branchCode}";
     }
 
     /**

@@ -167,7 +167,7 @@ dialog.help-popup-dialog::backdrop {
 }
 
 .db-code {
-    @apply mt-1 text-sm text-gray-800 font-mono;
+    @apply mt-1 text-sm text-gray-800;
 }
 
 .warning-note {
