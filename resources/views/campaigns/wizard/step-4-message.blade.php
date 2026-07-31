@@ -55,12 +55,12 @@
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
                                         <label class="wizard-label">From name</label>
-                                        <input name="from_name" value="{{ old('from_name', $campaign->from_name ?? $defaultFromName) }}" class="wizard-input mt-2" placeholder="NRCS – Your Branch" {{ $showEmail ? 'required' : '' }}>
+                                        <input name="from_name" value="{{ old('from_name', $campaign->from_name ?? $defaultFromName) }}" class="wizard-input mt-2 disabled:opacity-50 disabled:bg-gray-100 disabled:cursor-not-allowed" placeholder="NRCS – Your Branch" {{ $showEmail ? 'required' : '' }} {{ $emailDisabled ? 'disabled' : '' }}>
                                         @error('from_name') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                                     </div>
                                     <div>
                                         <label class="wizard-label">Reply-to email</label>
-                                        <input name="reply_to_email" value="{{ old('reply_to_email', $campaign->reply_to_email ?? $defaultReplyToEmail) }}" class="wizard-input mt-2" placeholder="your.branch@nrcs.org" {{ $showEmail ? 'required' : '' }}>
+                                        <input name="reply_to_email" value="{{ old('reply_to_email', $campaign->reply_to_email ?? $defaultReplyToEmail) }}" class="wizard-input mt-2 disabled:opacity-50 disabled:bg-gray-100 disabled:cursor-not-allowed" placeholder="your.branch@nrcs.org" {{ $showEmail ? 'required' : '' }} {{ $emailDisabled ? 'disabled' : '' }}>
                                         @error('reply_to_email') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                                     </div>
                                 </div>
@@ -70,7 +70,7 @@
                             </div>
                             <div>
                                 <label class="wizard-label">Email subject</label>
-                                <input name="subject" value="{{ old('subject', data_get($content, 'email_subject', '')) }}" class="wizard-input mt-2">
+                                <input name="subject" value="{{ old('subject', data_get($content, 'email_subject', '')) }}" class="wizard-input mt-2 disabled:opacity-50 disabled:bg-gray-100 disabled:cursor-not-allowed" {{ $emailDisabled ? 'disabled' : '' }}>
                                 @error('subject') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                                 @error('unresolved_email_subject') <p class="mt-1 text-xs text-amber-700 font-semibold"><i class="fas fa-triangle-exclamation mr-1"></i>{{ $message }}</p> @enderror
                             </div>
