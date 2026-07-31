@@ -23,6 +23,10 @@ class RegisterController extends Controller
      */
     public function showRegistrationForm()
     {
+        if (config('maintenance.login_gate_enabled')) {
+            return redirect()->route('maintenance-gate.show');
+        }
+
         $branches = Branch::orderBy('name')->get();
         $divisions = collect(); // Empty collection initially - will be loaded via AJAX
         $redCrossUnits = RedCrossUnit::all();
@@ -53,6 +57,14 @@ class RegisterController extends Controller
      */
     public function register(Request $request)
     {
+        // Belt-and-suspenders: showRegistrationForm() already redirects
+        // away from the form while the gate is enabled, but this covers a
+        // direct POST (stale tab, replayed request, curl) that never loaded
+        // the form. Checked before any validation/create() runs.
+        if (config('maintenance.login_gate_enabled')) {
+            return redirect()->route('maintenance-gate.show');
+        }
+
         // Bot trap: honeypot field genuine users never see or fill in; only
         // automated form-fillers tend to populate it. Checked before any
         // validation or DB queries run.

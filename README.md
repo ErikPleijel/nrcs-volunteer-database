@@ -138,6 +138,35 @@ A full deployment checklist is maintained in `DEPLOYMENT_CHECKLIST.md`.
 
 ---
 
+## Maintenance Login Gate
+
+A reusable on/off switch for maintenance windows. When enabled, login and registration are blocked for everyone except an allowlisted set of user IDs, who can still log in normally — anyone else gets a "temporarily unavailable" message instead. The public welcome page is unaffected either way; it doesn't sit behind this gate.
+
+**When to use it:**
+- Database cutovers/migrations, where nobody should be able to log in mid-migration
+- Live Paystack integration testing/go-live — so a small number of people can safely test real payments and verify webhook fulfilment end-to-end, without other users creating live transactions or new accounts in the same window
+
+**How to use it** — in `.env`:
+
+```
+MAINTENANCE_LOGIN_GATE=true
+MAINTENANCE_ALLOWED_USER_IDS="8123, 8001, 1234"
+```
+
+Run `php artisan config:clear` after changing either value — config isn't re-read from `.env` on its own. Enabling the gate does not retroactively touch sessions that are already logged in, so follow it with:
+
+```bash
+php artisan maintenance:force-logout
+```
+
+This immediately ends every active session except the allowlisted users', who can log back in right away. It's a manual, one-time step you run each time you flip the gate on — not automatic.
+
+To turn the gate back off: set `MAINTENANCE_LOGIN_GATE=false` and run `php artisan config:clear` again. No `force-logout` run is needed on the way back up.
+
+The gate logic itself lives in `LoginController` and `RegisterController` (`app/Http/Controllers/Auth/`) — start there if it needs to change.
+
+---
+
 ## Project Structure Notes
 
 Non-obvious architectural decisions are documented in `DECISIONS.md` at the project root. If you are modifying core workflow logic (approval chains, scope guards, role boundaries), read that file first.

@@ -86,6 +86,9 @@ Route::get('/corporate-membership', function () {
 // Archived account notice (public — no auth)
 Route::get('/account-deactivated', [ArchivedAccountController::class, 'show'])->name('archived-account.show');
 
+// Maintenance login-gate notice (public — no auth; no user-specific data, so a plain view route)
+Route::view('/maintenance', 'auth.maintenance-gate')->name('maintenance-gate.show');
+
 // Authentication Routes
 Route::group([], function () {
     // Login

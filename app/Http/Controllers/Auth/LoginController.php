@@ -102,6 +102,10 @@ class LoginController extends Controller
             if (Auth::attempt(['id' => $candidate->id, 'password' => $password], $remember)) {
                 $loggedInUser = Auth::user();
 
+                if ($this->maintenanceGateBlocks($loggedInUser)) {
+                    return $this->redirectForMaintenanceGate($request);
+                }
+
                 if ($loggedInUser->lifecycle_status === 'archived') {
                     $branchId      = $loggedInUser->branch_id;
                     $archivedDbRef = $loggedInUser->user_id_reference;
@@ -122,7 +126,12 @@ class LoginController extends Controller
                 return redirect()->intended($this->redirectTo);
             }
 
-            if ($this->attemptLegacyLogin($candidate, $password, $remember, $request)) {
+            if ($legacyUser = $this->attemptLegacyLogin($candidate, $password, $remember, $request)) {
+                if ($this->maintenanceGateBlocks($legacyUser)) {
+                    return $this->redirectForMaintenanceGate($request);
+                }
+
+                $this->touchLastLogin();
                 return redirect()->intended($this->redirectTo);
             }
 
@@ -137,6 +146,10 @@ class LoginController extends Controller
         // 1) Normal auth attempt
         if (Auth::attempt($credentials, $remember)) {
             $loggedInUser = Auth::user();
+
+            if ($this->maintenanceGateBlocks($loggedInUser)) {
+                return $this->redirectForMaintenanceGate($request);
+            }
 
             if ($loggedInUser->lifecycle_status === 'archived') {
                 $branchId      = $loggedInUser->branch_id;
@@ -163,7 +176,12 @@ class LoginController extends Controller
         // 2) Legacy password fallback (md5 → bcrypt upgrade)
         $user = User::where('email', $loginRaw)->first();
 
-        if ($this->attemptLegacyLogin($user, $password, $remember, $request)) {
+        if ($legacyUser = $this->attemptLegacyLogin($user, $password, $remember, $request)) {
+            if ($this->maintenanceGateBlocks($legacyUser)) {
+                return $this->redirectForMaintenanceGate($request);
+            }
+
+            $this->touchLastLogin();
             return redirect()->intended($this->redirectTo);
         }
 
@@ -230,9 +248,13 @@ class LoginController extends Controller
 
     /**
      * Attempt the legacy md5 → bcrypt upgrade path.
-     * Returns true and logs the user in if the legacy hash matches.
+     * Logs the user in and returns them if the legacy hash matches, so
+     * callers can run post-login checks (e.g. the maintenance gate) before
+     * deciding where to redirect — mirroring the Auth::attempt() branches,
+     * which likewise defer touchLastLogin()/redirect until after those
+     * checks pass.
      */
-    private function attemptLegacyLogin(?User $user, string $password, bool $remember, Request $request): bool
+    private function attemptLegacyLogin(?User $user, string $password, bool $remember, Request $request): ?User
     {
         if ($user && empty($user->password) && ! empty($user->legacy_password_hash)) {
             if (md5($password) === $user->legacy_password_hash) {
@@ -243,13 +265,43 @@ class LoginController extends Controller
                 Auth::login($user, $remember);
                 $request->session()->regenerate();
 
-                $this->touchLastLogin();
-
-                return true;
+                return $user;
             }
         }
 
-        return false;
+        return null;
+    }
+
+    /**
+     * Maintenance login gate: when enabled via config, only allowlisted
+     * user IDs may complete a login. Checked BEFORE the archived-user check
+     * in every success path, so a blocked user always sees the generic
+     * maintenance message rather than a status-specific one (e.g. archived)
+     * that would leak account details during a maintenance window.
+     */
+    private function maintenanceGateBlocks(User $user): bool
+    {
+        if (! config('maintenance.login_gate_enabled')) {
+            return false;
+        }
+
+        $allowedIds = array_map('intval', config('maintenance.allowed_user_ids', []));
+
+        return ! in_array((int) $user->id, $allowedIds, true);
+    }
+
+    /**
+     * Mirrors the archived-user block: log the user back out and invalidate
+     * the session that Auth::attempt()/Auth::login() just created, so a
+     * gate-blocked login never leaves an authenticated session behind.
+     */
+    private function redirectForMaintenanceGate(Request $request)
+    {
+        Auth::logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return redirect()->route('maintenance-gate.show');
     }
 
     /**
