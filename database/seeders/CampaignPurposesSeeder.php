@@ -163,7 +163,7 @@ class CampaignPurposesSeeder extends Seeder
                 'default_email_body' => '
 <p>Dear {{user.first_name}},</p>
 <p>You are registered with the Nigerian Red Cross Society as part of the <strong>{{user.branch}}</strong> Branch — whether you joined recently or some time ago, we are glad to have you with us.</p>
-<p>We are reaching out because we have upgraded our membership system, and we want to make sure you can access your account and stay informed about branch activities.</p>
+<p>We are reaching out because we want to make sure you can access your account and stay informed about branch activities.</p>
 <p>Visit our website and log in to your account to see exactly what to do next:</p>
 <p>{{app.url}}</p>
 <p>We will never ask you to enter your password after clicking a link — if a page asks for your password, close it and open the app directly.</p>

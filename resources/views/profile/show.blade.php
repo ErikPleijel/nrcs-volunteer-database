@@ -193,7 +193,7 @@
                             $wantsMember = (bool) $user->can_contribute_member && !$wantsVolunteering; // prefer volunteering if both are set
                         @endphp
 
-                        @if($wantsVolunteering && !$user->redCrossUnit)
+                        @if($wantsVolunteering && !$user->redCrossUnit && !$user->isUnassignedGhost())
                             <div class="mt-6 p-5 bg-sky-50 border border-sky-200 rounded-lg">
                                 <div class="flex items-start gap-3">
                                     <i class="fas fa-seedling text-sky-500 mt-1"></i>
@@ -245,7 +245,7 @@
                                                 @endif
                                                 <a href="{{ route('red-cross-units.my-unit') }}"
                                                    class="ml-2 text-lg text-blue-600 hover:text-blue-800 underline underline-offset-2">
-                                                    View unit &rarr;
+                                                    View&nbsp;unit&nbsp;&rarr;
                                                 </a>
                                             </p>
                                         @endif
