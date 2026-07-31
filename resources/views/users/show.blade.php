@@ -56,26 +56,26 @@
             </div>
         @endif
 
-        @if($user->isUnassignedGhost())
-            <div class="max-w-2xl mx-auto mb-6">
-                <div class="bg-amber-50 border-2 border-amber-300 rounded-lg py-4 px-6 text-center">
-                    <div class="flex items-center justify-center gap-3">
-                        <i class="fas fa-triangle-exclamation text-amber-500 text-2xl"></i>
-                        <span class="text-lg text-amber-800">
-                            LIMBO<br>
-                            This volunteer is currently unassigned to a Red Cross Unit.<br>
-                            <strong class="font-bold">Please ensure they are assigned to a new unit as soon as possible.</strong>
-                        </span>
+            @if($user->isUnassignedGhost())
+                <div class="max-w-2xl mx-auto mb-6">
+                    <div class="bg-amber-50 border-2 border-amber-300 rounded-lg py-4 px-6 text-center">
+                        <div class="flex items-center justify-center gap-3">
+                            <i class="fas fa-triangle-exclamation text-amber-500 text-2xl"></i>
+                            <span class="text-lg text-amber-800">
+                    LIMBO<br>
+                    This volunteer is currently unassigned to a Red Cross Unit.<br>
+                    <strong class="font-bold">Please ensure they are assigned to a new unit as soon as possible.</strong>
+                </span>
+                        </div>
+
+                        <div class="mt-4 text-sm text-amber-800 text-left max-w-lg mx-auto space-y-2">
+                            <p><strong>Moving to another branch?</strong> Option A: They update their branch on My Profile, then the new branch assigns a unit. Option B: National HQ assigns one directly.</p>
+                            <p><strong>Want to become a paying member instead?</strong> a) Edit Person → Contribution preference → Active membership. b) Ensure they make payment.</p>
+                            <p><strong>No longer active?</strong> Archive their account from the Actions menu.</p>
+                        </div>
                     </div>
-                    <p class="mt-2 text-sm text-amber-800">
-                        Moving to another branch? They can update their branch on My Profile, then the new branch assigns a unit — or National HQ can move them directly.
-                    </p>
-                    <p class="mt-1 text-sm text-amber-800">
-                        Prefer they become a paying member instead? Make payment for them.
-                    </p>
                 </div>
-            </div>
-        @endif
+            @endif
 
         @if($user->email && !$user->email_verified_at)
             <div class="max-w-2xl mx-auto mb-6">
