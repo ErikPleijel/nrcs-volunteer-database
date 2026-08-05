@@ -81,6 +81,13 @@
             <p class="dashboard-heading text-center block w-full">
                 {{ $selectedBranchName }} Statistics
             </p>
+            <p class="mt-1 text-xs text-gray-500">
+                Stats update once per hour · Last updated {{ $dashboardGeneratedAt->diffForHumans() }} —
+                <a href="{{ route('reports.refresh-cache', array_filter(['branch_id' => $dashboardData['branchId'], 'extended' => $extended ? 1 : null])) }}"
+                   class="text-blue-600 hover:text-blue-800 hover:underline font-medium">
+                    Refresh now
+                </a>
+            </p>
         </div>
 
 

@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\StatsSnapshot;
 use App\Models\User;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 class TakeStatsSnapshot extends Command
@@ -112,6 +113,14 @@ class TakeStatsSnapshot extends Command
 
             $written++;
         }
+
+        // Invalidate every cached dashboard in one O(1) step: bump the shared generation
+        // stamp that DashboardController::dashboardCacheKey() folds into every dashboard
+        // cache key, rather than enumerating/deleting individual keys (there's no way to
+        // pattern-match keys on the 'file'/'database' cache drivers this app uses — only
+        // redis/memcached support cache tags). Old entries aren't deleted, just orphaned;
+        // they self-expire on their own 1-hour TTL regardless.
+        Cache::increment('dashboard:cache_gen');
 
         $elapsed = round(microtime(true) - $startedAt, 2);
 

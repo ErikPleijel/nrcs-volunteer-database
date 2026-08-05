@@ -12,6 +12,7 @@ use App\Services\Reports\DonationStatsService;
 use App\Services\Reports\RegistrationStatsService; // Import the RegistrationStatsService
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 
@@ -75,6 +76,78 @@ class DashboardController extends Controller
             ->orderBy('name')
             ->get();
 
+        $cached = Cache::remember(
+            $this->dashboardCacheKey($user->id, $branchId, $extended),
+            now()->addHour(),
+            function () use ($user, $branchId, $extended) {
+                $dashboardData = $this->buildDashboardData($user, $branchId, $extended);
+
+                return [
+                    'data' => $dashboardData,
+                    'generated_at' => now(),
+                ];
+            }
+        );
+
+        $dashboardData = $cached['data'];
+        $dashboardGeneratedAt = $cached['generated_at'];
+
+        return view('dashboard', compact('dashboardData', 'branches', 'extended', 'dashboardGeneratedAt'));
+    }
+
+    /**
+     * Cache key for a given viewer's dashboard: scoped by branch, extended-mode, and the
+     * viewing user (selfSubmitted* figures are per-user, so the key must be too — otherwise
+     * one user's pending-approval counts would leak into another user's cached view).
+     * Includes a generation stamp so stats:snapshot can invalidate every cached dashboard
+     * in O(1) (via Cache::increment) without needing tag support, which the 'file'/'database'
+     * cache drivers used in this app don't have.
+     */
+    private function dashboardCacheKey(int $userId, ?int $branchId, bool $extended): string
+    {
+        // Seed the generation counter on first-ever use (Cache::add is a no-op if it already
+        // exists). Using Cache::get(..., $default) with a fallback here would be a trap:
+        // the first Cache::increment() takes an absent key 0 -> 1, landing on the same value
+        // the fallback would already report, so the very first nightly invalidation would be
+        // silently swallowed. Seeding explicitly guarantees every increment is visible.
+        Cache::add('dashboard:cache_gen', 1);
+        $generation = Cache::get('dashboard:cache_gen');
+
+        return sprintf(
+            'dashboard:v%s:u%d:b%s:e%s',
+            $generation,
+            $userId,
+            $branchId ?? 'nat',
+            $extended ? '1' : '0'
+        );
+    }
+
+    /**
+     * Force-refresh this viewer's cached dashboard on their next load, then send them back.
+     * branch_id/extended are read from the query string (matching whatever the dashboard
+     * view was showing when "Refresh now" was clicked) rather than re-deriving from session,
+     * so this doesn't need to duplicate index()'s branch-resolution logic.
+     */
+    public function refreshCache(Request $request)
+    {
+        $user = Auth::user();
+        $branchId = $request->filled('branch_id') ? (int) $request->input('branch_id') : null;
+        $extended = $request->boolean('extended');
+
+        Cache::forget($this->dashboardCacheKey($user->id, $branchId, $extended));
+
+        return redirect()->route('reports.dashboard', array_filter([
+            'branch_id' => $branchId,
+            'extended' => $extended ? 1 : null,
+        ]));
+    }
+
+    /**
+     * All the dashboard's card data. Pure computation — no caching concerns here, so query
+     * logic for any given card can keep being edited without touching the caching wrapper.
+     */
+    private function buildDashboardData($user, ?int $branchId, bool $extended): array
+    {
         // --- Always: Members card ---
         $current = $this->membershipStatsService->getTotalMembersCount($branchId);
 
@@ -361,7 +434,7 @@ class DashboardController extends Controller
             'selfSubmittedCampaigns'  => $selfSubmittedCampaigns,
         ];
 
-        return view('dashboard', compact('dashboardData', 'branches', 'extended'));
+        return $dashboardData;
     }
 
     /**

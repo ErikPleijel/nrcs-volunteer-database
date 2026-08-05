@@ -686,6 +686,7 @@ Route::middleware(['auth', 'verified.or.absent'])->group(function () {
 
             // Dashboard
             Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+            Route::get('/refresh', [DashboardController::class, 'refreshCache'])->name('refresh-cache');
             Route::get('/pending-approvals',
                 [\App\Http\Controllers\Reports\PendingApprovalsReportController::class, 'index'])
                 ->name('pending-approvals');
