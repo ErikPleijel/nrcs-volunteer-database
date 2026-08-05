@@ -9,14 +9,30 @@
     <div class="container mx-auto px-4 py-6">
 
         {{-- Page-scoped print refinements, layered on top of the global
-             @media print rule in resources/css/app.css. This report is
-             table-only (no chart), so print CSS only needs to hide the
-             actions bar, quarter selector, and tab controls. --}}
+             @media print rule in resources/css/app.css (checked: that file
+             only hides sidebar/header/footer/watermark and fixes chart/
+             <main> width — no @page or table rules, so nothing here
+             conflicts with it). This report is table-only (no chart), so
+             print CSS only needs to hide the actions bar, period selector,
+             and tab controls, plus — for the Payments tab's 13-column year
+             table only — force landscape orientation and shrink that one
+             table specifically via its own .financial-year-table class, so
+             the simpler 6-column Fee Breakdown table (unaffected by the
+             Payments tab's density problem — see Fee Breakdown tab's own
+             conversion) keeps using the normal page orientation/font-size. --}}
         <style>
             @media print {
                 #financial-actions { display: none !important; }
-                #financial-quarter-form { display: none !important; }
+                #financial-year-form { display: none !important; }
                 #financial-breakdown-tabs { display: none !important; }
+
+                @if($activeTab === 'payments')
+                    @page { size: landscape; }
+
+                    .financial-year-table { font-size: 8px; }
+                    .financial-year-table th,
+                    .financial-year-table td { padding: 2px 3px !important; }
+                @endif
             }
         </style>
 
@@ -35,7 +51,7 @@
 
         {{-- ── TABS ─────────────────────────────────────────────────────────── --}}
         @php
-            $tabParams = array_filter(['scope' => $selectedScope, 'quarter' => $selectedQuarter]);
+            $tabParams = array_filter(['scope' => $selectedScope, 'year' => $selectedYear]);
         @endphp
         <div id="financial-breakdown-tabs" class="flex gap-2 border-b border-gray-200 mb-6">
             @foreach([
@@ -53,32 +69,38 @@
             @endforeach
         </div>
 
-        {{-- ── QUARTER SELECTOR (centered, just above the scope/quarter header) ── --}}
+        {{-- ── PERIOD SELECTOR (centered, just above the scope/period header) ── --}}
         {{-- Area is no longer a dropdown here — branch-scoping is now driven by
              clicking a branch name in the Payments tab (national view) or "Back
              to National" (branch-scoped view), both setting/clearing the same
-             'scope' param this form's hidden input never touched. --}}
-        <div id="financial-quarter-form" class="flex justify-center mb-4">
+             'scope' param this form's hidden input never touched. Both tabs are
+             now full-year (Q1-Q4) views sharing this one year selector — Fee
+             Breakdown's separate quarter selector is gone, which also fixes the
+             tab-switch mismatch where switching tabs used to silently reset the
+             other tab's period back to its own default (confirmed via direct
+             testing before this change: Payments year=2020 -> Fee Breakdown
+             carried quarter=<current quarter>, not anything derived from 2020,
+             and vice versa). --}}
+        <div id="financial-year-form" class="flex justify-center mb-4">
             <form action="{{ route('reports.financial.index') }}" method="GET" class="flex items-center gap-2">
                 <input type="hidden" name="tab" value="{{ $activeTab }}">
                 <input type="hidden" name="scope" value="{{ $selectedScope }}">
 
-                <label for="quarter" class="filter-label-small mb-0">Quarter</label>
-                <select name="quarter" id="quarter"
-                        class="filter-select-small {{ $selectedQuarter !== $defaultQuarter ? 'filter-active' : '' }}"
+                <label for="year" class="filter-label-small mb-0">Year</label>
+                <select name="year" id="year"
+                        class="filter-select-small {{ $selectedYear !== $defaultYear ? 'filter-active' : '' }}"
                         onchange="this.form.submit()">
-                    @foreach($quarterOptions as $opt)
-                        <option value="{{ $opt['value'] }}" @selected($selectedQuarter === $opt['value'])>
-                            {{ $opt['label'] }}
+                    @foreach($yearOptions as $yearOpt)
+                        <option value="{{ $yearOpt }}" @selected($selectedYear === $yearOpt)>
+                            {{ $yearOpt }}
                         </option>
                     @endforeach
                 </select>
             </form>
         </div>
 
-        {{-- ── SCOPE / QUARTER HEADER (shared by both tabs) ────────────────────── --}}
+        {{-- ── SCOPE / PERIOD HEADER (shared by both tabs) ─────────────────────── --}}
         @php
-            [$scopeYearPart, $scopeQuarterPart] = explode('-', $selectedQuarter);
             $scopeAreaLabel = $isNational ? 'National' : $selectedBranchName;
 
             // Breakdown-link scoping: mirrors the exact hierarchy-aware rule
@@ -88,7 +110,7 @@
         @endphp
         <div class="text-center mb-6">
             <span class="text-2xl font-bold text-gray-900">
-                {{ $scopeQuarterPart }} {{ $scopeYearPart }} &mdash; {{ $scopeAreaLabel }}
+                {{ $selectedYear }} &mdash; {{ $scopeAreaLabel }}
             </span>
         </div>
 
@@ -96,7 +118,7 @@
         @if($activeTab === 'payments')
             @unless ($isNational)
                 <div class="text-center mb-6">
-                    <a href="{{ route('reports.financial.index', ['tab' => 'payments', 'scope' => 'national', 'quarter' => $selectedQuarter]) }}"
+                    <a href="{{ route('reports.financial.index', ['tab' => 'payments', 'scope' => 'national', 'year' => $selectedYear]) }}"
                        class="text-blue-600 hover:text-blue-800 hover:underline">
                         <i class="fas fa-arrow-left mr-1"></i>Back to National
                     </a>
@@ -107,30 +129,49 @@
                 <p class="text-center text-gray-400 italic py-12">No payment data available for the selected period.</p>
             @else
                 @php
-                    $totalMembers   = array_sum(array_column($paymentsData, 'member_amount'));
-                    $totalVolunteer = array_sum(array_column($paymentsData, 'volunteer_amount'));
-                    $totalOrg       = array_sum(array_column($paymentsData, 'org_amount'));
-                    $grandTotal     = array_sum(array_column($paymentsData, 'total'));
+                    // 12 quarter×category columns, in on-screen left-to-right order.
+                    $yearColumns = [
+                        'q1_member', 'q1_volunteer', 'q1_org',
+                        'q2_member', 'q2_volunteer', 'q2_org',
+                        'q3_member', 'q3_volunteer', 'q3_org',
+                        'q4_member', 'q4_volunteer', 'q4_org',
+                    ];
+                    $columnTotals = [];
+                    foreach ($yearColumns as $col) {
+                        $columnTotals[$col] = array_sum(array_column($paymentsData, $col));
+                    }
+                    $grandTotal = array_sum(array_column($paymentsData, 'year_total'));
                 @endphp
 
-                <div class="overflow-x-auto">
-                    <table class="mx-auto text-sm bg-white rounded-lg shadow overflow-hidden">
+                <div class="overflow-x-auto rounded-lg shadow">
+                    <table class="financial-year-table text-sm bg-white">
                         <thead>
                             <tr class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
-                                <th class="px-4 py-2 text-left">{{ $rowType === 'branch' ? 'Branch' : 'Division' }}</th>
-                                <th class="px-2 py-2 text-right">Members</th>
-                                <th class="px-2 py-2 text-right">Volunteers</th>
-                                <th class="px-2 py-2 text-right">Organisations</th>
-                                <th class="px-2 py-2 text-right">Total</th>
+                                <th rowspan="2" class="sticky left-0 bg-gray-50 z-10 px-4 py-2 text-left align-middle min-w-[180px]">
+                                    {{ $rowType === 'branch' ? 'Branch' : 'Division' }}
+                                </th>
+                                @foreach ([1, 2, 3, 4] as $qNum)
+                                    <th colspan="3" class="px-2 py-2 text-center border-l border-gray-200">Q{{ $qNum }}</th>
+                                @endforeach
+                                <th rowspan="2" class="px-2 py-2 text-right align-middle border-l border-gray-300">Year Total</th>
+                            </tr>
+                            <tr class="bg-gray-50 text-gray-400 text-[11px] uppercase tracking-wide border-b border-gray-200">
+                                @foreach ([1, 2, 3, 4] as $qNum)
+                                    <th class="px-1 py-1 text-right border-l border-gray-200">Mem</th>
+                                    <th class="px-1 py-1 text-right">Vol</th>
+                                    <th class="px-1 py-1 text-right">Org</th>
+                                @endforeach
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100">
                             <tr class="bg-gray-100 font-bold text-sm border-b-2 border-gray-300">
-                                <td class="px-4 py-2 text-gray-700">Total</td>
-                                <td class="px-2 py-2 text-right text-gray-700">{{ number_format($totalMembers, 0) }}</td>
-                                <td class="px-2 py-2 text-right text-gray-700">{{ number_format($totalVolunteer, 0) }}</td>
-                                <td class="px-2 py-2 text-right text-gray-700">{{ number_format($totalOrg, 0) }}</td>
-                                <td class="px-2 py-2 text-right text-gray-900">{{ number_format($grandTotal, 0) }}</td>
+                                <td class="sticky left-0 bg-gray-100 z-10 px-4 py-2 text-gray-700 min-w-[180px]">Total</td>
+                                @foreach ($yearColumns as $col)
+                                    <td class="px-1 py-2 text-right text-gray-700 {{ str_ends_with($col, '_member') ? 'border-l border-gray-200' : '' }}">
+                                        {{ number_format($columnTotals[$col], 0) }}
+                                    </td>
+                                @endforeach
+                                <td class="px-2 py-2 text-right text-gray-900 border-l border-gray-300">{{ number_format($grandTotal, 0) }}</td>
                             </tr>
                             @foreach($paymentsData as $row)
                                 @php
@@ -141,7 +182,9 @@
                                     // branch-scoped view, all belonging to that one
                                     // branch) — there's no per-row division->branch_id
                                     // in $paymentsData, so this is equivalent without
-                                    // needing one.
+                                    // needing one. Access scoping doesn't vary by
+                                    // quarter, so this is computed once per row and
+                                    // reused across all 4 quarters' cells below.
                                     $canLinkRow = match ($viewerAccessLevel) {
                                         'national' => true,
                                         'branch' => ($row['level'] === 'branch' && $row['id'] === $viewerScopedId)
@@ -151,9 +194,9 @@
                                     };
                                 @endphp
                                 <tr class="hover:bg-gray-50">
-                                    <td class="px-4 py-3 text-gray-900">
+                                    <td class="sticky left-0 bg-white z-10 px-4 py-3 text-gray-900 min-w-[180px]">
                                         @if ($row['level'] === 'branch')
-                                            <a href="{{ route('reports.financial.index', ['tab' => 'payments', 'scope' => $row['id'], 'quarter' => $selectedQuarter]) }}"
+                                            <a href="{{ route('reports.financial.index', ['tab' => 'payments', 'scope' => $row['id'], 'year' => $selectedYear]) }}"
                                                class="font-bold text-blue-600 hover:text-blue-800 hover:underline">
                                                 {{ $row['label'] }}
                                             </a>
@@ -161,38 +204,27 @@
                                             {{ $row['label'] }}
                                         @endif
                                     </td>
-                                    <td class="px-2 py-2 text-right {{ $row['member_amount'] == 0 ? 'text-gray-300' : 'text-gray-700' }}">
-                                        @if ($canLinkRow)
-                                            <a href="{{ route('reports.financial.breakdown', ['branch_id' => $row['id'], 'level' => $row['level'], 'quarter' => $selectedQuarter, 'category' => 'member']) }}"
-                                               class="text-blue-600 hover:text-blue-800 hover:underline">
-                                                {{ number_format($row['member_amount'], 0) }}
-                                            </a>
-                                        @else
-                                            {{ number_format($row['member_amount'], 0) }}
-                                        @endif
-                                    </td>
-                                    <td class="px-2 py-2 text-right {{ $row['volunteer_amount'] == 0 ? 'text-gray-300' : 'text-gray-700' }}">
-                                        @if ($canLinkRow)
-                                            <a href="{{ route('reports.financial.breakdown', ['branch_id' => $row['id'], 'level' => $row['level'], 'quarter' => $selectedQuarter, 'category' => 'volunteer']) }}"
-                                               class="text-blue-600 hover:text-blue-800 hover:underline">
-                                                {{ number_format($row['volunteer_amount'], 0) }}
-                                            </a>
-                                        @else
-                                            {{ number_format($row['volunteer_amount'], 0) }}
-                                        @endif
-                                    </td>
-                                    <td class="px-2 py-2 text-right {{ $row['org_amount'] == 0 ? 'text-gray-300' : 'text-gray-700' }}">
-                                        @if ($canLinkRow)
-                                            <a href="{{ route('reports.financial.breakdown', ['branch_id' => $row['id'], 'level' => $row['level'], 'quarter' => $selectedQuarter, 'category' => 'organisation']) }}"
-                                               class="text-blue-600 hover:text-blue-800 hover:underline">
-                                                {{ number_format($row['org_amount'], 0) }}
-                                            </a>
-                                        @else
-                                            {{ number_format($row['org_amount'], 0) }}
-                                        @endif
-                                    </td>
-                                    <td class="px-2 py-2 text-right font-bold text-gray-900">
-                                        {{ number_format($row['total'], 0) }}
+
+                                    @foreach ([1, 2, 3, 4] as $qNum)
+                                        @foreach (['member' => 'member', 'volunteer' => 'volunteer', 'org' => 'organisation'] as $catKey => $catParam)
+                                            @php
+                                                $value = $row["q{$qNum}_{$catKey}"];
+                                            @endphp
+                                            <td class="px-1 py-2 text-right {{ $catKey === 'member' ? 'border-l border-gray-200' : '' }} {{ $value == 0 ? 'text-gray-300' : 'text-gray-700' }}">
+                                                @if ($canLinkRow)
+                                                    <a href="{{ route('reports.financial.breakdown', ['branch_id' => $row['id'], 'level' => $row['level'], 'quarter' => "{$selectedYear}-Q{$qNum}", 'category' => $catParam]) }}"
+                                                       class="text-blue-600 hover:text-blue-800 hover:underline">
+                                                        {{ number_format($value, 0) }}
+                                                    </a>
+                                                @else
+                                                    {{ number_format($value, 0) }}
+                                                @endif
+                                            </td>
+                                        @endforeach
+                                    @endforeach
+
+                                    <td class="px-2 py-2 text-right font-bold text-gray-900 border-l border-gray-300">
+                                        {{ number_format($row['year_total'], 0) }}
                                     </td>
                                 </tr>
                             @endforeach
@@ -207,78 +239,61 @@
             @if($feeBreakdownData->isEmpty())
                 <p class="text-center text-gray-400 italic py-12">No fee data available for the selected period.</p>
             @else
-                <div class="max-w-lg mx-auto">
+                <div class="max-w-3xl mx-auto">
                 <div class="overflow-x-auto">
                     <table class="min-w-full text-sm bg-white rounded-lg shadow overflow-hidden">
                         <thead>
                             <tr class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
                                 <th class="px-4 py-2 text-left">Fee Type</th>
-                                <th class="px-4 py-2 text-right">Total Amount</th>
+                                <th class="px-2 py-2 text-right">Q1</th>
+                                <th class="px-2 py-2 text-right">Q2</th>
+                                <th class="px-2 py-2 text-right">Q3</th>
+                                <th class="px-2 py-2 text-right">Q4</th>
+                                <th class="px-4 py-2 text-right">Year Total</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100">
 
                             <tr class="bg-gray-100 font-bold text-sm border-b-2 border-gray-300">
                                 <td class="px-4 py-2 text-gray-700">Grand Total</td>
+                                <td class="px-2 py-2"></td>
+                                <td class="px-2 py-2"></td>
+                                <td class="px-2 py-2"></td>
+                                <td class="px-2 py-2"></td>
                                 <td class="px-4 py-2 text-right text-gray-900">{{ number_format($feeBreakdownGrandTotal, 0) }}</td>
                             </tr>
 
-                            {{-- Member Fee --}}
-                            @if($memberFeeBreakdown->isNotEmpty())
-                                <tr>
-                                    <td colspan="2" class="px-4 py-2 bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-600">
-                                        Member Fee
-                                    </td>
-                                </tr>
-                                @foreach($memberFeeBreakdown as $row)
-                                    <tr class="hover:bg-gray-50">
-                                        <td class="px-4 py-3 text-gray-900">{{ $row['fee_name'] }}</td>
-                                        <td class="px-4 py-3 text-right font-bold text-gray-900">{{ number_format($row['total'], 0) }}</td>
+                            @foreach ([
+                                ['label' => 'Member Fee', 'rows' => $memberFeeBreakdown, 'subtotalLabel' => 'Member fees subtotal'],
+                                ['label' => 'Volunteer Fee', 'rows' => $volunteerFeeBreakdown, 'subtotalLabel' => 'Volunteer fees subtotal'],
+                                ['label' => 'Organisation Fee', 'rows' => $organisationFeeBreakdown, 'subtotalLabel' => 'Organisation fees subtotal'],
+                            ] as $section)
+                                @if($section['rows']->isNotEmpty())
+                                    <tr>
+                                        <td colspan="6" class="px-4 py-2 bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-600">
+                                            {{ $section['label'] }}
+                                        </td>
                                     </tr>
-                                @endforeach
-                                <tr class="bg-gray-50 font-semibold text-sm">
-                                    <td class="px-4 py-2 text-gray-600">Member fees subtotal</td>
-                                    <td class="px-4 py-2 text-right">{{ number_format($memberFeeBreakdown->sum('total'), 0) }}</td>
-                                </tr>
-                            @endif
-
-                            {{-- Volunteer Fee --}}
-                            @if($volunteerFeeBreakdown->isNotEmpty())
-                                <tr>
-                                    <td colspan="2" class="px-4 py-2 bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-600">
-                                        Volunteer Fee
-                                    </td>
-                                </tr>
-                                @foreach($volunteerFeeBreakdown as $row)
-                                    <tr class="hover:bg-gray-50">
-                                        <td class="px-4 py-3 text-gray-900">{{ $row['fee_name'] }}</td>
-                                        <td class="px-4 py-3 text-right font-bold text-gray-900">{{ number_format($row['total'], 0) }}</td>
+                                    @foreach($section['rows'] as $row)
+                                        <tr class="hover:bg-gray-50">
+                                            <td class="px-4 py-3 text-gray-900">{{ $row['fee_name'] }}</td>
+                                            <td class="px-2 py-3 text-right text-gray-700">{{ number_format($row['q1'], 0) }}</td>
+                                            <td class="px-2 py-3 text-right text-gray-700">{{ number_format($row['q2'], 0) }}</td>
+                                            <td class="px-2 py-3 text-right text-gray-700">{{ number_format($row['q3'], 0) }}</td>
+                                            <td class="px-2 py-3 text-right text-gray-700">{{ number_format($row['q4'], 0) }}</td>
+                                            <td class="px-4 py-3 text-right font-bold text-gray-900">{{ number_format($row['year_total'], 0) }}</td>
+                                        </tr>
+                                    @endforeach
+                                    <tr class="bg-gray-50 font-semibold text-sm">
+                                        <td class="px-4 py-2 text-gray-600">{{ $section['subtotalLabel'] }}</td>
+                                        <td class="px-2 py-2 text-right">{{ number_format($section['rows']->sum('q1'), 0) }}</td>
+                                        <td class="px-2 py-2 text-right">{{ number_format($section['rows']->sum('q2'), 0) }}</td>
+                                        <td class="px-2 py-2 text-right">{{ number_format($section['rows']->sum('q3'), 0) }}</td>
+                                        <td class="px-2 py-2 text-right">{{ number_format($section['rows']->sum('q4'), 0) }}</td>
+                                        <td class="px-4 py-2 text-right">{{ number_format($section['rows']->sum('year_total'), 0) }}</td>
                                     </tr>
-                                @endforeach
-                                <tr class="bg-gray-50 font-semibold text-sm">
-                                    <td class="px-4 py-2 text-gray-600">Volunteer fees subtotal</td>
-                                    <td class="px-4 py-2 text-right">{{ number_format($volunteerFeeBreakdown->sum('total'), 0) }}</td>
-                                </tr>
-                            @endif
-
-                            {{-- Organisation Fee --}}
-                            @if($organisationFeeBreakdown->isNotEmpty())
-                                <tr>
-                                    <td colspan="2" class="px-4 py-2 bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-600">
-                                        Organisation Fee
-                                    </td>
-                                </tr>
-                                @foreach($organisationFeeBreakdown as $row)
-                                    <tr class="hover:bg-gray-50">
-                                        <td class="px-4 py-3 text-gray-900">{{ $row['fee_name'] }}</td>
-                                        <td class="px-4 py-3 text-right font-bold text-gray-900">{{ number_format($row['total'], 0) }}</td>
-                                    </tr>
-                                @endforeach
-                                <tr class="bg-gray-50 font-semibold text-sm">
-                                    <td class="px-4 py-2 text-gray-600">Organisation fees subtotal</td>
-                                    <td class="px-4 py-2 text-right">{{ number_format($organisationFeeBreakdown->sum('total'), 0) }}</td>
-                                </tr>
-                            @endif
+                                @endif
+                            @endforeach
 
                         </tbody>
                     </table>

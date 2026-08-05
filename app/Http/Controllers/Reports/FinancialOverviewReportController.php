@@ -9,6 +9,7 @@ use App\Models\MembershipFee;
 use App\Models\MembershipPayment;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class FinancialOverviewReportController extends Controller
@@ -18,24 +19,16 @@ class FinancialOverviewReportController extends Controller
         $activeTab   = $request->input('tab', 'payments');
         $currentYear = now()->year;
 
-        // Quarter options — current quarter back 5 years, desc
-        $quarterOptions = [];
-        for ($year = $currentYear; $year >= $currentYear - 5; $year--) {
-            for ($q = 4; $q >= 1; $q--) {
-                $qStart = Carbon::create($year, ($q - 1) * 3 + 1, 1)->startOfMonth();
-                if ($qStart->isFuture()) continue;
-                $quarterOptions[] = ['value' => "{$year}-Q{$q}", 'label' => "{$year} Q{$q}"];
-            }
-        }
-
-        $currentQ        = 'Q' . ceil(now()->month / 3);
-        $defaultQuarter  = "{$currentYear}-{$currentQ}";
-        $selectedQuarter = $request->input('quarter', $defaultQuarter);
-
-        [$qYear, $qLabel] = explode('-', $selectedQuarter);
-        $qNum   = (int) str_replace('Q', '', $qLabel);
-        $qStart = Carbon::create($qYear, ($qNum - 1) * 3 + 1, 1)->startOfDay();
-        $qEnd   = (clone $qStart)->addMonths(3)->subSecond();
+        // Year options — both tabs are full-year (Q1-Q4) views, sharing one
+        // year selector. (Fee Breakdown used to have its own separate
+        // quarter selector; that's gone now — see breakdown()/
+        // parseQuarterRange() for the unrelated per-drill-down quarter param
+        // those still use, which this page-level selector never fed.)
+        $yearOptions  = range($currentYear, $currentYear - 5);
+        $defaultYear  = $currentYear;
+        $selectedYear = (int) $request->input('year', $defaultYear);
+        $yearStart    = Carbon::create($selectedYear, 1, 1)->startOfDay();
+        $yearEnd      = Carbon::create($selectedYear, 12, 31)->endOfDay();
 
         $selectedScope     = $request->input('scope', 'national');
         $isNational        = $selectedScope === 'national';
@@ -52,115 +45,223 @@ class FinancialOverviewReportController extends Controller
             ? $branches->firstWhere('id', $scopeBranchId)?->name
             : null;
 
-        $basePayments = function ($rowItem) use ($rowType, $qStart, $qEnd) {
-            $q = MembershipPayment::query()
-                ->where('is_deleted', false)
-                ->whereBetween('payment_date', [$qStart, $qEnd]);
-            if ($rowType === 'branch') {
-                $q->where('branch_id', $rowItem->id);
-            } else {
-                $q->where('division_id', $rowItem->id);
-            }
-            return $q;
-        };
-
-        // Tab 1 — Payments
+        // Tab 1 — Payments: full-year (Q1-Q4) breakdown per branch/division,
+        // each quarter split into member/volunteer/organisation amounts.
+        //
+        // Single grouped query (GROUP BY row + QUARTER(payment_date)) rather
+        // than the old per-row × per-category × per-quarter loop — mirrors
+        // DonationStatsService::getBranchDonationQuarterlySummary()'s exact
+        // shape (conditional SUM(CASE WHEN...) columns, grouped by row +
+        // QUARTER(date), reshaped in PHP via groupBy()->map()). Built on
+        // DB::table() rather than MembershipPayment::query(), so — unlike
+        // the old per-row Eloquent queries — it does NOT get
+        // approval_status='approved' for free from the ApprovedScope global
+        // scope; that filter is added explicitly below instead (same
+        // reasoning as getBranchDonationQuarterlySummary()'s own explicit
+        // approval_status filter).
         $paymentsData = [];
         if ($activeTab === 'payments') {
-            foreach ($rows as $row) {
-                $base = $basePayments($row);
+            $joinTable = $rowType === 'branch' ? 'branches' : 'divisions';
+            $idColumn  = $rowType === 'branch' ? 'branch_id' : 'division_id';
 
-                $memberAmount = (clone $base)
-                    ->whereNull('organisation_id')
-                    ->whereHas('membershipFee', fn($q) => $q->where('is_volunteer_fee', false))
-                    ->join('membership_fees', 'membership_payments.membership_fee_id', '=', 'membership_fees.id')
-                    ->sum('membership_fees.amount');
+            $query = DB::table('membership_payments')
+                ->join($joinTable, "membership_payments.{$idColumn}", '=', "{$joinTable}.id")
+                ->join('membership_fees', 'membership_payments.membership_fee_id', '=', 'membership_fees.id')
+                ->where('membership_payments.is_deleted', false)
+                ->where('membership_payments.approval_status', 'approved') // Phase 2: only approved records are real — explicit because DB::table() bypasses ApprovedScope
+                ->whereBetween('membership_payments.payment_date', [$yearStart, $yearEnd]);
 
-                $volunteerAmount = (clone $base)
-                    ->whereNull('organisation_id')
-                    ->whereHas('membershipFee', fn($q) => $q->where('is_volunteer_fee', true))
-                    ->join('membership_fees', 'membership_payments.membership_fee_id', '=', 'membership_fees.id')
-                    ->sum('membership_fees.amount');
-
-                $orgAmount = (clone $base)
-                    ->whereNotNull('organisation_id')
-                    ->join('membership_fees', 'membership_payments.membership_fee_id', '=', 'membership_fees.id')
-                    ->sum('membership_fees.amount');
-
-                $total = $memberAmount + $volunteerAmount + $orgAmount;
-
-                $paymentsData[] = [
-                    'id'               => $row->id,
-                    'level'            => $rowType, // 'branch' or 'division'
-                    'label'            => $row->name,
-                    'member_amount'    => $memberAmount,
-                    'volunteer_amount' => $volunteerAmount,
-                    'org_amount'       => $orgAmount,
-                    'total'            => $total,
-                ];
+            if (!$isNational && $scopeBranchId) {
+                $query->where('membership_payments.branch_id', $scopeBranchId);
             }
+
+            $groupedRows = $query
+                ->select(
+                    "{$joinTable}.id as row_id",
+                    "{$joinTable}.name as row_name",
+                    DB::raw('QUARTER(membership_payments.payment_date) as quarter'),
+                    DB::raw('
+                        SUM(CASE WHEN membership_payments.organisation_id IS NULL AND membership_fees.is_volunteer_fee = 0 THEN membership_fees.amount ELSE 0 END) as member_amount
+                    '),
+                    DB::raw('
+                        SUM(CASE WHEN membership_payments.organisation_id IS NULL AND membership_fees.is_volunteer_fee = 1 THEN membership_fees.amount ELSE 0 END) as volunteer_amount
+                    '),
+                    DB::raw('
+                        SUM(CASE WHEN membership_payments.organisation_id IS NOT NULL THEN membership_fees.amount ELSE 0 END) as org_amount
+                    ')
+                )
+                ->groupBy("{$joinTable}.id", "{$joinTable}.name", DB::raw('QUARTER(membership_payments.payment_date)'))
+                ->get()
+                ->groupBy('row_id');
+
+            // Iterate $rows (not $groupedRows) so every branch/division still
+            // appears with zero-filled quarters even with no payments this
+            // year — matches the old loop's behaviour of always showing every
+            // row regardless of data.
+            $paymentsData = $rows->map(function ($rowItem) use ($groupedRows, $rowType) {
+                $items = $groupedRows->get($rowItem->id, collect());
+
+                $quarters = [
+                    1 => ['member' => 0.0, 'volunteer' => 0.0, 'org' => 0.0],
+                    2 => ['member' => 0.0, 'volunteer' => 0.0, 'org' => 0.0],
+                    3 => ['member' => 0.0, 'volunteer' => 0.0, 'org' => 0.0],
+                    4 => ['member' => 0.0, 'volunteer' => 0.0, 'org' => 0.0],
+                ];
+
+                foreach ($items as $item) {
+                    $q = (int) $item->quarter;
+                    if (! isset($quarters[$q])) {
+                        continue;
+                    }
+                    $quarters[$q]['member']    += (float) $item->member_amount;
+                    $quarters[$q]['volunteer'] += (float) $item->volunteer_amount;
+                    $quarters[$q]['org']       += (float) $item->org_amount;
+                }
+
+                $yearTotal = 0.0;
+                foreach ($quarters as $q) {
+                    $yearTotal += $q['member'] + $q['volunteer'] + $q['org'];
+                }
+
+                return [
+                    'id'         => $rowItem->id,
+                    'level'      => $rowType, // 'branch' or 'division'
+                    'label'      => $rowItem->name,
+                    'q1_member'    => $quarters[1]['member'],
+                    'q1_volunteer' => $quarters[1]['volunteer'],
+                    'q1_org'       => $quarters[1]['org'],
+                    'q2_member'    => $quarters[2]['member'],
+                    'q2_volunteer' => $quarters[2]['volunteer'],
+                    'q2_org'       => $quarters[2]['org'],
+                    'q3_member'    => $quarters[3]['member'],
+                    'q3_volunteer' => $quarters[3]['volunteer'],
+                    'q3_org'       => $quarters[3]['org'],
+                    'q4_member'    => $quarters[4]['member'],
+                    'q4_volunteer' => $quarters[4]['volunteer'],
+                    'q4_org'       => $quarters[4]['org'],
+                    'year_total'   => $yearTotal,
+                ];
+            })->values()->all();
         }
 
-        // Tab 2 — Fee Breakdown: three mutually exclusive sections by
-        // contributor type. Organisation is scoped by organisation_id
-        // regardless of is_volunteer_fee (an org-attributed payment can use
-        // either fee flavour — see MembershipPaymentController::store()'s
+        // Tab 2 — Fee Breakdown: full-year (Q1-Q4 + Year Total) breakdown per
+        // fee, in three mutually exclusive sections by contributor type.
+        // Organisation is scoped by organisation_id regardless of
+        // is_volunteer_fee (an org-attributed payment can use either fee
+        // flavour — see MembershipPaymentController::store()'s
         // fee-eligibility check, which keys off the linked user's own RC-unit
         // status, not organisation_id), so Member/Volunteer here are always
         // personal-only (organisation_id IS NULL) to keep the three sections
         // non-overlapping.
+        //
+        // Single grouped query (GROUP BY fee + organisation-flag +
+        // QUARTER(payment_date)) rather than the old per-fee sum() loop (66
+        // queries on a national dev load: 24 member + 9 volunteer + 33
+        // organisation-eligible fees). Grouping on
+        // (organisation_id IS NOT NULL) as its own dimension — not just
+        // fee_id — matters: organisation_id lives on the payment, not the
+        // fee, so the same fee_id can carry both personal and
+        // organisation-sponsored payments; these must stay as two separate
+        // rows in two separate sections below, never merged into one total.
+        // Built on MembershipPayment::query() (Eloquent), same as the old
+        // per-fee loop, so approval_status='approved' is still applied
+        // automatically via the ApprovedScope global scope even with this
+        // raw SELECT/GROUP BY — global scopes apply to the WHERE clause
+        // regardless of SELECT shape, so no explicit approval_status filter
+        // is needed here (unlike the Payments tab's DB::table() query,
+        // which bypasses ApprovedScope entirely and must filter explicitly).
         $memberFeeBreakdown = collect();
         $volunteerFeeBreakdown = collect();
         $organisationFeeBreakdown = collect();
         $feeBreakdownGrandTotal = 0;
         $feeBreakdownData = collect();
         if ($activeTab === 'breakdown') {
-            $breakdownBase = MembershipPayment::query()
+            $feeBreakdownBase = MembershipPayment::query()
                 ->where('is_deleted', false)
-                ->whereBetween('payment_date', [$qStart, $qEnd]);
+                ->whereBetween('payment_date', [$yearStart, $yearEnd]);
 
             if (!$isNational && $scopeBranchId) {
-                $breakdownBase->where('branch_id', $scopeBranchId);
+                $feeBreakdownBase->where('branch_id', $scopeBranchId);
             }
 
-            // Reuses $paymentsData's org_amount convention exactly:
-            // whereNotNull('organisation_id') for organisation, whereNull for
-            // personal (member/volunteer).
-            $buildFeeRows = function ($feesQuery, $paymentsBase) {
-                return $feesQuery->get()
-                    ->map(function ($fee) use ($paymentsBase) {
-                        $total = (clone $paymentsBase)
-                            ->where('membership_fee_id', $fee->id)
-                            ->join('membership_fees', 'membership_payments.membership_fee_id', '=', 'membership_fees.id')
-                            ->sum('membership_fees.amount');
-                        return [
-                            'fee_name'         => $fee->name . ($fee->validity_years ? ' ' . $fee->validity_years . ' Years' : ''),
-                            'is_volunteer_fee' => $fee->is_volunteer_fee,
-                            'total'            => $total,
-                        ];
-                    })
-                    ->filter(fn ($row) => $row['total'] > 0)
-                    ->values();
+            $groupedFeeRows = $feeBreakdownBase
+                ->join('membership_fees', 'membership_payments.membership_fee_id', '=', 'membership_fees.id')
+                ->select(
+                    'membership_payments.membership_fee_id',
+                    'membership_fees.name as fee_name',
+                    'membership_fees.validity_years',
+                    'membership_fees.is_volunteer_fee',
+                    DB::raw('(membership_payments.organisation_id IS NOT NULL) as is_organisation'),
+                    DB::raw('QUARTER(membership_payments.payment_date) as quarter'),
+                    DB::raw('SUM(membership_fees.amount) as amount')
+                )
+                ->groupBy(
+                    'membership_payments.membership_fee_id',
+                    'membership_fees.name',
+                    'membership_fees.validity_years',
+                    'membership_fees.is_volunteer_fee',
+                    DB::raw('(membership_payments.organisation_id IS NOT NULL)'),
+                    DB::raw('QUARTER(membership_payments.payment_date)')
+                )
+                ->get();
+
+            // Reshape: one logical row per (fee, organisation-flag)
+            // combination, folding its per-quarter amounts together —
+            // mirrors the Payments tab's groupBy()->map() reshape technique.
+            $buildYearRow = function ($rowsForOneFee) {
+                $first = $rowsForOneFee->first();
+                $quarters = [1 => 0.0, 2 => 0.0, 3 => 0.0, 4 => 0.0];
+                foreach ($rowsForOneFee as $r) {
+                    $q = (int) $r->quarter;
+                    if (isset($quarters[$q])) {
+                        $quarters[$q] += (float) $r->amount;
+                    }
+                }
+                $yearTotal = array_sum($quarters);
+
+                return [
+                    'fee_name'         => $first->fee_name . ($first->validity_years ? ' ' . $first->validity_years . ' Years' : ''),
+                    'is_volunteer_fee' => (bool) $first->is_volunteer_fee,
+                    'q1'               => $quarters[1],
+                    'q2'               => $quarters[2],
+                    'q3'               => $quarters[3],
+                    'q4'               => $quarters[4],
+                    'year_total'       => $yearTotal,
+                ];
             };
 
-            $memberFeeBreakdown = $buildFeeRows(
-                MembershipFee::query()->where('is_volunteer_fee', false)->orderBy('name')->orderBy('validity_years'),
-                (clone $breakdownBase)->whereNull('organisation_id')
-            );
+            $personalRows = $groupedFeeRows->where('is_organisation', 0)
+                ->groupBy('membership_fee_id')
+                ->map($buildYearRow)
+                ->values();
 
-            $volunteerFeeBreakdown = $buildFeeRows(
-                MembershipFee::query()->where('is_volunteer_fee', true)->orderBy('name')->orderBy('validity_years'),
-                (clone $breakdownBase)->whereNull('organisation_id')
-            );
+            $organisationRows = $groupedFeeRows->where('is_organisation', 1)
+                ->groupBy('membership_fee_id')
+                ->map($buildYearRow)
+                ->values();
 
-            $organisationFeeBreakdown = $buildFeeRows(
-                MembershipFee::query()->orderBy('is_volunteer_fee')->orderBy('name')->orderBy('validity_years'),
-                (clone $breakdownBase)->whereNotNull('organisation_id')
-            );
+            $memberFeeBreakdown = $personalRows
+                ->filter(fn ($row) => !$row['is_volunteer_fee'] && $row['year_total'] > 0)
+                ->sortBy('fee_name')
+                ->values();
 
-            $feeBreakdownGrandTotal = $memberFeeBreakdown->sum('total')
-                + $volunteerFeeBreakdown->sum('total')
-                + $organisationFeeBreakdown->sum('total');
+            $volunteerFeeBreakdown = $personalRows
+                ->filter(fn ($row) => $row['is_volunteer_fee'] && $row['year_total'] > 0)
+                ->sortBy('fee_name')
+                ->values();
+
+            // Sorted fee_name first, then is_volunteer_fee last, so the
+            // (stable) final sort's primary key is is_volunteer_fee —
+            // matches the old query's orderBy('is_volunteer_fee')->orderBy('name').
+            $organisationFeeBreakdown = $organisationRows
+                ->filter(fn ($row) => $row['year_total'] > 0)
+                ->sortBy('fee_name')
+                ->sortBy(fn ($row) => $row['is_volunteer_fee'] ? 1 : 0)
+                ->values();
+
+            $feeBreakdownGrandTotal = $memberFeeBreakdown->sum('year_total')
+                + $volunteerFeeBreakdown->sum('year_total')
+                + $organisationFeeBreakdown->sum('year_total');
 
             // Kept for exportFeeBreakdownCsv()/the empty-state check below —
             // a flat concat of the three (mutually exclusive, so no
@@ -183,15 +284,15 @@ class FinancialOverviewReportController extends Controller
             $scopeName = !$isNational ? $selectedBranchName : null;
 
             return $activeTab === 'breakdown'
-                ? $this->exportFeeBreakdownCsv($memberFeeBreakdown, $volunteerFeeBreakdown, $organisationFeeBreakdown, $feeBreakdownGrandTotal, $isNational, $scopeName, $selectedQuarter)
-                : $this->exportPaymentsCsv($paymentsData, $rowType, $isNational, $scopeName, $selectedQuarter);
+                ? $this->exportFeeBreakdownCsv($memberFeeBreakdown, $volunteerFeeBreakdown, $organisationFeeBreakdown, $feeBreakdownGrandTotal, $isNational, $scopeName, $selectedYear)
+                : $this->exportPaymentsCsv($paymentsData, $rowType, $isNational, $scopeName, $selectedYear);
         }
 
         return view('reports.financial.index', compact(
             'activeTab',
-            'quarterOptions',
-            'selectedQuarter',
-            'defaultQuarter',
+            'yearOptions',
+            'selectedYear',
+            'defaultYear',
             'branches',
             'selectedScope',
             'isNational',
@@ -310,53 +411,67 @@ class FinancialOverviewReportController extends Controller
 
     /**
      * Streams the Payments tab as CSV — same row shape/order as the
-     * on-screen table (one row per branch/division, plus a Total row).
-     * Same BOM + sep=, + fputcsv pattern as MemberReportController::exportCsv().
-     * Every numeric value (detail rows and the Total row alike) is passed
-     * through number_format($x, 0, '.', '') so the whole export is
-     * uniformly decimal-free — detail amounts otherwise come back as raw
-     * DB decimal strings (e.g. "322000.00") while the accumulated totals
-     * are plain PHP floats (e.g. 322000), which read inconsistently
-     * side-by-side without this.
+     * on-screen table (one row per branch/division, plus a Total row),
+     * now the full-year Q1-Q4 × Member/Volunteer/Organisation breakdown
+     * instead of a single quarter. Same BOM + sep=, + fputcsv pattern as
+     * MemberReportController::exportCsv(). Every numeric value (detail rows
+     * and the Total row alike) is passed through number_format($x, 0, '.', '')
+     * so the whole export is uniformly decimal-free — detail amounts
+     * otherwise come back as raw DB decimal strings (e.g. "322000.00")
+     * while the accumulated totals are plain PHP floats (e.g. 322000),
+     * which read inconsistently side-by-side without this.
      */
-    private function exportPaymentsCsv(array $paymentsData, string $rowType, bool $isNational, ?string $scopeName, string $quarter): StreamedResponse
+    private function exportPaymentsCsv(array $paymentsData, string $rowType, bool $isNational, ?string $scopeName, int $year): StreamedResponse
     {
         $scopeSlug = $isNational ? 'national' : \Illuminate\Support\Str::slug($scopeName);
-        $filename = "financial-breakdown-payments-{$scopeSlug}-{$quarter}.csv";
+        $filename = "financial-breakdown-payments-{$scopeSlug}-{$year}.csv";
         $areaLabel = $rowType === 'branch' ? 'Branch' : 'Division';
 
-        return response()->streamDownload(function () use ($paymentsData, $areaLabel) {
+        $columns = [
+            'q1_member', 'q1_volunteer', 'q1_org',
+            'q2_member', 'q2_volunteer', 'q2_org',
+            'q3_member', 'q3_volunteer', 'q3_org',
+            'q4_member', 'q4_volunteer', 'q4_org',
+        ];
+
+        return response()->streamDownload(function () use ($paymentsData, $areaLabel, $columns) {
             $out = fopen('php://output', 'w');
 
             fwrite($out, "\xEF\xBB\xBF");
             fwrite($out, "sep=,\r\n");
 
-            fputcsv($out, [$areaLabel, 'Members', 'Volunteers', 'Organisations', 'Total']);
+            fputcsv($out, [
+                $areaLabel,
+                'Q1 Members', 'Q1 Volunteers', 'Q1 Organisations',
+                'Q2 Members', 'Q2 Volunteers', 'Q2 Organisations',
+                'Q3 Members', 'Q3 Volunteers', 'Q3 Organisations',
+                'Q4 Members', 'Q4 Volunteers', 'Q4 Organisations',
+                'Year Total',
+            ]);
 
-            $totalMembers = $totalVolunteer = $totalOrg = $grandTotal = 0;
+            $columnTotals = array_fill_keys($columns, 0.0);
+            $grandTotal = 0.0;
 
             foreach ($paymentsData as $row) {
-                fputcsv($out, [
-                    $row['label'],
-                    number_format($row['member_amount'], 0, '.', ''),
-                    number_format($row['volunteer_amount'], 0, '.', ''),
-                    number_format($row['org_amount'], 0, '.', ''),
-                    number_format($row['total'], 0, '.', ''),
-                ]);
-                $totalMembers   += $row['member_amount'];
-                $totalVolunteer += $row['volunteer_amount'];
-                $totalOrg       += $row['org_amount'];
-                $grandTotal     += $row['total'];
+                $line = [$row['label']];
+                foreach ($columns as $column) {
+                    $line[] = number_format($row[$column], 0, '.', '');
+                    $columnTotals[$column] += $row[$column];
+                }
+                $line[] = number_format($row['year_total'], 0, '.', '');
+
+                fputcsv($out, $line);
+                $grandTotal += $row['year_total'];
             }
 
             if (! empty($paymentsData)) {
-                fputcsv($out, [
-                    'Total',
-                    number_format($totalMembers, 0, '.', ''),
-                    number_format($totalVolunteer, 0, '.', ''),
-                    number_format($totalOrg, 0, '.', ''),
-                    number_format($grandTotal, 0, '.', ''),
-                ]);
+                $totalLine = ['Total'];
+                foreach ($columns as $column) {
+                    $totalLine[] = number_format($columnTotals[$column], 0, '.', '');
+                }
+                $totalLine[] = number_format($grandTotal, 0, '.', '');
+
+                fputcsv($out, $totalLine);
             }
 
             fclose($out);
@@ -371,14 +486,15 @@ class FinancialOverviewReportController extends Controller
      * table's three-way grouped structure (Member fees section + subtotal,
      * Volunteer fees section + subtotal, Organisation fees section +
      * subtotal, Grand Total) rather than flattening it into a plain row
-     * list. Each row's category (which has no dedicated column on screen)
-     * is folded into the fee name via a "(Member)"/"(Volunteer)"/
-     * "(Organisation)" suffix so the flat CSV still conveys the same
-     * grouping unambiguously. Built directly from the three source
-     * collections (not a re-split of a concatenated list by
-     * is_volunteer_fee), so an organisation-attributed payment always gets
-     * its own "(Organisation)" row instead of being silently folded into
-     * Member/Volunteer based on the fee's own is_volunteer_fee flag.
+     * list, now with Q1-Q4 + Year Total columns per fee row instead of a
+     * single Total Amount column. Each row's category (which has no
+     * dedicated column on screen) is folded into the fee name via a
+     * "(Member)"/"(Volunteer)"/"(Organisation)" suffix so the flat CSV
+     * still conveys the same grouping unambiguously. Built directly from
+     * the three source collections (not a re-split of a concatenated list
+     * by is_volunteer_fee), so an organisation-attributed payment always
+     * gets its own "(Organisation)" row instead of being silently folded
+     * into Member/Volunteer based on the fee's own is_volunteer_fee flag.
      */
     private function exportFeeBreakdownCsv(
         $memberFeeBreakdown,
@@ -387,22 +503,22 @@ class FinancialOverviewReportController extends Controller
         float $grandTotal,
         bool $isNational,
         ?string $scopeName,
-        string $quarter
+        int $year
     ): StreamedResponse {
         $scopeSlug = $isNational ? 'national' : \Illuminate\Support\Str::slug($scopeName);
-        $filename = "financial-breakdown-fees-{$scopeSlug}-{$quarter}.csv";
+        $filename = "financial-breakdown-fees-{$scopeSlug}-{$year}.csv";
 
-        $memberSubtotal       = $memberFeeBreakdown->sum('total');
-        $volunteerSubtotal    = $volunteerFeeBreakdown->sum('total');
-        $organisationSubtotal = $organisationFeeBreakdown->sum('total');
+        $memberSubtotals       = $this->sumFeeQuarterColumns($memberFeeBreakdown);
+        $volunteerSubtotals    = $this->sumFeeQuarterColumns($volunteerFeeBreakdown);
+        $organisationSubtotals = $this->sumFeeQuarterColumns($organisationFeeBreakdown);
 
         return response()->streamDownload(function () use (
             $memberFeeBreakdown,
             $volunteerFeeBreakdown,
             $organisationFeeBreakdown,
-            $memberSubtotal,
-            $volunteerSubtotal,
-            $organisationSubtotal,
+            $memberSubtotals,
+            $volunteerSubtotals,
+            $organisationSubtotals,
             $grandTotal
         ) {
             $out = fopen('php://output', 'w');
@@ -410,31 +526,42 @@ class FinancialOverviewReportController extends Controller
             fwrite($out, "\xEF\xBB\xBF");
             fwrite($out, "sep=,\r\n");
 
-            fputcsv($out, ['Fee Type', 'Total Amount']);
+            fputcsv($out, ['Fee Type', 'Q1', 'Q2', 'Q3', 'Q4', 'Year Total']);
+
+            $writeRow = function ($out, string $label, array $row) {
+                fputcsv($out, [
+                    $label,
+                    number_format($row['q1'], 0, '.', ''),
+                    number_format($row['q2'], 0, '.', ''),
+                    number_format($row['q3'], 0, '.', ''),
+                    number_format($row['q4'], 0, '.', ''),
+                    number_format($row['year_total'], 0, '.', ''),
+                ]);
+            };
 
             foreach ($memberFeeBreakdown as $row) {
-                fputcsv($out, [$row['fee_name'].' (Member)', number_format($row['total'], 0, '.', '')]);
+                $writeRow($out, $row['fee_name'].' (Member)', $row);
             }
             if ($memberFeeBreakdown->isNotEmpty()) {
-                fputcsv($out, ['Member fees subtotal', number_format($memberSubtotal, 0, '.', '')]);
+                $writeRow($out, 'Member fees subtotal', $memberSubtotals);
             }
 
             foreach ($volunteerFeeBreakdown as $row) {
-                fputcsv($out, [$row['fee_name'].' (Volunteer)', number_format($row['total'], 0, '.', '')]);
+                $writeRow($out, $row['fee_name'].' (Volunteer)', $row);
             }
             if ($volunteerFeeBreakdown->isNotEmpty()) {
-                fputcsv($out, ['Volunteer fees subtotal', number_format($volunteerSubtotal, 0, '.', '')]);
+                $writeRow($out, 'Volunteer fees subtotal', $volunteerSubtotals);
             }
 
             foreach ($organisationFeeBreakdown as $row) {
-                fputcsv($out, [$row['fee_name'].' (Organisation)', number_format($row['total'], 0, '.', '')]);
+                $writeRow($out, $row['fee_name'].' (Organisation)', $row);
             }
             if ($organisationFeeBreakdown->isNotEmpty()) {
-                fputcsv($out, ['Organisation fees subtotal', number_format($organisationSubtotal, 0, '.', '')]);
+                $writeRow($out, 'Organisation fees subtotal', $organisationSubtotals);
             }
 
             if ($memberFeeBreakdown->isNotEmpty() || $volunteerFeeBreakdown->isNotEmpty() || $organisationFeeBreakdown->isNotEmpty()) {
-                fputcsv($out, ['Grand Total', number_format($grandTotal, 0, '.', '')]);
+                fputcsv($out, ['Grand Total', '', '', '', '', number_format($grandTotal, 0, '.', '')]);
             }
 
             fclose($out);
@@ -442,5 +569,20 @@ class FinancialOverviewReportController extends Controller
             'Content-Type' => 'text/csv',
             'Content-Disposition' => 'attachment; filename="'.$filename.'"',
         ]);
+    }
+
+    /**
+     * Sums q1/q2/q3/q4/year_total across a Fee Breakdown section's rows, for
+     * that section's subtotal row in exportFeeBreakdownCsv().
+     */
+    private function sumFeeQuarterColumns($rows): array
+    {
+        return [
+            'q1'         => $rows->sum('q1'),
+            'q2'         => $rows->sum('q2'),
+            'q3'         => $rows->sum('q3'),
+            'q4'         => $rows->sum('q4'),
+            'year_total' => $rows->sum('year_total'),
+        ];
     }
 }
