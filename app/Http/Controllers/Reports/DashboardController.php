@@ -220,14 +220,24 @@ class DashboardController extends Controller
             $membershipCohortExpired  = $this->membershipStatsService->getExpiredCohortLast12Months($branchId);
             $membershipCohortRetained = $this->membershipStatsService->getRetainedFromCohort($branchId);
             $membershipCohortLost     = $membershipCohortExpired - $membershipCohortRetained;
+            $membershipRetentionRate  = $membershipCohortExpired > 0
+                ? round(($membershipCohortRetained / $membershipCohortExpired) * 100, 1)
+                : null;
 
             // Membership Revenue card
             $now            = now();
             $oneYearAgo     = $now->copy()->subYear();
             $twoYearsAgo    = $now->copy()->subYears(2);
 
-            $revenueLast12Months     = $this->membershipStatsService->getMembershipRevenue($oneYearAgo, $now, $branchId);
-            $revenuePrevious12Months = $this->membershipStatsService->getMembershipRevenue($twoYearsAgo, $oneYearAgo, $branchId);
+            $revenueBreakdown         = $this->membershipStatsService->getMembershipRevenueBreakdown($oneYearAgo, $now, $branchId);
+            $revenuePreviousBreakdown = $this->membershipStatsService->getMembershipRevenueBreakdown($twoYearsAgo, $oneYearAgo, $branchId);
+
+            $revenueLast12Months     = $revenueBreakdown['total'];
+            $revenuePrevious12Months = $revenuePreviousBreakdown['total'];
+            $revenueMemberFees       = $revenueBreakdown['memberFees'];
+            $revenueVolunteerFees    = $revenueBreakdown['volunteerFees'];
+            $revenueOrganisationFees = $revenueBreakdown['organisationFees'];
+
             $revenueChangeYear       = $revenuePrevious12Months > 0
                 ? round((($revenueLast12Months - $revenuePrevious12Months) / $revenuePrevious12Months) * 100, 1)
                 : null;
@@ -241,8 +251,10 @@ class DashboardController extends Controller
             // Donations card
             $cashLast12       = $this->donationStatsService->getCashDonationAmountLast12Months($branchId);
             $cashPrev12       = $this->donationStatsService->getCashDonationAmount12to24MonthsAgo($branchId);
-            $inKindCountLast12 = $this->donationStatsService->getInKindDonationCountLast12Months($branchId);
-            $inKindCountPrev12 = $this->donationStatsService->getInKindDonationCount12to24MonthsAgo($branchId);
+
+            $donationCashBreakdown  = $this->donationStatsService->getCashDonationBreakdownLast12Months($branchId);
+            $donationsCashPersonal     = $donationCashBreakdown['personal'];
+            $donationsCashOrganisation = $donationCashBreakdown['organisation'];
 
             // Registrations card
             $registrationsLast12Months = $this->registrationStatsService->getRegistrationsLast12Months($branchId);
@@ -256,17 +268,21 @@ class DashboardController extends Controller
             $membershipCohortExpired  = null;
             $membershipCohortRetained = null;
             $membershipCohortLost     = null;
+            $membershipRetentionRate  = null;
             $revenueLast12Months      = null;
             $revenuePrevious12Months  = null;
             $revenueChangeYear        = null;
+            $revenueMemberFees        = null;
+            $revenueVolunteerFees     = null;
+            $revenueOrganisationFees  = null;
             $totalTrainingsLast12Months       = null;
             $totalTrainings12to24MonthsAgo    = null;
             $firstAidTrainingsLast12Months    = null;
             $firstAidTrainings12to24MonthsAgo = null;
             $cashLast12               = null;
             $cashPrev12               = null;
-            $inKindCountLast12        = null;
-            $inKindCountPrev12        = null;
+            $donationsCashPersonal     = null;
+            $donationsCashOrganisation = null;
             $registrationsLast12Months = null;
             $registrationsPrev12Months = null;
             $activeUnitsCount            = null;
@@ -315,10 +331,14 @@ class DashboardController extends Controller
             'membershipCohortExpired'                  => $membershipCohortExpired,
             'membershipCohortRetained'                 => $membershipCohortRetained,
             'membershipCohortLost'                     => $membershipCohortLost,
+            'membershipRetentionRate'                  => $membershipRetentionRate,
             'branchId'                                 => $branchId,
             'revenueLast12Months'                      => $revenueLast12Months,
             'revenuePrevious12Months'                  => $revenuePrevious12Months,
             'revenueChangeYear'                        => $revenueChangeYear,
+            'revenueMemberFees'                        => $revenueMemberFees,
+            'revenueVolunteerFees'                      => $revenueVolunteerFees,
+            'revenueOrganisationFees'                   => $revenueOrganisationFees,
             'volunteersCount'        => $volunteersCount,
             'volunteersChangeMonth'  => $volunteersChangeMonth,
             'volunteersChangeYear'   => $volunteersChangeYear,
@@ -331,8 +351,8 @@ class DashboardController extends Controller
             'firstAidTrainings12to24MonthsAgo'         => $firstAidTrainings12to24MonthsAgo,
             'cashLast12'                               => $cashLast12,
             'cashPrev12'                               => $cashPrev12,
-            'inKindCountLast12'                        => $inKindCountLast12,
-            'inKindCountPrev12'                        => $inKindCountPrev12,
+            'donationsCashPersonal'                     => $donationsCashPersonal,
+            'donationsCashOrganisation'                  => $donationsCashOrganisation,
             'registrationsLast12Months'                => $registrationsLast12Months,
             'registrationsPrev12Months'                => $registrationsPrev12Months,
 

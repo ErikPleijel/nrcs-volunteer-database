@@ -395,6 +395,36 @@ class DonationStatsService
     }
 
     /**
+     * Cash donation amount in the last 12 months, split by personal
+     * (organisation_id IS NULL) vs. organisation-sponsored (organisation_id IS
+     * NOT NULL) — same personal()/organisational() scopes used by the
+     * Membership Revenue breakdown, reusing baseDonationQuery() for the
+     * shared date-range/branch-filter/cash-only logic.
+     *
+     * @return array{personal: float, organisation: float}
+     */
+    public function getCashDonationBreakdownLast12Months(?int $branchId = null): array
+    {
+        $end = Carbon::now()->toDateString();
+        $start = Carbon::now()->subYear()->toDateString();
+
+        $personal = (float) $this->baseDonationQuery($branchId, false)
+            ->personal()
+            ->whereBetween('date_donation', [$start, $end])
+            ->sum('amount');
+
+        $organisation = (float) $this->baseDonationQuery($branchId, false)
+            ->organisational()
+            ->whereBetween('date_donation', [$start, $end])
+            ->sum('amount');
+
+        return [
+            'personal' => $personal,
+            'organisation' => $organisation,
+        ];
+    }
+
+    /**
      * Cash donation amount 12–24 months ago.
      */
     public function getCashDonationAmount12to24MonthsAgo(?int $branchId = null): float
@@ -403,28 +433,6 @@ class DonationStatsService
         $start = Carbon::now()->subYears(2)->toDateString(); // 24 months ago
 
         return $this->sumCashDonationsBetween($start, $end, $branchId);
-    }
-
-    /**
-     * In-kind donation count in the last 12 months (number of records).
-     */
-    public function getInKindDonationCountLast12Months(?int $branchId = null): int
-    {
-        $end = Carbon::now()->toDateString();
-        $start = Carbon::now()->subYear()->toDateString();
-
-        return $this->countInKindDonationsBetween($start, $end, $branchId);
-    }
-
-    /**
-     * In-kind donation count 12–24 months ago (number of records).
-     */
-    public function getInKindDonationCount12to24MonthsAgo(?int $branchId = null): int
-    {
-        $end = Carbon::now()->subYear()->toDateString();
-        $start = Carbon::now()->subYears(2)->toDateString();
-
-        return $this->countInKindDonationsBetween($start, $end, $branchId);
     }
 
     /**

@@ -241,10 +241,11 @@
                 </div>
 
                 <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">
-                    Membership Retention
+                    Retention Rate
                 </h3>
 
                 @php
+                    $rate           = $dashboardData['membershipRetentionRate'] ?? null;
                     $cohortExpired  = $dashboardData['membershipCohortExpired'] ?? null;
                     $cohortRetained = $dashboardData['membershipCohortRetained'] ?? null;
                     $cohortLost     = $dashboardData['membershipCohortLost'] ?? null;
@@ -255,18 +256,21 @@
                         No data available
                     </p>
                 @else
-                    <div>
-                        <span class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                            Expired in last 12 months
-                        </span>
-                    </div>
-
-                    <p class="text-4xl font-bold text-gray-900 dark:text-white leading-none">
-                        {{ number_format($cohortExpired) }}
+                    {{-- Headline: retention rate --}}
+                    <p class="text-5xl font-bold tracking-tight text-gray-900 dark:text-white">
+                        {{ is_null($rate) ? '—' : $rate.'%' }}
+                    </p>
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        Last 12 months
                     </p>
 
-                    {{-- Renewed vs. lost breakdown --}}
-                    <div class="mt-3 space-y-1 text-sm">
+                    {{-- Supporting counts --}}
+                    <div class="mt-4 pt-3 border-t border-gray-200 dark:border-gray-700 space-y-1">
+
+                        <div class="flex justify-between text-xs">
+                            <span class="text-gray-600 dark:text-gray-300">Expired in last 12 months:</span>
+                            <span class="font-semibold text-gray-900 dark:text-white">{{ number_format($cohortExpired) }}</span>
+                        </div>
 
                         <div class="flex justify-between text-xs">
                             <span class="text-gray-600 dark:text-gray-300">Renewed and still active:</span>
@@ -345,6 +349,106 @@
                             Not enough historical data to calculate change.
                         </div>
                     @endif
+                </div>
+
+                {{-- Revenue breakdown by contributor category --}}
+                @php
+                    $revMemberFees       = $dashboardData['revenueMemberFees'] ?? 0;
+                    $revVolunteerFees    = $dashboardData['revenueVolunteerFees'] ?? 0;
+                    $revOrganisationFees = $dashboardData['revenueOrganisationFees'] ?? 0;
+                @endphp
+
+                <div class="mt-4 pt-3 border-t border-gray-200 dark:border-gray-700 space-y-1">
+
+                    <div class="flex justify-between text-xs">
+                        <span class="text-gray-600 dark:text-gray-300">Member fees:</span>
+                        <span class="font-semibold text-gray-900 dark:text-white">₦{{ number_format($revMemberFees, 0) }}</span>
+                    </div>
+
+                    <div class="flex justify-between text-xs">
+                        <span class="text-gray-600 dark:text-gray-300">Volunteer fees:</span>
+                        <span class="font-semibold text-gray-900 dark:text-white">₦{{ number_format($revVolunteerFees, 0) }}</span>
+                    </div>
+
+                    <div class="flex justify-between text-xs">
+                        <span class="text-gray-600 dark:text-gray-300">Organisation-sponsored:</span>
+                        <span class="font-semibold text-gray-900 dark:text-white">₦{{ number_format($revOrganisationFees, 0) }}</span>
+                    </div>
+
+                </div>
+
+            </div>
+
+            {{-- Card: Donations --}}
+            <div class="relative bg-white dark:bg-gray-800 shadow-lg rounded-lg p-6">
+
+                {{-- Top-right icon --}}
+                <div class="absolute top-4 right-4 text-amber-500 dark:text-amber-300 text-4xl opacity-60">
+                    <i class="fa-solid fa-hand-holding-heart"></i>
+                </div>
+
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Donations</h3>
+
+                @php
+                    // Real data from $dashboardData
+                    $cashNow               = $dashboardData['cashLast12'] ?? 0;
+                    $cashPrev              = $dashboardData['cashPrev12'] ?? 0;
+                    $donationsPersonal     = $dashboardData['donationsCashPersonal'] ?? 0;
+                    $donationsOrganisation = $dashboardData['donationsCashOrganisation'] ?? 0;
+
+                    // Cash calculations
+                    $totalNow      = $cashNow;
+                    $totalPrev     = $cashPrev;
+                    $totalDiff     = $totalNow - $totalPrev;
+                    $totalPercent  = $totalPrev > 0 ? round(($totalDiff / $totalPrev) * 100) : null;
+                    $totalPositive = $totalPercent !== null && $totalPercent >= 0;
+                @endphp
+
+                {{-- MAIN FIGURE: total cash donations last 12 months --}}
+                <div class="flex items-center gap-2">
+                    <p class="text-3xl md:text-4xl font-bold text-amber-600 dark:text-amber-300">
+                        ₦{{ number_format($totalNow, 0) }}
+                    </p>
+                </div>
+
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Cash donations last 12 months
+                </p>
+
+                {{-- Cash change --}}
+                <div class="mt-3 text-xs text-gray-600 dark:text-gray-300 space-y-0.5">
+                    <div class="flex justify-between">
+                        <span>Cash 12–24 months ago:</span>
+                        <span class="font-semibold">₦{{ number_format($totalPrev, 0) }}</span>
+                    </div>
+
+                    @if ($totalPercent !== null)
+                        <div class="flex items-center justify-between mt-0.5">
+                            <span>Cash change:</span>
+                            <span class="flex items-center gap-1 {{ $totalPositive ? 'text-green-600' : 'text-red-600' }}">
+                        <i class="fa-solid {{ $totalPositive ? 'fa-arrow-up' : 'fa-arrow-down' }} text-[11px]"></i>
+                        <span>
+                            {{ $totalPositive ? '+' : '' }}{{ $totalPercent }}%
+                            ({{ $totalDiff >= 0 ? '+' : '' }}₦{{ number_format($totalDiff, 0) }})
+                        </span>
+                    </span>
+                        </div>
+                    @endif
+                </div>
+
+                {{-- Individual vs. organisation-sponsored breakdown --}}
+                <div class="mt-4 pt-3 border-t border-gray-200 dark:border-gray-700 space-y-1">
+
+                    <div class="flex justify-between text-xs">
+                        <span class="text-gray-600 dark:text-gray-300">Individual donations:</span>
+                        <span class="font-semibold text-gray-900 dark:text-white">₦{{ number_format($donationsPersonal, 0) }}</span>
+                    </div>
+
+                    <div class="flex justify-between text-xs">
+                        <span class="text-gray-600 dark:text-gray-300">Organisation-sponsored:</span>
+                        <span class="font-semibold text-gray-900 dark:text-white">₦{{ number_format($donationsOrganisation, 0) }}</span>
+                    </div>
+
                 </div>
 
             </div>
@@ -553,105 +657,6 @@
                 </div>
             </div>
 
-            {{-- Card: Donations --}}
-            <div class="relative bg-white dark:bg-gray-800 shadow-lg rounded-lg p-6">
-
-                {{-- Top-right icon --}}
-                <div class="absolute top-4 right-4 text-amber-500 dark:text-amber-300 text-4xl opacity-60">
-                    <i class="fa-solid fa-hand-holding-heart"></i>
-                </div>
-
-                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Donations</h3>
-
-                @php
-                    // Real data from $dashboardData
-                    $cashNow           = $dashboardData['cashLast12'] ?? 0;
-                    $cashPrev          = $dashboardData['cashPrev12'] ?? 0;
-                    $inKindCountNow    = $dashboardData['inKindCountLast12'] ?? 0;
-                    $inKindCountPrev   = $dashboardData['inKindCountPrev12'] ?? 0;
-
-                    // Cash calculations
-                    $totalNow      = $cashNow;
-                    $totalPrev     = $cashPrev;
-                    $totalDiff     = $totalNow - $totalPrev;
-                    $totalPercent  = $totalPrev > 0 ? round(($totalDiff / $totalPrev) * 100) : null;
-                    $totalPositive = $totalPercent !== null && $totalPercent >= 0;
-
-                    // In-kind calculations (count-based)
-                    $inKindDiff      = $inKindCountNow - $inKindCountPrev;
-                    $inKindPercent   = $inKindCountPrev > 0 ? round(($inKindDiff / $inKindCountPrev) * 100) : null;
-                    $inKindPositive  = $inKindPercent !== null && $inKindPercent >= 0;
-                @endphp
-
-                {{-- MAIN FIGURE: total cash donations last 12 months --}}
-                <div class="flex items-center gap-2">
-                    <p class="text-3xl md:text-4xl font-bold text-amber-600 dark:text-amber-300">
-                        ₦{{ number_format($totalNow, 0) }}
-                    </p>
-                </div>
-
-                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    Cash donations last 12 months
-                </p>
-
-                {{-- Cash change --}}
-                <div class="mt-3 text-xs text-gray-600 dark:text-gray-300 space-y-0.5">
-                    <div class="flex justify-between">
-                        <span>Cash 12–24 months ago:</span>
-                        <span class="font-semibold">₦{{ number_format($totalPrev, 0) }}</span>
-                    </div>
-
-                    @if ($totalPercent !== null)
-                        <div class="flex items-center justify-between mt-0.5">
-                            <span>Cash change:</span>
-                            <span class="flex items-center gap-1 {{ $totalPositive ? 'text-green-600' : 'text-red-600' }}">
-                        <i class="fa-solid {{ $totalPositive ? 'fa-arrow-up' : 'fa-arrow-down' }} text-[11px]"></i>
-                        <span>
-                            {{ $totalPositive ? '+' : '' }}{{ $totalPercent }}%
-                            ({{ $totalDiff >= 0 ? '+' : '' }}₦{{ number_format($totalDiff, 0) }})
-                        </span>
-                    </span>
-                        </div>
-                    @endif
-                </div>
-
-                {{-- Breakdown --}}
-                <div class="mt-3 text-xs text-gray-600 dark:text-gray-300 space-y-0.5">
-                    <p class="font-semibold flex items-center gap-1">
-                        <i class="fa-solid fa-box-open text-[11px]"></i>
-                        In-kind Donations
-                    </p>
-
-                    <div class="flex justify-between mt-1">
-                        <span>In-kind (last 12 months):</span>
-                        <span class="font-semibold">{{ $inKindCountNow }} donations</span>
-                    </div>
-
-                    <div class="flex justify-between text-[11px] text-gray-500 dark:text-gray-400">
-                        <span>In-kind 12–24 months ago:</span>
-                        <span>{{ $inKindCountPrev }} donations</span>
-                    </div>
-
-                    {{-- In-kind percent change --}}
-                    @if ($inKindPercent !== null)
-                        <div class="flex items-center justify-between mt-1">
-                            <span>In-kind change:</span>
-
-                            <span class="flex items-center gap-1 {{ $inKindPositive ? 'text-green-600' : 'text-red-600' }}">
-                        <i class="fa-solid {{ $inKindPositive ? 'fa-arrow-up' : 'fa-arrow-down' }} text-[11px]"></i>
-                        <span>
-                            {{ $inKindPositive ? '+' : '' }}{{ $inKindPercent }}%
-                            ({{ $inKindDiff >= 0 ? '+' : '' }}{{ $inKindDiff }})
-                        </span>
-                    </span>
-                        </div>
-                    @endif
-                </div>
-            </div>
-
-
-
-
             {{-- Card: Registrations --}}
             <div class="relative bg-white dark:bg-gray-800 shadow-lg rounded-lg p-6">
 
@@ -823,8 +828,8 @@
                             <dd class="text-gray-600 mt-0.5">Total number of First Aid–related trainings conducted during this period.</dd>
                         </div>
                         <div>
-                            <dt class="font-semibold text-gray-800">Cash Donations</dt>
-                            <dd class="text-gray-600 mt-0.5">Total cash donations received in the last 12 months. In-kind donations are counted separately as number of records.</dd>
+                            <dt class="font-semibold text-gray-800">Donations</dt>
+                            <dd class="text-gray-600 mt-0.5">Total cash donations received in the last 12 months, split into individual (personal) and organisation-sponsored contributions.</dd>
                         </div>
                         <div>
                             <dt class="font-semibold text-gray-800">Registrations</dt>

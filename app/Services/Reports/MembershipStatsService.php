@@ -735,32 +735,68 @@ class MembershipStatsService
      * @param  int|null  $divisionId  Filter by division ID
      * @param  int|null  $redCrossUnitId  Filter by Red Cross Unit ID
      */
-    public function getMembershipRevenue(
+    /**
+     * Membership revenue for a period, split into the three mutually-exclusive
+     * contributor categories used throughout financial reporting (same
+     * categorization as FinancialOverviewReportController::index()'s Payments tab):
+     * personal member fees, personal volunteer fees, and organisation-sponsored
+     * payments (either fee type). The prior single-total version summed only
+     * personal, non-volunteer-fee payments for users outside the RC-unit hierarchy —
+     * since volunteer-fee payments are validated to require an RC-unit-linked user
+     * (see Decisions.md), that filter silently excluded essentially all
+     * volunteer-fee revenue and most organisation-sponsored revenue.
+     *
+     * @return array{memberFees: float, volunteerFees: float, organisationFees: float, total: float}
+     */
+    public function getMembershipRevenueBreakdown(
         Carbon $startDate,
         Carbon $endDate,
         ?int $branchId = null,
         ?int $divisionId = null,
         ?int $redCrossUnitId = null
-    ): float {
-        $query = MembershipPayment::where('is_deleted', false)
-            ->whereBetween('payment_date', [$startDate, $endDate])
+    ): array {
+        $base = function () use ($startDate, $endDate, $branchId, $divisionId, $redCrossUnitId) {
+            $query = MembershipPayment::where('is_deleted', false)
+                ->whereBetween('payment_date', [$startDate, $endDate]);
+
+            if ($branchId) {
+                $query->where('membership_payments.branch_id', $branchId);
+            }
+
+            if ($divisionId) {
+                $query->where('membership_payments.division_id', $divisionId);
+            }
+
+            if ($redCrossUnitId) {
+                $query->whereHas('user', fn ($q) => $q->where('red_cross_unit_id', $redCrossUnitId));
+            }
+
+            return $query;
+        };
+
+        $memberFees = (float) $base()
+            ->whereNull('organisation_id')
+            ->whereHas('membershipFee', fn ($q) => $q->where('is_volunteer_fee', false))
             ->join('membership_fees', 'membership_payments.membership_fee_id', '=', 'membership_fees.id')
-            ->join('users', 'membership_payments.user_id', '=', 'users.id')
-            ->whereNull('users.red_cross_unit_id');
+            ->sum('membership_fees.amount');
 
-        if ($branchId) {
-            $query->where('membership_payments.branch_id', $branchId);
-        }
+        $volunteerFees = (float) $base()
+            ->whereNull('organisation_id')
+            ->whereHas('membershipFee', fn ($q) => $q->where('is_volunteer_fee', true))
+            ->join('membership_fees', 'membership_payments.membership_fee_id', '=', 'membership_fees.id')
+            ->sum('membership_fees.amount');
 
-        if ($divisionId) {
-            $query->where('membership_payments.division_id', $divisionId);
-        }
+        $organisationFees = (float) $base()
+            ->whereNotNull('organisation_id')
+            ->join('membership_fees', 'membership_payments.membership_fee_id', '=', 'membership_fees.id')
+            ->sum('membership_fees.amount');
 
-        if ($redCrossUnitId) {
-            $query->where('users.red_cross_unit_id', $redCrossUnitId);
-        }
-
-        return (float) $query->sum('membership_fees.amount');
+        return [
+            'memberFees' => $memberFees,
+            'volunteerFees' => $volunteerFees,
+            'organisationFees' => $organisationFees,
+            'total' => $memberFees + $volunteerFees + $organisationFees,
+        ];
     }
 
     public function getDemographicsSnapshot(
