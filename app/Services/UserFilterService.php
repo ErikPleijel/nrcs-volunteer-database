@@ -209,7 +209,20 @@ class UserFilterService
         // e.g. "training_expiry|0", "membership_post_expiry|=1", "membership_pre_expiry|0|180"
         // count_expr buckets are exclusive: 0 (never), =1 (exactly once), =2 (exactly twice),
         // >=3 (three or more) — deliberately not overlapping "at most N" ranges.
-        if ($this->filled($filters, 'campaign_msg')) {
+        if ($this->filled($filters, 'campaign_msg') && $filters['campaign_msg'] === 'any') {
+            // Cross-purpose: has this user received a sent message under ANY purpose.
+            // Same query shape as the any_campaign_message branch below (kept for
+            // backward compatibility with saved campaigns still using that key).
+            $query->whereRaw(
+                "EXISTS (
+                    SELECT 1 FROM messaging_recipients
+                    WHERE messaging_recipients.recipient_type = ?
+                      AND messaging_recipients.recipient_id = users.id
+                      AND messaging_recipients.status = 'sent'
+                )",
+                ['App\\Models\\User']
+            );
+        } elseif ($this->filled($filters, 'campaign_msg')) {
             $parts = explode('|', (string) $filters['campaign_msg']);
             $slug = $parts[0] ?? '';
             $expr = $parts[1] ?? '';

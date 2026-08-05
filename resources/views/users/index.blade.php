@@ -524,6 +524,9 @@
                                 <label for="campaign_msg" class="filter-label-small">Campaign Messages</label>
                                 <select name="campaign_msg" id="campaign_msg" class="filter-select-small {{ request('campaign_msg') ? 'filter-active' : '' }}">
                                     <option value="">All</option>
+                                    <option value="any" {{ request('campaign_msg') === 'any' ? 'selected' : '' }}>
+                                        Has received any campaign message
+                                    </option>
                                     @foreach($campaignPurposes as $purpose)
                                         <optgroup label="{{ $purpose->name }}">
                                             <option value="{{ $purpose->slug }}|0"
@@ -544,14 +547,6 @@
                                             </option>
                                         </optgroup>
                                     @endforeach
-                                </select>
-                            </div>
-
-                            <div>
-                                <label for="any_campaign_message" class="filter-label-small">Any Campaign Message</label>
-                                <select name="any_campaign_message" id="any_campaign_message" class="filter-select-small {{ request('any_campaign_message') ? 'filter-active' : '' }}">
-                                    <option value="" {{ request('any_campaign_message', '') === '' ? 'selected' : '' }}>All</option>
-                                    <option value="1" {{ request('any_campaign_message') === '1' ? 'selected' : '' }}>Has received a campaign message (any purpose)</option>
                                 </select>
                             </div>
                         </div>

@@ -249,7 +249,11 @@ class UserFilterDescriber
         }
 
         // Campaign message count filter
-        if (! empty($filters['campaign_msg'])) {
+        if (($filters['campaign_msg'] ?? null) === 'any') {
+            // Reuses the exact wording of the any_campaign_message label below, for
+            // consistency between the two (now merged into one) filter entry points.
+            $labels[] = 'Has received a campaign message (any purpose)';
+        } elseif (! empty($filters['campaign_msg'])) {
             $parts = explode('|', (string) $filters['campaign_msg']);
             $slug = $parts[0] ?? '';
             $countExpr = trim($parts[1] ?? '');
