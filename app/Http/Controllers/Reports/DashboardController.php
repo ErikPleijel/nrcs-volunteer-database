@@ -216,12 +216,10 @@ class DashboardController extends Controller
 
         // --- Extended: remaining 6 cards ---
         if ($extended) {
-            // Renewal Rate card
-            $expiredLast12      = $this->membershipStatsService->getExpiredMembersLast12MonthsNotRenewed($branchId);
-            $expiredTotal       = $this->membershipStatsService->getExpiredMembersCount($branchId);
-            $renewalRate        = $this->membershipStatsService->getRenewalRateLast12Months($branchId);
-            $expiredLast90Days  = $this->membershipStatsService->getMembersExpiredLast90Days($branchId);
-            $expiringNext30Days = $this->membershipStatsService->getMembersExpiringNext30Days($branchId);
+            // Membership Retained/Lost card
+            $membershipCohortExpired  = $this->membershipStatsService->getExpiredCohortLast12Months($branchId);
+            $membershipCohortRetained = $this->membershipStatsService->getRetainedFromCohort($branchId);
+            $membershipCohortLost     = $membershipCohortExpired - $membershipCohortRetained;
 
             // Membership Revenue card
             $now            = now();
@@ -255,11 +253,9 @@ class DashboardController extends Controller
             $averageMembersPerActiveUnit  = $this->redCrossUnitStatsService->getAverageMembersPerActiveUnit($branchId);
             $unitsWithoutLeadershipCount = $this->redCrossUnitStatsService->getUnitsWithoutLeadershipCount($branchId);
         } else {
-            $expiredLast12            = null;
-            $expiredTotal             = null;
-            $renewalRate              = null;
-            $expiredLast90Days        = null;
-            $expiringNext30Days       = null;
+            $membershipCohortExpired  = null;
+            $membershipCohortRetained = null;
+            $membershipCohortLost     = null;
             $revenueLast12Months      = null;
             $revenuePrevious12Months  = null;
             $revenueChangeYear        = null;
@@ -316,15 +312,13 @@ class DashboardController extends Controller
             'genderUnknown'                            => $genderUnknown,
             'changeMonth'                              => $changeMonth,
             'changeYear'                               => $changeYear,
-            'expiredLast12Months'                      => $expiredLast12,
-            'expiredTotal'                             => $expiredTotal,
-            'expiredLast90Days'                        => $expiredLast90Days,
-            'expiringNext30Days'                       => $expiringNext30Days,
+            'membershipCohortExpired'                  => $membershipCohortExpired,
+            'membershipCohortRetained'                 => $membershipCohortRetained,
+            'membershipCohortLost'                     => $membershipCohortLost,
             'branchId'                                 => $branchId,
             'revenueLast12Months'                      => $revenueLast12Months,
             'revenuePrevious12Months'                  => $revenuePrevious12Months,
             'revenueChangeYear'                        => $revenueChangeYear,
-            'renewalRate'                              => $renewalRate,
             'volunteersCount'        => $volunteersCount,
             'volunteersChangeMonth'  => $volunteersChangeMonth,
             'volunteersChangeYear'   => $volunteersChangeYear,

@@ -545,113 +545,93 @@ class MembershipStatsService
     }
 
     /**
-     * Get expired members in the last 12 months who have not renewed
-     *
-     * @param  int|null  $branchId  Filter by branch ID
-     * @param  int|null  $divisionId  Filter by division ID
-     * @param  int|null  $redCrossUnitId  Filter by Red Cross Unit ID
-     * @param  int|null  $userId  Filter by user ID
+     * Shared cohort for the Retained/Lost membership card: distinct PERSONAL
+     * (organisation_id IS NULL) membership_payments expiry events in the last 12
+     * months, approved and not deleted, for users outside the RC-unit hierarchy.
+     * Both getExpiredCohortLast12Months() and getRetainedFromCohort() build on this
+     * so the denominator (X) and numerator (Y) are guaranteed to use the same
+     * population.
      */
-    public function getExpiredMembersLast12MonthsNotRenewed(
+    private function expiredCohortSubquery(
         ?int $branchId = null,
         ?int $divisionId = null,
-        ?int $redCrossUnitId = null,
-        ?int $userId = null
-    ): int {
+        ?int $redCrossUnitId = null
+    ) {
         $oneYearAgo = now()->subYear()->startOfDay();
-        $today = now()->toDateString();
+        $today = now()->endOfDay();
 
-        // Latest expiry per user
-        $sub = DB::table('membership_payments')
-            ->select('membership_payments.user_id', DB::raw('MIN(membership_payments.payment_date) as first_payment_date'))
-            ->where('membership_payments.is_deleted', 0)
-            ->where('membership_payments.approval_status', 'approved') // Phase 2: only approved records are real
-            ->join('users', 'membership_payments.user_id', '=', 'users.id')
+        $sub = DB::table('membership_payments as mp1')
+            ->select('mp1.user_id', 'mp1.expiry_date')
+            ->where('mp1.is_deleted', 0)
+            ->where('mp1.approval_status', 'approved')
+            ->whereNull('mp1.organisation_id')
+            ->whereBetween('mp1.expiry_date', [$oneYearAgo, $today])
+            ->join('users', 'mp1.user_id', '=', 'users.id')
             ->whereNull('users.red_cross_unit_id');
 
         if ($branchId) {
-            $sub->where('membership_payments.branch_id', $branchId);
+            $sub->where('mp1.branch_id', $branchId);
         }
 
         if ($divisionId) {
-            $sub->where('membership_payments.division_id', $divisionId);
+            $sub->where('mp1.division_id', $divisionId);
         }
 
         if ($redCrossUnitId) {
             $sub->where('users.red_cross_unit_id', $redCrossUnitId);
         }
 
-        if ($userId) {
-            $sub->where('membership_payments.user_id', $userId);
-        }
-
-        $sub->groupBy('membership_payments.user_id');
-
-        // Wrap subquery to filter on first_payment_date
-        return DB::table(DB::raw("({$sub->toSql()}) as t"))
-            ->mergeBindings($sub)
-            ->whereBetween('first_payment_date', [$oneYearAgo, $today])
-            ->count();
+        return $sub;
     }
 
     /**
-     * Get renewal rate for memberships that expired in the last 12 months
+     * Get the base cohort (X): distinct users whose personal membership expired in
+     * the last 12 months. This is the denominator for the Retained/Lost card.
      *
      * @param  int|null  $branchId  Filter by branch ID
      * @param  int|null  $divisionId  Filter by division ID
      * @param  int|null  $redCrossUnitId  Filter by Red Cross Unit ID
      */
-    public function getRenewalRateLast12Months(
+    public function getExpiredCohortLast12Months(
         ?int $branchId = null,
         ?int $divisionId = null,
         ?int $redCrossUnitId = null
-    ): float {
-        $oneYearAgo = now()->subYear()->startOfDay();
-        $today = now()->endOfDay();
+    ): int {
+        $sub = $this->expiredCohortSubquery($branchId, $divisionId, $redCrossUnitId);
 
-        // 1) All expiry events in the last 12 months
-        $expiringSub = DB::table('membership_payments as mp1')
-            ->select('mp1.user_id', 'mp1.expiry_date')
-            ->where('mp1.is_deleted', 0)
-            ->where('mp1.approval_status', 'approved') // Phase 2: only approved records are real
-            ->whereBetween('mp1.expiry_date', [$oneYearAgo, $today])
-            ->join('users', 'mp1.user_id', '=', 'users.id')
-            ->whereNull('users.red_cross_unit_id');
-
-        if ($branchId) {
-            $expiringSub->where('mp1.branch_id', $branchId);
-        }
-
-        if ($divisionId) {
-            $expiringSub->where('mp1.division_id', $divisionId);
-        }
-
-        if ($redCrossUnitId) {
-            $expiringSub->where('users.red_cross_unit_id', $redCrossUnitId);
-        }
-
-        // We'll wrap this subquery so we can join against it
-        $expiringSql = $expiringSub->toSql();
-
-        // 2) Total distinct users who had an expiry in that window
-        $totalExpired = DB::table(DB::raw("({$expiringSql}) as e"))
-            ->mergeBindings($expiringSub)
+        return DB::table(DB::raw('('.$sub->toSql().') as e'))
+            ->mergeBindings($sub)
             ->distinct('e.user_id')
             ->count('e.user_id');
+    }
 
-        if ($totalExpired === 0) {
-            return 0.0;
-        }
+    /**
+     * Get the retained count (Y): of the base cohort (see getExpiredCohortLast12Months()),
+     * users who have a later personal payment that is still valid today — i.e. renewed
+     * AND currently active, not merely "renewed at some point since."
+     *
+     * @param  int|null  $branchId  Filter by branch ID
+     * @param  int|null  $divisionId  Filter by division ID
+     * @param  int|null  $redCrossUnitId  Filter by Red Cross Unit ID
+     */
+    public function getRetainedFromCohort(
+        ?int $branchId = null,
+        ?int $divisionId = null,
+        ?int $redCrossUnitId = null
+    ): int {
+        $sub = $this->expiredCohortSubquery($branchId, $divisionId, $redCrossUnitId);
+        $today = now()->toDateString();
 
-        // 3) Renewed = users from that set who have ANY later expiry_date
-        $renewedCount = DB::table(DB::raw("({$expiringSql}) as e"))
-            ->mergeBindings($expiringSub)
+        return DB::table(DB::raw('('.$sub->toSql().') as e'))
+            ->mergeBindings($sub)
             ->join('membership_payments as mp2', function ($join) {
                 $join->on('mp2.user_id', '=', 'e.user_id')
                     ->on('mp2.expiry_date', '>', 'e.expiry_date');
             })
             ->where('mp2.is_deleted', 0)
-            ->where('mp2.approval_status', 'approved') // Phase 2: self-join — both mp1 and mp2 must be approved
+            ->where('mp2.approval_status', 'approved')
+            ->whereNull('mp2.organisation_id')
+            ->where('mp2.expiry_date', '>=', $today)
             ->when($branchId, function ($query) use ($branchId) {
                 $query->where('mp2.branch_id', $branchId);
             })
@@ -659,13 +639,11 @@ class MembershipStatsService
                 $query->where('mp2.division_id', $divisionId);
             })
             ->when($redCrossUnitId, function ($query) use ($redCrossUnitId) {
-                $query->join('users', 'mp2.user_id', '=', 'users.id')
-                    ->where('users.red_cross_unit_id', $redCrossUnitId);
+                $query->join('users as u2', 'mp2.user_id', '=', 'u2.id')
+                    ->where('u2.red_cross_unit_id', $redCrossUnitId);
             })
             ->distinct('e.user_id')
             ->count('e.user_id');
-
-        return round(($renewedCount / $totalExpired) * 100, 1);
     }
 
     /**
@@ -746,130 +724,6 @@ class MembershipStatsService
         }
 
         return $query->count('membership_payments.user_id');
-    }
-
-    /**
-     * Get count of members expiring in the next 30 days
-     *
-     * @param  int|null  $branchId  Filter by branch ID
-     * @param  int|null  $divisionId  Filter by division ID
-     * @param  int|null  $redCrossUnitId  Filter by Red Cross Unit ID
-     * @param  int|null  $userId  Filter by user ID
-     */
-    public function getMembersExpiringNext30Days(
-        ?int $branchId = null,
-        ?int $divisionId = null,
-        ?int $redCrossUnitId = null,
-        ?int $userId = null
-    ): int {
-        $now = now();
-        $in30Days = $now->copy()->addDays(30);
-
-        $query = MembershipPayment::where('is_deleted', false)
-            ->whereBetween('expiry_date', [$now, $in30Days])
-            ->join('users', 'membership_payments.user_id', '=', 'users.id')
-            ->whereNull('users.red_cross_unit_id')
-            ->distinct('membership_payments.user_id');
-
-        if ($branchId) {
-            $query->where('membership_payments.branch_id', $branchId);
-        }
-
-        if ($divisionId) {
-            $query->where('membership_payments.division_id', $divisionId);
-        }
-
-        if ($redCrossUnitId) {
-            $query->where('users.red_cross_unit_id', $redCrossUnitId);
-        }
-
-        if ($userId) {
-            $query->where('membership_payments.user_id', $userId);
-        }
-
-        return $query->count('membership_payments.user_id');
-    }
-
-    /**
-     * Get count of members expired in the last 90 days
-     *
-     * @param  int|null  $branchId  Filter by branch ID
-     * @param  int|null  $divisionId  Filter by division ID
-     * @param  int|null  $redCrossUnitId  Filter by Red Cross Unit ID
-     * @param  int|null  $userId  Filter by user ID
-     */
-    public function getMembersExpiredLast90Days(
-        ?int $branchId = null,
-        ?int $divisionId = null,
-        ?int $redCrossUnitId = null,
-        ?int $userId = null
-    ): int {
-        $now = now();
-        $last90Days = $now->copy()->subDays(90);
-
-        $query = MembershipPayment::where('is_deleted', false)
-            ->whereBetween('expiry_date', [$last90Days, $now])
-            ->join('users', 'membership_payments.user_id', '=', 'users.id')
-            ->whereNull('users.red_cross_unit_id')
-            ->distinct('membership_payments.user_id');
-
-        if ($branchId) {
-            $query->where('membership_payments.branch_id', $branchId);
-        }
-
-        if ($divisionId) {
-            $query->where('membership_payments.division_id', $divisionId);
-        }
-
-        if ($redCrossUnitId) {
-            $query->where('users.red_cross_unit_id', $redCrossUnitId);
-        }
-
-        if ($userId) {
-            $query->where('membership_payments.user_id', $userId);
-        }
-
-        return $query->count('membership_payments.user_id');
-    }
-
-    /**
-     * Get the count of expired members
-     *
-     * @param  int|null  $branchId  Filter by branch ID
-     * @param  int|null  $divisionId  Filter by division ID
-     * @param  int|null  $redCrossUnitId  Filter by Red Cross Unit ID
-     * @param  int|null  $userId  Filter by user ID
-     */
-    public function getExpiredMembersCount(
-        ?int $branchId = null,
-        ?int $divisionId = null,
-        ?int $redCrossUnitId = null,
-        ?int $userId = null
-    ): int {
-        $query = MembershipPayment::expired()
-            ->distinct('user_id');
-
-        if ($branchId) {
-            $query->where('branch_id', $branchId);
-        }
-
-        if ($divisionId) {
-            $query->where('division_id', $divisionId);
-        }
-
-        if ($redCrossUnitId || $userId) {
-            $query->join('users', 'membership_payments.user_id', '=', 'users.id');
-
-            if ($redCrossUnitId) {
-                $query->where('users.red_cross_unit_id', $redCrossUnitId);
-            }
-
-            if ($userId) {
-                $query->where('membership_payments.user_id', $userId);
-            }
-        }
-
-        return $query->count('user_id');
     }
 
     /**

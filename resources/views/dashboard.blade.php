@@ -232,7 +232,7 @@
 
 
             @if($extended)
-            {{-- Card: Renewal Rate --}}
+            {{-- Card: Membership Retention --}}
             <div class="relative bg-white dark:bg-gray-800 shadow-lg rounded-lg p-6">
 
                 {{-- Top-right icon --}}
@@ -241,69 +241,45 @@
                 </div>
 
                 <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">
-                    Renewal Rate
+                    Membership Retention
                 </h3>
 
                 @php
-                    $rate = $dashboardData['renewalRate'] ?? null;
-
-                    if (is_null($rate)) {
-                        $colorClass = 'text-gray-400 dark:text-gray-500';
-                    } elseif ($rate >= 70) {
-                        $colorClass = 'text-green-600 dark:text-green-400';
-                    } elseif ($rate >= 50) {
-                        $colorClass = 'text-yellow-500 dark:text-yellow-400';
-                    } else {
-                        $colorClass = 'text-red-600 dark:text-red-400';
-                    }
-
-                    $expired12 = $dashboardData['expiredLast12Months'] ?? 0;
-                    $expiredTotal = $dashboardData['expiredTotal'] ?? 0;
-                    $expired90 = $dashboardData['expiredLast90Days'] ?? 0;
-                    $expiring30 = $dashboardData['expiringNext30Days'] ?? 0;
+                    $cohortExpired  = $dashboardData['membershipCohortExpired'] ?? null;
+                    $cohortRetained = $dashboardData['membershipCohortRetained'] ?? null;
+                    $cohortLost     = $dashboardData['membershipCohortLost'] ?? null;
                 @endphp
 
-                {{-- Main percentage --}}
-                @if(!is_null($rate))
-
-                    <div class="">
-                        <span class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 ">LAST 12 MONTHS:</span>
-                    </div>
-
-                    <p class="text-4xl font-bold {{ $colorClass }} leading-none">
-                        {{ $rate }}%
-                    </p>
-
-                @else
+                @if(is_null($cohortExpired))
                     <p class="text-sm text-gray-500 dark:text-gray-400">
                         No data available
                     </p>
+                @else
+                    <div>
+                        <span class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                            Expired in last 12 months
+                        </span>
+                    </div>
+
+                    <p class="text-4xl font-bold text-gray-900 dark:text-white leading-none">
+                        {{ number_format($cohortExpired) }}
+                    </p>
+
+                    {{-- Renewed vs. lost breakdown --}}
+                    <div class="mt-3 space-y-1 text-sm">
+
+                        <div class="flex justify-between text-xs">
+                            <span class="text-gray-600 dark:text-gray-300">Renewed and still active:</span>
+                            <span class="font-semibold text-green-600 dark:text-green-400">{{ number_format($cohortRetained) }}</span>
+                        </div>
+
+                        <div class="flex justify-between text-xs">
+                            <span class="text-gray-600 dark:text-gray-300">Did not return:</span>
+                            <span class="font-semibold text-red-600 dark:text-red-400">{{ number_format($cohortLost) }}</span>
+                        </div>
+
+                    </div>
                 @endif
-
-                {{-- Small secondary stats --}}
-                <div class="mt-3 space-y-1 text-sm">
-
-                    <div class="flex justify-between text-gray-600 dark:text-gray-300 text-xs">
-                        <span>Expiring next 30 days:</span>
-                        <span class="font-semibold">{{ $expiring30 }}</span>
-                    </div>
-
-                    <div class="flex justify-between text-gray-600 dark:text-gray-300 text-xs">
-                        <span>Expired last 90 days:</span>
-                        <span class="font-semibold">{{ $expired90 }}</span>
-                    </div>
-
-                    <div class="flex justify-between text-gray-600 dark:text-gray-300 text-xs">
-                        <span>Expired last 12 months:</span>
-                        <span class="font-semibold">{{ $expired12 }}</span>
-                    </div>
-
-                    <div class="flex justify-between text-gray-600 dark:text-gray-300 text-xs">
-                        <span>Total expired:</span>
-                        <span class="font-semibold">{{ $expiredTotal }}</span>
-                    </div>
-
-                </div>
 
             </div>
 
