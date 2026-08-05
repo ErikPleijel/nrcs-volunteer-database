@@ -1250,6 +1250,9 @@
                         <p class="mt-2 text-xs text-gray-600">
                             Previously active people with no recent activity.
                         </p>
+                        <p class="mt-1 text-xs text-gray-500">
+                            {{ number_format($dashboardData['lifecycleArchived']) }} Archived
+                        </p>
 
                     </div>
 
