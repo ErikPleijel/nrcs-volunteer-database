@@ -3,7 +3,7 @@
     <span class="flex flex-col leading-tight text-left">
         <span>{{ $message }}</span>
         @if ($subtext)
-            <span class="text-[10px] opacity-75">{{ $subtext }}</span>
+            <span class="text-[10px] opacity-75 {{ $subtextDanger ? 'text-red-600 font-semibold' : '' }}">{{ $subtext }}</span>
         @endif
     </span>
 </span>

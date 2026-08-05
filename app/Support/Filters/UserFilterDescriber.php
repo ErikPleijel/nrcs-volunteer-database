@@ -108,6 +108,17 @@ class UserFilterDescriber
         }
 
         // --------------------------------------------------
+        // Registration source
+        // --------------------------------------------------
+        if ($rf = $get('registration_filter')) {
+            $labels[] = match ($rf) {
+                'admin' => 'Registration: Registered by admin',
+                'self' => 'Registration: Self-registered',
+                default => null,
+            };
+        }
+
+        // --------------------------------------------------
         // Lifecycle (archived_filter)
         // --------------------------------------------------
         $labels[] = match ($get('archived_filter', 'operational')) {
@@ -249,9 +260,9 @@ class UserFilterDescriber
                 $name = $purpose?->name ?? $slug;
 
                 $label = match (true) {
-                    $countExpr === '0' => "{$name}: not yet contacted",
-                    $countExpr === '<=1' => "{$name}: contacted at most once",
-                    $countExpr === '<=2' => "{$name}: contacted at most twice",
+                    $countExpr === '0' => "{$name}: has never received this campaign",
+                    $countExpr === '=1' => "{$name}: contacted exactly once",
+                    $countExpr === '=2' => "{$name}: contacted exactly twice",
                     $countExpr === '>=3' => "{$name}: contacted 3 or more times",
                     default => "{$name}: {$countExpr} messages",
                 };
@@ -265,6 +276,12 @@ class UserFilterDescriber
                 $labels[] = $label;
             }
         }
+
+        // Any campaign message, cross-purpose
+        if ($get('any_campaign_message') == '1') {
+            $labels[] = 'Has received a campaign message (any purpose)';
+        }
+
         // Donation recency vs. last appreciation contact
         if (! empty($filters['donation_since_contact'])) {
             $parts = explode('|', (string) $filters['donation_since_contact'], 2);
@@ -332,6 +349,18 @@ class UserFilterDescriber
         }
         if ($get('org_representatives') == '1') {
             $labels[] = 'Org representatives only';
+        }
+        if ($get('is_member') == '1') {
+            $labels[] = 'Is a member';
+        }
+        if ($get('is_volunteer') == '1') {
+            $labels[] = 'Is a volunteer';
+        }
+        if ($get('wants_membership') == '1') {
+            $labels[] = 'Wants membership';
+        }
+        if ($get('wants_volunteer') == '1') {
+            $labels[] = 'Wants to volunteer';
         }
 
         return array_values(array_filter($labels));

@@ -53,7 +53,7 @@ class UserAdminStatusBadge extends Component
         if (! $recency['hasData']) {
             $this->label  = 'No admin activity yet';
             $this->icon   = 'fa-circle-minus';
-            $this->styles = 'bg-gray-100 text-gray-800';
+            $this->styles = 'bg-gray-800 text-white';
             $this->title  = 'This admin has not yet created or updated any records.';
             return;
         }

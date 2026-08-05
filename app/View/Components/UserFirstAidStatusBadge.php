@@ -13,6 +13,7 @@ class UserFirstAidStatusBadge extends Component
     public string $icon;
     public string $styles;
     public ?string $subtext = null;
+    public bool $subtextDanger = false;
 
     public function __construct(User $user)
     {
@@ -37,6 +38,7 @@ class UserFirstAidStatusBadge extends Component
         // Uses the denormalised column; only shown when a FA date exists.
         if ($user->last_first_aid_at) {
             $this->subtext = 'Last FA ' . $this->humanFaAge($user->last_first_aid_at);
+            $this->subtextDanger = Carbon::parse($user->last_first_aid_at)->lt(now()->subYears(3));
         }
     }
 

@@ -206,7 +206,9 @@ class UserFilterService
         }
 
         // Campaign message count filter — value format: "{purpose_slug}|{count_expr}[|{days}]"
-        // e.g. "training_expiry|0", "membership_post_expiry|<=1", "membership_pre_expiry|0|180"
+        // e.g. "training_expiry|0", "membership_post_expiry|=1", "membership_pre_expiry|0|180"
+        // count_expr buckets are exclusive: 0 (never), =1 (exactly once), =2 (exactly twice),
+        // >=3 (three or more) — deliberately not overlapping "at most N" ranges.
         if ($this->filled($filters, 'campaign_msg')) {
             $parts = explode('|', (string) $filters['campaign_msg']);
             $slug = $parts[0] ?? '';
@@ -216,7 +218,7 @@ class UserFilterService
             if ($slug !== '' && $expr !== '') {
                 $purpose = \App\Models\CampaignPurpose::where('slug', $slug)->first();
                 if ($purpose) {
-                    // Parse operator + number from expr like "0", "1", "<=2", ">=3"
+                    // Parse operator + number from expr like "0", "=1", "=2", ">=3"
                     if (preg_match('/^(<=|>=|<|>|=)?(\d+)$/', trim($expr), $m)) {
                         $operator = $m[1] !== '' ? $m[1] : '=';
                         $number = (int) $m[2];
@@ -241,6 +243,20 @@ class UserFilterService
                     }
                 }
             }
+        }
+
+        // Any campaign message, cross-purpose — same "sent" definition as campaign_msg above,
+        // but without the purpose_id join: has this user received a sent message under ANY purpose.
+        if ((($filters['any_campaign_message'] ?? null) == '1')) {
+            $query->whereRaw(
+                "EXISTS (
+                    SELECT 1 FROM messaging_recipients
+                    WHERE messaging_recipients.recipient_type = ?
+                      AND messaging_recipients.recipient_id = users.id
+                      AND messaging_recipients.status = 'sent'
+                )",
+                ['App\\Models\\User']
+            );
         }
 
         // Donation recency vs. last appreciation contact — value format: "{purpose_slug}|{never|since_last}"

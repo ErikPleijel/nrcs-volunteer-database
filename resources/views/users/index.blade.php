@@ -243,6 +243,7 @@
                 'first_aid_refresher',
                 'donation_filter',
                 'campaign_msg',
+                'any_campaign_message',
                 'donation_since_contact',
                 'wizard_purpose', // internal hint, not a real filter
             ];
@@ -253,7 +254,7 @@
                 <form method="GET" action="{{ route('users.index') }}" class="filter-form">
                     {{-- Always-visible row: Search+Sort | Location(span3) | Demography+Members | Button --}}
                     {{-- Note: Age Range in demography component could be moved to expanded section in future --}}
-                    <div class="filter-grid filter-grid-6">
+                    <div class="filter-grid filter-grid-5">
                         <div class="flex flex-col gap-4">
                             {{-- Search --}}
                             <div>
@@ -330,16 +331,6 @@
                                     <option value="all"             {{ request('archived_filter') == 'all'             ? 'selected' : '' }}>All (Including Archived)</option>
                                 </select>
                             </div>
-                        </div>
-
-                        {{-- "Show all filters" toggle button --}}
-                        <div id="show-filters-btn-container" class="flex flex-col items-start gap-2 pt-6">
-                            <button type="button" id="show-filters-btn"
-                                    aria-expanded="{{ $anyHiddenFilterActive ? 'true' : 'false' }}"
-                                    class="inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium bg-blue-100 text-slate-700 ring-1 ring-inset ring-slate-300 hover:bg-slate-50 shadow-sm">
-                                <i class="fas fa-sliders text-slate-500"></i>
-                                <span id="show-filters-btn-label">{{ $anyHiddenFilterActive ? 'Hide filters' : 'Show all filters' }}</span>
-                            </button>
                         </div>
 
                     </div>
@@ -492,9 +483,7 @@
                                     @foreach($trainingTypesWithExpiry as $type)
                                         <optgroup label="{{ $type->name }}">
                                             <option value="{{ $type->id }}|28"      {{ request('training_expiry') === $type->id.'|28'      ? 'selected' : '' }}>{{ $type->name }} — expires within 28 days</option>
-                                            <option value="{{ $type->id }}|21"      {{ request('training_expiry') === $type->id.'|21'      ? 'selected' : '' }}>{{ $type->name }} — expires within 21 days</option>
                                             <option value="{{ $type->id }}|14"      {{ request('training_expiry') === $type->id.'|14'      ? 'selected' : '' }}>{{ $type->name }} — expires within 14 days</option>
-                                            <option value="{{ $type->id }}|7"       {{ request('training_expiry') === $type->id.'|7'       ? 'selected' : '' }}>{{ $type->name }} — expires within 7 days</option>
                                             <option value="{{ $type->id }}|expired" {{ request('training_expiry') === $type->id.'|expired' ? 'selected' : '' }}>{{ $type->name }} — has expired (not renewed)</option>
                                         </optgroup>
                                     @endforeach
@@ -503,7 +492,7 @@
 
                             <div>
                                 <label for="first_aid_refresher" class="filter-label-small">First Aid Refresher</label>
-                                @php $faRefresherMonths = range(12, 60, 3); @endphp
+                                @php $faRefresherMonths = [12, 24, 36, 48, 60]; @endphp
                                 <select name="first_aid_refresher" id="first_aid_refresher"
                                         class="filter-select-small {{ request('first_aid_refresher') ? 'filter-active' : '' }}">
                                     <option value="" {{ request('first_aid_refresher', '') === '' ? 'selected' : '' }}>All</option>
@@ -539,15 +528,15 @@
                                         <optgroup label="{{ $purpose->name }}">
                                             <option value="{{ $purpose->slug }}|0"
                                                 {{ $campaignMsgKey === $purpose->slug.'|0' ? 'selected' : '' }}>
-                                                {{ $purpose->name }} — not yet contacted
+                                                {{ $purpose->name }} — has never received this campaign
                                             </option>
-                                            <option value="{{ $purpose->slug }}|<=1"
-                                                {{ $campaignMsgKey === $purpose->slug.'|<=1' ? 'selected' : '' }}>
-                                                {{ $purpose->name }} — contacted at most once
+                                            <option value="{{ $purpose->slug }}|=1"
+                                                {{ $campaignMsgKey === $purpose->slug.'|=1' ? 'selected' : '' }}>
+                                                {{ $purpose->name }} — contacted exactly once
                                             </option>
-                                            <option value="{{ $purpose->slug }}|<=2"
-                                                {{ $campaignMsgKey === $purpose->slug.'|<=2' ? 'selected' : '' }}>
-                                                {{ $purpose->name }} — contacted at most twice
+                                            <option value="{{ $purpose->slug }}|=2"
+                                                {{ $campaignMsgKey === $purpose->slug.'|=2' ? 'selected' : '' }}>
+                                                {{ $purpose->name }} — contacted exactly twice
                                             </option>
                                             <option value="{{ $purpose->slug }}|>=3"
                                                 {{ $campaignMsgKey === $purpose->slug.'|>=3' ? 'selected' : '' }}>
@@ -555,6 +544,14 @@
                                             </option>
                                         </optgroup>
                                     @endforeach
+                                </select>
+                            </div>
+
+                            <div>
+                                <label for="any_campaign_message" class="filter-label-small">Any Campaign Message</label>
+                                <select name="any_campaign_message" id="any_campaign_message" class="filter-select-small {{ request('any_campaign_message') ? 'filter-active' : '' }}">
+                                    <option value="" {{ request('any_campaign_message', '') === '' ? 'selected' : '' }}>All</option>
+                                    <option value="1" {{ request('any_campaign_message') === '1' ? 'selected' : '' }}>Has received a campaign message (any purpose)</option>
                                 </select>
                             </div>
                         </div>
@@ -574,6 +571,13 @@
                             class="filter-btn-secondary {{ $hasFilters ? 'filter-btn-secondary-active' : 'filter-btn-disabled' }}">
                                 <i class="fas fa-times mr-1"></i>Clear
                             </a>
+
+                            <button type="button" id="show-filters-btn"
+                                    aria-expanded="{{ $anyHiddenFilterActive ? 'true' : 'false' }}"
+                                    class="inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium bg-blue-100 text-slate-700 ring-1 ring-inset ring-slate-300 hover:bg-slate-50 shadow-sm">
+                                <i class="fas fa-sliders text-slate-500"></i>
+                                <span id="show-filters-btn-label">{{ $anyHiddenFilterActive ? 'Hide filters' : 'Show all filters' }}</span>
+                            </button>
 
                         </div>
 
@@ -1107,16 +1111,32 @@
                                     <input type="radio" name="wizard_new_msg" value="onboarding|0"
                                            class="text-slate-700 border-slate-300" checked>
                                     <span>
-                                        <span class="font-medium text-slate-800">Not yet contacted</span>
+                                        <span class="font-medium text-slate-800">Has never received this campaign</span>
                                         <span class="block text-xs text-slate-400">Only those who haven't received any onboarding message</span>
                                     </span>
                                 </label>
                                 <label class="inline-flex items-center gap-3 cursor-pointer">
-                                    <input type="radio" name="wizard_new_msg" value="onboarding|<=1"
+                                    <input type="radio" name="wizard_new_msg" value="onboarding|=1"
                                            class="text-slate-700 border-slate-300">
                                     <span>
-                                        <span class="font-medium text-slate-800">Contacted at most once</span>
-                                        <span class="block text-xs text-slate-400">Those who received 0 or 1 onboarding messages — give them one more chance</span>
+                                        <span class="font-medium text-slate-800">Contacted exactly once</span>
+                                        <span class="block text-xs text-slate-400">Those who received exactly 1 onboarding message — give them one more chance</span>
+                                    </span>
+                                </label>
+                                <label class="inline-flex items-center gap-3 cursor-pointer">
+                                    <input type="radio" name="wizard_new_msg" value="onboarding|=2"
+                                           class="text-slate-700 border-slate-300">
+                                    <span>
+                                        <span class="font-medium text-slate-800">Contacted exactly twice</span>
+                                        <span class="block text-xs text-slate-400">Those who received exactly 2 onboarding messages</span>
+                                    </span>
+                                </label>
+                                <label class="inline-flex items-center gap-3 cursor-pointer">
+                                    <input type="radio" name="wizard_new_msg" value="onboarding|>=3"
+                                           class="text-slate-700 border-slate-300">
+                                    <span>
+                                        <span class="font-medium text-slate-800">Contacted 3 or more times</span>
+                                        <span class="block text-xs text-slate-400">Those who received 3 or more onboarding messages</span>
                                     </span>
                                 </label>
                                 <label class="inline-flex items-center gap-3 cursor-pointer">
@@ -1167,24 +1187,32 @@
                                     <input type="radio" name="wizard_dormant_msg" value="dormant_reengagement|0"
                                            class="text-slate-700 border-slate-300" checked>
                                     <span>
-                                        <span class="font-medium text-slate-800">Not yet contacted</span>
+                                        <span class="font-medium text-slate-800">Has never received this campaign</span>
                                         <span class="block text-xs text-slate-400">Only those who haven't received any re-engagement message</span>
                                     </span>
                                 </label>
                                 <label class="inline-flex items-center gap-3 cursor-pointer">
-                                    <input type="radio" name="wizard_dormant_msg" value="dormant_reengagement|<=1"
+                                    <input type="radio" name="wizard_dormant_msg" value="dormant_reengagement|=1"
                                            class="text-slate-700 border-slate-300">
                                     <span>
-                                        <span class="font-medium text-slate-800">Contacted at most once</span>
-                                        <span class="block text-xs text-slate-400">Those who received 0 or 1 re-engagement messages</span>
+                                        <span class="font-medium text-slate-800">Contacted exactly once</span>
+                                        <span class="block text-xs text-slate-400">Those who received exactly 1 re-engagement message</span>
                                     </span>
                                 </label>
                                 <label class="inline-flex items-center gap-3 cursor-pointer">
-                                    <input type="radio" name="wizard_dormant_msg" value="dormant_reengagement|<=2"
+                                    <input type="radio" name="wizard_dormant_msg" value="dormant_reengagement|=2"
                                            class="text-slate-700 border-slate-300">
                                     <span>
-                                        <span class="font-medium text-slate-800">Contacted at most twice</span>
-                                        <span class="block text-xs text-slate-400">Those who received 0, 1 or 2 re-engagement messages</span>
+                                        <span class="font-medium text-slate-800">Contacted exactly twice</span>
+                                        <span class="block text-xs text-slate-400">Those who received exactly 2 re-engagement messages</span>
+                                    </span>
+                                </label>
+                                <label class="inline-flex items-center gap-3 cursor-pointer">
+                                    <input type="radio" name="wizard_dormant_msg" value="dormant_reengagement|>=3"
+                                           class="text-slate-700 border-slate-300">
+                                    <span>
+                                        <span class="font-medium text-slate-800">Contacted 3 or more times</span>
+                                        <span class="block text-xs text-slate-400">Those who received 3 or more re-engagement messages</span>
                                     </span>
                                 </label>
                             </div>
@@ -1266,24 +1294,32 @@
                                         <input type="radio" name="wizard_membership_before_msg" value="membership_pre_expiry|0"
                                                class="text-slate-700 border-slate-300" checked>
                                         <span>
-                                            <span class="font-medium text-slate-800">Not yet contacted</span>
+                                            <span class="font-medium text-slate-800">Has never received this campaign</span>
                                             <span class="block text-xs text-slate-400">Only those who haven't received any pre-expiry reminder</span>
                                         </span>
                                     </label>
                                     <label class="inline-flex items-center gap-3 cursor-pointer">
-                                        <input type="radio" name="wizard_membership_before_msg" value="membership_pre_expiry|<=1"
+                                        <input type="radio" name="wizard_membership_before_msg" value="membership_pre_expiry|=1"
                                                class="text-slate-700 border-slate-300">
                                         <span>
-                                            <span class="font-medium text-slate-800">Contacted at most once</span>
-                                            <span class="block text-xs text-slate-400">Those who received 0 or 1 pre-expiry reminders</span>
+                                            <span class="font-medium text-slate-800">Contacted exactly once</span>
+                                            <span class="block text-xs text-slate-400">Those who received exactly 1 pre-expiry reminder</span>
                                         </span>
                                     </label>
                                     <label class="inline-flex items-center gap-3 cursor-pointer">
-                                        <input type="radio" name="wizard_membership_before_msg" value="membership_pre_expiry|<=2"
+                                        <input type="radio" name="wizard_membership_before_msg" value="membership_pre_expiry|=2"
                                                class="text-slate-700 border-slate-300">
                                         <span>
-                                            <span class="font-medium text-slate-800">Contacted at most twice</span>
-                                            <span class="block text-xs text-slate-400">Those who received 0, 1 or 2 pre-expiry reminders</span>
+                                            <span class="font-medium text-slate-800">Contacted exactly twice</span>
+                                            <span class="block text-xs text-slate-400">Those who received exactly 2 pre-expiry reminders</span>
+                                        </span>
+                                    </label>
+                                    <label class="inline-flex items-center gap-3 cursor-pointer">
+                                        <input type="radio" name="wizard_membership_before_msg" value="membership_pre_expiry|>=3"
+                                               class="text-slate-700 border-slate-300">
+                                        <span>
+                                            <span class="font-medium text-slate-800">Contacted 3 or more times</span>
+                                            <span class="block text-xs text-slate-400">Those who received 3 or more pre-expiry reminders</span>
                                         </span>
                                     </label>
                                 </div>
@@ -1335,24 +1371,32 @@
                                         <input type="radio" name="wizard_membership_after_msg" value="membership_post_expiry|0"
                                                class="text-slate-700 border-slate-300" checked>
                                         <span>
-                                            <span class="font-medium text-slate-800">Not yet contacted</span>
+                                            <span class="font-medium text-slate-800">Has never received this campaign</span>
                                             <span class="block text-xs text-slate-400">Only those who haven't received any post-expiry reminder</span>
                                         </span>
                                     </label>
                                     <label class="inline-flex items-center gap-3 cursor-pointer">
-                                        <input type="radio" name="wizard_membership_after_msg" value="membership_post_expiry|<=1"
+                                        <input type="radio" name="wizard_membership_after_msg" value="membership_post_expiry|=1"
                                                class="text-slate-700 border-slate-300">
                                         <span>
-                                            <span class="font-medium text-slate-800">Contacted at most once</span>
-                                            <span class="block text-xs text-slate-400">Those who received 0 or 1 post-expiry reminders</span>
+                                            <span class="font-medium text-slate-800">Contacted exactly once</span>
+                                            <span class="block text-xs text-slate-400">Those who received exactly 1 post-expiry reminder</span>
                                         </span>
                                     </label>
                                     <label class="inline-flex items-center gap-3 cursor-pointer">
-                                        <input type="radio" name="wizard_membership_after_msg" value="membership_post_expiry|<=2"
+                                        <input type="radio" name="wizard_membership_after_msg" value="membership_post_expiry|=2"
                                                class="text-slate-700 border-slate-300">
                                         <span>
-                                            <span class="font-medium text-slate-800">Contacted at most twice</span>
-                                            <span class="block text-xs text-slate-400">Those who received 0, 1 or 2 post-expiry reminders</span>
+                                            <span class="font-medium text-slate-800">Contacted exactly twice</span>
+                                            <span class="block text-xs text-slate-400">Those who received exactly 2 post-expiry reminders</span>
+                                        </span>
+                                    </label>
+                                    <label class="inline-flex items-center gap-3 cursor-pointer">
+                                        <input type="radio" name="wizard_membership_after_msg" value="membership_post_expiry|>=3"
+                                               class="text-slate-700 border-slate-300">
+                                        <span>
+                                            <span class="font-medium text-slate-800">Contacted 3 or more times</span>
+                                            <span class="block text-xs text-slate-400">Those who received 3 or more post-expiry reminders</span>
                                         </span>
                                     </label>
                                 </div>
@@ -1434,24 +1478,32 @@
                                     <input type="radio" name="wizard_training_invite_msg" value="training_invitation|0"
                                            class="text-slate-700 border-slate-300" checked>
                                     <span>
-                                        <span class="font-medium text-slate-800">Not yet contacted</span>
+                                        <span class="font-medium text-slate-800">Has never received this campaign</span>
                                         <span class="block text-xs text-slate-400">Only those who haven't received any training invitation in the last 6 months</span>
                                     </span>
                                 </label>
                                 <label class="inline-flex items-center gap-3 cursor-pointer">
-                                    <input type="radio" name="wizard_training_invite_msg" value="training_invitation|<=1"
+                                    <input type="radio" name="wizard_training_invite_msg" value="training_invitation|=1"
                                            class="text-slate-700 border-slate-300">
                                     <span>
-                                        <span class="font-medium text-slate-800">Contacted at most once</span>
-                                        <span class="block text-xs text-slate-400">Those who received 0 or 1 training invitations in the last 6 months</span>
+                                        <span class="font-medium text-slate-800">Contacted exactly once</span>
+                                        <span class="block text-xs text-slate-400">Those who received exactly 1 training invitation in the last 6 months</span>
                                     </span>
                                 </label>
                                 <label class="inline-flex items-center gap-3 cursor-pointer">
-                                    <input type="radio" name="wizard_training_invite_msg" value="training_invitation|<=2"
+                                    <input type="radio" name="wizard_training_invite_msg" value="training_invitation|=2"
                                            class="text-slate-700 border-slate-300">
                                     <span>
-                                        <span class="font-medium text-slate-800">Contacted at most twice</span>
-                                        <span class="block text-xs text-slate-400">Those who received 0, 1 or 2 training invitations in the last 6 months</span>
+                                        <span class="font-medium text-slate-800">Contacted exactly twice</span>
+                                        <span class="block text-xs text-slate-400">Those who received exactly 2 training invitations in the last 6 months</span>
+                                    </span>
+                                </label>
+                                <label class="inline-flex items-center gap-3 cursor-pointer">
+                                    <input type="radio" name="wizard_training_invite_msg" value="training_invitation|>=3"
+                                           class="text-slate-700 border-slate-300">
+                                    <span>
+                                        <span class="font-medium text-slate-800">Contacted 3 or more times</span>
+                                        <span class="block text-xs text-slate-400">Those who received 3 or more training invitations in the last 6 months</span>
                                     </span>
                                 </label>
                             </div>
@@ -1504,7 +1556,7 @@
                                     <span class="font-medium text-slate-800">48 months</span>
                                 </label>
                             </div>
-                            <p class="text-xs text-slate-400 mt-1">You can fine-tune the exact threshold (3-month steps) on the results page.</p>
+                            <p class="text-xs text-slate-400 mt-1">You can fine-tune the exact threshold (12-month steps) on the results page.</p>
                         </fieldset>
 
                         {{-- Population --}}
@@ -1535,22 +1587,29 @@
                                 <label class="inline-flex items-center gap-3 cursor-pointer">
                                     <input type="radio" name="wizard_refresher_msg" value="first_aid_refresher|0" class="text-slate-700 border-slate-300" checked>
                                     <span>
-                                        <span class="font-medium text-slate-800">Not yet contacted</span>
+                                        <span class="font-medium text-slate-800">Has never received this campaign</span>
                                         <span class="block text-xs text-slate-400">Only those who haven't received any refresher reminder in the last 6 months</span>
                                     </span>
                                 </label>
                                 <label class="inline-flex items-center gap-3 cursor-pointer">
-                                    <input type="radio" name="wizard_refresher_msg" value="first_aid_refresher|<=1" class="text-slate-700 border-slate-300">
+                                    <input type="radio" name="wizard_refresher_msg" value="first_aid_refresher|=1" class="text-slate-700 border-slate-300">
                                     <span>
-                                        <span class="font-medium text-slate-800">Contacted at most once</span>
-                                        <span class="block text-xs text-slate-400">Those who received 0 or 1 refresher reminders in the last 6 months</span>
+                                        <span class="font-medium text-slate-800">Contacted exactly once</span>
+                                        <span class="block text-xs text-slate-400">Those who received exactly 1 refresher reminder in the last 6 months</span>
                                     </span>
                                 </label>
                                 <label class="inline-flex items-center gap-3 cursor-pointer">
-                                    <input type="radio" name="wizard_refresher_msg" value="first_aid_refresher|<=2" class="text-slate-700 border-slate-300">
+                                    <input type="radio" name="wizard_refresher_msg" value="first_aid_refresher|=2" class="text-slate-700 border-slate-300">
                                     <span>
-                                        <span class="font-medium text-slate-800">Contacted at most twice</span>
-                                        <span class="block text-xs text-slate-400">Those who received 0, 1 or 2 refresher reminders in the last 6 months</span>
+                                        <span class="font-medium text-slate-800">Contacted exactly twice</span>
+                                        <span class="block text-xs text-slate-400">Those who received exactly 2 refresher reminders in the last 6 months</span>
+                                    </span>
+                                </label>
+                                <label class="inline-flex items-center gap-3 cursor-pointer">
+                                    <input type="radio" name="wizard_refresher_msg" value="first_aid_refresher|>=3" class="text-slate-700 border-slate-300">
+                                    <span>
+                                        <span class="font-medium text-slate-800">Contacted 3 or more times</span>
+                                        <span class="block text-xs text-slate-400">Those who received 3 or more refresher reminders in the last 6 months</span>
                                     </span>
                                 </label>
                             </div>
@@ -1660,24 +1719,32 @@
                                     <input type="radio" name="wizard_training_msg" value="training_expiry|0"
                                            class="text-slate-700 border-slate-300" checked>
                                     <span>
-                                        <span class="font-medium text-slate-800">Not yet contacted</span>
+                                        <span class="font-medium text-slate-800">Has never received this campaign</span>
                                         <span class="block text-xs text-slate-400">Only those who haven't received any training expiry reminder in the last 6 months</span>
                                     </span>
                                 </label>
                                 <label class="inline-flex items-center gap-3 cursor-pointer">
-                                    <input type="radio" name="wizard_training_msg" value="training_expiry|<=1"
+                                    <input type="radio" name="wizard_training_msg" value="training_expiry|=1"
                                            class="text-slate-700 border-slate-300">
                                     <span>
-                                        <span class="font-medium text-slate-800">Contacted at most once</span>
-                                        <span class="block text-xs text-slate-400">Those who received 0 or 1 training expiry reminders in the last 6 months</span>
+                                        <span class="font-medium text-slate-800">Contacted exactly once</span>
+                                        <span class="block text-xs text-slate-400">Those who received exactly 1 training expiry reminder in the last 6 months</span>
                                     </span>
                                 </label>
                                 <label class="inline-flex items-center gap-3 cursor-pointer">
-                                    <input type="radio" name="wizard_training_msg" value="training_expiry|<=2"
+                                    <input type="radio" name="wizard_training_msg" value="training_expiry|=2"
                                            class="text-slate-700 border-slate-300">
                                     <span>
-                                        <span class="font-medium text-slate-800">Contacted at most twice</span>
-                                        <span class="block text-xs text-slate-400">Those who received 0, 1 or 2 training expiry reminders in the last 6 months</span>
+                                        <span class="font-medium text-slate-800">Contacted exactly twice</span>
+                                        <span class="block text-xs text-slate-400">Those who received exactly 2 training expiry reminders in the last 6 months</span>
+                                    </span>
+                                </label>
+                                <label class="inline-flex items-center gap-3 cursor-pointer">
+                                    <input type="radio" name="wizard_training_msg" value="training_expiry|>=3"
+                                           class="text-slate-700 border-slate-300">
+                                    <span>
+                                        <span class="font-medium text-slate-800">Contacted 3 or more times</span>
+                                        <span class="block text-xs text-slate-400">Those who received 3 or more training expiry reminders in the last 6 months</span>
                                     </span>
                                 </label>
                             </div>

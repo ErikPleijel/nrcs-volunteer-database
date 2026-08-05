@@ -1877,6 +1877,15 @@ class User extends Authenticatable implements MustVerifyEmail
             ->map(fn ($d) => Carbon::parse($d))
             ->max();
 
+        // payment_date/training_date/etc. are DATE columns with no time component; when the
+        // most recent one is today, we know the real-world event just happened, so use precise
+        // current time rather than midnight. For any earlier date, midnight remains the honest
+        // precision ceiling — we cannot know what time of day something occurred on a past date,
+        // especially since these dates are often legitimately backdated by staff.
+        if ($trueLastActivity && $trueLastActivity->isToday()) {
+            $trueLastActivity = now();
+        }
+
         $this->forceFill(['last_activity_at' => $trueLastActivity])->save();
 
         // Demotion decision delegated to the single source of truth
