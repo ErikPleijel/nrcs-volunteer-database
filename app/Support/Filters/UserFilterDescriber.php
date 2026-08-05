@@ -73,10 +73,10 @@ class UserFilterDescriber
         // --------------------------------------------------
         if ($mf = $get('membership_filter')) {
             $labels[] = match ($mf) {
-                'members' => 'Members only',
+                'members' => 'Valid payments',
                 'expiring_14' => 'Membership expiring within 14 days',
                 'expiring_28' => 'Membership expiring within 28 days',
-                'expired_members' => 'Expired members',
+                'expired_members' => 'Expired payments',
                 'non_members' => 'Non-members',
                 'wants_membership' => 'Wants membership',
                 'high_value_members' => 'High-value members (above median fee tier)',
@@ -193,6 +193,7 @@ class UserFilterDescriber
         // --------------------------------------------------
         $bracketLabels = [
             '1|17' => 'Under 18',
+            '18|' => 'Adults only (18+)',
             '18|35' => 'Youth (18–35)',
             '36|59' => 'Adults (36–59)',
             '60|' => 'Elderly (60+)',

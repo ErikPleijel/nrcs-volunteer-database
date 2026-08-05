@@ -44,7 +44,7 @@ class UserDigitalStatusBadge extends Component
 
         $this->label  = $recency['label'];
         $this->icon   = 'fa-plug';
-        $this->styles = 'bg-gray-800 text-white';
+        $this->styles = 'bg-white text-gray-600 border border-gray-300';
         $this->title  = 'Last login: ' . $lastLogin;
     }
 

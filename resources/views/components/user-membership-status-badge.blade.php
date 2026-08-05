@@ -11,5 +11,11 @@
         {{ $line2 }}
     </span>
         @endif
+
+        @if(!empty($line3))
+            <span class="text-[10px] opacity-80 text-red-600 font-semibold">
+        {{ $line3 }} days to expiry
+    </span>
+        @endif
     </span>
 </span>

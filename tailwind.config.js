@@ -6,6 +6,7 @@ export default {
         'bg-blue-50', 'text-blue-700',
         'bg-gray-100', 'text-gray-500',
         'bg-green-100', 'text-green-700',
+        'bg-gray-800',
         'btn-pulse-reminder',
         // add any others that appear missing
     ],

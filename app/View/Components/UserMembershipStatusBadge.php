@@ -2,6 +2,7 @@
 
 namespace App\View\Components;
 
+use App\Models\MembershipPayment;
 use App\Models\User;
 use Illuminate\View\Component;
 
@@ -10,6 +11,7 @@ class UserMembershipStatusBadge extends Component
     public string $type;
     public string $line1;
     public string $line2;
+    public ?string $line3 = null;
     public string $icon;
     public string $styles;
     public bool $line2Danger = false;
@@ -22,28 +24,33 @@ class UserMembershipStatusBadge extends Component
 
         if ($isVolunteer) {
             // In an RC unit — always a volunteer regardless of payment
+            $payment = $user->currentMembershipPayment()->personal()->first();
             $this->type   = 'volunteer';
             $this->line1  = 'Volunteer';
-            $this->line2  = $user->current_membership_name ?? 'No payment';
-            $this->line2Danger = is_null($user->current_membership_name);
+            $this->line2  = optional($payment?->membershipFee)->name ?? 'No payment';
+            $this->line2Danger = is_null($payment);
             $this->icon   = 'fa-hands-helping';
             $this->styles = 'bg-green-100 text-green-800';
+            $this->line3  = $this->expiryWarningLine($payment);
 
         } elseif ($user->isUnassignedGhost()) {
             // Left their RC unit, no genuine (non-volunteer-fee) membership to fall back on
+            $payment = $user->currentMembershipPayment()->personal()->first();
             $this->type   = 'unassigned';
             $this->line1  = 'Volunteer/Limbo';
-            $this->line2  = $user->current_membership_name ?? 'No unit assigned';
+            $this->line2  = optional($payment?->membershipFee)->name ?? 'No unit assigned';
             $this->icon   = 'fa-user-slash';
             $this->styles = 'bg-yellow-100 text-yellow-800';
+            $this->line3  = $this->expiryWarningLine($payment);
 
-        } elseif ($user->currentMembershipPayment()->personal()->first()) {
+        } elseif ($payment = $user->currentMembershipPayment()->personal()->first()) {
             // Valid payment, not in RC unit
             $this->type   = 'active';
             $this->line1  = 'Member';
-            $this->line2  = $user->current_membership_name ?? '';
+            $this->line2  = optional($payment->membershipFee)->name ?? '';
             $this->icon   = 'fa-id-card';
             $this->styles = 'bg-blue-100 text-blue-800';
+            $this->line3  = $this->expiryWarningLine($payment);
 
         } elseif ($user->latestMembershipPayment()->personal()->first() && $canMember && !$canVolunteer) {
             // Expired payment, membership ticked, not interested in volunteering
@@ -87,5 +94,14 @@ class UserMembershipStatusBadge extends Component
     public function render()
     {
         return view('components.user-membership-status-badge');
+    }
+
+    private function expiryWarningLine(?MembershipPayment $payment): ?string
+    {
+        if (! $payment || ! $payment->expiresSoon(28)) {
+            return null;
+        }
+
+        return (string) (int) floor($payment->days_until_expiry);
     }
 }

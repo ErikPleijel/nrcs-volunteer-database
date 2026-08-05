@@ -532,7 +532,7 @@ class UserFilterService
             $filter = $filters['membership_filter'];
 
             if ($filter === 'members') {
-                $query->hasValidMembership();
+                $query->whereHas('currentMembershipPayment', fn ($q) => $q->personal());
 
             } elseif (in_array($filter, ['expiring_14', 'expiring_28'], true)) {
                 $days = $filter === 'expiring_14' ? 14 : 28;
