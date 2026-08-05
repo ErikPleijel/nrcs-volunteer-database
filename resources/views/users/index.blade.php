@@ -337,7 +337,7 @@
 
                     {{-- Expanded filters — hidden by default unless a hidden filter is active --}}
                     <div id="filters-expanded"
-                         class="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 {{ $anyHiddenFilterActive ? '' : 'hidden' }}">
+                         class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 overflow-hidden transition-all duration-300 ease-in-out {{ $anyHiddenFilterActive ? 'mt-4 max-h-[2000px] opacity-100' : 'mt-0 max-h-0 opacity-0' }}">
 
                         {{-- Column 1: Photo & Signature + Payments + Volunteering + Org --}}
                         <div class="flex flex-col gap-2">
@@ -586,33 +586,33 @@
 
                 @can('campaign_request_create')
                     <div class="border-t border-gray-200 pt-3 mt-3">
-                        <div class="mt-3">
+                        <div class="flex flex-col md:flex-row md:items-center gap-2 mt-3">
                             <button type="button" id="open-wizard-btn"
                                 class="inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium bg-slate-700 text-white hover:bg-slate-800 shadow-sm">
                                 <i class="fas fa-wand-magic-sparkles"></i>
                                 Campaign filter wizard
                             </button>
+
+                            <form method="POST" action="{{ route('campaigns.wizard.start') }}" class="inline-block">
+                                @csrf
+                                <input type="hidden" name="filter_json" value='@json(request()->except(["page"]))'>
+
+                                <button
+                                    type="submit"
+                                    {{-- Disable if NOT hasFilters --}}
+                                    @disabled(!$hasFilters)
+                                    class="inline-flex items-center rounded-md px-3 py-2 text-sm font-semibold text-white transition-colors
+                                {{-- If NO filters, show gray. If filters exist, show slate --}}
+                                {{ !$hasFilters
+                                    ? 'bg-gray-300 cursor-not-allowed'
+                                    : 'bg-slate-700 hover:bg-slate-800'
+                                }}"
+                                >
+                                    <i class="fas fa-wand-magic-sparkles mr-1"></i>
+                                    Make campaign from filter
+                                </button>
+                            </form>
                         </div>
-
-                        <form method="POST" action="{{ route('campaigns.wizard.start') }}" class="inline-block mt-2">
-                            @csrf
-                            <input type="hidden" name="filter_json" value='@json(request()->except(["page"]))'>
-
-                            <button
-                                type="submit"
-                                {{-- Disable if NOT hasFilters --}}
-                                @disabled(!$hasFilters)
-                                class="inline-flex items-center rounded-md px-3 py-2 text-sm font-semibold text-white transition-colors
-                            {{-- If NO filters, show gray. If filters exist, show slate --}}
-                            {{ !$hasFilters
-                                ? 'bg-gray-300 cursor-not-allowed'
-                                : 'bg-slate-700 hover:bg-slate-800'
-                            }}"
-                            >
-                                <i class="fas fa-wand-magic-sparkles mr-1"></i>
-                                Make campaign from filter
-                            </button>
-                        </form>
                     </div>
                 @endcan
 
@@ -2010,8 +2010,12 @@
             const filtersExpanded = document.getElementById('filters-expanded');
             const showFiltersBtnLabel = document.getElementById('show-filters-btn-label');
             if (showFiltersBtn && filtersExpanded) {
+                const shownClasses = ['mt-4', 'max-h-[2000px]', 'opacity-100'];
+                const hiddenClasses = ['mt-0', 'max-h-0', 'opacity-0'];
                 showFiltersBtn.addEventListener('click', function () {
-                    const willShow = filtersExpanded.classList.toggle('hidden') === false;
+                    const willShow = filtersExpanded.classList.contains('max-h-0');
+                    filtersExpanded.classList.remove(...(willShow ? hiddenClasses : shownClasses));
+                    filtersExpanded.classList.add(...(willShow ? shownClasses : hiddenClasses));
                     showFiltersBtn.setAttribute('aria-expanded', willShow ? 'true' : 'false');
                     if (showFiltersBtnLabel) {
                         showFiltersBtnLabel.textContent = willShow ? 'Hide filters' : 'Show all filters';
