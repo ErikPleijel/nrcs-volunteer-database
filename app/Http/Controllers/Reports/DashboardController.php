@@ -80,7 +80,7 @@ class DashboardController extends Controller
             $this->dashboardCacheKey($user->id, $branchId, $extended),
             now()->addHour(),
             function () use ($user, $branchId, $extended) {
-                $dashboardData = $this->buildDashboardData($user, $branchId, $extended);
+                $dashboardData = $this->buildCachedDashboardData($user, $branchId, $extended);
 
                 return [
                     'data' => $dashboardData,
@@ -89,7 +89,14 @@ class DashboardController extends Controller
             }
         );
 
-        $dashboardData = $cached['data'];
+        // Housekeeping/admin figures (pending approvals, hanging/unverified registrations,
+        // Volunteers in Limbo, 7-day activity counts) are recomputed on every request —
+        // their whole purpose is to reflect real-time state, so they're deliberately kept
+        // outside the cached block above rather than going stale for up to an hour.
+        $dashboardData = array_merge(
+            $cached['data'],
+            $this->buildFreshDashboardData($user, $branchId)
+        );
         $dashboardGeneratedAt = $cached['generated_at'];
 
         return view('dashboard', compact('dashboardData', 'branches', 'extended', 'dashboardGeneratedAt'));
@@ -143,10 +150,12 @@ class DashboardController extends Controller
     }
 
     /**
-     * All the dashboard's card data. Pure computation — no caching concerns here, so query
-     * logic for any given card can keep being edited without touching the caching wrapper.
+     * The dashboard's card data that's safe to cache — everything except the housekeeping/
+     * admin figures (see buildFreshDashboardData()), which must never be served stale. Pure
+     * computation otherwise — no caching concerns here, so query logic for any given card can
+     * keep being edited without touching the caching wrapper.
      */
-    private function buildDashboardData($user, ?int $branchId, bool $extended): array
+    private function buildCachedDashboardData($user, ?int $branchId, bool $extended): array
     {
         // --- Always: Members card ---
         $current = $this->membershipStatsService->getTotalMembersCount($branchId);
@@ -269,19 +278,6 @@ class DashboardController extends Controller
             $unitsWithoutLeadershipCount = null;
         }
 
-        // --- Always: 7-day activity counts ---
-        $sevenDaysAgo = now()->subDays(7);
-        $messagesSentLast7 = DB::table('messaging_recipients')->where('status', 'sent')->where('sent_at', '>=', $sevenDaysAgo)->count();
-        $idCardsPrintedLast7 = DB::table('id_card_prints')
-            ->where('status', 'printed')
-            ->where('printed_at', '>=', $sevenDaysAgo)
-            ->count();
-        $certificatesPrintedLast7 = DB::table('certificates_print')->whereNull('deleted_at')->where('printed_at', '>=', $sevenDaysAgo)->count();
-        $loggedInLast24h = User::query()
-            ->where('last_login_at', '>=', now()->subHours(3))
-            ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
-            ->count();
-
         // Lifecycle counts filtered by branch (always shown)
         $lifecycleAwaitingEngagement = User::query()->awaitingEngagement()
             ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
@@ -312,51 +308,6 @@ class DashboardController extends Controller
         $lifecycleArchived = User::query()->archived()
             ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
             ->count();
-
-        $unassignedGhostCount = User::unassignedGhost()
-            ->whereIn('lifecycle_status', User::OPERATIONAL_STATUSES)
-            ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
-            ->count();
-
-        $unverifiedRegistrationsCount = User::whereNotNull('email')
-            ->whereNull('email_verified_at')
-            ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
-            ->count();
-
-        $dbMigrationDate = config('housekeeping.db_migration_date');
-        $hangingRegistrationCount = null;
-        $hangingRegistrationTotalCount = null;
-        if ($dbMigrationDate) {
-            $counts = User::adminRegistered()
-                ->where('lifecycle_status', 'pending_engagement')
-                ->where('is_super_admin', false)
-                ->whereNull('organisation_id')
-                ->notInactive()
-                ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
-                ->selectRaw('COUNT(*) as total, SUM(CASE WHEN created_at >= ? THEN 1 ELSE 0 END) as filtered', [$dbMigrationDate])
-                ->first();
-
-            $hangingRegistrationCount = (int) $counts->filtered;
-            $hangingRegistrationTotalCount = (int) $counts->total;
-        }
-
-        $selfSubmittedPayments = \App\Models\MembershipPayment::pendingApproval()
-            ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
-            ->where('submitted_by_user_id', $user->id)->count();
-        $selfSubmittedDonations = \App\Models\Donation::pendingApproval()
-            ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
-            ->where('entered_by_user_id', $user->id)->count();
-        $selfSubmittedTrainings = \App\Models\Training::pendingApproval()
-            ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
-            ->where('submitted_by_user_id', $user->id)->count();
-        $selfSubmittedActivities = \App\Models\Activity::pendingApproval()
-            ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
-            ->where('submitted_by_user_id', $user->id)->count();
-
-        // Campaign approval is national-only (messaging_campaigns has no branch_id;
-        // no branch-level role holds campaign_request_approve), so no branch filter here.
-        $selfSubmittedCampaigns = \App\Models\MessagingCampaign::where('status', 'proposed')
-            ->where('submitted_by', $user->id)->count();
 
         $dashboardData = [
             'numberOfMembers'                          => $current,
@@ -405,6 +356,79 @@ class DashboardController extends Controller
             'activeMembers'                            => $activeMembers,
             'lifecycleDormant'                         => $lifecycleDormant,
             'lifecycleArchived'                        => $lifecycleArchived,
+        ];
+
+        return $dashboardData;
+    }
+
+    /**
+     * Housekeeping/admin figures that must always reflect real-time state, never the cached
+     * snapshot: 7-day activity counts, pending approvals + this viewer's own submissions among
+     * them, hanging/unverified registrations, and Volunteers in Limbo. Scoped the same way
+     * these queries were before being split out — branch_id via $branchId, "self submitted"
+     * via $user->id — so moving them outside the cache changes nothing about what they return,
+     * only when they run.
+     */
+    private function buildFreshDashboardData($user, ?int $branchId): array
+    {
+        $sevenDaysAgo = now()->subDays(7);
+        $messagesSentLast7 = DB::table('messaging_recipients')->where('status', 'sent')->where('sent_at', '>=', $sevenDaysAgo)->count();
+        $idCardsPrintedLast7 = DB::table('id_card_prints')
+            ->where('status', 'printed')
+            ->where('printed_at', '>=', $sevenDaysAgo)
+            ->count();
+        $certificatesPrintedLast7 = DB::table('certificates_print')->whereNull('deleted_at')->where('printed_at', '>=', $sevenDaysAgo)->count();
+        $loggedInLast24h = User::query()
+            ->where('last_login_at', '>=', now()->subHours(3))
+            ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
+            ->count();
+
+        $unassignedGhostCount = User::unassignedGhost()
+            ->whereIn('lifecycle_status', User::OPERATIONAL_STATUSES)
+            ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
+            ->count();
+
+        $unverifiedRegistrationsCount = User::whereNotNull('email')
+            ->whereNull('email_verified_at')
+            ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
+            ->count();
+
+        $dbMigrationDate = config('housekeeping.db_migration_date');
+        $hangingRegistrationCount = null;
+        $hangingRegistrationTotalCount = null;
+        if ($dbMigrationDate) {
+            $counts = User::adminRegistered()
+                ->where('lifecycle_status', 'pending_engagement')
+                ->where('is_super_admin', false)
+                ->whereNull('organisation_id')
+                ->notInactive()
+                ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
+                ->selectRaw('COUNT(*) as total, SUM(CASE WHEN created_at >= ? THEN 1 ELSE 0 END) as filtered', [$dbMigrationDate])
+                ->first();
+
+            $hangingRegistrationCount = (int) $counts->filtered;
+            $hangingRegistrationTotalCount = (int) $counts->total;
+        }
+
+        $selfSubmittedPayments = \App\Models\MembershipPayment::pendingApproval()
+            ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
+            ->where('submitted_by_user_id', $user->id)->count();
+        $selfSubmittedDonations = \App\Models\Donation::pendingApproval()
+            ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
+            ->where('entered_by_user_id', $user->id)->count();
+        $selfSubmittedTrainings = \App\Models\Training::pendingApproval()
+            ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
+            ->where('submitted_by_user_id', $user->id)->count();
+        $selfSubmittedActivities = \App\Models\Activity::pendingApproval()
+            ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
+            ->where('submitted_by_user_id', $user->id)->count();
+
+        // Campaign approval is national-only (messaging_campaigns has no branch_id;
+        // no branch-level role holds campaign_request_approve), so no branch filter here.
+        $selfSubmittedCampaigns = \App\Models\MessagingCampaign::where('status', 'proposed')
+            ->where('submitted_by', $user->id)->count();
+
+        return [
             'unassignedGhostCount'                     => $unassignedGhostCount,
             'unverifiedRegistrationsCount'             => $unverifiedRegistrationsCount,
             'hangingRegistrationCount'                 => $hangingRegistrationCount,
@@ -433,8 +457,6 @@ class DashboardController extends Controller
             'selfSubmittedActivities' => $selfSubmittedActivities,
             'selfSubmittedCampaigns'  => $selfSubmittedCampaigns,
         ];
-
-        return $dashboardData;
     }
 
     /**
