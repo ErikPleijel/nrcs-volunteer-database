@@ -250,4 +250,80 @@ class DonationReportController extends Controller
         ]);
     }
 
+    /**
+     * In Kind: a detailed, paginated (200/page) list of every in-kind
+     * donation record — not an aggregate summary, since in-kind items
+     * (mixed goods/quantities) aren't meaningfully summarizable the way
+     * cash amounts are. National level lists all branches' items; a branch
+     * dropdown narrows to one branch.
+     *
+     * Access is restricted, not just deprioritized: branch-/division-level
+     * viewers only ever see their own branch, enforced twice — once in the
+     * dropdown's own option list, and independently again here against the
+     * authenticated session (not the request), so a hand-crafted URL
+     * requesting another branch_id is rejected regardless of what the
+     * dropdown would have shown. Same two-layer pattern already used by
+     * FinancialOverviewReportController::breakdownByFee().
+     */
+    public function inKind(Request $request)
+    {
+        $accessLevel = auth()->user()->getAccessLevel();
+        $viewerScopedBranchId = auth()->user()->getScopedBranchId();
+
+        // Branch dropdown options, access-restricted per
+        // UserController::index()'s established convention.
+        $branches = match ($accessLevel) {
+            'national' => Branch::orderBy('name')->get(),
+            'branch', 'division' => Branch::where('id', $viewerScopedBranchId)->get(),
+            default => collect(),
+        };
+
+        $requestedBranch = $request->input('branch'); // null/absent = national
+        $scopeBranchId = $requestedBranch ? (int) $requestedBranch : null;
+
+        // Independent server-side enforcement — not just trusting the
+        // dropdown. A restricted viewer requesting a DIFFERENT branch is
+        // rejected outright; a restricted viewer requesting no branch at
+        // all (i.e. "national") is silently narrowed to their own branch
+        // rather than shown cross-branch data.
+        if ($scopeBranchId && $accessLevel !== 'national' && $scopeBranchId !== $viewerScopedBranchId) {
+            abort(403);
+        }
+        if (! $scopeBranchId && $accessLevel !== 'national') {
+            $scopeBranchId = $viewerScopedBranchId;
+        }
+
+        // approval_status='approved' is applied automatically here via the
+        // Approvable trait's ApprovedScope global scope (this is
+        // Donation::query(), an Eloquent query, not DB::table() — same
+        // reasoning already documented on breakdown() above). is_deleted is
+        // a separate plain column, NOT tied into Eloquent's own SoftDeletes
+        // (removed_date) mechanism, so it still needs its own explicit
+        // filter here, same as breakdown().
+        $query = Donation::query()
+            ->where('is_deleted', 0)
+            ->where('in_kind_donation', true)
+            ->when($scopeBranchId, fn ($q) => $q->where('branch_id', $scopeBranchId))
+            ->with(['user', 'organisation']);
+
+        // Computed on a clone BEFORE ->paginate() — paginate() only returns
+        // the current page's 200 rows, but the on-screen total must reflect
+        // every matching donation across all pages, not just what's on
+        // screen (same reasoning as the financial drill-downs' $totalCount).
+        $totalCount = (clone $query)->count();
+
+        $donations = $query
+            ->orderBy('date_donation', 'desc')
+            ->orderBy('id', 'desc')
+            ->paginate(200);
+
+        return view('reports.donations.in-kind', [
+            'donations'    => $donations,
+            'totalCount'   => $totalCount,
+            'branches'     => $branches,
+            'scopeBranchId'=> $scopeBranchId,
+            'accessLevel'  => $accessLevel,
+        ]);
+    }
+
 }

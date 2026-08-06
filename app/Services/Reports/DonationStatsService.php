@@ -2,6 +2,8 @@
 
 namespace App\Services\Reports;
 
+use App\Models\Branch;
+use App\Models\Division;
 use App\Models\Donation;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
@@ -140,8 +142,12 @@ class DonationStatsService
 
         $grouped = $rows->groupBy('branch_id');
 
-        return $grouped->map(function ($items) {
-            $branchName = $items->first()->branch_name;
+        // Iterate every active branch (not just $grouped's keys) so a
+        // branch with zero donations this year still appears as a
+        // zero-filled row, instead of silently vanishing because the
+        // query above is an INNER JOIN against donations.
+        return Branch::orderBy('name')->get()->map(function ($branch) use ($grouped) {
+            $items = $grouped->get($branch->id, collect());
 
             $quarters = [
                 'q1' => ['cash' => 0.0, 'in_kind' => 0],
@@ -169,8 +175,8 @@ class DonationStatsService
             }
 
             return (object) [
-                'branch_id' => $items->first()->branch_id,
-                'branch_name' => $branchName,
+                'branch_id' => $branch->id,
+                'branch_name' => $branch->name,
 
                 'q1_cash' => $quarters['q1']['cash'],
                 'q1_in_kind' => $quarters['q1']['in_kind'],
@@ -228,8 +234,12 @@ class DonationStatsService
 
         $grouped = $rows->groupBy('division_id');
 
-        return $grouped->map(function ($items) {
-            $divisionName = $items->first()->division_name;
+        // Iterate every division belonging to this branch (not just
+        // $grouped's keys) so a division with zero donations this year
+        // still appears as a zero-filled row, same reasoning as
+        // getBranchDonationQuarterlySummary() above.
+        return Division::where('branch_id', $branchId)->orderBy('name')->get()->map(function ($division) use ($grouped) {
+            $items = $grouped->get($division->id, collect());
 
             $quarters = [
                 'q1' => ['cash' => 0.0, 'in_kind' => 0],
@@ -257,8 +267,8 @@ class DonationStatsService
             }
 
             return (object) [
-                'division_id' => $items->first()->division_id,
-                'division_name' => $divisionName,
+                'division_id' => $division->id,
+                'division_name' => $division->name,
 
                 'q1_cash' => $quarters['q1']['cash'],
                 'q1_in_kind' => $quarters['q1']['in_kind'],

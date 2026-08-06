@@ -56,6 +56,9 @@
     </style>
 
     <div id="donations-branch-actions" class="flex justify-end gap-2 mb-4">
+        <a href="{{ route('reports.donations.in-kind', ['branch' => $branch->id]) }}" class="filter-btn-secondary">
+            <i class="fas fa-box-open mr-1"></i>In Kind Donations
+        </a>
         <a href="{{ route('reports.donations.branch', array_merge(['branch' => $branch->id], request()->query(), ['export' => 'csv'])) }}"
            class="filter-btn-secondary">
             <i class="fas fa-file-csv mr-1"></i>Export CSV
@@ -63,13 +66,6 @@
         <button type="button" onclick="window.print()" class="filter-btn-secondary">
             <i class="fas fa-print mr-1"></i>Print
         </button>
-    </div>
-
-    <div class="text-center mb-6">
-        <a href="{{ route('reports.donations.national', ['year' => $selectedYear]) }}"
-           class="text-blue-600 hover:text-blue-800 hover:underline">
-            <i class="fas fa-arrow-left mr-1"></i>Back to National
-        </a>
     </div>
 
     {{-- 💹 Combined Donations Trend (Cash + In-kind, Branch) --}}

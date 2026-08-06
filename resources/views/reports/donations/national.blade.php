@@ -50,10 +50,18 @@
     <style>
         @media print {
             #donations-actions { display: none !important; }
+            #donations-in-kind-cta { display: none !important; }
             #donations-chart-wrapper form { display: none !important; }
             #donations-year-form { display: none !important; }
         }
     </style>
+
+    <div id="donations-in-kind-cta" class="flex justify-center mb-4">
+        <a href="{{ route('reports.donations.in-kind') }}"
+           class="inline-flex items-center px-4 py-2 rounded-md shadow-sm text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500">
+            <i class="fas fa-box-open mr-2"></i>In Kind Donations
+        </a>
+    </div>
 
     <div id="donations-actions" class="flex justify-end gap-2 mb-4">
         <a href="{{ route('reports.donations.national', array_merge(request()->query(), ['export' => 'csv'])) }}"

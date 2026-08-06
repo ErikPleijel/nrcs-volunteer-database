@@ -767,6 +767,16 @@ Route::middleware(['auth', 'verified.or.absent'])->group(function () {
                     ->name('breakdown')
                     ->withoutMiddleware('can:view_reports')
                     ->middleware('can:view_donations');
+
+                // In Kind: detailed, paginated list of every in-kind donation
+                // record (not an aggregate summary — in-kind items aren't
+                // meaningfully summarizable). Same permission reasoning as
+                // breakdown above — exposes individual donor-identifying
+                // records, so it needs view_donations, not just view_reports.
+                Route::get('/in-kind', [DonationReportController::class, 'inKind'])
+                    ->name('in-kind')
+                    ->withoutMiddleware('can:view_reports')
+                    ->middleware('can:view_donations');
             });
 
             Route::prefix('registrations')
