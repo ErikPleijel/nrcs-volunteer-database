@@ -35,7 +35,17 @@ class MemberReportController extends Controller
         $years = range($currentYear, $currentYear - 5);
         $selectedYear = (int) $request->input('year', $currentYear);
 
-        $selectedDateOrYearEnd = Carbon::create($selectedYear, 12, 31)->endOfDay();
+        // For the current year, use "now" — not Dec 31 of a year still in
+        // progress — so this matches the stats_snapshots-based table's own
+        // "valid as of right now" semantics (confirmed root cause of the
+        // pie/age charts under-reporting relative to the table: passing a
+        // future date here requires expiry_date >= that future date,
+        // excluding everyone expiring before year-end even though they're
+        // valid today). Past years keep the existing year-end snapshot
+        // date, which is correct for a completed year.
+        $selectedDateOrYearEnd = $selectedYear === $currentYear
+            ? Carbon::now()
+            : Carbon::create($selectedYear, 12, 31)->endOfDay();
 
         $demographics = $this->membershipStatsService->getDemographicsSnapshot(
             branchId: null,

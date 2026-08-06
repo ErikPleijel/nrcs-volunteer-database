@@ -93,6 +93,12 @@
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
+                        <tr class="bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">Total</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">{{ $branchMemberCounts->sum('men') }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">{{ $branchMemberCounts->sum('women') }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">{{ $branchMemberCounts->sum('total') }}</td>
+                        </tr>
                         @foreach ($branchMemberCounts as $row)
                             <tr>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -107,14 +113,6 @@
                             </tr>
                         @endforeach
                     </tbody>
-                    <tfoot>
-                        <tr class="bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">Total</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">{{ $branchMemberCounts->sum('men') }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">{{ $branchMemberCounts->sum('women') }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">{{ $branchMemberCounts->sum('total') }}</td>
-                        </tr>
-                    </tfoot>
                 </table>
             </div>
         @endif
