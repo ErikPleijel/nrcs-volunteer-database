@@ -88,26 +88,28 @@ class MemberReportController extends Controller
     }
 
     /**
-     * Streams $branchMemberCounts as CSV — static header row, one row per
-     * branch, same values as the on-screen table. BOM + sep=, override line
-     * (raw fwrite, not fputcsv, so it isn't quoted/escaped as a data field)
+     * Streams $rows as CSV — static header row, one row per branch/division,
+     * same values as the on-screen table. BOM + sep=, override line (raw
+     * fwrite, not fputcsv, so it isn't quoted/escaped as a data field)
      * established as the correct approach for Excel compatibility in the
-     * Lifecycle Report's export.
+     * Lifecycle Report's export. $areaLabel/$scopeSlug default to
+     * national()'s original values, so that call site needs no changes;
+     * branch() passes 'Division' + the branch's own slug instead.
      */
-    private function exportCsv($branchMemberCounts): StreamedResponse
+    private function exportCsv($rows, string $areaLabel = 'Branch', string $scopeSlug = 'national'): StreamedResponse
     {
         $date = now()->toDateString();
-        $filename = "membership-report-national-{$date}.csv";
+        $filename = "membership-report-{$scopeSlug}-{$date}.csv";
 
-        return response()->streamDownload(function () use ($branchMemberCounts) {
+        return response()->streamDownload(function () use ($rows, $areaLabel) {
             $out = fopen('php://output', 'w');
 
             fwrite($out, "\xEF\xBB\xBF");
             fwrite($out, "sep=,\r\n");
 
-            fputcsv($out, ['Branch', 'Men', 'Women', 'Total']);
+            fputcsv($out, [$areaLabel, 'Men', 'Women', 'Total']);
 
-            foreach ($branchMemberCounts as $row) {
+            foreach ($rows as $row) {
                 fputcsv($out, [$row->name, $row->men, $row->women, $row->total]);
             }
 
@@ -158,6 +160,14 @@ class MemberReportController extends Controller
                 ->orderBy('divisions.name')
                 ->get()
             : collect();
+
+        // Fixed 4-column export (Division, Men, Women, Total) — same
+        // pattern as national()'s branch-level export, scoped to this
+        // branch's divisions via $divisionMemberCounts rather than
+        // $branchMemberCounts.
+        if ($request->input('export') === 'csv') {
+            return $this->exportCsv($divisionMemberCounts, 'Division', \Illuminate\Support\Str::slug($branch->name));
+        }
 
         return view('reports.members.branch', [
             'branch'               => $branch,

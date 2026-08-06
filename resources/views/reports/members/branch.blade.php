@@ -25,27 +25,40 @@
     :pageHeader="$pageHeader"
     :breadcrumbs="$breadcrumbs"
 >
-    <div class="flex items-center justify-between mb-4">
-        <h1 class="text-xl font-semibold text-gray-900 dark:text-white">Branch Membership Report</h1>
+    {{-- Page-scoped print refinements, same pattern as national.blade.php. --}}
+    <style>
+        @media print {
+            #members-actions { display: none !important; }
+            #members-chart-wrapper form { display: none !important; }
+        }
+    </style>
 
-        <a href="{{ route('reports.members.national') }}"
-           class="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-            <svg class="mr-2 -ml-1 h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" />
-            </svg>
-            Back to National View
+    <div id="members-actions" class="flex justify-end gap-2 mb-4">
+        {{-- Preserves every current query param (year/trend_months) via
+             request()->query() — exports whatever is currently applied,
+             not a reset state. --}}
+        <a href="{{ route('reports.members.branch', array_merge(['branch' => $branch->id], request()->query(), ['export' => 'csv'])) }}"
+           class="filter-btn-secondary">
+            <i class="fas fa-file-csv mr-1"></i>Export CSV
         </a>
+        <button type="button" onclick="window.print()" class="filter-btn-secondary">
+            <i class="fas fa-print mr-1"></i>Print
+        </button>
     </div>
 
-    <x-reports.member-graph
-        title="Active members – {{ $branch->name }} Branch"
-        chartId="branchMembershipTrend"
-        :dataset="$trendDataset"
-        :trendOptions="$trendOptions"
-        :selectedTrendKey="$selectedTrendKey"
-        :formAction="route('reports.members.branch', $branch->id)"
-        :request="request()"
-    />
+    <h1 class="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Branch Membership Report</h1>
+
+    <div id="members-chart-wrapper">
+        <x-reports.member-graph
+            title="Active members – {{ $branch->name }} Branch"
+            chartId="branchMembershipTrend"
+            :dataset="$trendDataset"
+            :trendOptions="$trendOptions"
+            :selectedTrendKey="$selectedTrendKey"
+            :formAction="route('reports.members.branch', $branch->id)"
+            :request="request()"
+        />
+    </div>
 
     <x-reports.demographics
         :gender="$demographics['gender']"
