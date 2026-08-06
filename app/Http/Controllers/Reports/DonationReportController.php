@@ -39,9 +39,12 @@ class DonationReportController extends Controller
         $selectedTrendKey = $request->input('trend_years', '2_years');
         $years            = $trendOptions[$selectedTrendKey] ?? 2;
 
-        // 📅 Year selector for quarterly summary (simple last-5-years range)
+        // 📅 Year selector for quarterly summary — 2016 through the current
+        // year (2016 is a fixed historical floor; the upper bound is always
+        // Carbon::now()->year, never a literal, so the list grows on its own
+        // every January).
         $currentYear   = Carbon::now()->year;
-        $yearOptions   = range($currentYear, $currentYear - 4);
+        $yearOptions   = range($currentYear, 2016);
         $selectedYear  = (int) $request->input('year', $currentYear);
 
         // 📈 National donation trend (all branches) for Chart.js
@@ -133,8 +136,11 @@ class DonationReportController extends Controller
         $selectedTrendKey = $request->input('trend_years', '2_years');
         $yearsToShow      = $trendOptions[$selectedTrendKey] ?? 2;
 
+        // 2016 is a fixed historical floor; the upper bound is always
+        // Carbon::now()->year, never a literal, so the list grows on its
+        // own every January (same range as national()).
         $currentYear  = Carbon::now()->year;
-        $yearOptions  = range($currentYear, $currentYear - 4);
+        $yearOptions  = range($currentYear, 2016);
         $selectedYear = (int) $request->input('year', $currentYear);
 
         // Branch trend

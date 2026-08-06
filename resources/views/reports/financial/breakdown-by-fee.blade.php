@@ -11,7 +11,8 @@
 
     [$quarterYearPart, $quarterNumPart] = explode('-', $quarter);
 
-    $areaLabel = $level === 'division' ? "Division: {$area->name}" : "Branch: {$area->name}";
+    $feeLabel = $fee->name . ($fee->validity_years ? ' ' . $fee->validity_years . ' Years' : '');
+    $scopeLabel = $isNational ? 'National' : $branch->name;
 
     $breadcrumbs = [
         ['label' => 'Dashboard', 'route' => 'reports.dashboard'],
@@ -28,7 +29,7 @@
     <div class="max-w-3xl mx-auto">
         <div class="mb-4">
             <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
-                {{ $areaLabel }} &mdash; {{ $quarterNumPart }} {{ $quarterYearPart }} &mdash; {{ $categoryLabel }}
+                {{ $feeLabel }} &mdash; {{ $scopeLabel }} &mdash; {{ $quarterNumPart }} {{ $quarterYearPart }} &mdash; {{ $categoryLabel }}
             </h2>
         </div>
 
@@ -40,6 +41,7 @@
                             <th class="table-header-cell">Payer</th>
                             <th class="table-header-cell">Reference</th>
                             <th class="table-header-cell">Fee Type</th>
+                            <th class="table-header-cell">Branch</th>
                             <th class="table-header-cell">Date</th>
                             <th class="table-header-cell-right">Amount</th>
                         </tr>
@@ -49,7 +51,7 @@
                              (computed separately in the controller, before pagination) —
                              not just the current page's 200-row subset. --}}
                         <tr class="bg-gray-100 dark:bg-gray-900/70 font-semibold">
-                            <td class="table-body-cell" colspan="4">
+                            <td class="table-body-cell" colspan="5">
                                 Total ({{ $totalCount }} {{ Str::plural('payment', $totalCount) }})
                             </td>
                             <td class="table-body-cell text-right">
@@ -69,6 +71,9 @@
                                     {{ $payment->membershipFee->name }}{{ $payment->membershipFee->validity_years ? ' ' . $payment->membershipFee->validity_years . ' Years' : '' }}
                                 </td>
                                 <td class="table-body-cell">
+                                    {{ $payment->branch->name ?? 'N/A' }}
+                                </td>
+                                <td class="table-body-cell">
                                     {{ optional($payment->payment_date)->format('M d, Y') }}
                                 </td>
                                 <td class="table-body-cell text-right">
@@ -77,7 +82,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="5" class="table-body-cell text-center text-gray-500 dark:text-gray-400">
+                                <td colspan="6" class="table-body-cell text-center text-gray-500 dark:text-gray-400">
                                     No payments found for this selection.
                                 </td>
                             </tr>

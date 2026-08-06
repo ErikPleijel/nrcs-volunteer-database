@@ -19,7 +19,19 @@
              table specifically via its own .financial-year-table class, so
              the simpler 6-column Fee Breakdown table (unaffected by the
              Payments tab's density problem — see Fee Breakdown tab's own
-             conversion) keeps using the normal page orientation/font-size. --}}
+             conversion) keeps using the normal page orientation/font-size.
+
+             Diagnosed root cause of the print scrollbar/Q3-clipping bug:
+             app.css's main{} fix un-clips <main> itself (overflow-x-hidden
+             on screen), but this table has its OWN separate
+             overflow-x-auto wrapper div one level deeper, which was never
+             overridden — an overflow:auto box doesn't get reflowed for
+             print, it just clips anything beyond its own box, same class
+             of bug main{} already solves one level up. The sticky label
+             column's explicit min-w-[180px] floor (Tailwind's raw `sticky`
+             utility, confirmed the literal class name) compounded this —
+             a fixed 180px regardless of the font shrink below, and
+             position:sticky is meaningless on paper anyway. --}}
         <style>
             @media print {
                 #financial-actions { display: none !important; }
@@ -29,9 +41,14 @@
                 @if($activeTab === 'payments')
                     @page { size: landscape; }
 
-                    .financial-year-table { font-size: 8px; }
+                    .overflow-x-auto { overflow: visible !important; }
+
+                    .financial-year-table th.sticky,
+                    .financial-year-table td.sticky { min-width: 0 !important; position: static !important; }
+
+                    .financial-year-table { font-size: 7px; }
                     .financial-year-table th,
-                    .financial-year-table td { padding: 2px 3px !important; }
+                    .financial-year-table td { padding: 1px 2px !important; }
                 @endif
             }
         </style>
@@ -119,7 +136,7 @@
             @unless ($isNational)
                 <div class="text-center mb-6">
                     <a href="{{ route('reports.financial.index', ['tab' => 'payments', 'scope' => 'national', 'year' => $selectedYear]) }}"
-                       class="text-blue-600 hover:text-blue-800 hover:underline">
+                       class="text-blue-700 hover:text-blue-900 hover:underline">
                         <i class="fas fa-arrow-left mr-1"></i>Back to National
                     </a>
                 </div>
@@ -144,7 +161,7 @@
                 @endphp
 
                 <div class="overflow-x-auto rounded-lg shadow">
-                    <table class="financial-year-table text-sm bg-white">
+                    <table class="financial-year-table mx-auto text-sm bg-white">
                         <thead>
                             <tr class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
                                 <th rowspan="2" class="sticky left-0 bg-gray-50 z-10 px-4 py-2 text-left align-middle min-w-[180px]">
@@ -197,7 +214,7 @@
                                     <td class="sticky left-0 bg-white z-10 px-4 py-3 text-gray-900 min-w-[180px]">
                                         @if ($row['level'] === 'branch')
                                             <a href="{{ route('reports.financial.index', ['tab' => 'payments', 'scope' => $row['id'], 'year' => $selectedYear]) }}"
-                                               class="font-bold text-blue-600 hover:text-blue-800 hover:underline">
+                                               class="font-bold text-blue-700 hover:text-blue-900 hover:underline">
                                                 {{ $row['label'] }}
                                             </a>
                                         @else
@@ -213,7 +230,7 @@
                                             <td class="px-1 py-2 text-right {{ $catKey === 'member' ? 'border-l border-gray-200' : '' }} {{ $value == 0 ? 'text-gray-300' : 'text-gray-700' }}">
                                                 @if ($canLinkRow)
                                                     <a href="{{ route('reports.financial.breakdown', ['branch_id' => $row['id'], 'level' => $row['level'], 'quarter' => "{$selectedYear}-Q{$qNum}", 'category' => $catParam]) }}"
-                                                       class="text-blue-600 hover:text-blue-800 hover:underline">
+                                                       class="text-blue-700 hover:text-blue-900 hover:underline">
                                                         {{ number_format($value, 0) }}
                                                     </a>
                                                 @else
@@ -239,6 +256,24 @@
             @if($feeBreakdownData->isEmpty())
                 <p class="text-center text-gray-400 italic py-12">No fee data available for the selected period.</p>
             @else
+                @php
+                    // Page-level check (not per-row like the Payments tab — Fee
+                    // Breakdown has no per-row branch/division concept, only the
+                    // page's own national-or-single-branch $selectedScope, so
+                    // one check covers every cell). Mirrors
+                    // breakdownByFee()'s own server-side check exactly — this is
+                    // only a UI convenience to hide links the viewer couldn't
+                    // use; breakdownByFee() independently re-verifies access,
+                    // same as the Payments tab's breakdown() already does.
+                    $viewerScopedBranchId = auth()->user()->getScopedBranchId();
+                    $scopeBranchId = !$isNational ? (int) $selectedScope : null;
+                    $canLinkFeeCell = match ($viewerAccessLevel) {
+                        'national' => true,
+                        'branch', 'division' => !$isNational && $scopeBranchId === $viewerScopedBranchId,
+                        default => false,
+                    };
+                @endphp
+
                 <div class="max-w-3xl mx-auto">
                 <div class="overflow-x-auto">
                     <table class="min-w-full text-sm bg-white rounded-lg shadow overflow-hidden">
@@ -264,9 +299,9 @@
                             </tr>
 
                             @foreach ([
-                                ['label' => 'Member Fee', 'rows' => $memberFeeBreakdown, 'subtotalLabel' => 'Member fees subtotal'],
-                                ['label' => 'Volunteer Fee', 'rows' => $volunteerFeeBreakdown, 'subtotalLabel' => 'Volunteer fees subtotal'],
-                                ['label' => 'Organisation Fee', 'rows' => $organisationFeeBreakdown, 'subtotalLabel' => 'Organisation fees subtotal'],
+                                ['label' => 'Member Fee', 'rows' => $memberFeeBreakdown, 'subtotalLabel' => 'Member fees subtotal', 'category' => 'member'],
+                                ['label' => 'Volunteer Fee', 'rows' => $volunteerFeeBreakdown, 'subtotalLabel' => 'Volunteer fees subtotal', 'category' => 'volunteer'],
+                                ['label' => 'Organisation Fee', 'rows' => $organisationFeeBreakdown, 'subtotalLabel' => 'Organisation fees subtotal', 'category' => 'organisation'],
                             ] as $section)
                                 @if($section['rows']->isNotEmpty())
                                     <tr>
@@ -277,10 +312,19 @@
                                     @foreach($section['rows'] as $row)
                                         <tr class="hover:bg-gray-50">
                                             <td class="px-4 py-3 text-gray-900">{{ $row['fee_name'] }}</td>
-                                            <td class="px-2 py-3 text-right text-gray-700">{{ number_format($row['q1'], 0) }}</td>
-                                            <td class="px-2 py-3 text-right text-gray-700">{{ number_format($row['q2'], 0) }}</td>
-                                            <td class="px-2 py-3 text-right text-gray-700">{{ number_format($row['q3'], 0) }}</td>
-                                            <td class="px-2 py-3 text-right text-gray-700">{{ number_format($row['q4'], 0) }}</td>
+                                            @foreach ([1, 2, 3, 4] as $qNum)
+                                                @php $value = $row["q{$qNum}"]; @endphp
+                                                <td class="px-2 py-3 text-right {{ $value == 0 ? 'text-gray-300' : 'text-gray-700' }}">
+                                                    @if ($canLinkFeeCell)
+                                                        <a href="{{ route('reports.financial.breakdown-by-fee', ['fee_id' => $row['fee_id'], 'quarter' => "{$selectedYear}-Q{$qNum}", 'category' => $section['category'], 'scope' => $selectedScope]) }}"
+                                                           class="text-blue-700 hover:text-blue-900 hover:underline">
+                                                            {{ number_format($value, 0) }}
+                                                        </a>
+                                                    @else
+                                                        {{ number_format($value, 0) }}
+                                                    @endif
+                                                </td>
+                                            @endforeach
                                             <td class="px-4 py-3 text-right font-bold text-gray-900">{{ number_format($row['year_total'], 0) }}</td>
                                         </tr>
                                     @endforeach

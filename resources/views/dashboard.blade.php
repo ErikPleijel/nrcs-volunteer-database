@@ -1425,29 +1425,29 @@
     <section class="mt-16 max-w-3xl mx-auto">
         <h2 class="dashboard-heading text-center block w-full">Trends &amp; Statistics</h2>
         <div class="mt-4 flex flex-wrap gap-3 justify-center">
-            <a href="{{ route('reports.members.national') }}" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded shadow">
-                Membership Reports
+            <a href="{{ route('reports.members.national') }}" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded shadow">
+                <i class="fas fa-chart-line mr-1"></i> Membership Reports
             </a>
-            <a href="{{ route('reports.volunteers.national') }}" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded shadow">
-                Volunteer Reports
+            <a href="{{ route('reports.volunteers.national') }}" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded shadow">
+                <i class="fas fa-chart-line mr-1"></i> Volunteer Reports
             </a>
-            <a href="{{ route('reports.financial.national') }}" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded shadow">
-                Financial Trends
+            <a href="{{ route('reports.trainings.national') }}" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded shadow">
+                <i class="fas fa-chart-line mr-1"></i> Training Reports
             </a>
-            <a href="{{ route('reports.financial.index') }}" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded shadow">
-                Membership Revenue Report
+            <a href="{{ route('reports.registrations.national') }}" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded shadow">
+                <i class="fas fa-chart-line mr-1"></i> Registrations Reports
             </a>
-            <a href="{{ route('reports.donations.national') }}" class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded shadow">
-                Donation Reports
+            <a href="{{ route('reports.lifecycle.national') }}" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded shadow">
+                <i class="fas fa-chart-line mr-1"></i> Lifecycle Reports
             </a>
-            <a href="{{ route('reports.trainings.national') }}" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded shadow">
-                Training Reports
+            <a href="{{ route('reports.financial.national') }}" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded shadow">
+                <i class="fas fa-chart-line mr-1"></i> Financial Trends
             </a>
-            <a href="{{ route('reports.registrations.national') }}" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded shadow">
-                Registrations Reports
+            <a href="{{ route('reports.financial.index') }}" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded shadow">
+                <i class="fas fa-table mr-1"></i> Membership Revenue Reports
             </a>
-            <a href="{{ route('reports.lifecycle.national') }}" class="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded shadow">
-                Lifecycle Report
+            <a href="{{ route('reports.donations.national') }}" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded shadow">
+                <i class="fas fa-table mr-1"></i> Donation Reports
             </a>
         </div>
     </section>

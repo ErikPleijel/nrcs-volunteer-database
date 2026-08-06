@@ -24,7 +24,12 @@ class FinancialOverviewReportController extends Controller
         // quarter selector; that's gone now — see breakdown()/
         // parseQuarterRange() for the unrelated per-drill-down quarter param
         // those still use, which this page-level selector never fed.)
-        $yearOptions  = range($currentYear, $currentYear - 5);
+        // 2016 is a fixed historical floor (earliest data this report
+        // covers); the upper bound is always now()->year, never a literal,
+        // so the list grows on its own every January. Descending
+        // (newest-first) to match the convention used by every other
+        // year selector in this codebase (e.g. TrainingReportController).
+        $yearOptions  = range($currentYear, 2016);
         $defaultYear  = $currentYear;
         $selectedYear = (int) $request->input('year', $defaultYear);
         $yearStart    = Carbon::create($selectedYear, 1, 1)->startOfDay();
@@ -220,6 +225,7 @@ class FinancialOverviewReportController extends Controller
                 $yearTotal = array_sum($quarters);
 
                 return [
+                    'fee_id'           => $first->membership_fee_id,
                     'fee_name'         => $first->fee_name . ($first->validity_years ? ' ' . $first->validity_years . ' Years' : ''),
                     'is_volunteer_fee' => (bool) $first->is_volunteer_fee,
                     'q1'               => $quarters[1],
@@ -380,7 +386,7 @@ class FinancialOverviewReportController extends Controller
 
         [$qStart, $qEnd] = $this->parseQuarterRange($quarter);
 
-        $payments = MembershipPayment::query()
+        $baseQuery = MembershipPayment::query()
             ->where('is_deleted', false)
             ->whereBetween('payment_date', [$qStart, $qEnd])
             ->when($level === 'division', fn ($q) => $q->where('division_id', $id))
@@ -389,23 +395,147 @@ class FinancialOverviewReportController extends Controller
                 ->whereHas('membershipFee', fn ($fq) => $fq->where('is_volunteer_fee', false)))
             ->when($category === 'volunteer', fn ($q) => $q->whereNull('organisation_id')
                 ->whereHas('membershipFee', fn ($fq) => $fq->where('is_volunteer_fee', true)))
-            ->when($category === 'organisation', fn ($q) => $q->whereNotNull('organisation_id'))
+            ->when($category === 'organisation', fn ($q) => $q->whereNotNull('organisation_id'));
+
+        // Computed on clones BEFORE ->paginate() — paginate() only returns the
+        // current page's 200 rows, but the "Total (N payments)" row must
+        // reflect every matching payment across all pages, not just what's on
+        // screen. MembershipPayment has no amount column of its own — amount
+        // lives on MembershipFee (fixed per fee type) — so the sum needs its
+        // own join, same convention used throughout this controller.
+        $totalCount = (clone $baseQuery)->count();
+        $total = (float) (clone $baseQuery)
+            ->join('membership_fees', 'membership_payments.membership_fee_id', '=', 'membership_fees.id')
+            ->sum('membership_fees.amount');
+
+        // Secondary orderBy('id') added alongside the existing payment_date
+        // sort so pagination is fully deterministic — payment_date alone
+        // (a date, not datetime, column) can have many ties, which without a
+        // tiebreaker can shuffle rows between pages across requests.
+        $payments = $baseQuery
             ->with(['user', 'organisation', 'membershipFee'])
             ->orderBy('payment_date', 'desc')
-            ->get();
-
-        // MembershipPayment has no amount column of its own — amount lives
-        // on MembershipFee (fixed per fee type), same convention used
-        // throughout this controller.
-        $total = $payments->sum(fn ($payment) => $payment->membershipFee->amount ?? 0);
+            ->orderBy('id', 'desc')
+            ->paginate(200);
 
         return view('reports.financial.breakdown', [
-            'area'     => $area,
-            'level'    => $level,
-            'quarter'  => $quarter,
-            'category' => $category,
-            'payments' => $payments,
-            'total'    => $total,
+            'area'       => $area,
+            'level'      => $level,
+            'quarter'    => $quarter,
+            'category'   => $category,
+            'payments'   => $payments,
+            'total'      => $total,
+            'totalCount' => $totalCount,
+        ]);
+    }
+
+    /**
+     * Breakdown: the individual payments behind one Fee Breakdown Q1-Q4 cell
+     * (fee + quarter + category, scoped to the page's own national-or-
+     * single-branch $selectedScope). Fee Breakdown has no division-row
+     * concept — unlike breakdown()'s branch/division $level, this only ever
+     * scopes nationally or to a single branch, matching exactly what
+     * index() itself offers on this tab (confirmed before writing this:
+     * index()'s own $selectedScope is always 'national' or a branch id,
+     * never a division id, for the Fee Breakdown tab specifically).
+     *
+     * Access check deliberately mirrors breakdown()'s existing pattern
+     * (independently re-derived from the authenticated session, not
+     * trusted from the request) rather than index()'s own scope handling —
+     * confirmed index() applies NO server-side restriction on its `scope`
+     * query param at all (any viewer with the coarse view_reports
+     * permission can view any branch's aggregate numbers by editing the
+     * URL). That's fine for aggregate figures, but this route exposes
+     * individual payer-identifying records, so — like breakdown() before
+     * it — it requires the narrower view_payments permission (see
+     * routes/web.php) plus this additional scope check, rather than
+     * inheriting index()'s permissiveness.
+     *
+     * Division-level viewers have no division-scoped view on this tab, so
+     * their access resolves to their own enclosing branch via
+     * getScopedBranchId() (the same division-to-branch mapping used
+     * elsewhere in this app) — confirmed this doesn't under- or
+     * over-restrict them relative to what index() already lets them see:
+     * index() itself has no restriction to match, so this method's check
+     * is modeled on breakdown()'s existing restriction for the same class
+     * of individual-payment-listing operation, applied to the branch-only
+     * (no division) scope this tab actually has.
+     */
+    public function breakdownByFee(Request $request)
+    {
+        $feeId    = (int) $request->input('fee_id');
+        $quarter  = $request->input('quarter');
+        $category = $request->input('category');
+        $scope    = $request->input('scope', 'national');
+
+        $fee = MembershipFee::findOrFail($feeId);
+
+        $isNational    = $scope === 'national';
+        $scopeBranchId = !$isNational ? (int) $scope : null;
+        $branch        = $scopeBranchId ? Branch::findOrFail($scopeBranchId) : null;
+
+        // Branch- and division-level viewers alike are checked against
+        // getScopedBranchId() — for a branch-level viewer this is just
+        // their own branch_id (identical to getScopedId()); for a
+        // division-level viewer it's their enclosing branch (there being no
+        // division-scoped mode on this tab to check against instead).
+        $accessLevel = auth()->user()->getAccessLevel();
+        $viewerScopedBranchId = auth()->user()->getScopedBranchId();
+
+        $inScope = match ($accessLevel) {
+            'national' => true,
+            'branch', 'division' => !$isNational && $scopeBranchId === $viewerScopedBranchId,
+            default => false,
+        };
+
+        if (! $inScope) {
+            abort(403);
+        }
+
+        [$qStart, $qEnd] = $this->parseQuarterRange($quarter);
+
+        $baseQuery = MembershipPayment::query()
+            ->where('is_deleted', false)
+            ->whereBetween('payment_date', [$qStart, $qEnd])
+            ->where('membership_fee_id', $feeId)
+            ->when($scopeBranchId, fn ($q) => $q->where('branch_id', $scopeBranchId))
+            ->when($category === 'member', fn ($q) => $q->whereNull('organisation_id')
+                ->whereHas('membershipFee', fn ($fq) => $fq->where('is_volunteer_fee', false)))
+            ->when($category === 'volunteer', fn ($q) => $q->whereNull('organisation_id')
+                ->whereHas('membershipFee', fn ($fq) => $fq->where('is_volunteer_fee', true)))
+            ->when($category === 'organisation', fn ($q) => $q->whereNotNull('organisation_id'));
+
+        // Computed on clones BEFORE ->paginate() — paginate() only returns the
+        // current page's 200 rows, but the "Total (N payments)" row must
+        // reflect every matching payment across all pages, not just what's on
+        // screen. MembershipPayment has no amount column of its own — amount
+        // lives on MembershipFee (fixed per fee type) — so the sum needs its
+        // own join, same convention used throughout this controller.
+        $totalCount = (clone $baseQuery)->count();
+        $total = (float) (clone $baseQuery)
+            ->join('membership_fees', 'membership_payments.membership_fee_id', '=', 'membership_fees.id')
+            ->sum('membership_fees.amount');
+
+        // Secondary orderBy('id') added alongside the existing payment_date
+        // sort so pagination is fully deterministic — payment_date alone
+        // (a date, not datetime, column) can have many ties, which without a
+        // tiebreaker can shuffle rows between pages across requests.
+        $payments = $baseQuery
+            ->with(['user', 'organisation', 'membershipFee', 'branch'])
+            ->orderBy('payment_date', 'desc')
+            ->orderBy('id', 'desc')
+            ->paginate(200);
+
+        return view('reports.financial.breakdown-by-fee', [
+            'fee'        => $fee,
+            'scope'      => $scope,
+            'isNational' => $isNational,
+            'branch'     => $branch,
+            'quarter'    => $quarter,
+            'category'   => $category,
+            'payments'   => $payments,
+            'total'      => $total,
+            'totalCount' => $totalCount,
         ]);
     }
 

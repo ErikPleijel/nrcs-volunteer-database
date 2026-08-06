@@ -822,6 +822,14 @@ Route::middleware(['auth', 'verified.or.absent'])->group(function () {
                 ->withoutMiddleware('can:view_reports')
                 ->middleware('can:view_payments');
 
+            // Breakdown: individual payments behind one Fee Breakdown Q1-Q4
+            // cell (fee + quarter + category + scope). Same permission
+            // reasoning as financial.breakdown above.
+            Route::get('financial/breakdown-by-fee', [\App\Http\Controllers\Reports\FinancialOverviewReportController::class, 'breakdownByFee'])
+                ->name('financial.breakdown-by-fee')
+                ->withoutMiddleware('can:view_reports')
+                ->middleware('can:view_payments');
+
             // --- MAPS ---
             Route::prefix('maps')->name('maps.')->group(function () {
                 Route::get('volunteers/branches', [\App\Http\Controllers\Reports\VolunteerMapController::class, 'branches'])->name('volunteers.branches');
