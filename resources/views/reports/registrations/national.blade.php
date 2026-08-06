@@ -48,14 +48,7 @@
         </button>
     </div>
 
-    <h1 class="text-xl font-semibold mb-4 text-gray-900 dark:text-white">
-        National Registrations Report
-    </h1>
 
-    <p class="mb-6 text-sm text-gray-700 dark:text-gray-300">
-        This report shows the national trend of <strong>new user registrations</strong> over time,
-        followed by a summary of registrations by branch for the selected year.
-    </p>
 
     {{-- 📈 Registrations Trend (National) --}}
     <div id="registrations-chart-wrapper">
@@ -104,9 +97,7 @@
             <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
                 Registrations by Branch – {{ $selectedYear }}
             </h2>
-            <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                Shows the number of new user profiles created in each branch during the selected year.
-            </p>
+
         </div>
 
         <div class="overflow-x-auto">

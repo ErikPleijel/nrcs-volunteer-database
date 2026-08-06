@@ -46,9 +46,7 @@
     </style>
 
     <div class="flex items-center justify-between mb-4">
-        <h1 class="text-xl font-semibold text-gray-900 dark:text-white">
-            Registrations Report – {{ $branch->name }}
-        </h1>
+
 
         <div id="registrations-branch-actions" class="flex items-center gap-2">
             <a href="{{ route('reports.registrations.branch', array_merge(['branchId' => $branch->id], request()->query(), ['export' => 'csv'])) }}"
@@ -61,11 +59,6 @@
         </div>
     </div>
 
-    <p class="mb-6 text-sm text-gray-700 dark:text-gray-300">
-        This report shows the trend of <strong>new user registrations</strong> in
-        the <strong>{{ $branch->name }}</strong> branch over time, followed by a
-        summary of registrations by division for the selected year.
-    </p>
 
     {{-- 🔢 Trend range selector (2 / 4 / 6 / 8 years) --}}
     <div id="registrations-branch-trend-form" class="mb-4">
@@ -143,10 +136,7 @@
             <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
                 Registrations by Division – {{ $selectedYear }} ({{ $branch->name }} Branch)
             </h2>
-            <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                Shows the number of new user profiles created in each division under this branch
-                during the selected year.
-            </p>
+
         </div>
 
         <div class="overflow-x-auto">

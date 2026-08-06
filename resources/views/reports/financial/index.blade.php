@@ -86,33 +86,51 @@
             @endforeach
         </div>
 
-        {{-- ── PERIOD SELECTOR (centered, just above the scope/period header) ── --}}
-        {{-- Area is no longer a dropdown here — branch-scoping is now driven by
-             clicking a branch name in the Payments tab (national view) or "Back
-             to National" (branch-scoped view), both setting/clearing the same
-             'scope' param this form's hidden input never touched. Both tabs are
-             now full-year (Q1-Q4) views sharing this one year selector — Fee
-             Breakdown's separate quarter selector is gone, which also fixes the
-             tab-switch mismatch where switching tabs used to silently reset the
-             other tab's period back to its own default (confirmed via direct
-             testing before this change: Payments year=2020 -> Fee Breakdown
-             carried quarter=<current quarter>, not anything derived from 2020,
-             and vice versa). --}}
-        <div id="financial-year-form" class="flex justify-center mb-4">
-            <form action="{{ route('reports.financial.index') }}" method="GET" class="flex items-center gap-2">
+        {{-- ── PERIOD / SCOPE SELECTOR (centered, just above the scope/period header) ── --}}
+        {{-- Branch-scoping is also still driven by clicking a branch name in
+             the Payments tab (national view) or "Back to National"
+             (branch-scoped view) — those remain as additional, alternative
+             ways to change scope; the dropdown below is additive, not a
+             replacement. Both tabs are full-year (Q1-Q4) views sharing this
+             one year selector — Fee Breakdown's separate quarter selector is
+             gone, which also fixed the tab-switch mismatch where switching
+             tabs used to silently reset the other tab's period back to its
+             own default (confirmed via direct testing before that change:
+             Payments year=2020 -> Fee Breakdown carried quarter=<current
+             quarter>, not anything derived from 2020, and vice versa) —
+             'scope' and 'year' are both fields in this one form, so
+             changing either one submits both together, carrying the other
+             forward the same way. --}}
+        <div id="financial-year-form" class="flex flex-col items-center gap-2 mb-4">
+            <form action="{{ route('reports.financial.index') }}" method="GET" class="flex flex-col items-center gap-2">
                 <input type="hidden" name="tab" value="{{ $activeTab }}">
-                <input type="hidden" name="scope" value="{{ $selectedScope }}">
 
-                <label for="year" class="filter-label-small mb-0">Year</label>
-                <select name="year" id="year"
-                        class="filter-select-small {{ $selectedYear !== $defaultYear ? 'filter-active' : '' }}"
-                        onchange="this.form.submit()">
-                    @foreach($yearOptions as $yearOpt)
-                        <option value="{{ $yearOpt }}" @selected($selectedYear === $yearOpt)>
-                            {{ $yearOpt }}
-                        </option>
-                    @endforeach
-                </select>
+                <div class="flex items-center gap-2">
+                    <label for="year" class="filter-label-small mb-0">Year</label>
+                    <select name="year" id="year"
+                            class="filter-select-small {{ $selectedYear !== $defaultYear ? 'filter-active' : '' }}"
+                            onchange="this.form.submit()">
+                        @foreach($yearOptions as $yearOpt)
+                            <option value="{{ $yearOpt }}" @selected($selectedYear === $yearOpt)>
+                                {{ $yearOpt }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <label for="scope" class="filter-label-small mb-0">Branch</label>
+                    <select name="scope" id="scope"
+                            class="filter-select-small {{ $selectedScope !== 'national' ? 'filter-active' : '' }}"
+                            onchange="this.form.submit()">
+                        <option value="national" @selected($selectedScope === 'national')>National</option>
+                        @foreach($branches as $branch)
+                            <option value="{{ $branch->id }}" @selected((string) $selectedScope === (string) $branch->id)>
+                                {{ $branch->name }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
             </form>
         </div>
 
