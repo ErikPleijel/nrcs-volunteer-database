@@ -35,6 +35,9 @@
                                 <i class="fas fa-user text-4xl text-white"></i>
                             @endif
                         </div>
+
+                        <x-photo-age-indicator :user="$user" />
+
                         @if(!auth()->user()->picture)
                             <p class="text-sm text-gray-500 mt-2 text-center">No profile<br>photo uploaded</p>
                         @endif

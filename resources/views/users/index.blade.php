@@ -706,18 +706,7 @@
                                 <td class="px-3 py-2  max-w-[180px]">
                                     <x-user-profile-badge :user="$user" size="md" :show-photo="$showPhotos"/>
                                     @if($showPhotos)
-                                        <div class="flex items-center gap-2 text-gray-400 text-xs">
-                                            @if(is_null($user->image_age_in_years))
-                                                <span class="text-gray-500 italic"></span>
-                                            @else
-                                                <span>{{ $user->photo_age_label }}</span>
-
-                                                @if($user->image_is_too_old)
-                                                    <i class="fas fa-exclamation-triangle text-yellow-500"
-                                                       title="Photo is too old"></i>
-                                                @endif
-                                            @endif
-                                        </div>
+                                        <x-photo-age-indicator :user="$user" compact />
                                     @endif
 
                                 </td>

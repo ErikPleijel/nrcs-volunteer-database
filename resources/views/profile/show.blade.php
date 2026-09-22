@@ -41,6 +41,8 @@
                                 @endif
                             </div>
 
+                            <x-photo-age-indicator :user="$user" />
+
                             @if(!$user->picture)
                                 <p class="text-sm text-gray-500 mt-2 text-center">No profile<br>photo uploaded</p>
                             @endif

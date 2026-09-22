@@ -127,26 +127,7 @@
                                 @endif
                             </div>
                             {{-- Photo age indicator --}}
-                            @if($user->picture && !is_null($user->image_age_in_years))
-                                @php
-                                    $age = $user->image_age_in_years;
-                                    $ageClass = $age < 3
-                                        ? 'text-green-600'
-                                        : ($age < 5 ? 'text-yellow-600' : 'text-red-600');
-                                    $ageIcon = $age < 3
-                                        ? 'fa-circle-check'
-                                        : ($age < 5 ? 'fa-circle-exclamation' : 'fa-triangle-exclamation');
-                                    $ageLabel = $age < 1
-                                        ? '< 1 yr'
-                                        : (int) $age . ' yrs';
-                                    $ageSizeClass = $age >= 5 ? 'text-sm' : 'text-[10px]';
-                                @endphp
-                                <p class="text-center {{ $ageSizeClass }} mt-0.5 {{ $ageClass }} font-semibold">
-                                    <i class="fas {{ $ageIcon }} mr-0.5"></i>{{ $ageLabel }}
-                                </p>
-                            @elseif($user->picture)
-                                <p class="text-center text-[10px] mt-0.5 text-gray-400">no date</p>
-                            @endif
+                            <x-photo-age-indicator :user="$user" />
                         </div>
 
                         {{-- Signature --}}

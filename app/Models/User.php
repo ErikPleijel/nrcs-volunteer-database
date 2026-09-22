@@ -340,28 +340,22 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function getImageIsTooOldAttribute()
     {
-        return $this->image_age_in_years !== null &&
-            $this->image_age_in_years > 5;
+        return $this->image_age_status === 'stale';
     }
 
-    public function getPhotoAgeLabelAttribute(): ?string
+    /**
+     * Single source of truth for the photo-age color coding used by
+     * <x-photo-age-indicator>: 'fresh' (<3 yrs), 'aging' (3-4 yrs), 'stale'
+     * (5+ yrs). Returns null if no image upload date exists (unknown age).
+     */
+    public function getImageAgeStatusAttribute(): ?string
     {
         if (is_null($this->image_age_in_years)) {
-            return null; // caller can decide what to show for "unknown"
+            return null;
         }
 
-        $ageRaw = (float) $this->image_age_in_years;
-        $age = (int) floor($ageRaw); // or round() if you prefer
-
-        if ($age <= 0) {
-            return 'Photo: New';
-        }
-
-        if ($age === 1) {
-            return 'Photo: 1 year old';
-        }
-
-        return 'Photo: '.$age.' years old';
+        return $this->image_age_in_years < 3 ? 'fresh'
+            : ($this->image_age_in_years < 5 ? 'aging' : 'stale');
     }
 
     /**
