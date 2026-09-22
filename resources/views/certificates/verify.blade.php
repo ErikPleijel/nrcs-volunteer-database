@@ -99,7 +99,7 @@
 
             <p style="text-align:center; color:#444; margin-top:-5px;">
                 This certificate belongs to a person who is registered in the<br>
-                <strong>Nigeria Red Cross Society</strong> database.
+                <strong>Nigerian Red Cross Society</strong> database.
             </p>
 
             <div class="section">
@@ -162,7 +162,7 @@
 
         <div class="footer-note">
             If the printed details on the certificate do not match the information shown here,
-            please contact your local Branch of the Nigeria Red Cross Society.
+            please contact your local Branch of the Nigerian Red Cross Society.
         </div>
 
     </div>

@@ -162,14 +162,14 @@
             <h1 class="coc-title">
                 <img
                     src="{{ asset('images/NRCS_logo.jpg') }}"
-                    alt="Nigeria Red Cross Society (NRCS) logo"
+                    alt="Nigerian Red Cross Society (NRCS) logo"
                     class="coc-title-logo"
                 >
                 Code of Conduct
             </h1>
 
             <p class="lead">
-                For the Governance, Members, Volunteers and Employees of Nigeria Red Cross Society (NRCS)
+                For the Governance, Members, Volunteers and Employees of Nigerian Red Cross Society (NRCS)
             </p>
 
             <p class="hint">
@@ -181,7 +181,7 @@
             <section>
                 <h2>I. Introduction</h2>
                 <p>
-                    The Nigeria Red Cross Society (NRCS) is a member of the worldwide Red Cross/Red Crescent Movement
+                    The Nigerian Red Cross Society (NRCS) is a member of the worldwide Red Cross/Red Crescent Movement
                     and is committed to its Fundamental Principles of Humanity, Impartiality, Neutrality, Independence,
                     Voluntary Service, Unity and Universality.
                 </p>

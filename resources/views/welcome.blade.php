@@ -210,7 +210,7 @@
 
                 <h1 class="text-3xl md:text-5xl font-bold mb-6">
 
-                    Welcome to the Nigeria Red Cross Volunteer Management&nbsp;System
+                    Welcome to the Nigerian Red Cross Volunteer Management&nbsp;System
                     <br>
                 </h1>
                 <p class="text-xl text-gray-700 mb-12 max-w-4xl mx-auto">

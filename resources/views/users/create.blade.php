@@ -483,7 +483,7 @@
                                     </p>
 
                                     <p>
-                                        Please ensure that the user is informed about the Nigeria Red Cross
+                                        Please ensure that the user is informed about the Nigerian Red Cross
                                         <span class="font-medium">Code of Conduct</span>.
                                     </p>
 

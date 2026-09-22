@@ -99,7 +99,7 @@
         </div>
 
         <div class="footer-note">
-            Nigeria Red Cross Society — Volunteer Database
+            Nigerian Red Cross Society — Volunteer Database
         </div>
 
     </div>

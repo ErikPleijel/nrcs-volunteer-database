@@ -38,7 +38,7 @@
 
         <a class="flex items-center gap-3 text-red-600" href="{{ url('/') }}">
             <span class="sr-only">Home</span>
-            <img src="{{ asset('images/NRCS_logo.jpg') }}" alt="Nigeria Red Cross Society" class="h-12">
+            <img src="{{ asset('images/NRCS_logo.jpg') }}" alt="Nigerian Red Cross Society" class="h-12">
             <div class="text-sm font-black leading-tight sm:text-lg">
                 Volunteer Management System
             </div>
