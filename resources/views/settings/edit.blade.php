@@ -44,7 +44,7 @@
                                             @endif
                                         </dt>
                                         <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                                            @if($setting->type === 'string' && $setting->key === 'social.share_description')
+                                            @if($setting->type === 'string' && in_array($setting->key, ['social.share_description', 'site.hq_address']))
                                                 <textarea name="settings[{{ $setting->key }}]" id="setting-{{ $setting->key }}" rows="3" class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full max-w-lg sm:text-sm border-2 border-gray-300 rounded-md">{{ $setting->value }}</textarea>
                                             @elseif($setting->type === 'string')
                                                 <input type="text" name="settings[{{ $setting->key }}]" id="setting-{{ $setting->key }}" class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full max-w-lg sm:text-sm border-2 border-gray-300 rounded-md" value="{{ $setting->value }}">

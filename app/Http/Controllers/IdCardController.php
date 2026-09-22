@@ -6,6 +6,7 @@ use App\Models\Branch;
 use App\Models\Division;
 use App\Models\IdCardPrint;
 use App\Models\RedCrossUnit;
+use App\Models\Setting;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -271,6 +272,7 @@ class IdCardController extends Controller
             'img_bg' => asset('images/id-card/IDbackground.JPG'),
             'img_logo' => asset('images/id-card/NRCS_logo.jpg'),
             'img_sg_signature' => asset('images/id-card/sg-signature.png'),
+            'hq_address' => Setting::get('site.hq_address', 'National Headquarters Plot 589 T.O.S Benson Crescent Off Ngozi Okonjo Iweala, Utako District, Abuja.'),
         ];
 
         return view('id-cards.print', ['cards' => [$data]]);
@@ -339,6 +341,7 @@ class IdCardController extends Controller
                 'img_bg' => asset('images/id-card/IDbackground.JPG'),
                 'img_logo' => asset('images/id-card/NRCS_logo.jpg'),
                 'img_sg_signature' => asset('images/id-card/sg-signature.png'),
+                'hq_address' => Setting::get('site.hq_address', 'National Headquarters Plot 589 T.O.S Benson Crescent Off Ngozi Okonjo Iweala, Utako District, Abuja.'),
             ];
         }
 

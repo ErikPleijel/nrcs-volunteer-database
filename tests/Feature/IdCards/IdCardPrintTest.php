@@ -17,10 +17,12 @@ use App\Models\Branch;
 use App\Models\Division;
 use App\Models\MembershipFee;
 use App\Models\RedCrossUnit;
+use App\Models\Setting;
 use App\Models\User;
 use Database\Factories\MembershipFeeFactory;
 use Database\Factories\MembershipPaymentFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -43,6 +45,11 @@ beforeEach(function () {
 
     $this->branch = Branch::create(['name' => 'Alpha Branch', 'code' => 'ALP']);
     $this->division = Division::create(['name' => 'Alpha Division', 'branch_id' => $this->branch->id]);
+
+    // Setting::get() caches forever, keyed setting.{key}; RefreshDatabase
+    // resets the DB between tests but not this cache, so start each test
+    // with a clean slate regardless of what an earlier test left behind.
+    Cache::forget('setting.site.hq_address');
 });
 
 /** A member: valid personal payment, no Red Cross unit. */
@@ -156,6 +163,83 @@ test('single card DB code omits the Red Cross unit segment', function () {
 
 /*
 |--------------------------------------------------------------------------
+| HQ address — sourced from the site.hq_address setting, not hardcoded
+|--------------------------------------------------------------------------
+*/
+
+test('single card back side renders the address from the site.hq_address setting', function () {
+    Setting::updateOrCreate(
+        ['key' => 'site.hq_address'],
+        ['value' => 'TEST HQ ADDRESS, Some Street, Some City.', 'type' => 'string', 'group' => 'site']
+    );
+    Cache::forget('setting.site.hq_address'); // mirrors SettingController::update()
+
+    $member = makeMemberForCard($this->branch, $this->division);
+
+    $html = $this->actingAs($this->admin)
+        ->get(route('id-card.print', $member))
+        ->assertOk()
+        ->getContent();
+
+    expect($html)
+        ->toContain('TEST HQ ADDRESS, Some Street, Some City.')
+        ->not->toContain('Plot 589')
+        ->not->toContain('Benson Street')
+        ->not->toContain('Okanjo Iwaela');
+});
+
+test('single card falls back to the correct default address when the setting is missing', function () {
+    Setting::where('key', 'site.hq_address')->delete();
+
+    $member = makeMemberForCard($this->branch, $this->division);
+
+    $html = $this->actingAs($this->admin)
+        ->get(route('id-card.print', $member))
+        ->assertOk()
+        ->getContent();
+
+    expect($html)->toContain('National Headquarters Plot 589 T.O.S Benson Crescent Off Ngozi Okonjo Iweala, Utako District, Abuja.');
+});
+
+test('changing the HQ address via the real admin settings update flow updates the printed card end to end', function () {
+    // Goes through the actual admin/settings/edit form submission — including
+    // its own Cache::forget() — rather than editing the Setting row directly,
+    // to prove there's no stale-cache gap between "admin saves" and "card
+    // reflects the change."
+    Permission::findOrCreate('change_settings', 'web');
+    $this->admin->givePermissionTo('change_settings');
+
+    Setting::updateOrCreate(
+        ['key' => 'site.hq_address'],
+        ['value' => 'ORIGINAL ADDRESS BEFORE UPDATE', 'type' => 'string', 'group' => 'site']
+    );
+    Cache::forget('setting.site.hq_address');
+
+    $member = makeMemberForCard($this->branch, $this->division);
+
+    $before = $this->actingAs($this->admin)
+        ->get(route('id-card.print', $member))
+        ->getContent();
+    expect($before)->toContain('ORIGINAL ADDRESS BEFORE UPDATE');
+
+    $this->actingAs($this->admin)
+        ->withSession(['auth.password_confirmed_at' => time()])
+        ->post(route('admin.settings.update'), [
+            'settings' => ['site.hq_address' => 'UPDATED ADDRESS AFTER ADMIN EDIT'],
+        ])
+        ->assertRedirect(route('admin.settings.index'));
+
+    $after = $this->actingAs($this->admin)
+        ->get(route('id-card.print', $member))
+        ->getContent();
+
+    expect($after)
+        ->toContain('UPDATED ADDRESS AFTER ADMIN EDIT')
+        ->not->toContain('ORIGINAL ADDRESS BEFORE UPDATE');
+});
+
+/*
+|--------------------------------------------------------------------------
 | Bulk print — printBulkCards()
 |--------------------------------------------------------------------------
 */
@@ -184,4 +268,30 @@ test('bulk print renders member and volunteer cards correctly in the same batch'
         ->toContain('ORDINARY MEMBER')
         ->toContain('HOLY MARY RC UNIT')
         ->toContain('CHIDINMA OKONKWO');
+});
+
+test('bulk print renders the address from the site.hq_address setting on every card', function () {
+    Setting::updateOrCreate(
+        ['key' => 'site.hq_address'],
+        ['value' => 'TEST HQ ADDRESS, Some Street, Some City.', 'type' => 'string', 'group' => 'site']
+    );
+    Cache::forget('setting.site.hq_address'); // mirrors SettingController::update()
+
+    $member = makeMemberForCard($this->branch, $this->division);
+    $volunteer = makeVolunteerForCard($this->branch, $this->division);
+
+    $payload = [
+        'user_ids' => json_encode([
+            ['id' => $member->id, 'validity' => 36],
+            ['id' => $volunteer->id, 'validity' => 36],
+        ]),
+    ];
+
+    $html = $this->actingAs($this->admin)
+        ->post(route('id-cards.print-bulk'), $payload)
+        ->assertOk()
+        ->getContent();
+
+    expect(substr_count($html, 'TEST HQ ADDRESS, Some Street, Some City.'))->toBe(2)
+        ->and($html)->not->toContain('Plot 589');
 });

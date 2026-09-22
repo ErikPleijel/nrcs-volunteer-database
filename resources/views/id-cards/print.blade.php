@@ -112,7 +112,7 @@
                     THE NIGERIAN RED CROSS SOCIETY
                 </p>
                 <p style="z-index:100; position:absolute; font-size:24px; font-weight:bold; text-align:center; left:10px; top:150px; right:10px;">
-                    Plot 589, T.O.S. Benson Street, Off Ngozi Okanjo Iwaela,<br>Utako District, FCT - Abuja
+                    {{ $card['hq_address'] }}
                 </p>
                 <p style="z-index:100; position:absolute; font-size:24px; font-weight:bold; text-align:center; left:80px; top:240px;">
                     Impersonation, Alteration or Transfer of this Card is an Offence.

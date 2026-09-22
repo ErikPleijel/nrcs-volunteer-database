@@ -34,6 +34,18 @@ class SettingsTableSeeder extends Seeder
         );
 
         Setting::updateOrCreate(
+            ['key' => 'site.hq_address'],
+            [
+                'value'       => 'National Headquarters Plot 589 T.O.S Benson Crescent Off Ngozi Okonjo Iweala, Utako District, Abuja.',
+                'type'        => 'string',
+                'group'       => 'site',
+                'label'       => 'HQ Physical Address',
+                'description' => 'Printed on the back of ID cards.',
+                'autoload'    => true,
+            ]
+        );
+
+        Setting::updateOrCreate(
             ['key' => 'social.share_description'],
             [
                 'value'       => 'Join the Red Cross today!',
