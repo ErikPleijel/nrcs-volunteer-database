@@ -326,7 +326,7 @@
                         @elseif($u->wantsMembership())
                             {{-- Existing "interested" branch, unchanged --}}
                             <div class="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-blue-900">
-                                <div class="font-semibold">Become a member</div>
+                                <div class="font-semibold">Become a member/volunteer</div>
                                 <div class="mt-2 text-base space-y-2">
                                     <p>You've marked that you're interested in membership.</p>
                                     <p>To activate it, please make your membership payment.</p>
@@ -382,7 +382,7 @@
 
                     <a href="{{ route('membership.journey') }}"
                        class="bg-blue-600 text-white px-8 py-4 rounded-lg font-semibold hover:bg-blue-700 transition duration-300 text-center min-w-48 shadow-lg text-xl">
-                        <i class="fas fa-user-plus mr-2"></i>Become a <br>Member
+                        <i class="fas fa-user-plus mr-2"></i>Become a <br>Member/Volunteer
                     </a>
                     <a href="{{ route('corporate.journey') }}"
                        class="bg-green-600 text-white px-8 py-4 rounded-lg font-semibold hover:bg-green-700 transition duration-300 text-center min-w-48 shadow-lg text-xl">

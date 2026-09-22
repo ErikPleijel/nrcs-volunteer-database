@@ -24,13 +24,13 @@
                 </div>
             </div>
             <h1 class="text-2xl font-bold">Nigerian Red Cross Society</h1>
-            <p class="text-md">ID-Card Verification</p>
+            <p class="text-md">{{ $user['person_type_label'] }} ID-Card Verification</p>
         </div>
 
         <div class="p-8">
             <div class="text-center">
                 <h2 class="text-3xl font-extrabold text-gray-800 flex items-center justify-center gap-3">
-                    @if($user['is_membership_valid'])
+                    @if($user['is_volunteer'] || $user['is_membership_valid'])
                         <span class="inline-flex bg-green-500 rounded-full p-1.5">
                             <i class="fas fa-check text-white text-sm"></i>
                         </span>
@@ -47,9 +47,13 @@
                 <dl class="grid grid-cols-1 gap-x-4 gap-y-8 sm:grid-cols-2">
                     <div class="sm:col-span-2">
                         <dt class="text-sm font-medium text-gray-500">
-                            <i class="fas fa-id-badge mr-2 text-gray-400"></i>Membership Status
+                            <i class="fas fa-id-badge mr-2 text-gray-400"></i>{{ $user['is_volunteer'] ? 'Volunteer Status' : 'Membership Status' }}
                         </dt>
-                        @if($user['is_membership_valid'])
+                        @if($user['is_volunteer'])
+                            <dd class="mt-1 text-lg font-semibold text-green-600">
+                                ACTIVE VOLUNTEER
+                            </dd>
+                        @elseif($user['is_membership_valid'])
                             <dd class="mt-1 text-lg font-semibold text-green-600">
                                 VALID
                             </dd>
@@ -69,9 +73,9 @@
 
                     <div>
                         <dt class="text-sm font-medium text-gray-500">
-                            <i class="fas fa-layer-group mr-2 text-gray-400"></i>Membership Type
+                            <i class="fas fa-layer-group mr-2 text-gray-400"></i>{{ $user['category_label'] }}
                         </dt>
-                        <dd class="mt-1 text-lg text-gray-900">{{ $user['membership_type'] }}</dd>
+                        <dd class="mt-1 text-lg text-gray-900">{{ $user['category_value'] }}</dd>
                     </div>
 
                     <div>

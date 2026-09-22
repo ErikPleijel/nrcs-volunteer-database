@@ -372,7 +372,19 @@
                     @php
                         $payment = $user->currentMembershipPayment;
                         $membershipType = $payment && $payment->membershipFee ? $payment->membershipFee->name : null;
-                        $hasMissingData = !$user->picture || !$user->hasSignature() || !$user->national_id_number || !$membershipType || !$user->branch || !$user->division;
+
+                        // Single, isolated member/volunteer predicate — mirrors
+                        // IdCardController::printCard()'s $isVolunteer. Keep in
+                        // sync until the volunteer/member redefinition work
+                        // replaces this signal.
+                        $isVolunteer = $user->isVolunteer();
+
+                        // Card-category data required to print: a membership
+                        // payment for members, a Red Cross unit for volunteers
+                        // (volunteers pay no fee, so no payment is expected).
+                        $categoryDataPresent = $isVolunteer ? $user->redCrossUnit !== null : (bool) $membershipType;
+
+                        $hasMissingData = !$user->picture || !$user->hasSignature() || !$user->national_id_number || !$categoryDataPresent || !$user->branch || !$user->division;
 
                         $latestIdCardPrint = $user->idCardPrints()->latest('printed_at')->first();
                         $lastPrintedDate = $latestIdCardPrint?->printed_at;
@@ -501,7 +513,11 @@
                             </div>
                             <div class="space-y-0.5">
                                 <p><span class="text-gray-500">First name:</span> <span class="font-semibold">{{ strtoupper($user->first_name ?? '—') }}</span></p>
-                                <p><span class="text-gray-500">Membership:</span> <span class="font-semibold @if(!$membershipType) text-red-500 @endif">{{ $membershipType ? strtoupper($membershipType) : 'MISSING' }}</span></p>
+                                @if($isVolunteer)
+                                    <p><span class="text-gray-500">Red Cross unit:</span> <span class="font-semibold @if(!$categoryDataPresent) text-red-500 @endif">{{ $user->redCrossUnit ? strtoupper($user->redCrossUnit->name) : 'MISSING' }}</span></p>
+                                @else
+                                    <p><span class="text-gray-500">Membership:</span> <span class="font-semibold @if(!$categoryDataPresent) text-red-500 @endif">{{ $membershipType ? strtoupper($membershipType) : 'MISSING' }}</span></p>
+                                @endif
                                 <p><span class="text-gray-500">Division:</span> <span class="font-semibold">{{ strtoupper($user->division->name ?? 'MISSING') }}</span></p>
                             </div>
                         </div>

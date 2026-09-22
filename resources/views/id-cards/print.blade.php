@@ -45,22 +45,31 @@
             <!-- FRONT SIDE -->
             <div class="firstside" style="position: relative; width:960px; height:610px;">
                 <img src="{{ $card['img_bg'] }}" style="position:absolute; top:0; left:0; width:960px; height:610px;" alt="">
-                <img src="{{ $card['img_header'] }}" style="position:absolute; top:5px; left:210px; width:600px; height:120px;" alt="">
+
+                {{-- Header: was a static image (IDcardHeader.png); now rendered as text so the
+                     bottom banner line can be data-driven (member vs volunteer card type). --}}
+                <div style="z-index:100; position:absolute; top:5px; left:210px; width:600px; height:120px; text-align:center; font-family:'Open Sans', sans-serif;">
+                    <div style="color:#ED1C24; font-size:30px; font-weight:800; letter-spacing:0.5px; line-height:1.15;">
+                        NIGERIAN RED CROSS SOCIETY
+                    </div>
+                    <div style="color:#1a1a1a; font-size:19px; font-weight:700; letter-spacing:1px; line-height:1.3; margin-top:2px;">
+                        NATIONAL HEADQUARTERS
+                    </div>
+                    <div style="background-color:#ED1C24; color:#ffffff; font-size:23px; font-weight:800; letter-spacing:0.5px; padding:6px 0; margin-top:8px;">
+                        {{ $card['card_type_label'] }}
+                    </div>
+                </div>
+
                 <img src="{{ $card['img_logo'] }}" style="position:absolute; top:10px; left:10px; width:200px;" alt="">
 
                 <p style="z-index:100; position:absolute; font-size:35px; font-weight:bold; left:295px; top:111px; color:#333;">
                     {!! str_replace('/', '/<wbr>', $card['dbcode']) !!}
                 </p>
 
-                <p style="z-index:100; position:absolute; font-size:36px; font-weight:bold; left:15px; top:200px;">
-                    {{ strtoupper($card['lastname']) }}
+                <p style="z-index:100; position:absolute; font-size:34px; font-weight:bold; left:15px; top:200px; width:630px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                    {{ strtoupper($card['full_name']) }}
                 </p>
-                <p style="z-index:100; position:absolute; font-size:24px; font-weight:bold; left:16px; top:244px;">Surname</p>
-
-                <p style="z-index:100; position:absolute; font-size:36px; font-weight:bold; left:295px; top:200px;">
-                    {{ strtoupper($card['firstname']) }}
-                </p>
-                <p style="z-index:100; position:absolute; font-size:24px; font-weight:bold; left:296px; top:244px;">Firstname</p>
+                <p style="z-index:100; position:absolute; font-size:24px; font-weight:bold; left:16px; top:244px;">FULL NAME</p>
 
                 <p style="z-index:100; position:absolute; font-size:36px; font-weight:bold; left:15px; top:300px;">
                     {{ strtoupper($card['national_id_number']) }}
@@ -68,9 +77,9 @@
                 <p style="z-index:100; position:absolute; font-size:24px; font-weight:bold; left:16px; top:344px;">National ID No.</p>
 
                 <p style="z-index:100; position:absolute; font-size:36px; font-weight:bold; left:295px; top:300px;">
-                    {{ strtoupper($card['membership_type']) }}
+                    {{ strtoupper($card['category_value']) }}
                 </p>
-                <p style="z-index:100; position:absolute; font-size:24px; font-weight:bold; left:296px; top:344px;">Memb. category</p>
+                <p style="z-index:100; position:absolute; font-size:24px; font-weight:bold; left:296px; top:344px;">{{ $card['category_label'] }}</p>
 
                 <p style="z-index:100; position:absolute; font-size:36px; font-weight:bold; left:15px; top:400px;">
                     {{ strtoupper($card['branch']) }}

@@ -103,8 +103,19 @@ class IdCardController extends Controller
                 ->whereNotNull('national_id_number')
                 ->whereNotNull('branch_id')
                 ->whereNotNull('division_id')
-                ->whereHas('currentMembershipPayment', function ($q) {
-                    $q->personal()->whereHas('membershipFee');
+                ->where(function ($q) {
+                    // Card-category data required to print (see printCard()'s
+                    // card_type_label/category_value): a valid personal
+                    // membership payment for members, a Red Cross unit
+                    // assignment for volunteers. Volunteers pay no fee, so a
+                    // missing payment must not block them here. Mirrors
+                    // User::isVolunteer() (red_cross_unit_id IS NOT NULL) —
+                    // if that predicate is later replaced by an independent
+                    // is_volunteer column, update this condition alongside it.
+                    $q->whereNotNull('red_cross_unit_id')
+                        ->orWhereHas('currentMembershipPayment', function ($pq) {
+                            $pq->personal()->whereHas('membershipFee');
+                        });
                 });
         }
 
@@ -157,7 +168,7 @@ class IdCardController extends Controller
 
         // Eager load relationships for the view.
         $query->with([
-            'branch', 'division', 'idCardPrints',
+            'branch', 'division', 'redCrossUnit', 'idCardPrints',
             'currentMembershipPayment' => fn ($q) => $q->personal(),
             'currentMembershipPayment.membershipFee',
         ]);
@@ -222,23 +233,33 @@ class IdCardController extends Controller
     {
         // Eager load relationships for efficiency
         $user->load([
-            'branch', 'division',
+            'branch', 'division', 'redCrossUnit',
             'currentMembershipPayment' => fn ($q) => $q->personal(),
             'currentMembershipPayment.membershipFee',
         ]);
 
         $payment = $user->currentMembershipPayment;
 
+        // Single, isolated member/volunteer predicate — today's only available
+        // signal (red_cross_unit_id IS NOT NULL, via User::isVolunteer()). If the
+        // in-progress volunteer/member redefinition introduces an independent
+        // is_volunteer column, swap this one line for the new check.
+        $isVolunteer = $user->isVolunteer();
+
         // The verification URL for the QR code and text
         $verificationUrl = url("/idcheck/{$user->id_check_token}");
 
         // Prepare the data array for the blade view
         $data = [
-            'dbcode' => $user->user_id_reference,
-            'lastname' => $user->last_name,
-            'firstname' => $user->first_name,
+            'dbcode' => $user->user_id_reference_short,
+            'full_name' => $user->full_name,
             'national_id_number' => $user->national_id_number ?? 'N/A',
-            'membership_type' => $payment && $payment->membershipFee ? $payment->membershipFee->name : 'Member',
+            'is_volunteer' => $isVolunteer,
+            'card_type_label' => $isVolunteer ? 'VOLUNTEER IDENTITY CARD' : 'MEMBERSHIP IDENTITY CARD',
+            'category_value' => $isVolunteer
+                ? ($user->redCrossUnit->name ?? 'N/A')
+                : ($payment && $payment->membershipFee ? $payment->membershipFee->name : 'Member'),
+            'category_label' => $isVolunteer ? 'Red Cross unit' : 'Memb. category',
             'branch' => $user->branch ? $user->branch->name : 'N/A',
             'division' => $user->division ? $user->division->name : 'N/A',
             'expdate' => $payment ? Carbon::parse($payment->expiry_date)->format('M Y') : 'N/A',
@@ -248,7 +269,6 @@ class IdCardController extends Controller
             'verification_url' => $verificationUrl,
             'qr_image' => 'data:image/svg+xml;base64,'.base64_encode(QrCode::format('svg')->size(200)->generate($verificationUrl)),
             'img_bg' => asset('images/id-card/IDbackground.JPG'),
-            'img_header' => asset('images/id-card/IDcardHeader.png'),
             'img_logo' => asset('images/id-card/NRCS_logo.jpg'),
             'img_sg_signature' => asset('images/id-card/sg-signature.png'),
         ];
@@ -274,7 +294,7 @@ class IdCardController extends Controller
         $validityMonthsMap = array_column($selectedUsersData, 'validity', 'id'); // Map user_id to validity
 
         $users = User::with([
-            'branch', 'division',
+            'branch', 'division', 'redCrossUnit',
             'currentMembershipPayment' => fn ($q) => $q->personal(),
             'currentMembershipPayment.membershipFee',
         ])->whereIn('id', $userIds)->get();
@@ -283,6 +303,11 @@ class IdCardController extends Controller
         foreach ($users as $user) {
             $payment = $user->currentMembershipPayment;
             $verificationUrl = url("/idcheck/{$user->id_check_token}");
+
+            // Single, isolated member/volunteer predicate — see the matching
+            // comment in printCard(); keep both in sync until the volunteer/
+            // member redefinition work replaces this signal.
+            $isVolunteer = $user->isVolunteer();
 
             $expdate = 'N/A';
             $validityMonthsForUser = $validityMonthsMap[$user->id] ?? null;
@@ -294,11 +319,15 @@ class IdCardController extends Controller
             }
 
             $cardsData[] = [
-                'dbcode' => $user->user_id_reference,
-                'lastname' => $user->last_name,
-                'firstname' => $user->first_name,
+                'dbcode' => $user->user_id_reference_short,
+                'full_name' => $user->full_name,
                 'national_id_number' => $user->national_id_number ?? 'N/A',
-                'membership_type' => $payment && $payment->membershipFee ? $payment->membershipFee->name : 'Member',
+                'is_volunteer' => $isVolunteer,
+                'card_type_label' => $isVolunteer ? 'VOLUNTEER IDENTITY CARD' : 'MEMBERSHIP IDENTITY CARD',
+                'category_value' => $isVolunteer
+                    ? ($user->redCrossUnit->name ?? 'N/A')
+                    : ($payment && $payment->membershipFee ? $payment->membershipFee->name : 'Member'),
+                'category_label' => $isVolunteer ? 'Red Cross unit' : 'Memb. category',
                 'branch' => $user->branch ? $user->branch->name : 'N/A',
                 'division' => $user->division ? $user->division->name : 'N/A',
                 'expdate' => $expdate,
@@ -308,7 +337,6 @@ class IdCardController extends Controller
                 'verification_url' => $verificationUrl,
                 'qr_image' => 'data:image/svg+xml;base64,'.base64_encode(QrCode::format('svg')->size(200)->generate($verificationUrl)),
                 'img_bg' => asset('images/id-card/IDbackground.JPG'),
-                'img_header' => asset('images/id-card/IDcardHeader.png'),
                 'img_logo' => asset('images/id-card/NRCS_logo.jpg'),
                 'img_sg_signature' => asset('images/id-card/sg-signature.png'),
             ];
@@ -399,12 +427,17 @@ class IdCardController extends Controller
 
         // Eager load necessary relationships
         $user->load([
-            'branch', 'division', 'trainings.trainingType',
+            'branch', 'division', 'redCrossUnit', 'trainings.trainingType',
             'currentMembershipPayment' => fn ($q) => $q->personal(),
             'currentMembershipPayment.membershipFee',
         ]);
 
         $payment = $user->currentMembershipPayment;
+
+        // Single, isolated member/volunteer predicate — see the matching
+        // comment in printCard(); keep in sync until the volunteer/member
+        // redefinition work replaces this signal.
+        $isVolunteer = $user->isVolunteer();
 
         // Partition non-deleted trainings into first-aid vs other via the canonical is_first_aid flag.
         $nonDeletedTrainings = $user->trainings->where('is_deleted', false);
@@ -426,7 +459,12 @@ class IdCardController extends Controller
             'user_id_reference_short' => $user->user_id_reference_short,
             'branch' => $user->branch ? $user->branch->name : 'N/A',
             'division' => $user->division ? $user->division->name : 'N/A',
-            'membership_type' => $payment && $payment->membershipFee ? $payment->membershipFee->name : 'Member',
+            'is_volunteer' => $isVolunteer,
+            'person_type_label' => $isVolunteer ? 'Volunteer' : 'Member',
+            'category_label' => $isVolunteer ? 'Red Cross Unit' : 'Membership Type',
+            'category_value' => $isVolunteer
+                ? ($user->redCrossUnit->name ?? 'N/A')
+                : ($payment && $payment->membershipFee ? $payment->membershipFee->name : 'Member'),
             'membership_expiry' => $payment ? Carbon::parse($payment->expiry_date)->format('M Y') : 'N/A',
             'is_membership_valid' => $payment && $payment->expiry_date && Carbon::parse($payment->expiry_date)->isFuture(),
             'first_aid_trainings' => $firstAidTrainings,
