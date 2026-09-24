@@ -201,7 +201,7 @@ test('the RCU verification URL shows the unit, fee period and currently-paid sta
         ->assertSee('Certificate Verified')
         ->assertSee('Unit Verify')
         ->assertSee($this->unit->fresh()->rcu_reference)
-        ->assertSee('RCU membership')
+        ->assertSee('RCU Membership')
         ->assertSee('15 Jan 2026 – '.$payment->expiry_date->format('d M Y'))
         ->assertSee('Currently paid')
         ->assertSee('Alpha Branch')

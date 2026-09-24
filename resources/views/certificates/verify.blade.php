@@ -68,6 +68,51 @@
             padding: 6px 0;
         }
 
+        /* Volunteer stats: secondary to the verification result above. */
+        .stats-section {
+            margin-top: 24px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+        }
+
+        .stats-heading {
+            font-size: 12px;
+            color: #999;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-bottom: 10px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+        }
+
+        .stat {
+            background: #fafafa;
+            border-radius: 6px;
+            padding: 8px 10px;
+        }
+
+        .stat-value {
+            font-size: 15px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            color: #888;
+            margin-top: 2px;
+        }
+
+        .stats-note {
+            font-size: 13px;
+            color: #888;
+            margin: 0;
+        }
+
         .footer-note {
             margin-top: 30px;
             font-size: 12px;
@@ -145,6 +190,8 @@
                 </div>
             </div>
 
+            @include('certificates.partials.verify-stats', ['stats' => $stats ?? null])
+
             {{-- RCU membership certificate: the unit and the certificate's fee
                  period with its live status. No personal fields. --}}
         @elseif($valid && ($redCrossUnit ?? null))
@@ -168,7 +215,7 @@
             </div>
             <div class="section">
                 <div class="label">Certificate Type</div>
-                <div class="value">RCU membership</div>
+                <div class="value">RCU Membership</div>
             </div>
 
             <div class="section">
@@ -195,6 +242,8 @@
                     {{ $redCrossUnit->division->name ?? 'N/A' }}
                 </div>
             </div>
+
+            @include('certificates.partials.verify-stats', ['stats' => $stats ?? null])
 
             {{-- Invalid or tampered link --}}
         @else

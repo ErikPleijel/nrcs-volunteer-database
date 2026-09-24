@@ -14,6 +14,7 @@ use App\Models\SignatureTitle;
 use App\Models\Training;
 use App\Models\TrainingType;
 use App\Models\User;
+use App\Services\VerificationStatsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -1987,6 +1988,8 @@ class CertificateController extends Controller
                 'training'   => $training,
                 'trainingId' => $trainingId,
             ],
+            // Anonymous volunteer figures for the holder's branch.
+            'stats'       => app(VerificationStatsService::class)->forBranch($user->branch),
         ]);
     }
 
@@ -2040,7 +2043,26 @@ class CertificateController extends Controller
             'certificate'  => ['type' => 'rcu_membership'],
             'redCrossUnit' => $unit,
             'rcuPayment'   => $payment,
+            'stats'        => $this->rcuVerificationStats($unit),
         ]);
+    }
+
+    /**
+     * The unit's own volunteer figures, or — when the unit is below the
+     * privacy threshold — its branch's, so a small unit's figures are never
+     * shown. Suppressed only if there's no branch to fall back to.
+     */
+    private function rcuVerificationStats(RedCrossUnit $unit): ?array
+    {
+        $statsService = app(VerificationStatsService::class);
+
+        $stats = $statsService->forUnit($unit);
+
+        if ($stats['suppressed']) {
+            $stats = $statsService->forBranch($unit->division?->branch) ?? $stats;
+        }
+
+        return $stats;
     }
 
 
