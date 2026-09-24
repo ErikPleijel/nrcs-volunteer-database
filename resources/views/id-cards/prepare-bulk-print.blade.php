@@ -90,8 +90,8 @@
                             </button>
                             <div x-show="open === 'validity'" x-collapse class="px-4 py-3 bg-white">
                                 <ul class="space-y-1 text-gray-700 list-disc pl-4">
-                                    <li>Use <span class="font-semibold">Bulk Set Validity</span> at the top to apply the same number of months to every card at once.</li>
-                                    <li>Or adjust the <span class="font-semibold">Validity (months)</span> field on an individual card to set it separately.</li>
+                                    <li>Each card's <span class="font-semibold">Validity (months)</span> is pre-filled from the fee paid — 12 for a 1-year fee, 36 for a 3-year fee — or 12 if there's no payment.</li>
+                                    <li>Adjust the field on an individual card to override it; leaving it blank uses that same default.</li>
                                     <li>The <span class="font-semibold">New ID expiry</span> date updates live as you change the validity.</li>
                                 </ul>
                             </div>
@@ -299,6 +299,17 @@
             </div>
         </div>
 
+        @if($users->count() > 0)
+            <p class="text-base text-gray-700 mb-3">
+                Showing
+                <span class="font-medium">{{ $users->firstItem() }}</span>
+                to
+                <span class="font-medium">{{ $users->lastItem() }}</span>
+                of
+                <span class="font-medium">{{ $users->total() }}</span>
+                results
+            </p>
+        @endif
 
         <div class="flex justify-between items-center mb-4">
             @can('print_idcards')
@@ -312,17 +323,6 @@
             @endcan
 
             <div class="flex items-end gap-3 flex-wrap">
-
-                @can('print_idcards')
-                <div>
-                    <label for="global-validity-months" class="block text-sm font-medium text-gray-700">Bulk Set Validity</label>
-                    <select id="global-validity-months" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm">
-                        @foreach(range(12, 42) as $months)
-                            <option value="{{ $months }}"{{ $months == 36 ? ' selected' : '' }}>{{ $months }} Months</option>
-                        @endforeach
-                    </select>
-                </div>
-                @endcan
 
                 <a href="{{ route('id-cards.prints-report') }}"
                    class="inline-flex items-center px-4 py-2 bg-white border border-gray-300 text-gray-700 text-sm font-semibold rounded-md hover:bg-gray-50 transition">
@@ -378,6 +378,10 @@
                         // sync until the volunteer/member redefinition work
                         // replaces this signal.
                         $isVolunteer = $user->isVolunteer();
+
+                        // Fee duration × 12 for a paid user, 12 otherwise — the
+                        // same rule the controller falls back to on a blank box.
+                        $defaultValidityMonths = $user->defaultIdCardValidityMonths();
 
                         // Card-category data required to print: a membership
                         // payment for members, a Red Cross unit for volunteers
@@ -529,7 +533,7 @@
                              data-mem-end="{{ $latestPaymentForStatus?->expiry_date?->timestamp ?? '' }}"
                              data-id-start="{{ $lastPrintedDate?->timestamp ?? '' }}"
                              data-id-end="{{ $idCardExpiryDate?->timestamp ?? '' }}"
-                             data-validity="36"
+                             data-validity="{{ $defaultValidityMonths }}"
                              data-show-validity="{{ $hasMissingData ? 'false' : 'true' }}">
                             <svg class="timeline-svg w-full" height="70" xmlns="http://www.w3.org/2000/svg"
                                  style="overflow:visible"></svg>
@@ -551,7 +555,7 @@
                                                    class="user-validity-input w-16 px-2 py-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
                                                    placeholder="M" min="1" max="120"
                                                    data-user-id="{{ $user->id }}"
-                                                   value="{{ old('validity-'.$user->id, 36) }}">
+                                                   value="{{ old('validity-'.$user->id, $defaultValidityMonths) }}">
                                         </div>
                                     </div>
                                     @endcan
@@ -588,7 +592,12 @@
                                         </p>
                                         <p>
                                             @if($payment && $payment->id_card_included)
-                                                <span class="text-green-700">ID paid</span>
+                                                <span class="text-green-700">
+                                                    ID paid
+                                                    @if($payment->membershipFee)
+                                                        <strong>{{ $payment->membershipFee->validity_years }} Year</strong>{{ $payment->membershipFee->validity_years > 1 ? 's' : '' }}
+                                                    @endif
+                                                </span>
                                             @else
                                                 <span class="text-red-600 font-bold text-base"><i class="fas fa-exclamation-triangle text-yellow-500 mr-1"></i>ID NOT PAID</span>
                                             @endif
@@ -602,7 +611,7 @@
             </div>
 
             <div class="mt-6">
-                {{ $users->links() }}
+                {{ $users->links('vendor.pagination.tailwind-no-summary') }}
             </div>
         @else
             <div class="text-center py-12">
@@ -807,7 +816,6 @@
             const selectionCounter = document.getElementById('selection-counter');
             const printSelectedBtn = document.getElementById('print-selected-btn');
             const recordPrintsBtn = document.getElementById('record-prints-btn');
-            const globalValiditySelect = document.getElementById('global-validity-months');
             const printUserIdsInput = document.getElementById('print-user-ids');
             const recordUserIdsInput = document.getElementById('record-user-ids');
 
@@ -840,20 +848,6 @@
                 d.setMonth(d.getMonth() + m);
                 const monthStr = d.toLocaleString('en-GB', { month: 'short' });
                 display.textContent = `${monthStr}/${d.getFullYear()}`;
-            }
-
-            function applyGlobalValidity() {
-                const val = globalValiditySelect.value;
-                document.querySelectorAll('.user-validity-input').forEach(input => {
-                    input.value = val;
-                    const userId = input.dataset.userId;
-                    updateExpiryDisplay(userId, val);
-                    const container = document.querySelector(`.timeline-container[data-user-id="${userId}"]`);
-                    if (container) { container.dataset.validity = val; drawOneTimeline(container); }
-                    const checkbox = document.getElementById(`user-${userId}`);
-                    if (checkbox?.checked) selectedUsersData.set(userId, { id: userId, validity: val });
-                });
-                updateSelectionState();
             }
 
             document.querySelectorAll('.user-validity-input').forEach(input => {
@@ -908,7 +902,6 @@
                         const card = cb.closest('.user-card-container');
                         if (card && !card.classList.contains('border-red-500')) cb.checked = true;
                     });
-                    applyGlobalValidity();
                     updateSelectionState();
                 });
 
@@ -917,11 +910,6 @@
                     updateSelectionState();
                 });
 
-                globalValiditySelect.addEventListener('change', applyGlobalValidity);
-
-                if (globalValiditySelect.value) {
-                    document.querySelectorAll('.user-validity-input').forEach(i => (i.value = globalValiditySelect.value));
-                }
                 updateSelectionState();
             }
         });

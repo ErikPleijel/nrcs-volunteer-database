@@ -216,13 +216,11 @@ class IdCardController extends Controller
             }
         }
 
-        $validityMonths = range(12, 60, 6);
-
         if ($admin = Auth::user()) {
             $admin->touchLastAdminActivity();
         }
 
-        return view('id-cards.prepare-bulk-print', compact('users', 'branches', 'divisions', 'redCrossUnits', 'validityMonths', 'accessLevel', 'userBranchId', 'userDivisionId'));
+        return view('id-cards.prepare-bulk-print', compact('users', 'branches', 'divisions', 'redCrossUnits', 'accessLevel', 'userBranchId', 'userDivisionId'));
     }
 
     /**
@@ -311,14 +309,8 @@ class IdCardController extends Controller
             // member redefinition work replaces this signal.
             $isVolunteer = $user->isVolunteer();
 
-            $expdate = 'N/A';
-            $validityMonthsForUser = $validityMonthsMap[$user->id] ?? null;
-
-            if ($validityMonthsForUser && is_numeric($validityMonthsForUser)) {
-                $expdate = Carbon::now()->addMonths((int) $validityMonthsForUser)->format('M Y');
-            } elseif ($payment) {
-                $expdate = Carbon::parse($payment->expiry_date)->format('M Y');
-            }
+            $validityMonthsForUser = $this->resolveValidityMonths($user, $validityMonthsMap[$user->id] ?? null);
+            $expdate = Carbon::now()->addMonths($validityMonthsForUser)->format('M Y');
 
             $cardsData[] = [
                 'dbcode' => $user->user_id_reference_short,
@@ -373,28 +365,18 @@ class IdCardController extends Controller
         $printedAt = Carbon::now();
 
         foreach ($userIds as $userId) {
-            $user = User::with(['currentMembershipPayment' => fn ($q) => $q->personal()])->find($userId);
+            $user = User::with([
+                'currentMembershipPayment' => fn ($q) => $q->personal(),
+                'currentMembershipPayment.membershipFee',
+            ])->find($userId);
 
             if (! $user) {
                 // Skip if user not found, or log an error
                 continue;
             }
 
-            $expiryDate = null;
-            $validityMonthsToStore = $validityMonthsMap[$user->id] ?? null;
-
-            if ($validityMonthsToStore && is_numeric($validityMonthsToStore)) {
-                // If a specific validity (e.g., 12, 24 months) is chosen for this user
-                $validityMonthsToStore = (int) $validityMonthsToStore;
-                $expiryDate = Carbon::now()->addMonths($validityMonthsToStore);
-            } else {
-                // If "Use Membership Expiry" is chosen for this user (validityMonthsToStore is empty or invalid)
-                if ($user->currentMembershipPayment && $user->currentMembershipPayment->expiry_date) {
-                    $expiryDate = Carbon::parse($user->currentMembershipPayment->expiry_date);
-                    // For now, if membership expiry is used, we set validity_months to null in the record.
-                    $validityMonthsToStore = null;
-                }
-            }
+            $validityMonthsToStore = $this->resolveValidityMonths($user, $validityMonthsMap[$user->id] ?? null);
+            $expiryDate = $printedAt->copy()->addMonths($validityMonthsToStore);
 
             // Create the IdCardPrint record
             IdCardPrint::create([
@@ -409,6 +391,21 @@ class IdCardController extends Controller
         }
 
         return redirect()->back()->with('success', 'Selected ID cards marked as printed successfully and records saved.');
+    }
+
+    /**
+     * The admin's per-card validity override when it's a positive number,
+     * otherwise the user's fee-based default (see
+     * User::defaultIdCardValidityMonths()). Shared by printBulkCards() and
+     * recordBulkIdCardPrints() so the printed and recorded expiry agree.
+     */
+    private function resolveValidityMonths(User $user, mixed $submitted): int
+    {
+        if (is_numeric($submitted) && (int) $submitted > 0) {
+            return (int) $submitted;
+        }
+
+        return $user->defaultIdCardValidityMonths();
     }
 
     /**

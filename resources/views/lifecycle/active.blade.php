@@ -156,7 +156,7 @@
                 <ol class="howto-ol mt-4">
                     <li>Go to <span class="font-semibold">ID Cards</span>.</li>
                     <li>Filter by <span class="font-semibold">Branch</span>, <span class="font-semibold">Division</span>, or <span class="font-semibold">Red Cross Unit</span>.</li>
-                    <li>Click <span class="font-semibold">Bulk Set Validity</span> to set expiry dates, or set them individually per person.</li>
+                    <li>Check each card's <span class="font-semibold">Validity (months)</span> — it's pre-filled from the fee paid (12 or 36), or 12 if unpaid — and adjust individually if needed.</li>
                     <li>Click <span class="font-semibold">Print Selected</span>.</li>
                     <li><span class="font-semibold">Important:</span> once printed, click <span class="font-semibold">Mark as printed</span> to register this in the database.</li>
                 </ol>

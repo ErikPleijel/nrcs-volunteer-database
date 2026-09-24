@@ -1118,6 +1118,25 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->red_cross_unit_id !== null;
     }
 
+    /**
+     * Default ID card validity in months: the paid fee's duration
+     * (validity_years × 12) for a user with a current personal membership
+     * payment, otherwise 12 (e.g. volunteers, who pay no fee).
+     *
+     * Uses the eager-loaded currentMembershipPayment when present — callers
+     * load it with ->personal() — and queries it the same way otherwise.
+     */
+    public function defaultIdCardValidityMonths(): int
+    {
+        $payment = $this->relationLoaded('currentMembershipPayment')
+            ? $this->currentMembershipPayment
+            : $this->currentMembershipPayment()->personal()->with('membershipFee')->first();
+
+        $years = (int) ($payment?->membershipFee?->validity_years ?? 0);
+
+        return $years > 0 ? $years * 12 : 12;
+    }
+
     public function getTotalVolunteeringHoursAttribute(): float
     {
         return (float) $this->activeActivities()->sum('hours');
