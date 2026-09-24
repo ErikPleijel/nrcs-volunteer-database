@@ -905,6 +905,21 @@ class RedCrossUnitController extends Controller
                 ];
             });
 
+        // Printed certificates (full history — the per-period rule only
+        // affects the bulk page's badge), as OrganisationController::show().
+        $prints = $redCrossUnit->certificatePrints()
+            ->with('printedBy')
+            ->orderByDesc('printed_at')
+            ->get();
+
+        $certificatePrintsLimitMessage = $prints->count() >= 6;
+
+        $certificatePrints = $prints->map(fn ($print) => [
+            'printed_at'       => $print->printed_at->format('M d, Y H:i'),
+            'certificate_type' => $print->certificate_type === 'rcu_membership' ? 'RCU – Membership' : ucwords(str_replace('_', ' ', $print->certificate_type)),
+            'printed_by'       => optional($print->printedBy)->full_name ?? 'System',
+        ]);
+
         return view('red-cross-units.show', compact(
             'redCrossUnit',
             'totalMembers',
@@ -913,7 +928,9 @@ class RedCrossUnitController extends Controller
             'activitiesSummary',
             'unitMembersData',
             'membersWithTrainingsDetails',
-            'showPhotos'
+            'showPhotos',
+            'certificatePrints',
+            'certificatePrintsLimitMessage'
         ));
     }
 

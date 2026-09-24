@@ -145,6 +145,57 @@
                 </div>
             </div>
 
+            {{-- RCU membership certificate: the unit and the certificate's fee
+                 period with its live status. No personal fields. --}}
+        @elseif($valid && ($redCrossUnit ?? null))
+            @php
+                // Same rule as RedCrossUnit::isPaid() / activeMembership.
+                $periodCurrent = $rcuPayment->isValid();
+            @endphp
+
+            <div class="title ok">Certificate Verified</div>
+
+            <p style="text-align:center; color:#444; margin-top:-5px;">
+                This certificate belongs to a Red Cross Unit registered in the<br>
+                <strong>Nigerian Red Cross Society</strong> database.
+            </p>
+
+            <div class="section">
+                <div class="label">Red Cross Unit</div>
+                <div class="value">{{ $redCrossUnit->name }}</div>
+                <div class="label">ID</div>
+                <div class="value">{{ $redCrossUnit->rcu_reference }}</div>
+            </div>
+            <div class="section">
+                <div class="label">Certificate Type</div>
+                <div class="value">RCU membership</div>
+            </div>
+
+            <div class="section">
+                <table class="info-table">
+                    <tr>
+                        <td class="label">Fee period</td>
+                        <td class="value">
+                            {{ $rcuPayment->payment_date?->format('d M Y') ?? 'N/A' }} – {{ $rcuPayment->expiry_date?->format('d M Y') ?? 'N/A' }}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="label">Status</td>
+                        <td class="value {{ $periodCurrent ? 'ok' : 'error' }}">
+                            {{ $periodCurrent ? 'Currently paid' : 'Period ended' }}
+                        </td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="section">
+                <div class="label">Branch / Division</div>
+                <div class="value">
+                    {{ $redCrossUnit->division->branch->name ?? 'N/A' }} /
+                    {{ $redCrossUnit->division->name ?? 'N/A' }}
+                </div>
+            </div>
+
             {{-- Invalid or tampered link --}}
         @else
             <div class="title error">Verification Failed</div>
@@ -157,6 +208,12 @@
                 <p style="text-align:center; color:#888;">Invalid certificate parameters.</p>
             @elseif($reason === 'user_not_found')
                 <p style="text-align:center; color:#888;">User not found in the Red Cross system.</p>
+            @elseif($reason === 'unit_not_found')
+                <p style="text-align:center; color:#888;">Red Cross Unit not found in the Red Cross system.</p>
+            @elseif($reason === 'payment_not_found')
+                <p style="text-align:center; color:#888;">The fee payment on this certificate could not be confirmed.</p>
+            @elseif($reason === 'invalid_signature')
+                <p style="text-align:center; color:#888;">The link does not match the one printed on the certificate.</p>
             @endif
         @endif
 

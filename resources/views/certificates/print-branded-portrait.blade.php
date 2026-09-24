@@ -421,7 +421,9 @@
                 <footer class="footer">
                     <div class="footer-left">
                         <div class="certificate-info">
-                            Ref: {!! str_replace('/', '/<wbr>',  ($certificate['user']->user_id_reference ?? '—')) !!} &nbsp;
+                            {{-- Personal: the holder's reference; organisation donation
+                                 certificates have no user, so the organisation's own reference. --}}
+                            Ref: {!! str_replace('/', '/<wbr>', e($certificate['user']->user_id_reference ?? ($certificate['organisation']->org_reference ?? '—'))) !!} &nbsp;
                             Printed by: {{ $certificate['footerProducer'] ?? 'System' }} on {{ now()->format('Y-m-d') }}
                         </div>
 

@@ -200,6 +200,62 @@
                 </div>
             </div>
 
+            <!-- 3. Printed Certificates -->
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <div class="flex items-center mb-4">
+                    <div class="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center mr-4">
+                        <i class="fas fa-print text-indigo-600 text-xl"></i>
+                    </div>
+                    <h2 class="text-xl font-bold text-gray-900">PRINTED CERTIFICATES</h2>
+                </div>
+
+                <p class="text-gray-500 text-sm italic mb-4">
+                    While the annual fee is paid, you can obtain a membership certificate for this unit upon request. Please contact your branch.
+                </p>
+
+                @if($certificatePrintsLimitMessage)
+                    <div class="mb-2 p-2 bg-indigo-50 border border-indigo-200 rounded text-center">
+                        <span class="text-indigo-800 text-xs font-medium">
+                            <i class="fas fa-info-circle mr-1"></i>Showing recent printed certificates - scroll to view more
+                        </span>
+                    </div>
+                @endif
+
+                <div class="overflow-x-auto">
+                    <div class="@if($certificatePrintsLimitMessage) max-h-64 overflow-y-auto @endif">
+                        <table class="w-full text-sm">
+                            <thead class="sticky top-0 bg-white">
+                            <tr class="border-b border-gray-200">
+                                <th class="text-left py-2 text-gray-600 bg-white">Printed at</th>
+                                <th class="text-left py-2 text-gray-600 bg-white">Certificate type</th>
+                                <th class="text-left py-2 text-gray-600 bg-white">Printed by</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            @forelse($certificatePrints as $print)
+                                <tr class="border-b border-gray-100">
+                                    <td class="py-2">{{ $print['printed_at'] }}</td>
+                                    <td class="py-2">
+                                        <div class="flex items-center">
+                                            <i class="fas fa-certificate text-indigo-600 mr-2"></i>
+                                            {{ $print['certificate_type'] }}
+                                        </div>
+                                    </td>
+                                    <td class="py-2">{{ $print['printed_by'] }}</td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="3" class="py-4 text-center text-gray-500 italic">
+                                        No printed certificates found
+                                    </td>
+                                </tr>
+                            @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
             <div class="pb-4">
                 <a href="{{ route('profile.show') }}"
                    class="inline-flex items-center text-blue-600 hover:text-blue-800 text-sm">

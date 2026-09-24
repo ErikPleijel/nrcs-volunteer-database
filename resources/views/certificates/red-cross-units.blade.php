@@ -1,4 +1,4 @@
-<x-layouts.admin title="Organisation Certificates">
+<x-layouts.admin title="Red Cross Unit Certificates">
     <x-slot name="pageHeader">
         <div class="flex items-center">
             <i class="fas fa-certificate mr-2"></i>
@@ -7,7 +7,7 @@
     </x-slot>
 
     <x-slot name="subHeader">
-        Organisation Certificate Generator
+        Red Cross Unit Certificate Generator
     </x-slot>
 
     <x-slot name="button1">
@@ -20,7 +20,7 @@
         <!-- Filter Form -->
         <div class="filter-container">
             <div class="filter-form-content">
-                <form action="{{ route('organisations.certificates.index') }}" method="GET" id="filter-form" class="filter-form">
+                <form action="{{ route('red-cross-units.certificates.index') }}" method="GET" id="filter-form" class="filter-form">
 
                     <div class="filter-grid filter-grid-4">
                         <!-- Column 1: Certificate Type + Search -->
@@ -36,13 +36,13 @@
                                 </select>
                             </div>
                             <div>
-                                <label for="search" class="filter-label">Search Organisation</label>
+                                <label for="search" class="filter-label">Search Red Cross Unit</label>
                                 <input type="text"
                                        name="search"
                                        id="search"
                                        class="filter-input"
                                        value="{{ request('search') }}"
-                                       placeholder="Organisation name or ID...">
+                                       placeholder="Unit name or ID...">
                             </div>
                         </div>
 
@@ -71,6 +71,28 @@
                                 <input type="hidden" name="branch_id" value="{{ $userBranchId }}">
                             @endif
                         </div>
+
+                        <!-- Column 3: Division (national: pick a branch first) -->
+                        <div>
+                            <label for="division_id" class="filter-label-small">Division</label>
+                            <select name="division_id"
+                                    id="division_id"
+                                    class="filter-select disabled:bg-gray-200 disabled:opacity-75"
+                                    @if($accessLevel === 'division' || $divisions->isEmpty()) disabled @endif>
+                                @if($accessLevel === 'division')
+                                    @foreach($divisions as $division)
+                                        <option value="{{ $division->id }}" selected>{{ $division->name }}</option>
+                                    @endforeach
+                                @else
+                                    <option value="">{{ $divisions->isEmpty() ? 'Select a branch first' : 'All Divisions' }}</option>
+                                    @foreach($divisions as $division)
+                                        <option value="{{ $division->id }}" @selected(request('division_id') == $division->id)>
+                                            {{ $division->name }}
+                                        </option>
+                                    @endforeach
+                                @endif
+                            </select>
+                        </div>
                     </div>
 
                     <div class="filter-actions">
@@ -78,7 +100,7 @@
                             <button type="submit" class="filter-btn-primary">
                                 <i class="fas fa-search mr-1"></i>Filter
                             </button>
-                            <a href="{{ route('organisations.certificates.index') }}"
+                            <a href="{{ route('red-cross-units.certificates.index') }}"
                                class="filter-btn-secondary filter-btn-secondary-active">
                                 <i class="fas fa-times mr-1"></i>Clear
                             </a>
@@ -96,11 +118,11 @@
 
         @if($records->isEmpty())
             <div class="text-center py-12">
-                <p class="text-gray-500 text-lg">No organisations found matching your criteria.</p>
+                <p class="text-gray-500 text-lg">No paid Red Cross Units found matching your criteria.</p>
             </div>
         @else
             <form id="bulk-print-form"
-                  action="{{ route('organisations.certificates.print.plain') }}"
+                  action="{{ route('red-cross-units.certificates.print.plain') }}"
                   method="POST"
                   target="_blank">
                 @csrf
@@ -124,7 +146,7 @@
                         </button>
 
                         <span id="selection-counter" class="text-sm font-medium text-gray-700">
-                            0 organisations selected
+                            0 units selected
                         </span>
                     </div>
 
@@ -210,7 +232,7 @@
                                 type="submit"
                                 class="inline-flex items-center px-4 py-2 bg-gray-600 text-white text-sm font-semibold rounded-md hover:bg-gray-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
                                 disabled
-                                formaction="{{ route('organisations.certificates.print.plain') }}"
+                                formaction="{{ route('red-cross-units.certificates.print.plain') }}"
                             >
                                 <i class="fas fa-print mr-2"></i>
                                 Print for pre-printed paper
@@ -221,7 +243,7 @@
                                 type="submit"
                                 class="inline-flex items-center px-4 py-2 bg-red-600 text-white text-sm font-semibold rounded-md hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
                                 disabled
-                                formaction="{{ route('organisations.certificates.print.branded') }}"
+                                formaction="{{ route('red-cross-units.certificates.print.branded') }}"
                             >
                                 <i class="fas fa-certificate mr-2"></i>
                                 Print with logo & frame
@@ -257,23 +279,25 @@
                 </h2>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                    @foreach($records as $organisation)
+                    @foreach($records as $unit)
                         <div class="bg-white rounded-lg shadow-lg overflow-hidden relative">
                             <div class="p-5">
                                 <div class="absolute top-4 right-4">
+                                    {{-- training_ids[]: the field name the shared markAsPrinted() reads. --}}
                                     <input type="checkbox"
                                            name="training_ids[]"
-                                           value="{{ $organisation->id }}"
+                                           value="{{ $unit->id }}"
                                            class="h-5 w-5 text-red-600 border-gray-300 rounded focus:ring-red-500 bulk-checkbox">
                                 </div>
 
                                 @php
-                                    $isPrinted = isset($printedKeys[$organisation->id]);
+                                    // Per fee period: printed on/after the current payment's start.
+                                    $isPrinted = isset($printedKeys[$unit->id]);
                                 @endphp
 
                                 <div class="flex items-start justify-between pr-8 gap-2">
                                     <div class="font-bold text-lg text-gray-800">
-                                        {{ $organisation->name }}
+                                        {{ $unit->name }}
                                     </div>
                                     @if($isPrinted)
                                         <span class="flex-shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700 border border-green-200">
@@ -287,40 +311,26 @@
                                 </div>
 
                                 <p class="text-xs text-gray-500 break-words mb-2">
-                                    {{ $organisation->branch->name ?? '—' }}
+                                    {{ $unit->division->name ?? '—' }} · {{ $unit->division->branch->name ?? '—' }}
                                 </p>
 
                                 <p class="text-xs text-gray-500 break-words mb-2">
-                                    {!! $organisation->org_reference_link !!}
+                                    <a href="{{ route('red-cross-units.show', $unit) }}" class="db-code underline">{{ $unit->rcu_reference }}</a>
                                 </p>
 
                                 @switch($certificateType)
-                                    @case('organisation_membership')
-                                        @if($organisation->activeMembership)
+                                    @case('rcu_membership')
+                                        @if($unit->activeMembership)
                                             <span class="inline-block bg-green-100 text-green-800 text-xs px-2 py-0.5 rounded-full font-medium mb-1">
-                                                Active Member
+                                                Paid
                                             </span>
                                             <p class="text-gray-700 text-base">
                                                 <span class="font-semibold">Fee:</span>
-                                                {{ $organisation->activeMembership->membershipFee->name ?? 'N/A' }}
+                                                {{ $unit->activeMembership->membershipFee->name ?? 'N/A' }}
                                             </p>
                                             <p class="text-gray-600 text-sm">
                                                 <span class="font-semibold">Expires:</span>
-                                                {{ $organisation->activeMembership->expiry_date?->format('M d, Y') ?? 'N/A' }}
-                                            </p>
-                                        @endif
-                                        @break
-
-                                    @case('organisation_donation')
-                                        <p class="text-gray-700 text-base">
-                                            <span class="font-semibold">Cash Donated:</span>
-                                            ₦{{ number_format($organisation->donations_sum_amount ?? 0, 0) }}
-                                        </p>
-                                        @if(($organisation->in_kind_donations_count ?? 0) > 0)
-                                            <p class="text-gray-600 text-sm">
-                                                <span class="font-semibold">In-Kind:</span>
-                                                {{ $organisation->in_kind_donations_count }}
-                                                {{ $organisation->in_kind_donations_count === 1 ? 'item' : 'items' }}
+                                                {{ $unit->activeMembership->expiry_date?->format('M d, Y') ?? 'N/A' }}
                                             </p>
                                         @endif
                                         @break
@@ -356,7 +366,7 @@
                 if (markAsPrintedButton) markAsPrintedButton.disabled = !enabled;
 
                 if (selectionCounter) {
-                    selectionCounter.textContent = `${checkedCount} organisation${checkedCount !== 1 ? 's' : ''} selected`;
+                    selectionCounter.textContent = `${checkedCount} unit${checkedCount !== 1 ? 's' : ''} selected`;
                 }
             }
 

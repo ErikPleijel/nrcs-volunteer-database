@@ -15,6 +15,7 @@ class CertificatePrint extends Model
     protected $fillable = [
         'user_id',
         'organisation_id',
+        'red_cross_unit_id',
         'training_id',
         'printed_by_user_id',
         'certificate_type',
@@ -36,6 +37,11 @@ class CertificatePrint extends Model
     public function organisation()
     {
         return $this->belongsTo(Organisation::class);
+    }
+
+    public function redCrossUnit()
+    {
+        return $this->belongsTo(RedCrossUnit::class);
     }
 
     public function training()

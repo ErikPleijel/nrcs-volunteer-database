@@ -149,6 +149,11 @@
             <i class="fas fa-building mr-1"></i>Certificates for organisations
         </a>
     </x-slot>
+    <x-slot name="button2">
+        <a href="{{ route('red-cross-units.certificates.index') }}" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+            <i class="fas fa-people-group mr-1"></i>Certificates for Red Cross Units
+        </a>
+    </x-slot>
     @endcan
 
     <div class="container mx-auto px-4 py-6">

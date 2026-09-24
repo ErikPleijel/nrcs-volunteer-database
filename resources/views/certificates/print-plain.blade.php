@@ -316,6 +316,18 @@
                         ->generate($verificationUrl)
                 );
             }
+            // Certificates without a holder (RCU membership) supply their
+            // own signed verification link.
+            elseif (!empty($certificate['verificationUrl'])) {
+                $verificationUrl = $certificate['verificationUrl'];
+
+                $qrBase64 = base64_encode(
+                    \SimpleSoftwareIO\QrCode\Facades\QrCode::format('svg')
+                        ->size(120)
+                        ->margin(1)
+                        ->generate($verificationUrl)
+                );
+            }
         @endphp
 
         <div class="certificate-page">
@@ -353,7 +365,8 @@
                 data-block-key="course_title_text"
                 style="left: {{ $coords['course_title_text']['x'] }}mm; top: {{ $coords['course_title_text']['y'] }}mm;"
             >
-                has successfully completed the training course on
+                {{-- Each certificate type's own line, as the branded template shows it. --}}
+                {{ $certificate['certifyText'] ?? 'has successfully completed the training course on' }}
             </div>
 
             {{-- Course title --}}
@@ -426,7 +439,12 @@
                 style="left: {{ $coords['footer_info']['x'] }}mm; top: {{ $coords['footer_info']['y'] }}mm;"
             >
                 <div class="certificate-info">
-                    Ref: {!! str_replace('/', '/<wbr>',  ($certificate['user']->user_id_reference ?? '—')) !!}
+                    {{-- An explicit reference wins (RCU: RCU-{id}/{BRANCH}). Otherwise
+                         personal certificates: the holder's reference. Organisation
+                         certificates have no user: the payment reference (membership,
+                         as the branded template shows), else the organisation's own
+                         reference (donation — no payment). --}}
+                    Ref: {!! str_replace('/', '/<wbr>', e($certificate['reference'] ?? $certificate['user']->user_id_reference ?? ($certificate['payment']->payment_reference ?? ($certificate['organisation']->org_reference ?? '—')))) !!}
                     Printed by: {{ $certificate['footerProducer'] ?? 'System' }} <br>on {{ now()->format('Y-m-d') }}
                 </div>
             </div>

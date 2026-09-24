@@ -15,7 +15,9 @@ use App\Models\Training;
 use App\Models\TrainingType;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\URL;
 
 
 
@@ -1143,6 +1145,21 @@ class CertificateController extends Controller
                     'updated_at'         => $now,
                 ];
             }
+        } elseif ($certificateType === 'rcu_membership') {
+            // Here, the itemIds are red_cross_unit_ids — only those the admin
+            // could actually print (in scope, currently paid) are recorded.
+            foreach ($this->eligibleRcusForPrinting($request)->pluck('id') as $unitId) {
+                $printRecords[] = [
+                    'user_id'            => null,
+                    'red_cross_unit_id'  => $unitId,
+                    'training_id'        => null,
+                    'printed_by_user_id' => $printedByUserId,
+                    'certificate_type'   => $certificateType,
+                    'printed_at'         => $now,
+                    'created_at'         => $now,
+                    'updated_at'         => $now,
+                ];
+            }
         } else {
             return response()->json(['message' => 'Invalid certificate type.'], 422);
         }
@@ -1180,16 +1197,20 @@ class CertificateController extends Controller
         }
 
         // Apply global access level filters to the main query.
-        // For org prints (user_id is null), scope by organisation.branch_id instead.
+        // For org prints (user_id is null), scope by organisation.branch_id instead;
+        // for RCU prints, by the unit's division (and its branch) — the same
+        // scoping as the RCU certificates page.
         if ($accessLevel === 'branch' && $userBranchId) {
             $query->where(function ($q) use ($userBranchId) {
                 $q->whereHas('user', fn ($u) => $u->where('branch_id', $userBranchId))
-                  ->orWhereHas('organisation', fn ($o) => $o->where('branch_id', $userBranchId));
+                  ->orWhereHas('organisation', fn ($o) => $o->where('branch_id', $userBranchId))
+                  ->orWhereHas('redCrossUnit.division', fn ($d) => $d->where('branch_id', $userBranchId));
             });
         } elseif ($accessLevel === 'division' && $userDivisionId) {
             $query->where(function ($q) use ($userDivisionId, $userBranchId) {
                 $q->whereHas('user', fn ($u) => $u->where('division_id', $userDivisionId))
-                  ->orWhereHas('organisation', fn ($o) => $o->where('branch_id', $userBranchId));
+                  ->orWhereHas('organisation', fn ($o) => $o->where('branch_id', $userBranchId))
+                  ->orWhereHas('redCrossUnit', fn ($r) => $r->where('division_id', $userDivisionId));
             });
         }
 
@@ -1216,21 +1237,27 @@ class CertificateController extends Controller
             $branchId = $request->input('branch_id');
             $query->where(function ($q) use ($branchId) {
                 $q->whereHas('user', fn ($u) => $u->where('branch_id', $branchId))
-                  ->orWhereHas('organisation', fn ($o) => $o->where('branch_id', $branchId));
+                  ->orWhereHas('organisation', fn ($o) => $o->where('branch_id', $branchId))
+                  ->orWhereHas('redCrossUnit.division', fn ($d) => $d->where('branch_id', $branchId));
             });
         }
 
-        // Division filter
+        // Division filter — people in the division, or the division's own units
         if ($request->filled('division_id')) {
-            $query->whereHas('user', function ($q) use ($request) {
-                $q->where('division_id', $request->input('division_id'));
+            $divisionId = $request->input('division_id');
+            $query->where(function ($q) use ($divisionId) {
+                $q->whereHas('user', fn ($u) => $u->where('division_id', $divisionId))
+                  ->orWhereHas('redCrossUnit', fn ($r) => $r->where('division_id', $divisionId));
             });
         }
 
-        // Red Cross Unit filter
+        // Red Cross Unit filter — the unit's members' certificates, or the
+        // unit's own RCU certificate
         if ($request->filled('red_cross_unit_id')) {
-            $query->whereHas('user', function ($q) use ($request) {
-                $q->where('red_cross_unit_id', $request->input('red_cross_unit_id'));
+            $unitId = $request->input('red_cross_unit_id');
+            $query->where(function ($q) use ($unitId) {
+                $q->whereHas('user', fn ($u) => $u->where('red_cross_unit_id', $unitId))
+                  ->orWhere('certificates_print.red_cross_unit_id', $unitId);
             });
         }
 
@@ -1248,7 +1275,7 @@ class CertificateController extends Controller
         }
 
         // Eager load relationships for displaying user and printer information
-        $certificatePrints = $query->with('user.branch', 'user.division', 'user.redCrossUnit', 'printedBy', 'organisation.branch')
+        $certificatePrints = $query->with('user.branch', 'user.division', 'user.redCrossUnit', 'printedBy', 'organisation.branch', 'redCrossUnit.division.branch')
             ->latest('printed_at')
             ->paginate(20);
 
@@ -1564,8 +1591,15 @@ class CertificateController extends Controller
         ?string $sign1Title = null,
         mixed   $sign2Title = null
     ): array {
+        // Same eligibility as organisationIndex()'s lists: a membership
+        // certificate needs an active membership (its builder reads the
+        // payment's dates), a donation certificate needs donations. Anything
+        // else posted (stale page, hand-crafted request) is skipped, not
+        // rendered from a null payment.
         $organisations = Organisation::with(['branch', 'activeMembership.membershipFee'])
             ->whereIn('id', $orgIds)
+            ->when($type === 'organisation_membership', fn ($q) => $q->whereHas('activeMembership'))
+            ->when($type === 'organisation_donation', fn ($q) => $q->whereHas('donations'))
             ->get();
 
         $certificatesData = [];
@@ -1597,6 +1631,11 @@ class CertificateController extends Controller
         $incomingLayout   = json_decode($request->input('layout', '{}'), true) ?: [];
         $layout           = $this->buildPlainLayout($incomingLayout);
         $certificatesData = $this->buildOrganisationCertificatesData($certificateType, $orgIds, $sign1Title, $sign2Title);
+
+        if (empty($certificatesData)) {
+            return redirect()->back()->with('error', 'None of the selected organisations are currently eligible for this certificate.');
+        }
+
         $certificatesData = $this->injectSignatureImages($certificatesData, $sign1ImageUrl, $sign1Name, $sign2ImageUrl, $sign2Name);
 
         return view('certificates.print-plain', [
@@ -1620,6 +1659,11 @@ class CertificateController extends Controller
         [$sign1ImageUrl, $sign1Name, $sign2ImageUrl, $sign2Name] = $this->resolveSignatureImagesFromRequest($request);
 
         $certificatesData = $this->buildOrganisationCertificatesData($certificateType, $orgIds, $sign1Title, $sign2Title);
+
+        if (empty($certificatesData)) {
+            return redirect()->back()->with('error', 'None of the selected organisations are currently eligible for this certificate.');
+        }
+
         $certificatesData = $this->injectSignatureImages($certificatesData, $sign1ImageUrl, $sign1Name, $sign2ImageUrl, $sign2Name);
 
         $view = $certificateType === 'organisation_donation'
@@ -1631,8 +1675,269 @@ class CertificateController extends Controller
         ]);
     }
 
+    /**
+     * One RCU membership certificate: the unit's current (active) annual fee
+     * period, with a signed QR verification link. Callers must only pass
+     * paid units (see buildRcuCertificatesData()).
+     */
+    protected function buildBrandedRcuMembershipCertificateData(
+        RedCrossUnit $unit,
+        ?string      $sign1Title = null,
+        mixed        $sign2Title = null
+    ): array {
+        $unit->loadMissing('division.branch', 'activeMembership.membershipFee');
+        $payment = $unit->activeMembership;
+
+        $divisionName = $unit->division->name ?? 'N/A';
+        $branchName   = $unit->division->branch->name ?? 'N/A';
+
+        $signaturesCount = ($sign2Title === false) ? 1 : 2;
+        $defaultSign1    = $sign1Title ?? 'Secretary General';
+        $defaultSign2    = ($signaturesCount === 2) ? ($sign2Title ?? 'Branch Chairman') : null;
+
+        return [
+            'orgName'             => 'Nigerian Red Cross Society',
+            'recipientName'       => $unit->name,
+            'primaryCertifyText'  => 'This is to certify that',
+            'certifyText'         => 'is a registered Red Cross Unit of the',
+            'courseTitle'         => "Nigerian Red Cross Society, {$divisionName}, {$branchName}",
+            'dateLine'            => 'valid from ' . $payment->payment_date->format('F j, Y') . ' to ' . $payment->expiry_date->format('F j, Y'),
+            'branchName'          => $branchName,
+            'defaultSign1'        => $defaultSign1,
+            'defaultSign2'        => $defaultSign2,
+            'signaturesCount'     => $signaturesCount,
+            'footerLocation'      => $branchName !== 'N/A' ? $branchName : 'NRCS HQ',
+            'footerProducer'      => Auth::id(),
+            'logoUrl'             => asset('images/NRCS_logo.jpg'),
+            'certificateImageUrl' => asset('images/certificates/certificate_of_membership.png'),
+            'payment'             => $payment,
+            'redCrossUnit'        => $unit,
+            // Plain template's Ref line (the branded one shows the payment's).
+            'reference'           => $unit->rcu_reference,
+            // Rendered as a QR code by both templates. No expiry, like the
+            // personal certificates' links.
+            'verificationUrl'     => URL::signedRoute('certificates.verify', [
+                'rcu'     => $unit->id_check_token,
+                'type'    => 'rcu_membership',
+                'payment' => $payment->id,
+            ]),
+            'user'                => null,
+        ];
+    }
+
+    /**
+     * Certificate payloads for the given units, skipping any that aren't
+     * currently paid (isPaid(): an approved, non-deleted, unexpired fee
+     * payment) — never renders from a missing payment.
+     */
+    protected function buildRcuCertificatesData(
+        Collection $units,
+        ?string    $sign1Title = null,
+        mixed      $sign2Title = null
+    ): array {
+        $units = (new \Illuminate\Database\Eloquent\Collection($units->all()))
+            ->loadMissing(['division.branch', 'activeMembership.membershipFee']);
+
+        return $units
+            ->filter(fn (RedCrossUnit $unit) => $unit->activeMembership !== null)
+            ->map(fn (RedCrossUnit $unit) => array_merge(
+                $this->buildBrandedRcuMembershipCertificateData($unit, $sign1Title, $sign2Title),
+                ['certificate_type' => 'rcu_membership']
+            ))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Red Cross Units the current admin may print certificates for: their
+     * own branch (via the unit's division) or division — the same scoping as
+     * RedCrossUnitController::index() / RedCrossUnit::isViewableBy(). A user
+     * with no admin access level gets nothing.
+     */
+    private function scopeRcusToViewer(\Illuminate\Database\Eloquent\Builder $query): \Illuminate\Database\Eloquent\Builder
+    {
+        $user = Auth::user();
+        $scopedId = $user->getScopedId();
+
+        return match ($user->getAccessLevel()) {
+            'national' => $query,
+            'branch'   => $scopedId ? $query->whereHas('division', fn ($q) => $q->where('branch_id', $scopedId)) : $query->whereRaw('1 = 0'),
+            'division' => $scopedId ? $query->where('division_id', $scopedId) : $query->whereRaw('1 = 0'),
+            default    => $query->whereRaw('1 = 0'),
+        };
+    }
+
+    /**
+     * "Certificates for Red Cross Units": currently paid units within the
+     * admin's scope, each with a per-fee-period Printed badge.
+     */
+    public function rcuCertificateIndex(Request $request)
+    {
+        $user        = Auth::user();
+        $accessLevel = $user->getAccessLevel();
+        $scopedId    = $user->getScopedId();
+
+        $userBranchId   = $user->getScopedBranchId();
+        $userDivisionId = $accessLevel === 'division' ? $scopedId : null;
+
+        $certificateTypes = ['rcu_membership' => 'Membership'];
+        $certificateType  = 'rcu_membership';
+
+        // isPaid(): an approved, non-deleted, unexpired fee payment.
+        $query = $this->scopeRcusToViewer(RedCrossUnit::query())
+            ->where('is_active', true)
+            ->whereHas('activeMembership')
+            ->with(['division.branch', 'activeMembership.membershipFee']);
+
+        $selectedBranchId = $accessLevel === 'national' ? $request->input('branch_id') : $userBranchId;
+        if ($accessLevel === 'national' && filled($selectedBranchId)) {
+            $query->whereHas('division', fn ($q) => $q->where('branch_id', $selectedBranchId));
+        }
+
+        if (in_array($accessLevel, ['national', 'branch'], true) && $request->filled('division_id')) {
+            $query->where('division_id', $request->input('division_id'));
+        }
+
+        if ($request->filled('search')) {
+            $search = $request->input('search');
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%");
+                if (is_numeric($search)) {
+                    $q->orWhere('id', (int) $search);
+                }
+            });
+        }
+
+        $records = $query->orderBy('name')->paginate(24)->withQueryString();
+
+        // Per fee period: "Printed" only if a print exists dated on or after
+        // the current payment's payment_date (an earlier period's print
+        // doesn't count after a renewal).
+        $lastPrintedAt = CertificatePrint::whereIn('red_cross_unit_id', $records->pluck('id'))
+            ->where('certificate_type', $certificateType)
+            ->selectRaw('red_cross_unit_id, MAX(printed_at) as last_printed_at')
+            ->groupBy('red_cross_unit_id')
+            ->pluck('last_printed_at', 'red_cross_unit_id');
+
+        $printedKeys = $records
+            ->filter(fn (RedCrossUnit $unit) => isset($lastPrintedAt[$unit->id])
+                && \Carbon\Carbon::parse($lastPrintedAt[$unit->id])->gte($unit->activeMembership->payment_date->copy()->startOfDay()))
+            ->pluck('id')
+            ->flip();
+
+        $branches = match ($accessLevel) {
+            'national' => Branch::orderBy('name')->get(),
+            default    => Branch::where('id', $userBranchId)->get(),
+        };
+
+        $divisions = match ($accessLevel) {
+            'national' => filled($selectedBranchId) ? Division::where('branch_id', $selectedBranchId)->orderBy('name')->get() : collect(),
+            'branch'   => Division::where('branch_id', $userBranchId)->orderBy('name')->get(),
+            'division' => Division::where('id', $userDivisionId)->get(),
+            default    => collect(),
+        };
+
+        $signatureTitles = SignatureTitle::includeInList()->orderBy('name')->get();
+
+        $signaturesDir   = public_path('images/signatures');
+        $signatureImages = is_dir($signaturesDir)
+            ? array_map('basename', glob($signaturesDir . '/*.png') ?: [])
+            : [];
+
+        $selectedSign1Id = session('selected_sign_1_id', '_line_only_');
+        $selectedSign2Id = session('selected_sign_2_id', '_line_only_');
+
+        $user->touchLastAdminActivity();
+
+        return view('certificates.red-cross-units', compact(
+            'records',
+            'branches',
+            'divisions',
+            'accessLevel',
+            'userBranchId',
+            'userDivisionId',
+            'signatureTitles',
+            'certificateTypes',
+            'certificateType',
+            'selectedSign1Id',
+            'selectedSign2Id',
+            'signatureImages',
+            'printedKeys'
+        ));
+    }
+
+    /**
+     * The posted unit ids the admin may print right now: in scope and
+     * currently paid. Anything else (stale page, hand-crafted request) is
+     * dropped rather than trusted.
+     */
+    private function eligibleRcusForPrinting(Request $request): \Illuminate\Database\Eloquent\Collection
+    {
+        $unitIds = $request->input('training_ids');
+
+        if (! is_array($unitIds) || empty($unitIds)) {
+            return new \Illuminate\Database\Eloquent\Collection();
+        }
+
+        return $this->scopeRcusToViewer(RedCrossUnit::query())
+            ->whereIn('id', $unitIds)
+            ->where('is_active', true)
+            ->whereHas('activeMembership')
+            ->orderBy('name')
+            ->get();
+    }
+
+    private function renderRcuCertificates(Request $request, bool $plain)
+    {
+        $this->rememberSignatureSelections($request);
+
+        if (! is_array($request->input('training_ids')) || empty($request->input('training_ids'))) {
+            return redirect()->back()->with('error', 'No certificates selected for printing.');
+        }
+
+        [$sign1Title, $sign2Title]                               = $this->resolveSignatureTitlesFromRequest($request);
+        [$sign1ImageUrl, $sign1Name, $sign2ImageUrl, $sign2Name] = $this->resolveSignatureImagesFromRequest($request);
+
+        $certificatesData = $this->buildRcuCertificatesData($this->eligibleRcusForPrinting($request), $sign1Title, $sign2Title);
+
+        if (empty($certificatesData)) {
+            return redirect()->back()->with('error', 'None of the selected Red Cross Units are currently eligible for this certificate.');
+        }
+
+        $certificatesData = $this->injectSignatureImages($certificatesData, $sign1ImageUrl, $sign1Name, $sign2ImageUrl, $sign2Name);
+
+        if ($plain) {
+            $incomingLayout = json_decode($request->input('layout', '{}'), true) ?: [];
+
+            return view('certificates.print-plain', [
+                'layout'       => $this->buildPlainLayout($incomingLayout),
+                'certificates' => $certificatesData,
+            ]);
+        }
+
+        return view('certificates.print-branded', [
+            'certificates' => $certificatesData,
+        ]);
+    }
+
+    public function rcuBulkPrintPlain(Request $request)
+    {
+        return $this->renderRcuCertificates($request, plain: true);
+    }
+
+    public function rcuBulkPrintBranded(Request $request)
+    {
+        return $this->renderRcuCertificates($request, plain: false);
+    }
+
     public function verify(Request $request)
     {
+        // RCU membership certificate: its own lookup; the personal
+        // certificate branch below is untouched.
+        if ($request->filled('rcu')) {
+            return $this->verifyRcuCertificate($request);
+        }
+
         $userToken  = $request->query('u');
         $type       = $request->query('type');
         $trainingId = $request->query('training_id');
@@ -1682,6 +1987,59 @@ class CertificateController extends Controller
                 'training'   => $training,
                 'trainingId' => $trainingId,
             ],
+        ]);
+    }
+
+    /**
+     * Verification of an RCU membership certificate's QR link
+     * (?rcu={id_check_token}&type=rcu_membership&payment={id}). The payment
+     * must be one of that unit's own approved, non-deleted payments — an id
+     * belonging to another unit (or nothing) fails without revealing
+     * anything. Shows the unit and the certificate's fee period with its live
+     * status; no personal fields.
+     */
+    private function verifyRcuCertificate(Request $request)
+    {
+        $fail = fn (string $reason) => view('certificates.verify', [
+            'valid'        => false,
+            'reason'       => $reason,
+            'user'         => null,
+            'certificate'  => null,
+            'redCrossUnit' => null,
+            'rcuPayment'   => null,
+        ]);
+
+        if ($request->query('type') !== 'rcu_membership') {
+            return $fail('invalid_parameters');
+        }
+
+        $unit = RedCrossUnit::with('division.branch')
+            ->where('id_check_token', $request->query('rcu'))
+            ->first();
+
+        if (! $unit) {
+            return $fail('unit_not_found');
+        }
+
+        $paymentId = filter_var($request->query('payment'), FILTER_VALIDATE_INT);
+
+        // Approved-only via the default scope.
+        $payment = $paymentId === false ? null : $unit->membershipPayments()
+            ->where('is_deleted', false)
+            ->with('membershipFee')
+            ->find($paymentId);
+
+        if (! $payment) {
+            return $fail('payment_not_found');
+        }
+
+        return view('certificates.verify', [
+            'valid'        => true,
+            'reason'       => null,
+            'user'         => null,
+            'certificate'  => ['type' => 'rcu_membership'],
+            'redCrossUnit' => $unit,
+            'rcuPayment'   => $payment,
         ]);
     }
 

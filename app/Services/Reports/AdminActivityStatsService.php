@@ -197,6 +197,10 @@ class AdminActivityStatsService
                 $query->join('organisations', 'organisations.id', '=', 'certificates_print.organisation_id')
                     ->where('organisations.branch_id', $branchId);
             }
+        } elseif (in_array($certificateType, self::RCU_CERTIFICATE_TYPES, true)) {
+            if ($branchId) {
+                $this->joinRcuDivision($query)->where('rcu_divisions.branch_id', $branchId);
+            }
         } else {
             if ($branchId) {
                 $query->join('users', 'users.id', '=', 'certificates_print.user_id')
@@ -217,6 +221,24 @@ class AdminActivityStatsService
     private const ORGANISATION_CERTIFICATE_TYPES = ['organisation_membership', 'organisation_donation'];
 
     /**
+     * Certificate types attributed through the Red Cross Unit they were
+     * printed for (user_id is null on these rows): unit → division → branch.
+     * Unlike organisations these resolve all the way down to unit level.
+     */
+    private const RCU_CERTIFICATE_TYPES = ['rcu_membership'];
+
+    /**
+     * Joins a certificates_print query to its Red Cross Unit and that unit's
+     * division (aliased, so it can't collide with a users/divisions join).
+     */
+    private function joinRcuDivision($query)
+    {
+        return $query
+            ->join('red_cross_units as rcu_units', 'rcu_units.id', '=', 'certificates_print.red_cross_unit_id')
+            ->join('divisions as rcu_divisions', 'rcu_divisions.id', '=', 'rcu_units.division_id');
+    }
+
+    /**
      * Drill-down table, national level: one row per active branch with its
      * total certificate print count (for the given certificate type) over
      * the rolling window. User-based certificate types join through `users`;
@@ -235,6 +257,13 @@ class AdminActivityStatsService
                 ->whereNotNull('organisations.branch_id')
                 ->selectRaw('organisations.branch_id, COUNT(*) as cnt')
                 ->groupBy('organisations.branch_id')
+                ->pluck('cnt', 'branch_id');
+        } elseif (in_array($certificateType, self::RCU_CERTIFICATE_TYPES, true)) {
+            $counts = $this->joinRcuDivision(CertificatePrint::query())
+                ->where('certificates_print.certificate_type', $certificateType)
+                ->whereBetween('certificates_print.printed_at', [$start, $end])
+                ->selectRaw('rcu_divisions.branch_id, COUNT(*) as cnt')
+                ->groupBy('rcu_divisions.branch_id')
                 ->pluck('cnt', 'branch_id');
         } else {
             $counts = CertificatePrint::query()
@@ -270,6 +299,23 @@ class AdminActivityStatsService
 
         [$start, $end] = $this->rollingWindow($trendYears);
 
+        if (in_array($certificateType, self::RCU_CERTIFICATE_TYPES, true)) {
+            $counts = $this->joinRcuDivision(CertificatePrint::query())
+                ->where('certificates_print.certificate_type', $certificateType)
+                ->where('rcu_divisions.branch_id', $branchId)
+                ->whereBetween('certificates_print.printed_at', [$start, $end])
+                ->selectRaw('rcu_units.division_id, COUNT(*) as cnt')
+                ->groupBy('rcu_units.division_id')
+                ->pluck('cnt', 'division_id');
+
+            return Division::where('branch_id', $branchId)->orderBy('name')->get(['id', 'name'])
+                ->map(fn ($division) => [
+                    'id'    => $division->id,
+                    'name'  => $division->name,
+                    'total' => (int) ($counts[$division->id] ?? 0),
+                ]);
+        }
+
         $counts = CertificatePrint::query()
             ->join('users', 'users.id', '=', 'certificates_print.user_id')
             ->where('certificates_print.certificate_type', $certificateType)
@@ -301,6 +347,25 @@ class AdminActivityStatsService
         }
 
         [$start, $end] = $this->rollingWindow($trendYears);
+
+        // RCU certificates belong to a unit by definition, so there is no
+        // "(No RC Unit)" bucket for them.
+        if (in_array($certificateType, self::RCU_CERTIFICATE_TYPES, true)) {
+            $counts = $this->joinRcuDivision(CertificatePrint::query())
+                ->where('certificates_print.certificate_type', $certificateType)
+                ->where('rcu_units.division_id', $divisionId)
+                ->whereBetween('certificates_print.printed_at', [$start, $end])
+                ->selectRaw('certificates_print.red_cross_unit_id, COUNT(*) as cnt')
+                ->groupBy('certificates_print.red_cross_unit_id')
+                ->pluck('cnt', 'red_cross_unit_id');
+
+            return RedCrossUnit::where('division_id', $divisionId)->orderBy('name')->get(['id', 'name'])
+                ->map(fn ($unit) => [
+                    'id'    => $unit->id,
+                    'name'  => $unit->name,
+                    'total' => (int) ($counts[$unit->id] ?? 0),
+                ]);
+        }
 
         $counts = CertificatePrint::query()
             ->join('users', 'users.id', '=', 'certificates_print.user_id')

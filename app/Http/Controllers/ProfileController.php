@@ -671,13 +671,30 @@ class ProfileController extends Controller
         // organisation contacts.
         $canPayOnline = ! blank($authUser->email);
 
+        $allCertificatePrints = $redCrossUnit->certificatePrints()
+            ->with('printedBy')
+            ->orderByDesc('printed_at')
+            ->get();
+
+        $certificatePrintsLimitMessage = $allCertificatePrints->count() >= 6;
+
+        $certificatePrints = $allCertificatePrints->map(function (CertificatePrint $print) {
+            return [
+                'printed_at'       => $print->printed_at?->format('M d, Y') ?? '—',
+                'certificate_type' => $print->certificate_type === 'rcu_membership' ? 'RCU – Membership' : ucwords(str_replace('_', ' ', $print->certificate_type)),
+                'printed_by'       => $print->printedBy?->full_name ?? $print->printedBy?->email ?? '—',
+            ];
+        });
+
         return view('profile.red-cross-unit', compact(
             'redCrossUnit',
             'membershipPayments',
             'currentMembership',
             'showingLimitMessage',
             'hasEverHadRcuPayment',
-            'canPayOnline'
+            'canPayOnline',
+            'certificatePrints',
+            'certificatePrintsLimitMessage'
         ));
     }
 

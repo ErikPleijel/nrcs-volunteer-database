@@ -260,6 +260,18 @@
                         ->generate($verificationUrl)
                 );
             }
+            // Certificates without a holder (RCU membership) supply their
+            // own signed verification link.
+            elseif (!empty($certificate['verificationUrl'])) {
+                $verificationUrl = $certificate['verificationUrl'];
+
+                $qrBase64 = base64_encode(
+                    \SimpleSoftwareIO\QrCode\Facades\QrCode::format('svg')
+                        ->size(120)
+                        ->margin(1)
+                        ->generate($verificationUrl)
+                );
+            }
         @endphp
 
 
@@ -325,7 +337,10 @@
                 <footer class="footer">
                     <div class="footer-left">
                         <div class="certificate-info">
-                            Ref: {{ $certificate['training']->training_reference ?? ($certificate['payment']->payment_reference ?? '—') }}<br>
+                            {{-- An explicit reference wins (only RCU certificates set one:
+                                 RCU-{id}/{BRANCH}, as on the plain template); otherwise the
+                                 training or payment reference as before. --}}
+                            Ref: {{ $certificate['reference'] ?? $certificate['training']->training_reference ?? ($certificate['payment']->payment_reference ?? '—') }}<br>
                             Printed by: {{ $certificate['footerProducer'] ?? 'System' }} on {{ now()->format('Y-m-d') }}
                         </div>
                     </div>

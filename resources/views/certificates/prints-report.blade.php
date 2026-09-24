@@ -44,6 +44,7 @@
                                 <option value="volunteering" {{ request('certificate_type') == 'volunteering' ? 'selected' : '' }}>Volunteering</option>
                                 <option value="organisation_membership" {{ request('certificate_type') == 'organisation_membership' ? 'selected' : '' }}>Organisation – Membership</option>
                                 <option value="organisation_donation" {{ request('certificate_type') == 'organisation_donation' ? 'selected' : '' }}>Organisation – Donation</option>
+                                <option value="rcu_membership" {{ request('certificate_type') == 'rcu_membership' ? 'selected' : '' }}>RCU – Membership</option>
                             </select>
                         </div>
 
@@ -218,6 +219,7 @@
                             'volunteering'            => 'Volunteering',
                             'organisation_membership' => 'Organisation – Membership',
                             'organisation_donation'   => 'Organisation – Donation',
+                            'rcu_membership'          => 'RCU – Membership',
                         ];
                     @endphp
 
@@ -244,19 +246,25 @@
                                     <span class="text-gray-900">{{ $print->organisation->name }}</span>
                                     <br>
                                     <span class="text-gray-500 text-xs">Organisation</span>
+                                @elseif($print->redCrossUnit)
+                                    <a href="{{ route('red-cross-units.show', $print->redCrossUnit) }}" class="text-blue-600 hover:text-blue-900">
+                                        {{ $print->redCrossUnit->name }}
+                                    </a>
+                                    <br>
+                                    <span class="text-gray-500 text-xs">Red Cross Unit</span>
                                 @else
                                     <span class="text-gray-400">—</span>
                                 @endif
                             </td>
 
                             <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {{ $print->user->branch->name ?? ($print->organisation->branch->name ?? 'N/A') }}
+                                {{ $print->user->branch->name ?? $print->organisation->branch->name ?? $print->redCrossUnit->division->branch->name ?? 'N/A' }}
                             </td>
                             <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {{ $print->user->division->name ?? 'N/A' }}
+                                {{ $print->user->division->name ?? $print->redCrossUnit->division->name ?? 'N/A' }}
                             </td>
                             <td class="px-3 py-4 text-sm text-gray-500 whitespace-normal">
-                                {{ $print->user->redCrossUnit->name ?? 'N/A' }}
+                                {{ $print->user->redCrossUnit->name ?? $print->redCrossUnit->name ?? 'N/A' }}
                             </td>
 
                             <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">

@@ -571,6 +571,12 @@ Route::middleware(['auth', 'verified.or.absent'])->group(function () {
             Route::get('/organisations/certificates', [CertificateController::class, 'organisationIndex'])->name('organisations.certificates.index');
             Route::post('/organisations/certificates/print/plain', [CertificateController::class, 'organisationBulkPrintPlain'])->name('organisations.certificates.print.plain');
             Route::post('/organisations/certificates/print/branded', [CertificateController::class, 'organisationBulkPrintBranded'])->name('organisations.certificates.print.branded');
+
+            // RCU membership certificates. Under /certificates rather than
+            // /red-cross-units, where /{red_cross_unit} would capture "certificates".
+            Route::get('/certificates/red-cross-units', [CertificateController::class, 'rcuCertificateIndex'])->name('red-cross-units.certificates.index');
+            Route::post('/certificates/red-cross-units/print/plain', [CertificateController::class, 'rcuBulkPrintPlain'])->name('red-cross-units.certificates.print.plain');
+            Route::post('/certificates/red-cross-units/print/branded', [CertificateController::class, 'rcuBulkPrintBranded'])->name('red-cross-units.certificates.print.branded');
         });
         Route::resource('organisations', OrganisationController::class, ['except' => ['destroy']]);
         Route::post('/organisations/{organisation}/archive', [OrganisationController::class, 'archive'])->name('organisations.archive');

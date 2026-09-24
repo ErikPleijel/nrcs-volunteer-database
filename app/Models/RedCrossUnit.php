@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Str;
 
 class RedCrossUnit extends Model
 {
@@ -22,6 +23,37 @@ class RedCrossUnit extends Model
     protected $casts = [
         'is_active' => 'boolean',
     ];
+
+    /**
+     * Opaque id_check_token for the membership certificate's QR verification
+     * link — same generation as User's.
+     */
+    protected static function booted()
+    {
+        static::creating(function ($unit) {
+            if (empty($unit->id_check_token)) {
+                $unit->id_check_token = Str::random(32);
+            }
+        });
+    }
+
+    public function certificatePrints(): HasMany
+    {
+        return $this->hasMany(CertificatePrint::class, 'red_cross_unit_id');
+    }
+
+    /**
+     * Human-readable reference, RCU-{id}/{BRANCH} — same id grouping and
+     * branch-code fallback as MembershipPayment::payment_reference.
+     * Display-only; never use for lookups.
+     */
+    public function getRcuReferenceAttribute(): string
+    {
+        $branch = $this->division?->branch;
+        $branchCode = strtoupper($branch->code ?? $branch->name ?? 'UNK');
+
+        return 'RCU-'.number_format($this->id, 0, '.', "\u{2009}").'/'.$branchCode;
+    }
 
     /**
      * A red cross unit belongs to a division

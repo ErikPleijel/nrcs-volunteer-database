@@ -29,6 +29,25 @@ $app = Application::configure(basePath: dirname(__DIR__))
         $middleware->validateCsrfTokens(except: ['webhooks/paystack']);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        // A tampered/altered certificate QR link (the `signed` middleware on
+        // certificates.verify) gets the public verify page's friendly
+        // "Verification Failed" state instead of the generic 403 — for that
+        // route only; every other signed route keeps the default.
+        $exceptions->renderable(function (\Illuminate\Routing\Exceptions\InvalidSignatureException $e, \Illuminate\Http\Request $request) {
+            if (! $request->routeIs('certificates.verify')) {
+                return null;
+            }
+
+            return response()->view('certificates.verify', [
+                'valid'        => false,
+                'reason'       => 'invalid_signature',
+                'user'         => null,
+                'certificate'  => null,
+                'redCrossUnit' => null,
+                'rcuPayment'   => null,
+            ], 403);
+        });
+
         $exceptions->renderable(function (\Symfony\Component\HttpKernel\Exception\HttpExceptionInterface $e, \Illuminate\Http\Request $request) {
             if ($e->getStatusCode() !== 419) {
                 return null;

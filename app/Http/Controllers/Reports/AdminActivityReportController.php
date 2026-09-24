@@ -50,6 +50,9 @@ class AdminActivityReportController extends Controller
             'volunteering'            => 'Volunteering',
             'organisation_membership' => 'Organisation – Membership',
             'organisation_donation'   => 'Organisation – Donation',
+            // Attributed via the unit's division, so it drills down to
+            // division and unit level like personal types (not clamped below).
+            'rcu_membership'          => 'RCU – Membership',
         ];
         $certificateType = $request->input('certificate_type', 'membership');
         if (! array_key_exists($certificateType, $certificateTypeOptions)) {

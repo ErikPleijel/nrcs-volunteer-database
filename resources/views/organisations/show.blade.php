@@ -332,8 +332,11 @@
                 </div>
                 @can('print_certificates')
                 <div class="mt-3">
+                    {{-- Same rule as the certificates list (organisationIndex():
+                         whereHas('activeMembership')), so the button never leads to
+                         an empty list for pending-only or expired memberships. --}}
                     <a
-                        @if($orgPayments->count() === 0)
+                        @if(! $organisation->isMember())
                             href="#"
                             class="btn-certificates opacity-40 pointer-events-none"
                             aria-disabled="true"
@@ -437,8 +440,11 @@
                 </div>
                 @can('print_certificates')
                 <div class="mt-3">
+                    {{-- Approved, non-deleted donations only — the certificates
+                         list's whereHas('donations') rule; $orgDonations above also
+                         includes pending ones. --}}
                     <a
-                        @if($orgDonations->count() === 0)
+                        @if(! $organisation->donations()->exists())
                             href="#"
                             class="btn-certificates opacity-40 pointer-events-none"
                             aria-disabled="true"
