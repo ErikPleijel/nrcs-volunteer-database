@@ -75,6 +75,9 @@ Route::get('/volunteer-journey', function () {
 Route::get('/membership-journey', function () {
     return view('pages.membership-journey');
 })->name('membership.journey');
+Route::get('/volunteer-member-journey', function () {
+    return view('pages.volunteer-member-journey');
+})->name('volunteer-member.journey');
 Route::get('/corporate-membership', function () {
     return view('pages.corporate-journey', [
         'membershipFees' => \App\Models\MembershipFee::where('for_organizations', 1)->where('is_active', 1)->orderBy('amount')->get(),

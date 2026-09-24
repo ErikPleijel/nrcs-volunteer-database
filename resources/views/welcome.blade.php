@@ -252,11 +252,7 @@
             </div>
 
             <div class="watermark-bg-gray-50 rounded-lg shadow-lg p-4">
-                <div class="mb-6 text-center">
-                    <p class="text-lg text-gray-600 font-medium">
-                        Click on the markers to view branch statistics, contact details and zoom into divisions
-                    </p>
-                </div>
+
 
                 <div id="branchesMap" class="h-[28rem] w-full rounded-lg bg-gray-100">
                     @if($branchesCount == 0)
@@ -270,8 +266,14 @@
                 </div>
 
                 @if($branchesCount > 0)
-                    <div class="mt-4 flex flex-col sm:flex-row gap-4 justify-between items-center">
-                        {{-- Placeholder for future map controls/legend if needed --}}
+                    <div class="mt-4 flex flex-col sm:flex-row items-center gap-4 rounded-lg border-2 border-blue-200 border-l-8 border-l-blue-600 bg-blue-50 px-6 py-5 text-center sm:text-left">
+                        <div class="flex-shrink-0 w-12 h-12 rounded-full bg-blue-600 text-white flex items-center justify-center shadow">
+                            <i class="fas fa-map-marker-alt text-2xl"></i>
+                        </div>
+                        <p class="text-lg text-gray-700">
+                            <span class="block sm:inline text-xl font-bold text-blue-700">Find your local Red Cross</span>
+                            — tap a marker to see branch details. Explore stats, contacts, and divisions near you.
+                        </p>
                     </div>
                 @endif
             </div>
@@ -326,7 +328,7 @@
                         @elseif($u->wantsMembership())
                             {{-- Existing "interested" branch, unchanged --}}
                             <div class="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-blue-900">
-                                <div class="font-semibold">Become a member/volunteer</div>
+                                <div class="font-semibold">Become a member or volunteer</div>
                                 <div class="mt-2 text-base space-y-2">
                                     <p>You've marked that you're interested in membership.</p>
                                     <p>To activate it, please make your membership payment.</p>
@@ -372,22 +374,91 @@
             <div class="text-center">
                 <div class="mb-12 mt-16">
                     <h3 class="text-3xl font-bold text-gray-900 mb-4">Ready to Make a Difference?</h3>
+                    <p class="text-lg text-gray-600 max-w-2xl mx-auto">
+                        Join thousands of compassionate individuals who are making a real difference in communities across Nigeria.
+                    </p>
                 </div>
 
-                <div class="flex flex-col sm:flex-row gap-6 justify-center items-center">
-                    <a href="{{ route('volunteer.journey') }}"
-                       class="bg-red-600 text-white px-8 py-4 rounded-lg font-semibold hover:bg-red-700 transition duration-300 text-center min-w-48 shadow-lg text-xl">
-                        <i class="fas fa-hands-helping mr-2"></i>Become a<br>Volunteer
-                    </a>
+                @php
+                    $joinCards = [
+                        [
+                            'route' => 'volunteer.journey',
+                            'badge' => 'V',
+                            'title' => 'Volunteer',
+                            'tagline' => 'Give your time — no fee',
+                            'description' => 'Serve hands-on with your local Red Cross unit — emergency response, first aid, community programs. No membership fee, no payment: just your time and skills.',
+                            'categories' => [],
+                            'cta' => 'Become a Volunteer',
+                            'bar' => 'bg-green-600',
+                            'badgeClass' => 'bg-green-100 text-green-700',
+                            'accent' => 'text-green-600',
+                            'button' => 'bg-green-600 hover:bg-green-700',
+                        ],
+                        [
+                            'route' => 'volunteer-member.journey',
+                            'badge' => 'V+M',
+                            'title' => 'Volunteer & Member',
+                            'tagline' => 'Serve, and pay a small fee',
+                            'description' => 'Serve as an active volunteer in a Red Cross unit and register as a paying member.',
+                            'categories' => $volunteerMemberFeeNames,
+                            'cta' => 'Become a Volunteer & Member',
+                            'bar' => 'bg-red-600',
+                            'badgeClass' => 'bg-red-100 text-red-700',
+                            'accent' => 'text-red-600',
+                            'button' => 'bg-red-600 hover:bg-red-700',
+                        ],
+                        [
+                            'route' => 'membership.journey',
+                            'badge' => 'M',
+                            'title' => 'Member',
+                            'tagline' => 'Support us financially',
+                            'description' => 'Support our mission without volunteering. Register and pay online in minutes.',
+                            'categories' => $supportingMemberFeeNames,
+                            'cta' => 'Become a Member',
+                            'bar' => 'bg-purple-600',
+                            'badgeClass' => 'bg-purple-100 text-purple-700',
+                            'accent' => 'text-purple-600',
+                            'button' => 'bg-purple-600 hover:bg-purple-700',
+                        ],
+                        [
+                            'route' => 'corporate.journey',
+                            'badge' => 'C',
+                            'title' => 'Corporate Member',
+                            'tagline' => 'Partner as an organisation',
+                            'description' => "Register your company or organisation as a corporate supporter of the Nigerian Red Cross Society's humanitarian work.",
+                            'categories' => [],
+                            'cta' => 'Become a Corporate Member',
+                            'bar' => 'bg-indigo-600',
+                            'badgeClass' => 'bg-indigo-100 text-indigo-700',
+                            'accent' => 'text-indigo-600',
+                            'button' => 'bg-indigo-600 hover:bg-indigo-700',
+                        ],
+                    ];
+                @endphp
 
-                    <a href="{{ route('membership.journey') }}"
-                       class="bg-blue-600 text-white px-8 py-4 rounded-lg font-semibold hover:bg-blue-700 transition duration-300 text-center min-w-48 shadow-lg text-xl">
-                        <i class="fas fa-user-plus mr-2"></i>Become a <br>Member/Volunteer
-                    </a>
-                    <a href="{{ route('corporate.journey') }}"
-                       class="bg-green-600 text-white px-8 py-4 rounded-lg font-semibold hover:bg-green-700 transition duration-300 text-center min-w-48 shadow-lg text-xl">
-                        <i class="fas fa-building mr-2"></i>Become a<br>Corporate Member
-                    </a>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 text-left">
+                    @foreach($joinCards as $card)
+                        <div class="bg-white rounded-xl shadow-lg overflow-hidden flex flex-col">
+                            <div class="h-1.5 {{ $card['bar'] }}"></div>
+                            <div class="p-6 flex flex-col flex-1">
+                                <div class="w-14 h-14 rounded-full flex items-center justify-center font-bold text-lg mb-4 {{ $card['badgeClass'] }}">
+                                    {{ $card['badge'] }}
+                                </div>
+                                <h4 class="text-xl font-bold text-gray-900 mb-1">{{ $card['title'] }}</h4>
+                                <p class="text-xs font-semibold uppercase tracking-wide mb-3 {{ $card['accent'] }}">{{ $card['tagline'] }}</p>
+                                <p class="text-sm text-gray-600 flex-1">
+                                    {{ $card['description'] }}
+                                    @if(!empty($card['categories']))
+                                        Categories: {{ implode(', ', $card['categories']) }}.
+                                    @endif
+                                </p>
+                                <a href="{{ route($card['route']) }}"
+                                   class="mt-6 block text-white text-center font-semibold px-4 py-3 rounded-lg shadow transition duration-300 {{ $card['button'] }}">
+                                    {{ $card['cta'] }}
+                                </a>
+                            </div>
+                        </div>
+                    @endforeach
                 </div>
             </div>
         </div>

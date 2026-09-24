@@ -108,19 +108,43 @@ class MembershipFee extends Model
 
     /**
      * Get an array of active one-year memberships with name and amount.
+     * Defaults to the supporting-member fees; pass true for the
+     * volunteer-and-member fees instead.
      *
      * @return \Illuminate\Database\Eloquent\Collection
      */
-    public static function getActiveOneYearMemberships()
+    public static function getActiveOneYearMemberships(bool $volunteerFees = false)
     {
         return self::query()
             ->select('name', 'amount', 'description')
             ->where('is_active', true)
             ->where('validity_years', 1)
-            ->where('is_volunteer_fee', false)
+            ->where('is_volunteer_fee', $volunteerFees)
             ->distinct()
             ->orderBy('amount', 'desc')
             ->get();
+    }
+
+    /**
+     * Distinct names of active, one-year, individual (non-organisation) fees,
+     * cheapest first. One name per entry even if several rows share it.
+     *
+     * @return \Illuminate\Support\Collection<int, string>
+     */
+    public static function activeOneYearPersonFeeNames(bool $volunteerFees): \Illuminate\Support\Collection
+    {
+        return self::query()
+            ->active()
+            ->forPersons()
+            ->where('validity_years', 1)
+            ->where('is_volunteer_fee', $volunteerFees)
+            ->select('name')
+            ->selectRaw('MIN(amount) as min_amount')
+            ->groupBy('name')
+            ->orderBy('min_amount')
+            ->orderBy('name')
+            ->pluck('name')
+            ->values();
     }
 
 

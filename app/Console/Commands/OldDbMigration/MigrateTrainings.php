@@ -2,12 +2,15 @@
 
 namespace App\Console\Commands\OldDbMigration;
 
+use App\Console\Commands\OldDbMigration\Concerns\SanitizesOldDbDates;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 class MigrateTrainings extends Command
 {
+    use SanitizesOldDbDates;
+
     protected $signature = 'migrate:trainings
                             {--chunk=500 : Number of records to process per chunk}
                             {--clear : Clear existing trainings before migration}
@@ -78,14 +81,31 @@ class MigrateTrainings extends Command
                                 }
                             }
 
+                            // trainings.training_date is a DATE column (wide range);
+                            // submitted_at/decided_at are TIMESTAMP columns (narrow
+                            // 1970-2038 range) — TrainingDate is validated separately
+                            // for its use as decided_at's fallback, since a date that's
+                            // fine for the `date` column can still be out of range for
+                            // a TIMESTAMP column. Previously these were passed straight
+                            // through from the old DB with no parsing/validation at all.
+                            $convertedTrainingDate = $this->sanitizeOldDbDate(
+                                $training->TrainingDate, 'date', 'trainings', $training->TrainingID, 'TrainingDate'
+                            )?->format('Y-m-d');
+                            $convertedSubmittedAt = $this->sanitizeOldDbDate(
+                                $training->Timestamp, 'timestamp', 'trainings', $training->TrainingID, 'Timestamp'
+                            )?->format('Y-m-d H:i:s');
+                            $decidedAtTrainingDate = $this->sanitizeOldDbDate(
+                                $training->TrainingDate, 'timestamp', 'trainings', $training->TrainingID, 'TrainingDate (decided_at)'
+                            )?->format('Y-m-d H:i:s');
+
                             $newTraining = [
                                 'id' => $training->TrainingID, // Preserve original ID
                                 'user_id' => $training->PersonID,
                                 'training_type_id' => $training->TrainingTypeID,
-                                'training_date' => $training->TrainingDate,
+                                'training_date' => $convertedTrainingDate,
                                 'duration' => $training->Duration,
                                 'valid_years' => $training->ValidYears,
-                                'submitted_at' => $training->Timestamp,
+                                'submitted_at' => $convertedSubmittedAt,
                                 'submission_name' => $this->cleanString($training->SubmissionName),
                                 'is_deleted' => $this->convertBoolean($training->IsDeleted),
                                 'reference' => $this->cleanString($training->Reference),
@@ -96,7 +116,7 @@ class MigrateTrainings extends Command
                                 'updated_at' => now(),
                                 // Legacy records are pre-approved (no approval step existed).
                                 'approval_status' => 'approved',
-                                'decided_at' => $training->TrainingDate ?? $training->Timestamp ?? now(),
+                                'decided_at' => $decidedAtTrainingDate ?? $convertedSubmittedAt ?? now(),
                                 'decided_by_user_id' => null,
                             ];
 

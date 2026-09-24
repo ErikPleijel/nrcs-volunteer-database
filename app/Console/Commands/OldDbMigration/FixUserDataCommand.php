@@ -32,7 +32,7 @@ class FixUserDataCommand extends Command
             // is_volunteer_fee defaults to false on import (migrate:membership-fees
             // never sets it) and step 6 below depends on it being correct, so it
             // must be flagged before anything reads it.
-            $this->info('Setting is_volunteer_fee = TRUE for Junior/School/Detachment/Service feesâ€¦');
+            $this->info('Setting is_volunteer_fee = TRUE for Junior/School/Detachment/Service/Associate feesâ€¦');
 
             DB::update("
                 UPDATE membership_fees
@@ -41,6 +41,7 @@ class FixUserDataCommand extends Command
                    OR name LIKE '%School%'
                    OR name LIKE '%Detachment%'
                    OR name LIKE '%Service%'
+                   OR name LIKE '%Associate%'
             ");
 
             $this->info('âœ” Done');

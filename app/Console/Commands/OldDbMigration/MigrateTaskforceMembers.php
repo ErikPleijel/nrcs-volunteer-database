@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands\OldDbMigration;
 
+use App\Console\Commands\OldDbMigration\Concerns\SanitizesOldDbDates;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -9,6 +10,8 @@ use Carbon\Carbon;
 
 class MigrateTaskForceMembers extends Command
 {
+    use SanitizesOldDbDates;
+
     protected $signature = 'migrate:task-force-members
                             {--chunk=1000 : Number of records to process per chunk}
                             {--clear : Clear existing task force members before migration}
@@ -88,7 +91,7 @@ class MigrateTaskForceMembers extends Command
             DB::connection('old_db')
                 ->table($oldTableName)
                 ->orderBy('TaskForceMemberID')
-                ->chunk($chunk, function ($members) use (&$migratedCount, &$skippedCount, &$errorCount, &$duplicateCount, $progressBar, $dryRun) {
+                ->chunk($chunk, function ($members) use (&$migratedCount, &$skippedCount, &$errorCount, &$duplicateCount, $progressBar, $dryRun, $oldTableName) {
 
                     $memberData = [];
 
@@ -123,7 +126,7 @@ class MigrateTaskForceMembers extends Command
                                 'id' => $member->TaskForceMemberID, // Preserve original ID
                                 'task_force_id' => (int) $member->TaskForceID,
                                 'user_id' => (int) $member->PersonID,
-                                'timestamp' => $this->convertTimestamp($member->TimeStamp),
+                                'timestamp' => $this->convertTimestamp($member->TimeStamp, $member->TaskForceMemberID, $oldTableName),
                                 'created_at' => now(),
                                 'updated_at' => now(),
                             ];
@@ -185,17 +188,12 @@ class MigrateTaskForceMembers extends Command
         return Command::SUCCESS;
     }
 
-    private function convertTimestamp($timestamp)
+    private function convertTimestamp($timestamp, $sourceId, string $sourceTable): Carbon
     {
-        if ($timestamp === null) {
-            return now();
-        }
-
-        try {
-            return Carbon::parse($timestamp);
-        } catch (\Exception $e) {
-            return now();
-        }
+        // task_force_members.timestamp is NOT NULL (defaults to CURRENT_TIMESTAMP), so an
+        // unparseable/out-of-range value falls back to now() rather than null,
+        // matching the original behavior.
+        return $this->sanitizeOldDbDate($timestamp, 'timestamp', $sourceTable, $sourceId, 'TimeStamp') ?? now();
     }
 
     private function showStatistics()

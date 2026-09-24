@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands\OldDbMigration;
 
+use App\Console\Commands\OldDbMigration\Concerns\SanitizesOldDbDates;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -10,6 +11,8 @@ use Illuminate\Support\Facades\Schema;
 
 class MigrateMembershipPayments extends Command
 {
+    use SanitizesOldDbDates;
+
     protected $signature = 'migrate:membership-payments
                             {--chunk=500 : Number of records to process per chunk}
                             {--clear : Clear existing membership payments before migration}
@@ -102,14 +105,35 @@ class MigrateMembershipPayments extends Command
                                 }
                             }
 
+                            // membership_payments.payment_date/expiry_date are DATE
+                            // columns (wide range); submitted_at/decided_at are TIMESTAMP
+                            // columns (narrow 1970-2038 range) — PaymentDate is validated
+                            // separately for its use as decided_at's fallback, since a
+                            // date that's fine for the `payment_date` column can still be
+                            // out of range for a TIMESTAMP column. Previously these were
+                            // passed straight through from the old DB with no
+                            // parsing/validation at all.
+                            $convertedPaymentDate = $this->sanitizeOldDbDate(
+                                $payment->PaymentDate, 'date', 'membershippayments', $payment->PaymentID, 'PaymentDate'
+                            )?->format('Y-m-d');
+                            $convertedExpiryDate = $this->sanitizeOldDbDate(
+                                $payment->ExpiryDate, 'date', 'membershippayments', $payment->PaymentID, 'ExpiryDate'
+                            )?->format('Y-m-d');
+                            $convertedSubmittedAt = $this->sanitizeOldDbDate(
+                                $payment->Timestamp, 'timestamp', 'membershippayments', $payment->PaymentID, 'Timestamp'
+                            )?->format('Y-m-d H:i:s');
+                            $decidedAtPaymentDate = $this->sanitizeOldDbDate(
+                                $payment->PaymentDate, 'timestamp', 'membershippayments', $payment->PaymentID, 'PaymentDate (decided_at)'
+                            )?->format('Y-m-d H:i:s');
+
                             $newPayment = [
                                 'id' => $payment->PaymentID, // Preserve original ID
                                 'user_id' => $payment->PersonID,
-                                'payment_date' => $payment->PaymentDate,
-                                'expiry_date' => $payment->ExpiryDate,
+                                'payment_date' => $convertedPaymentDate,
+                                'expiry_date' => $convertedExpiryDate,
                                 'membership_fee_id' => $payment->MembershipFeeID,
                                 'is_deleted' => $this->convertBoolean($payment->IsDeleted),
-                                'submitted_at' => $payment->Timestamp,
+                                'submitted_at' => $convertedSubmittedAt,
                                 'submission_name' => $this->cleanString($payment->SubmissionName),
                                 'reference' => $this->cleanString($payment->Reference),
                                 'submitted_by_user_id' => $payment->SubmissionID,
@@ -120,7 +144,7 @@ class MigrateMembershipPayments extends Command
                                 'updated_at' => now(),
                                 // Legacy records are pre-approved (no approval step existed).
                                 'approval_status' => 'approved',
-                                'decided_at' => $payment->PaymentDate ?? $payment->Timestamp ?? now(),
+                                'decided_at' => $decidedAtPaymentDate ?? $convertedSubmittedAt ?? now(),
                                 'decided_by_user_id' => null,
                             ];
 

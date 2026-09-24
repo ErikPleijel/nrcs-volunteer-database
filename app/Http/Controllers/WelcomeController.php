@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Branch;
+use App\Models\MembershipFee;
 use App\Services\Reports\ActivityStatsService;
 use App\Services\Reports\BranchStatsService;
 use App\Services\Reports\MembershipStatsService;
@@ -54,6 +55,10 @@ class WelcomeController extends Controller
         // Get statistics for all branches for the map
         $branchesStats = $this->branchStatsService->getAllBranchesStats();
 
+        // Fee category names for the "Ready to Make a Difference?" cards
+        $volunteerMemberFeeNames = MembershipFee::activeOneYearPersonFeeNames(true)->all();
+        $supportingMemberFeeNames = MembershipFee::activeOneYearPersonFeeNames(false)->all();
+
         return view('welcome', compact(
             'totalMembers',
             'totalVolunteers',
@@ -62,7 +67,9 @@ class WelcomeController extends Controller
             'totalActivityHours',
             'branchesCount',
             'branches',
-            'branchesStats'
+            'branchesStats',
+            'volunteerMemberFeeNames',
+            'supportingMemberFeeNames'
         ));
     }
 }

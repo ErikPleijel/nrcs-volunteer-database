@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands\OldDbMigration;
 
+use App\Console\Commands\OldDbMigration\Concerns\SanitizesOldDbDates;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -9,6 +10,8 @@ use Carbon\Carbon;
 
 class MigrateTaskForces extends Command
 {
+    use SanitizesOldDbDates;
+
     protected $signature = 'migrate:task-forces
                             {--chunk=500 : Number of records to process per chunk}
                             {--clear : Clear existing task forces before migration}
@@ -90,7 +93,7 @@ class MigrateTaskForces extends Command
                                 'task_force_type_id' => (int) $force->TaskForceTypeID,
                                 'branch_id' => $branchId,
                                 // 'division_id' => (int) $force->DivisionID, // Removed as per request
-                                'timestamp' => $this->convertTimestamp($force->TimeStamp),
+                                'timestamp' => $this->convertTimestamp($force->TimeStamp, $force->TaskForceID),
                                 'team_leader_user_id' => $force->TeamLeaderID ? (int) $force->TeamLeaderID : null,
                                 'assist_team_leader_user_id' => $force->AssistTeamLeaderID ? (int) $force->AssistTeamLeaderID : null,
                                 'inactive' => $this->convertBoolean($force->Inactive),
@@ -175,17 +178,12 @@ class MigrateTaskForces extends Command
         return (bool) $value;
     }
 
-    private function convertTimestamp($timestamp)
+    private function convertTimestamp($timestamp, $sourceId): Carbon
     {
-        if ($timestamp === null) {
-            return now();
-        }
-
-        try {
-            return Carbon::parse($timestamp);
-        } catch (\Exception $e) {
-            return now();
-        }
+        // task_forces.timestamp is NOT NULL (defaults to CURRENT_TIMESTAMP), so an
+        // unparseable/out-of-range value falls back to now() rather than null,
+        // matching the original behavior.
+        return $this->sanitizeOldDbDate($timestamp, 'timestamp', 'taskforces', $sourceId, 'TimeStamp') ?? now();
     }
 
     private function showStatistics()

@@ -8,13 +8,13 @@ PREPARE OLD DB:
   php artisan users:handle-duplicates --table=persons --dry-run   # review plan
   php artisan users:handle-duplicates --table=persons             # execute
   php artisan debug:duplicate-emails          # confirm clean
-
-- [] Run SELECT * FROM `persons` where DivisionID is null; Are there any - if so what to check if they are imortant (Roles, Records, have login). If not: delete.  
+ 
 
 ## Run (in order)
 Migration, seeding
 --> Php artisan migrate:fresh
---> php artisan migrate:old-db --table=all ((--limit=15000))
+(-->) php artisan migrate:old-db --table=all ((--limit=15000))
+--> php -d memory_limit=2048M artisan migrate:old-db --table=all
 NOTES while migrating: 
  - You have to type "Yes" when it reaches Migrate Branches (the second step)
  - When migrating users, Check users phpMyAdmin to see progress.

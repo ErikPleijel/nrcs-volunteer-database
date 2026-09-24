@@ -2,13 +2,15 @@
 
 namespace App\Console\Commands\OldDbMigration;
 
+use App\Console\Commands\OldDbMigration\Concerns\SanitizesOldDbDates;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use Carbon\Carbon;
 
 class MigrateActivities extends Command
 {
+    use SanitizesOldDbDates;
+
     protected $signature = 'migrate:activities
                             {--chunk=1000 : Number of records to process per chunk}
                             {--clear : Clear existing activities before migration}
@@ -112,14 +114,25 @@ class MigrateActivities extends Command
                                 $activity->RCU ?? null
                             );
 
+                            // activities.date is a DATE column (wide range); submitted_at/
+                            // created_at/updated_at/decided_at are TIMESTAMP columns (narrow
+                            // 1970-2038 range) — validate FromDate separately for its use as
+                            // decided_at's fallback, since a date that's fine for the `date`
+                            // column can still be out of range for a TIMESTAMP column.
+                            $convertedDate = $this->convertDate($activity->FromDate, $activity->ActivityID, 'FromDate');
+                            $convertedTimestamp = $this->convertTimestamp($activity->Timestamp, $activity->ActivityID, 'Timestamp');
+                            $decidedAtFromDate = $this->sanitizeOldDbDate(
+                                $activity->FromDate, 'timestamp', 'activities', $activity->ActivityID, 'FromDate (decided_at)'
+                            )?->format('Y-m-d H:i:s');
+
                             $newActivity = [
                                 'id'                   => $activity->ActivityID, // Preserve original ID
                                 'activity_type_id'     => $activity->ActivityTypeID,
                                 'user_id'              => $activity->PersonID, // Changed from person_id
-                                'date'                 => $this->convertDate($activity->FromDate),
+                                'date'                 => $convertedDate,
                                 'hours'                => $this->convertHours($activity->Hours),
                                 'is_deleted'           => $this->convertBoolean($activity->IsDeleted, false),
-                                'submitted_at'         => $this->convertTimestamp($activity->Timestamp),
+                                'submitted_at'         => $convertedTimestamp,
                                 'submission_name'      => $this->cleanString($activity->SubmissionName),
                                 'reference'            => $this->cleanString($activity->Reference),
                                 'submitted_by_user_id' => $activity->SubmissionID, // Changed from submitted_by_id
@@ -128,11 +141,11 @@ class MigrateActivities extends Command
                                 // ðŸ”¸ new polymorphic pair
                                 'assignable_type'      => $assignableType,
                                 'assignable_id'        => $assignableId,
-                                'created_at'           => $this->convertTimestamp($activity->Timestamp) ?? now(),
-                                'updated_at'           => $this->convertTimestamp($activity->Timestamp) ?? now(),
+                                'created_at'           => $convertedTimestamp ?? now(),
+                                'updated_at'           => $convertedTimestamp ?? now(),
                                 // Legacy records are pre-approved (no approval step existed).
                                 'approval_status'      => 'approved',
-                                'decided_at'           => $this->convertDate($activity->FromDate) ?? $this->convertTimestamp($activity->Timestamp) ?? now(),
+                                'decided_at'           => $decidedAtFromDate ?? $convertedTimestamp ?? now(),
                                 'decided_by_user_id'   => null,
                             ];
 
@@ -252,30 +265,14 @@ class MigrateActivities extends Command
         return (bool) $value;
     }
 
-    private function convertDate($value): ?string
+    private function convertDate($value, $sourceId, string $sourceColumn): ?string
     {
-        if ($value === null || $value === '' || $value === '0000-00-00') {
-            return null;
-        }
-
-        try {
-            return Carbon::parse($value)->format('Y-m-d');
-        } catch (\Exception $e) {
-            return null;
-        }
+        return $this->sanitizeOldDbDate($value, 'date', 'activities', $sourceId, $sourceColumn)?->format('Y-m-d');
     }
 
-    private function convertTimestamp($value): ?string
+    private function convertTimestamp($value, $sourceId, string $sourceColumn): ?string
     {
-        if ($value === null || $value === '' || $value === '0000-00-00 00:00:00') {
-            return null;
-        }
-
-        try {
-            return Carbon::parse($value)->format('Y-m-d H:i:s');
-        } catch (\Exception $e) {
-            return null;
-        }
+        return $this->sanitizeOldDbDate($value, 'timestamp', 'activities', $sourceId, $sourceColumn)?->format('Y-m-d H:i:s');
     }
 
     private function convertHours($value): ?int

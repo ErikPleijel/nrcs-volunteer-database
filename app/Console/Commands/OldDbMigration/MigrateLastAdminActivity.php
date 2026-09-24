@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands\OldDbMigration;
 
+use App\Console\Commands\OldDbMigration\Concerns\SanitizesOldDbDates;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
@@ -10,6 +11,8 @@ use Illuminate\Support\Facades\Schema;
 
 class MigrateLastAdminActivity extends Command
 {
+    use SanitizesOldDbDates;
+
     protected $signature = 'migrate:last-admin-activity
                             {--chunk=200 : Number of users with roles to process per chunk}
                             {--dry-run : Run without writing changes to the users table}';
@@ -175,12 +178,18 @@ class MigrateLastAdminActivity extends Command
     {
         $connection = DB::connection('old_db');
 
+        // users.last_admin_activity_at is a DATETIME column (wide 1000-9999 year
+        // range), so each raw MAX() value below is sanitized against the 'date'
+        // range before being kept as a candidate. This previously parsed with a
+        // bare Carbon::parse() and no try/catch at all.
+
         $timestamps = [];
 
         // activities.Timestamp
         $activityTs = $connection->table('activities')
             ->where('SubmissionID', $userId)
             ->max('Timestamp');
+        $activityTs = $this->sanitizeOldDbDate($activityTs, 'date', 'activities', $userId, 'Timestamp (MAX for SubmissionID)');
         if ($activityTs) {
             $timestamps[] = $activityTs;
         }
@@ -189,6 +198,7 @@ class MigrateLastAdminActivity extends Command
         $donationTs = $connection->table('donations')
             ->where('SubmissionID', $userId)
             ->max('Timestamp');
+        $donationTs = $this->sanitizeOldDbDate($donationTs, 'date', 'donations', $userId, 'Timestamp (MAX for SubmissionID)');
         if ($donationTs) {
             $timestamps[] = $donationTs;
         }
@@ -197,6 +207,7 @@ class MigrateLastAdminActivity extends Command
         $membershipTs = $connection->table('membershippayments')
             ->where('SubmissionID', $userId)
             ->max('Timestamp');
+        $membershipTs = $this->sanitizeOldDbDate($membershipTs, 'date', 'membershippayments', $userId, 'Timestamp (MAX for SubmissionID)');
         if ($membershipTs) {
             $timestamps[] = $membershipTs;
         }
@@ -205,6 +216,7 @@ class MigrateLastAdminActivity extends Command
         $assignTs = $connection->table('persons')
             ->where('AssignRcuID', $userId)
             ->max('AssignRcuDate');
+        $assignTs = $this->sanitizeOldDbDate($assignTs, 'date', 'persons', $userId, 'AssignRcuDate (MAX for AssignRcuID)');
         if ($assignTs) {
             $timestamps[] = $assignTs;
         }
@@ -213,6 +225,7 @@ class MigrateLastAdminActivity extends Command
         $trainingTs = $connection->table('trainings')
             ->where('SubmissionID', $userId)
             ->max('Timestamp');
+        $trainingTs = $this->sanitizeOldDbDate($trainingTs, 'date', 'trainings', $userId, 'Timestamp (MAX for SubmissionID)');
         if ($trainingTs) {
             $timestamps[] = $trainingTs;
         }
@@ -221,10 +234,6 @@ class MigrateLastAdminActivity extends Command
             return null;
         }
 
-        // Normalize to Carbon and return the latest one
-        return collect($timestamps)
-            ->filter()
-            ->map(fn ($ts) => Carbon::parse($ts))
-            ->max();
+        return collect($timestamps)->max();
     }
 }

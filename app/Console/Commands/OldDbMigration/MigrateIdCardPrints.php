@@ -2,13 +2,15 @@
 
 namespace App\Console\Commands\OldDbMigration;
 
+use App\Console\Commands\OldDbMigration\Concerns\SanitizesOldDbDates;
 use Illuminate\Console\Command;
 use App\Models\User;
 use App\Models\IdCardPrint; // Assuming you create a model for id_card_prints
-use Carbon\Carbon;
 
 class MigrateIdCardPrints extends Command
 {
+    use SanitizesOldDbDates;
+
     /**
      * The name and signature of the console command.
      *
@@ -36,17 +38,40 @@ class MigrateIdCardPrints extends Command
                                ->get();
 
         $count = 0;
+        $skipped = 0;
         foreach ($usersToMigrate as $user) {
-            // Ensure id_card_timestamp is a valid date before proceeding
-            try {
-                $printedAt = Carbon::parse($user->id_card_timestamp);
-            } catch (\Exception $e) {
-                $this->warn("Skipping user ID {$user->id} due to invalid id_card_timestamp: {$user->id_card_timestamp}");
+            // users.id_card_timestamp is a DATE column (1000-9999 valid range),
+            // but id_card_prints.printed_at is a narrower TIMESTAMP column
+            // (1970-2038 valid range). A value can already be range-valid for
+            // DATE (e.g. year 2926) and still be invalid once cast into a
+            // TIMESTAMP, so it needs its own range check here rather than a
+            // bare Carbon::parse()/try-catch.
+            $printedAt = $this->sanitizeOldDbDate(
+                $user->id_card_timestamp, 'timestamp', 'users', $user->id, 'id_card_timestamp'
+            );
+
+            if (!$printedAt) {
+                // id_card_prints.printed_at is NOT NULL, so an invalid/out-of-range
+                // value can't just be nulled out like the other migrated date
+                // fields — skip creating the row entirely instead.
+                $skipped++;
                 continue;
             }
 
             $validityMonths = $user->id_card_valid_years * 12;
-            $expiryDate = $printedAt->copy()->addMonths($validityMonths);
+
+            // expiry_date is also a TIMESTAMP column, computed from printed_at +
+            // validity_months. Even with a valid printed_at, a large
+            // validity_months can push the computed value past 2038 and hit the
+            // same class of error. expiry_date IS nullable though, so an
+            // out-of-range result is nulled rather than skipping the whole row.
+            $expiryDate = $this->sanitizeOldDbDate(
+                $printedAt->copy()->addMonths($validityMonths)->toDateTimeString(),
+                'timestamp',
+                'users',
+                $user->id,
+                'computed expiry_date (id_card_timestamp + id_card_valid_years)'
+            );
 
             // Create a new IdCardPrint record
             IdCardPrint::create([
@@ -61,6 +86,7 @@ class MigrateIdCardPrints extends Command
             $count++;
         }
 
-        $this->info("Migration complete. {$count} ID card print records created.");
+        $this->info("Migration complete. {$count} ID card print records created."
+            . ($skipped > 0 ? " {$skipped} skipped due to invalid/out-of-range id_card_timestamp (see warnings above)." : ''));
     }
 }

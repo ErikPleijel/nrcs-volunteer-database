@@ -2,12 +2,15 @@
 
 namespace App\Console\Commands\OldDbMigration;
 
+use App\Console\Commands\OldDbMigration\Concerns\SanitizesOldDbDates;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 class MigrateDonations extends Command
 {
+    use SanitizesOldDbDates;
+
     protected $signature = 'migrate:donations
                             {--chunk=500 : Number of records to process per chunk}
                             {--clear : Clear existing donations before migration}
@@ -99,14 +102,34 @@ class MigrateDonations extends Command
                                 }
                             }
 
+                            // donations.date_donation/removed_date are DATE columns (wide
+                            // range); timestamp/decided_at are TIMESTAMP columns (narrow
+                            // 1970-2038 range) — Date_donation is validated separately for
+                            // its use as decided_at's fallback, since a date that's fine
+                            // for the `date_donation` column can still be out of range for
+                            // a TIMESTAMP column. Previously these were passed straight
+                            // through from the old DB with no parsing/validation at all.
+                            $convertedDateDonation = $this->sanitizeOldDbDate(
+                                $donation->Date_donation, 'date', 'donations', $donation->DonationID, 'Date_donation'
+                            )?->format('Y-m-d');
+                            $convertedTimestamp = $this->sanitizeOldDbDate(
+                                $donation->Timestamp, 'timestamp', 'donations', $donation->DonationID, 'Timestamp'
+                            )?->format('Y-m-d H:i:s');
+                            $convertedRemovedDate = $this->sanitizeOldDbDate(
+                                $donation->RemovedDate, 'date', 'donations', $donation->DonationID, 'RemovedDate'
+                            )?->format('Y-m-d');
+                            $decidedAtDateDonation = $this->sanitizeOldDbDate(
+                                $donation->Date_donation, 'timestamp', 'donations', $donation->DonationID, 'Date_donation (decided_at)'
+                            )?->format('Y-m-d H:i:s');
+
                             $newDonation = [
                                 'id' => $donation->DonationID, // Explicitly set the 'id' from old DonationID
                                 'user_id' => $donation->PersonID,
                                 'in_kind_donation' => $this->convertBoolean($donation->In_kind_donation),
                                 'donation_item' => $this->cleanString($donation->Donation_item),
-                                'date_donation' => $donation->Date_donation,
+                                'date_donation' => $convertedDateDonation,
                                 'amount' => $donation->Amount,
-                                'timestamp' => $donation->Timestamp,
+                                'timestamp' => $convertedTimestamp,
                                 'submission_name' => $this->cleanString($donation->SubmissionName),
                                 'is_deleted' => $this->convertBoolean($donation->IsDeleted),
                                 'reference' => $this->cleanString($donation->Reference),
@@ -116,10 +139,10 @@ class MigrateDonations extends Command
                                 'branch_id' => $donation->BranchID,
                                 'division_id' => $donation->DivisionID,
                                 'removed_by_user_id' => $donation->RemovedID,
-                                'removed_date' => $donation->RemovedDate,
+                                'removed_date' => $convertedRemovedDate,
                                 // Legacy records are pre-approved (no approval step existed).
                                 'approval_status' => 'approved',
-                                'decided_at' => $donation->Date_donation ?? $donation->Timestamp,
+                                'decided_at' => $decidedAtDateDonation ?? $convertedTimestamp,
                                 'decided_by_user_id' => null,
                             ];
 

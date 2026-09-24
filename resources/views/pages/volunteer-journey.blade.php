@@ -6,8 +6,8 @@
                 <h2 class="text-3xl font-bold text-gray-900 mb-4">Your Journey to Become a
                     <span class="text-red-600">Red Cross Volunteer</span></h2>
                 <p class="text-lg text-gray-600 max-w-2xl mx-auto">
-                    Join thousands of compassionate individuals who are making a real difference in communities across Nigeria.
-                    These are the essential steps to begin your rewarding journey as a Red Cross volunteer.
+                    Serve hands-on with your local Red Cross unit — emergency response, first aid, community programs. No membership fee, no payment: just your time and skills.<br>
+                    Here's how to get started:
                 </p>
             </div>
 
@@ -22,20 +22,6 @@
                         <h3 class="text-2xl font-bold text-gray-900 mb-2">Register Your Account</h3>
                         <p class="text-gray-600 mb-6">Create your volunteer profile and provide your basic information</p>
                     </div>
-                    <div class="space-y-3">
-                        <div class="flex items-center text-sm text-gray-600">
-                            <i class="fas fa-check text-green-600 mr-2"></i>
-                            Personal information
-                        </div>
-                        <div class="flex items-center text-sm text-gray-600">
-                            <i class="fas fa-check text-green-600 mr-2"></i>
-                            Contact details
-                        </div>
-                        <div class="flex items-center text-sm text-gray-600">
-                            <i class="fas fa-check text-green-600 mr-2"></i>
-                            Email verification
-                        </div>
-                    </div>
                 </div>
 
                 <!-- Step 2: Connect with Branch -->
@@ -46,20 +32,6 @@
                         </div>
                         <h3 class="text-2xl font-bold text-gray-900 mb-2">Link with Your Branch</h3>
                         <p class="text-gray-600 mb-6">Connect with your local Red Cross branch for guidance and support</p>
-                    </div>
-                    <div class="space-y-3">
-                        <div class="flex items-center text-sm text-gray-600">
-                            <i class="fas fa-check text-green-600 mr-2"></i>
-                            Branch selection
-                        </div>
-                        <div class="flex items-center text-sm text-gray-600">
-                            <i class="fas fa-check text-green-600 mr-2"></i>
-                            Initial contact
-                        </div>
-                        <div class="flex items-center text-sm text-gray-600">
-                            <i class="fas fa-check text-green-600 mr-2"></i>
-                            Orientation meeting
-                        </div>
                     </div>
                 </div>
 
@@ -72,20 +44,6 @@
                         <h3 class="text-2xl font-bold text-gray-900 mb-2">Red Cross Unit Assignment</h3>
                         <p class="text-gray-600 mb-6">Your branch assigns you to a specific Red Cross Unit based on your skills</p>
                     </div>
-                    <div class="space-y-3">
-                        <div class="flex items-center text-sm text-gray-600">
-                            <i class="fas fa-check text-green-600 mr-2"></i>
-                            Skills assessment
-                        </div>
-                        <div class="flex items-center text-sm text-gray-600">
-                            <i class="fas fa-check text-green-600 mr-2"></i>
-                            Unit placement
-                        </div>
-                        <div class="flex items-center text-sm text-gray-600">
-                            <i class="fas fa-check text-green-600 mr-2"></i>
-                            Team introduction
-                        </div>
-                    </div>
                 </div>
 
                 <!-- Step 4: Start Volunteering -->
@@ -96,20 +54,6 @@
                         </div>
                         <h3 class="text-2xl font-bold text-gray-900 mb-2">Begin Your Service</h3>
                         <p class="text-gray-600 mb-6">Start volunteering and receive specialized training like first aid</p>
-                    </div>
-                    <div class="space-y-3">
-                        <div class="flex items-center text-sm text-gray-600">
-                            <i class="fas fa-check text-green-600 mr-2"></i>
-                            Active volunteering
-                        </div>
-                        <div class="flex items-center text-sm text-gray-600">
-                            <i class="fas fa-check text-green-600 mr-2"></i>
-                            First aid training
-                        </div>
-                        <div class="flex items-center text-sm text-gray-600">
-                            <i class="fas fa-check text-green-600 mr-2"></i>
-                            Ongoing development
-                        </div>
                     </div>
                 </div>
             </div>

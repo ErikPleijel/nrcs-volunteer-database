@@ -4,6 +4,7 @@
 
 namespace App\Console\Commands\OldDbMigration;
 
+use App\Console\Commands\OldDbMigration\Concerns\SanitizesOldDbDates;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
@@ -12,6 +13,8 @@ use Carbon\Carbon;
 
 class MigrateUsers extends Command
 {
+    use SanitizesOldDbDates;
+
     protected $signature = 'migrate:users
                             {--limit=0 : Limit number of records (0 for no limit)}
                             {--clear : Clear existing data before migration}';
@@ -224,60 +227,41 @@ class MigrateUsers extends Command
                     }
                 }
 
-                // Process dates
-                $lastLogin = null;
-                if (!empty($record->Lastlogin) && $record->Lastlogin !== '0000-00-00 00:00:00') {
-                    try {
-                        $lastLogin = Carbon::parse($record->Lastlogin);
-                    } catch (\Exception $e) {
-                        $lastLogin = null;
-                    }
-                }
+                // Process dates. Carbon::parse() alone would silently accept
+                // technically-valid-but-absurd years (e.g. '0202-11-22') that
+                // MySQL's column types can't store, so every field below is
+                // range-checked against its target column type via the shared
+                // sanitizer, not just parsed.
+                $lastLogin = $this->sanitizeOldDbDate(
+                    $record->Lastlogin, 'date', 'persons', $record->PersonID, 'Lastlogin'
+                );
 
-                $lastActivity = null;
-                if (!empty($record->LastActivity) && $record->LastActivity !== '0000-00-00') {
-                    try {
-                        $lastActivity = Carbon::parse($record->LastActivity)->format('Y-m-d');
-                    } catch (\Exception $e) {
-                        $lastActivity = null;
-                    }
-                }
+                $lastActivity = $this->sanitizeOldDbDate(
+                    $record->LastActivity, 'date', 'persons', $record->PersonID, 'LastActivity'
+                )?->format('Y-m-d');
 
-                $imageUploadDate = null;
-                if (!empty($record->ImageUploadDate) && $record->ImageUploadDate !== '0000-00-00') {
-                    try {
-                        $imageUploadDate = Carbon::parse($record->ImageUploadDate)->format('Y-m-d');
-                    } catch (\Exception $e) {
-                        $imageUploadDate = null;
-                    }
-                }
+                $imageUploadDate = $this->sanitizeOldDbDate(
+                    $record->ImageUploadDate, 'date', 'persons', $record->PersonID, 'ImageUploadDate'
+                )?->format('Y-m-d');
 
-                $idCardTimestamp = null;
-                if (!empty($record->IDcard_timestamp) && $record->IDcard_timestamp !== '0000-00-00') {
-                    try {
-                        $idCardTimestamp = Carbon::parse($record->IDcard_timestamp)->format('Y-m-d');
-                    } catch (\Exception $e) {
-                        $idCardTimestamp = null;
-                    }
-                }
+                $idCardTimestamp = $this->sanitizeOldDbDate(
+                    $record->IDcard_timestamp, 'date', 'persons', $record->PersonID, 'IDcard_timestamp'
+                )?->format('Y-m-d');
 
-                $deactivatedDate = null;
-                if (!empty($record->DeactivatedDate) && $record->DeactivatedDate !== '0000-00-00') {
-                    try {
-                        $deactivatedDate = Carbon::parse($record->DeactivatedDate)->format('Y-m-d');
-                    } catch (\Exception $e) {
-                        $deactivatedDate = null;
-                    }
-                }
+                $deactivatedDate = $this->sanitizeOldDbDate(
+                    $record->DeactivatedDate, 'date', 'persons', $record->PersonID, 'DeactivatedDate'
+                )?->format('Y-m-d');
 
-                $assignRcuDate = null;
-                if (!empty($record->AssignRcuDate) && $record->AssignRcuDate !== '0000-00-00') {
-                    try {
-                        $assignRcuDate = Carbon::parse($record->AssignRcuDate)->format('Y-m-d');
-                    } catch (\Exception $e) {
-                        $assignRcuDate = null;
-                    }
-                }
+                $assignRcuDate = $this->sanitizeOldDbDate(
+                    $record->AssignRcuDate, 'date', 'persons', $record->PersonID, 'AssignRcuDate'
+                )?->format('Y-m-d');
+
+                // persons.Timestamp feeds three timestamp-typed new-DB columns
+                // (custom_timestamp, created_at, email_verified_at) below and was
+                // previously used completely unguarded (no Carbon::parse at all).
+                $recordTimestamp = $this->sanitizeOldDbDate(
+                    $record->Timestamp, 'timestamp', 'persons', $record->PersonID, 'Timestamp'
+                ) ?? $now;
 
                 // Insert user with ALL the fields
                 DB::table('users')->insert([
@@ -332,14 +316,14 @@ class MigrateUsers extends Command
                     'assigned_rcu_by_id' => $this->normalizeId($record->AssignRcuID),
                   //  'position_id' => $this->normalizeSmallInt($record->PositionID),
                     //'position_geo_level' => $this->normalizeSmallInt($record->PositionGeoLevel),
-                    'custom_timestamp' => $record->Timestamp ?? $now,
+                    'custom_timestamp' => $recordTimestamp,
                     'legacy_role' => $legacyRole,
 
                     'password' => $hashedPassword,
                     'legacy_password_hash' => $legacyPasswordHash,
-                    'created_at' => $record->Timestamp ?? $now,
+                    'created_at' => $recordTimestamp,
                     'updated_at' => $now,
-                    'email_verified_at' => ($record->AccountActivated ?? false) ? ($record->Timestamp ?? $now) : null,
+                    'email_verified_at' => ($record->AccountActivated ?? false) ? $recordTimestamp : null,
                 ]);
 
                 $inserted++;
