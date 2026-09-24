@@ -77,10 +77,10 @@ class DashboardController extends Controller
             ->get();
 
         $cached = Cache::remember(
-            $this->dashboardCacheKey($user->id, $branchId, $extended),
+            $this->dashboardCacheKey($branchId, $extended),
             now()->addHour(),
-            function () use ($user, $branchId, $extended) {
-                $dashboardData = $this->buildCachedDashboardData($user, $branchId, $extended);
+            function () use ($branchId, $extended) {
+                $dashboardData = $this->buildCachedDashboardData($branchId, $extended);
 
                 return [
                     'data' => $dashboardData,
@@ -90,9 +90,10 @@ class DashboardController extends Controller
         );
 
         // Housekeeping/admin figures (pending approvals, hanging/unverified registrations,
-        // Volunteers in Limbo, 7-day activity counts) are recomputed on every request —
-        // their whole purpose is to reflect real-time state, so they're deliberately kept
-        // outside the cached block above rather than going stale for up to an hour.
+        // Volunteers in Limbo, 7-day activity counts) are kept outside the cached block above
+        // rather than going stale for up to an hour — their whole purpose is to reflect current
+        // state. Most are recomputed on every request; the three slow scans (hanging/unverified
+        // registrations, Volunteers in Limbo) have their own 5-minute cache.
         $dashboardData = array_merge(
             $cached['data'],
             $this->buildFreshDashboardData($user, $branchId)
@@ -103,14 +104,38 @@ class DashboardController extends Controller
     }
 
     /**
-     * Cache key for a given viewer's dashboard: scoped by branch, extended-mode, and the
-     * viewing user (selfSubmitted* figures are per-user, so the key must be too — otherwise
-     * one user's pending-approval counts would leak into another user's cached view).
+     * Cache key for the dashboard's cached card data: scoped by branch and extended-mode only,
+     * so every viewer of the same branch/extended combination shares one build. Nothing in
+     * buildCachedDashboardData() varies by viewer — the per-user selfSubmitted* figures live in
+     * buildFreshDashboardData() — so keep anything user-specific out of that method.
      * Includes a generation stamp so stats:snapshot can invalidate every cached dashboard
      * in O(1) (via Cache::increment) without needing tag support, which the 'file'/'database'
      * cache drivers used in this app don't have.
      */
-    private function dashboardCacheKey(int $userId, ?int $branchId, bool $extended): string
+    private function dashboardCacheKey(?int $branchId, bool $extended): string
+    {
+        return sprintf(
+            'dashboard:v%s:b%s:e%s',
+            $this->dashboardCacheGeneration(),
+            $branchId ?? 'nat',
+            $extended ? '1' : '0'
+        );
+    }
+
+    /**
+     * Cache key for the slow housekeeping counts (see buildHousekeepingCounts()). Branch-scoped,
+     * not per-user, same as dashboardCacheKey().
+     */
+    private function housekeepingCacheKey(?int $branchId): string
+    {
+        return sprintf(
+            'dashboard:housekeeping:v%s:b%s',
+            $this->dashboardCacheGeneration(),
+            $branchId ?? 'nat'
+        );
+    }
+
+    private function dashboardCacheGeneration(): int
     {
         // Seed the generation counter on first-ever use (Cache::add is a no-op if it already
         // exists). Using Cache::get(..., $default) with a fallback here would be a trap:
@@ -118,30 +143,24 @@ class DashboardController extends Controller
         // the fallback would already report, so the very first nightly invalidation would be
         // silently swallowed. Seeding explicitly guarantees every increment is visible.
         Cache::add('dashboard:cache_gen', 1);
-        $generation = Cache::get('dashboard:cache_gen');
 
-        return sprintf(
-            'dashboard:v%s:u%d:b%s:e%s',
-            $generation,
-            $userId,
-            $branchId ?? 'nat',
-            $extended ? '1' : '0'
-        );
+        return (int) Cache::get('dashboard:cache_gen');
     }
 
     /**
-     * Force-refresh this viewer's cached dashboard on their next load, then send them back.
+     * Force-refresh the cached dashboard for this branch/extended combination (shared by every
+     * viewer of it) on the next load, then send the viewer back.
      * branch_id/extended are read from the query string (matching whatever the dashboard
      * view was showing when "Refresh now" was clicked) rather than re-deriving from session,
      * so this doesn't need to duplicate index()'s branch-resolution logic.
      */
     public function refreshCache(Request $request)
     {
-        $user = Auth::user();
         $branchId = $request->filled('branch_id') ? (int) $request->input('branch_id') : null;
         $extended = $request->boolean('extended');
 
-        Cache::forget($this->dashboardCacheKey($user->id, $branchId, $extended));
+        Cache::forget($this->dashboardCacheKey($branchId, $extended));
+        Cache::forget($this->housekeepingCacheKey($branchId));
 
         return redirect()->route('reports.dashboard', array_filter([
             'branch_id' => $branchId,
@@ -155,7 +174,7 @@ class DashboardController extends Controller
      * computation otherwise — no caching concerns here, so query logic for any given card can
      * keep being edited without touching the caching wrapper.
      */
-    private function buildCachedDashboardData($user, ?int $branchId, bool $extended): array
+    private function buildCachedDashboardData(?int $branchId, bool $extended): array
     {
         // --- Always: Members card ---
         $current = $this->membershipStatsService->getTotalMembersCount($branchId);
@@ -376,9 +395,10 @@ class DashboardController extends Controller
     }
 
     /**
-     * Housekeeping/admin figures that must always reflect real-time state, never the cached
+     * Housekeeping/admin figures that must reflect current state, never the hourly cached
      * snapshot: 7-day activity counts, pending approvals + this viewer's own submissions among
-     * them, hanging/unverified registrations, and Volunteers in Limbo. Scoped the same way
+     * them, hanging/unverified registrations, and Volunteers in Limbo (the last three via a
+     * 5-minute cache, see buildHousekeepingCounts()). Scoped the same way
      * these queries were before being split out — branch_id via $branchId, "self submitted"
      * via $user->id — so moving them outside the cache changes nothing about what they return,
      * only when they run.
@@ -397,32 +417,16 @@ class DashboardController extends Controller
             ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
             ->count();
 
-        $unassignedGhostCount = User::unassignedGhost()
-            ->whereIn('lifecycle_status', User::OPERATIONAL_STATUSES)
-            ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
-            ->count();
-
-        $unverifiedRegistrationsCount = User::whereNotNull('email')
-            ->whereNull('email_verified_at')
-            ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
-            ->count();
-
         $dbMigrationDate = config('housekeeping.db_migration_date');
-        $hangingRegistrationCount = null;
-        $hangingRegistrationTotalCount = null;
-        if ($dbMigrationDate) {
-            $counts = User::adminRegistered()
-                ->where('lifecycle_status', 'pending_engagement')
-                ->where('is_super_admin', false)
-                ->whereNull('organisation_id')
-                ->notInactive()
-                ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
-                ->selectRaw('COUNT(*) as total, SUM(CASE WHEN created_at >= ? THEN 1 ELSE 0 END) as filtered', [$dbMigrationDate])
-                ->first();
 
-            $hangingRegistrationCount = (int) $counts->filtered;
-            $hangingRegistrationTotalCount = (int) $counts->total;
-        }
+        // Unassigned ghosts, unverified emails and hanging registrations each scan a large slice
+        // of users, so they're cached briefly — a few minutes' staleness is fine for these
+        // housekeeping figures. Everything else in this method stays real-time.
+        $housekeeping = Cache::remember(
+            $this->housekeepingCacheKey($branchId),
+            now()->addMinutes(5),
+            fn () => $this->buildHousekeepingCounts($branchId, $dbMigrationDate)
+        );
 
         $selfSubmittedPayments = \App\Models\MembershipPayment::pendingApproval()
             ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
@@ -443,10 +447,10 @@ class DashboardController extends Controller
             ->where('submitted_by', $user->id)->count();
 
         return [
-            'unassignedGhostCount'                     => $unassignedGhostCount,
-            'unverifiedRegistrationsCount'             => $unverifiedRegistrationsCount,
-            'hangingRegistrationCount'                 => $hangingRegistrationCount,
-            'hangingRegistrationTotalCount'             => $hangingRegistrationTotalCount,
+            'unassignedGhostCount'                     => $housekeeping['unassignedGhostCount'],
+            'unverifiedRegistrationsCount'             => $housekeeping['unverifiedRegistrationsCount'],
+            'hangingRegistrationCount'                 => $housekeeping['hangingRegistrationCount'],
+            'hangingRegistrationTotalCount'             => $housekeeping['hangingRegistrationTotalCount'],
             'hangingRegistrationConfigured'             => (bool) $dbMigrationDate,
             'dbMigrationDate'                           => $dbMigrationDate,
 
@@ -470,6 +474,46 @@ class DashboardController extends Controller
             'selfSubmittedTrainings'  => $selfSubmittedTrainings,
             'selfSubmittedActivities' => $selfSubmittedActivities,
             'selfSubmittedCampaigns'  => $selfSubmittedCampaigns,
+        ];
+    }
+
+    /**
+     * The three slow housekeeping counts, cached for 5 minutes by buildFreshDashboardData().
+     * Hanging-registration counts stay null when no DB migration date is configured.
+     */
+    private function buildHousekeepingCounts(?int $branchId, ?string $dbMigrationDate): array
+    {
+        $unassignedGhostCount = User::unassignedGhost()
+            ->whereIn('lifecycle_status', User::OPERATIONAL_STATUSES)
+            ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
+            ->count();
+
+        $unverifiedRegistrationsCount = User::whereNotNull('email')
+            ->whereNull('email_verified_at')
+            ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
+            ->count();
+
+        $hangingRegistrationCount = null;
+        $hangingRegistrationTotalCount = null;
+        if ($dbMigrationDate) {
+            $counts = User::adminRegistered()
+                ->where('lifecycle_status', 'pending_engagement')
+                ->where('is_super_admin', false)
+                ->whereNull('organisation_id')
+                ->notInactive()
+                ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
+                ->selectRaw('COUNT(*) as total, SUM(CASE WHEN created_at >= ? THEN 1 ELSE 0 END) as filtered', [$dbMigrationDate])
+                ->first();
+
+            $hangingRegistrationCount = (int) $counts->filtered;
+            $hangingRegistrationTotalCount = (int) $counts->total;
+        }
+
+        return [
+            'unassignedGhostCount'          => $unassignedGhostCount,
+            'unverifiedRegistrationsCount'  => $unverifiedRegistrationsCount,
+            'hangingRegistrationCount'      => $hangingRegistrationCount,
+            'hangingRegistrationTotalCount' => $hangingRegistrationTotalCount,
         ];
     }
 
