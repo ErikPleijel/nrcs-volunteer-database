@@ -96,6 +96,29 @@
             </div>
         @endif
 
+        @if($user->needsSignatureReupload())
+            <div class="max-w-2xl mx-auto mb-6">
+                <div class="bg-amber-50 border-2 border-amber-300 rounded-lg py-4 px-6 text-center">
+                    <div class="flex items-center justify-center gap-3">
+                        <i class="fas fa-triangle-exclamation text-amber-500 text-2xl"></i>
+                        <span class="text-lg text-amber-800">
+                            <strong class="font-bold">Signature Rejected</strong>
+                        </span>
+                    </div>
+                    <p class="mt-2 text-sm text-amber-800">
+                        Rejected {{ $user->signature_rejected_at->format('d M Y') }}
+                        by {{ $user->signatureRejectedBy?->full_name ?? 'an administrator' }}.
+                        A new signature should be uploaded.
+                    </p>
+                    @can('edit_user')
+                        <p class="mt-1 text-sm text-amber-800">
+                            <a href="{{ route('users.edit', $user) }}" class="underline font-semibold">Upload a new signature</a>
+                        </p>
+                    @endcan
+                </div>
+            </div>
+        @endif
+
         {{-- Detail table --}}
         <div class="bg-white rounded-lg shadow p-6 mt-6">
         <div class="grid grid-cols-1 lg:grid-cols-2 lg:gap-12 xl:gap-16">
@@ -210,7 +233,7 @@
                         <td>Signature</td>
                         <td>
                             @if($user->hasSignature())
-                                <div class="w-36 h-24 overflow-hidden flex items-center justify-center border border-gray-300 bg-white shadow">
+                                <div class="w-36 h-24 overflow-hidden flex items-center justify-center bg-white shadow {{ $user->needsSignatureReupload() ? 'border-2 border-red-500' : 'border border-gray-300' }}">
                                     <img src="{{ $user->getSignatureUrlAttribute() }}" alt="User Signature"
                                          class="w-full h-full object-contain">
                                 </div>

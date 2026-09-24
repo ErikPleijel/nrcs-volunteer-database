@@ -466,18 +466,44 @@
                         {{-- TOP ROW: photo + signature + checkbox --}}
                         <div class="flex items-start gap-2 mb-2 relative">
 
-                            {{-- Profile photo --}}
-                            <img src="{{ $user->profile_photo_url }}" alt="Profile Photo"
-                                 class="w-24 h-28 rounded-md object-cover flex-shrink-0 @if(!$user->picture) border-2 border-red-500 @endif">
+                            {{-- Profile photo + photo-age indicator (same as users/index) --}}
+                            <div class="w-24 flex-shrink-0 flex flex-col items-center">
+                                <img src="{{ $user->profile_photo_url }}" alt="Profile Photo"
+                                     class="w-24 h-28 rounded-md object-cover @if(!$user->picture) border-2 border-red-500 @endif">
+                                <x-photo-age-indicator :user="$user" compact />
+                            </div>
 
-                            {{-- Signature — fixed width, does not stretch --}}
-                            <div class="w-32 h-28 flex-shrink-0 flex items-center justify-center border border-gray-200 rounded bg-white">
-                                @if($user->hasSignature())
-                                    <img src="{{ $user->getSignatureUrlAttribute() }}" alt="Signature"
-                                         class="max-h-20 max-w-full object-contain">
-                                @else
-                                    <span class="text-red-400 text-xs text-center">No<br>signature</span>
-                                @endif
+                            {{-- Signature — fixed width, does not stretch; reject strip below (warn-only, doesn't block printing) --}}
+                            @php $signatureRejected = $user->needsSignatureReupload(); @endphp
+                            <div class="w-32 flex-shrink-0 flex flex-col items-center">
+                                <div id="signature-box-{{ $user->id }}"
+                                     class="w-32 h-28 flex items-center justify-center rounded bg-white {{ $signatureRejected ? 'border-2 border-red-500' : 'border border-gray-200' }}">
+                                    @if($user->hasSignature())
+                                        <img src="{{ $user->getSignatureUrlAttribute() }}" alt="Signature"
+                                             class="max-h-20 max-w-full object-contain">
+                                    @else
+                                        <span class="text-red-400 text-xs text-center">No<br>signature</span>
+                                    @endif
+                                </div>
+
+                                @can('print_idcards')
+                                    @if($user->hasSignature())
+                                        <div class="signature-review text-[10px] text-center leading-tight mt-0.5"
+                                             data-user-id="{{ $user->id }}"
+                                             data-url="{{ route('id-cards.reject-signature', $user) }}">
+                                            <button type="button"
+                                                    class="sig-reject-btn text-[10px] text-gray-500 hover:text-red-600 {{ $signatureRejected ? 'hidden' : '' }}">
+                                                ✕ Reject signature
+                                            </button>
+                                            <span class="sig-rejected text-red-600 font-semibold {{ $signatureRejected ? '' : 'hidden' }}">
+                                                Rejected <span class="sig-rejected-date">{{ $user->signature_rejected_at?->format('d M') }}</span>
+                                                · <button type="button" class="sig-undo-btn font-normal text-gray-500 underline hover:text-gray-800">Undo</button>
+                                            </span>
+                                            <i class="sig-spinner fas fa-spinner fa-spin text-gray-400 hidden"></i>
+                                            <p class="sig-error text-red-600 hidden"></p>
+                                        </div>
+                                    @endif
+                                @endcan
                             </div>
 
                             {{-- View button aligned with signature --}}
@@ -539,11 +565,11 @@
                                  style="overflow:visible"></svg>
                         </div>
 
-                        @if(!$hasMissingData)
-                            <div class="mt-2 border-t border-gray-200 pt-2">
-                                <div class="flex gap-4">
+                        <div class="mt-2 border-t border-gray-200 pt-2">
+                            <div class="flex gap-4">
+                                @if(!$hasMissingData)
                                     @can('print_idcards')
-                                    {{-- Left: expiry input --}}
+                                    {{-- Left: expiry input (printable cards only) --}}
                                     <div class="flex-shrink-0">
                                         <p class="text-xs text-gray-600">
                                             New ID expiry: <span id="expiry-display-{{ $user->id }}" class="font-semibold text-gray-800">—</span>
@@ -559,53 +585,53 @@
                                         </div>
                                     </div>
                                     @endcan
+                                @endif
 
-                                    {{-- Right: membership and ID validity --}}
-                                    <div class="flex-1 text-xs space-y-1">
-                                        @php
-                                            $membValidTo = $latestPaymentForStatus?->expiry_date
-                                                ? $latestPaymentForStatus->expiry_date->format('M Y')
-                                                : null;
-                                            $idValidTo = $idCardExpiryDate
-                                                ? $idCardExpiryDate->format('M Y')
-                                                : null;
-                                        @endphp
-                                        <p class="text-gray-600">
-                                            Memb. valid to:
-                                            @if($membValidTo)
-                                                <span class="font-semibold {{ $latestPaymentForStatus->expiry_date->isPast() ? 'text-red-600' : 'text-green-700' }}">
-                                                    {{ $membValidTo }}
-                                                </span>
-                                            @else
-                                                <span class="text-gray-400">—</span>
-                                            @endif
-                                        </p>
-                                        <p class="text-gray-600">
-                                            Current ID valid to:
-                                            @if($idValidTo)
-                                                <span class="font-semibold {{ $idCardExpiryDate->isPast() ? 'text-red-600' : 'text-indigo-700' }}">
-                                                    {{ $idValidTo }}
-                                                </span>
-                                            @else
-                                                <span class="text-gray-400">—</span>
-                                            @endif
-                                        </p>
-                                        <p>
-                                            @if($payment && $payment->id_card_included)
-                                                <span class="text-green-700">
-                                                    ID paid
-                                                    @if($payment->membershipFee)
-                                                        <strong>{{ $payment->membershipFee->validity_years }} Year</strong>{{ $payment->membershipFee->validity_years > 1 ? 's' : '' }}
-                                                    @endif
-                                                </span>
-                                            @else
-                                                <span class="text-red-600 font-bold text-base"><i class="fas fa-exclamation-triangle text-yellow-500 mr-1"></i>ID NOT PAID</span>
-                                            @endif
-                                        </p>
-                                    </div>
+                                {{-- Right: membership and ID validity (every card) --}}
+                                <div class="flex-1 text-xs space-y-1">
+                                    @php
+                                        $membValidTo = $latestPaymentForStatus?->expiry_date
+                                            ? $latestPaymentForStatus->expiry_date->format('M Y')
+                                            : null;
+                                        $idValidTo = $idCardExpiryDate
+                                            ? $idCardExpiryDate->format('M Y')
+                                            : null;
+                                    @endphp
+                                    <p class="text-gray-600">
+                                        Memb. valid to:
+                                        @if($membValidTo)
+                                            <span class="font-semibold {{ $latestPaymentForStatus->expiry_date->isPast() ? 'text-red-600' : 'text-green-700' }}">
+                                                {{ $membValidTo }}
+                                            </span>
+                                        @else
+                                            <span class="text-gray-400">—</span>
+                                        @endif
+                                    </p>
+                                    <p class="text-gray-600">
+                                        Current ID valid to:
+                                        @if($idValidTo)
+                                            <span class="font-semibold {{ $idCardExpiryDate->isPast() ? 'text-red-600' : 'text-indigo-700' }}">
+                                                {{ $idValidTo }}
+                                            </span>
+                                        @else
+                                            <span class="text-gray-400">—</span>
+                                        @endif
+                                    </p>
+                                    <p>
+                                        @if($payment && $payment->id_card_included)
+                                            <span class="text-green-700">
+                                                ID paid
+                                                @if($payment->membershipFee)
+                                                    <strong>{{ $payment->membershipFee->validity_years }} Year</strong>{{ $payment->membershipFee->validity_years > 1 ? 's' : '' }}
+                                                @endif
+                                            </span>
+                                        @else
+                                            <span class="text-red-600 font-bold text-base"><i class="fas fa-exclamation-triangle text-yellow-500 mr-1"></i>ID NOT PAID</span>
+                                        @endif
+                                    </p>
                                 </div>
                             </div>
-                        @endif
+                        </div>
                     </div>
                 @endforeach
             </div>
@@ -867,6 +893,61 @@
                     if (checkbox?.checked) selectedUsersData.set(userId, { id: userId, validity: this.value });
                     updateSelectionState();
                 });
+            });
+
+            // ── SIGNATURE REJECT / UNDO (warn-only) ──────────────────────────
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+
+            function setSignatureRejected(strip, rejected, dateLabel) {
+                const box = document.getElementById(`signature-box-${strip.dataset.userId}`);
+                box.classList.toggle('border-2', rejected);
+                box.classList.toggle('border-red-500', rejected);
+                box.classList.toggle('border', !rejected);
+                box.classList.toggle('border-gray-200', !rejected);
+                strip.querySelector('.sig-reject-btn').classList.toggle('hidden', rejected);
+                strip.querySelector('.sig-rejected').classList.toggle('hidden', !rejected);
+                if (dateLabel) strip.querySelector('.sig-rejected-date').textContent = dateLabel;
+            }
+
+            async function sendSignatureReview(strip, method) {
+                const buttons = strip.querySelectorAll('button');
+                const spinner = strip.querySelector('.sig-spinner');
+                const error = strip.querySelector('.sig-error');
+
+                buttons.forEach(b => (b.disabled = true));
+                spinner.classList.remove('hidden');
+                error.classList.add('hidden');
+
+                try {
+                    const res = await fetch(strip.dataset.url, {
+                        method,
+                        headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
+                    });
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok) throw new Error(data.message || `Request failed (${res.status})`);
+
+                    // "24 Sep 2026" → "24 Sep"
+                    const shortDate = data.rejected_at ? data.rejected_at.split(' ').slice(0, 2).join(' ') : null;
+                    setSignatureRejected(strip, data.rejected, shortDate);
+
+                    // Keep a just-rejected signature out of the current print batch.
+                    const checkbox = document.getElementById(`user-${strip.dataset.userId}`);
+                    if (data.rejected && checkbox?.checked) {
+                        checkbox.checked = false;
+                        updateSelectionState();
+                    }
+                } catch (e) {
+                    error.textContent = e.message || 'Could not save — try again.';
+                    error.classList.remove('hidden');
+                } finally {
+                    buttons.forEach(b => (b.disabled = false));
+                    spinner.classList.add('hidden');
+                }
+            }
+
+            document.querySelectorAll('.signature-review').forEach(strip => {
+                strip.querySelector('.sig-reject-btn').addEventListener('click', () => sendSignatureReview(strip, 'POST'));
+                strip.querySelector('.sig-undo-btn').addEventListener('click', () => sendSignatureReview(strip, 'DELETE'));
             });
 
             // ── PULSE REMINDER ────────────────────────────────────────────────

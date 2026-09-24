@@ -82,6 +82,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'last_first_aid_at' => 'date',
         'last_admin_activity_at' => 'datetime',
         'image_upload_date' => 'datetime',
+        'signature_rejected_at' => 'datetime',
         'is_inactive' => 'boolean',
         'email_opt_out' => 'boolean',
         'email_opt_out_at' => 'datetime',
@@ -115,6 +116,13 @@ class User extends Authenticatable implements MustVerifyEmail
                         ."{$user->branch_id}."
                     );
                 }
+            }
+
+            // A new signature supersedes an admin's "needs re-upload" flag,
+            // whichever upload path saved it.
+            if ($user->isDirty('signature')) {
+                $user->signature_rejected_at = null;
+                $user->signature_rejected_by_id = null;
             }
         });
 
@@ -492,6 +500,23 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         // Check if the signature attribute is set
         return ! empty($this->signature);
+    }
+
+    /**
+     * Whether an admin has rejected this user's signature and a new one is
+     * awaited. Warn-only: does not block ID card printing.
+     */
+    public function needsSignatureReupload(): bool
+    {
+        return $this->signature_rejected_at !== null;
+    }
+
+    /**
+     * The admin who rejected this user's signature.
+     */
+    public function signatureRejectedBy()
+    {
+        return $this->belongsTo(User::class, 'signature_rejected_by_id');
     }
 
     /**

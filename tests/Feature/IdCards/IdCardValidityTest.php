@@ -135,6 +135,49 @@ test('an unpaid volunteer defaults to 12 months', function () {
         ->and($volunteer->defaultIdCardValidityMonths())->toBe(12);
 });
 
+test('a non-printable paid member still shows membership and ID status, but no validity input', function () {
+    $member = makePaidMemberForValidity($this->branch, $this->division, 3);
+    $member->update(['picture' => null]); // missing photo → not printable
+
+    $html = $this->actingAs($this->admin)
+        ->get(route('id-cards.prepare-bulk-print'))
+        ->assertOk()
+        ->getContent();
+
+    $text = preg_replace('/\s+/', ' ', strip_tags($html));
+
+    expect($html)
+        ->not->toContain('id="user-'.$member->id.'"')          // no checkbox
+        ->not->toContain('id="validity-'.$member->id.'"')      // no validity input
+        ->not->toContain('id="expiry-display-'.$member->id.'"') // no "New ID expiry"
+        ->toContain('<strong>3 Year</strong>s')
+        ->and($text)
+        ->toContain('Memb. valid to: '.$member->membershipPayments()->first()->expiry_date->format('M Y'))
+        ->toContain('Current ID valid to: —');
+});
+
+test('a non-printable user with no payment shows dashes and ID NOT PAID', function () {
+    $user = User::factory()->withNationalId()->create([
+        'branch_id' => $this->branch->id,
+        'division_id' => $this->division->id,
+        'picture' => 'pic.jpg',
+        'signature' => 'sig.jpg',
+    ]); // member with no payment → not printable
+
+    $html = $this->actingAs($this->admin)
+        ->get(route('id-cards.prepare-bulk-print'))
+        ->assertOk()
+        ->getContent();
+
+    $text = preg_replace('/\s+/', ' ', strip_tags($html));
+
+    expect($html)->not->toContain('id="validity-'.$user->id.'"')
+        ->and($text)
+        ->toContain('Memb. valid to: —')
+        ->toContain('Current ID valid to: —')
+        ->toContain('ID NOT PAID');
+});
+
 test('the Bulk Set Validity dropdown is gone', function () {
     makePaidMemberForValidity($this->branch, $this->division, 1);
 

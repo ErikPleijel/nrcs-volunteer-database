@@ -379,6 +379,8 @@ Route::middleware(['auth', 'verified.or.absent'])->group(function () {
             Route::get('/id-card/print/{user}', [IdCardController::class, 'printCard'])->name('id-card.print');
             Route::post('/id-cards/print-bulk', [IdCardController::class, 'printBulkCards'])->name('id-cards.print-bulk');
             Route::post('/id-cards/record-bulk-prints', [IdCardController::class, 'recordBulkIdCardPrints'])->name('id-cards.record-bulk-prints');
+            Route::post('/id-cards/{user}/reject-signature', [IdCardController::class, 'rejectSignature'])->name('id-cards.reject-signature');
+            Route::delete('/id-cards/{user}/reject-signature', [IdCardController::class, 'restoreSignature'])->name('id-cards.restore-signature');
         });
 
         Route::delete('/id-cards/bulk-delete-prints', [IdCardController::class, 'bulkDeletePrints'])

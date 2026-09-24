@@ -5,10 +5,12 @@ namespace App\Http\Controllers;
 use App\Models\Branch;
 use App\Models\Division;
 use App\Models\IdCardPrint;
+use App\Models\Log as AuditLog;
 use App\Models\RedCrossUnit;
 use App\Models\Setting;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
@@ -391,6 +393,81 @@ class IdCardController extends Controller
         }
 
         return redirect()->back()->with('success', 'Selected ID cards marked as printed successfully and records saved.');
+    }
+
+    /**
+     * Flag a user's signature as rejected (needs re-upload). Warn-only: the
+     * card stays printable. Cleared automatically by User::booted() when a
+     * new signature is saved, or manually via restoreSignature().
+     */
+    public function rejectSignature(User $user): JsonResponse
+    {
+        $this->authorizeWithinScope($user);
+
+        $user->signature_rejected_at = now();
+        $user->signature_rejected_by_id = Auth::id();
+        $user->save();
+
+        AuditLog::write(
+            'signature_rejected',
+            $user,
+            ['branch_id' => $user->branch_id, 'division_id' => $user->division_id],
+            null,
+            ['signature_rejected_at' => $user->signature_rejected_at->toDateTimeString()],
+            'Signature rejected — user asked to re-upload.'
+        );
+
+        return response()->json([
+            'rejected' => true,
+            'rejected_at' => $user->signature_rejected_at->format('d M Y'),
+            'rejected_by' => Auth::user()->full_name,
+        ]);
+    }
+
+    /**
+     * Undo a signature rejection (e.g. a mis-click during review).
+     */
+    public function restoreSignature(User $user): JsonResponse
+    {
+        $this->authorizeWithinScope($user);
+
+        $previous = $user->signature_rejected_at?->toDateTimeString();
+
+        $user->signature_rejected_at = null;
+        $user->signature_rejected_by_id = null;
+        $user->save();
+
+        AuditLog::write(
+            'signature_reupload_undone',
+            $user,
+            ['branch_id' => $user->branch_id, 'division_id' => $user->division_id],
+            ['signature_rejected_at' => $previous],
+            ['signature_rejected_at' => null],
+            'Signature rejection undone.'
+        );
+
+        return response()->json(['rejected' => false]);
+    }
+
+    /**
+     * 403 unless the target user is inside the acting admin's branch/division
+     * (national admins see everyone) — same access-level split as
+     * bulkDeletePrints().
+     */
+    private function authorizeWithinScope(User $target): void
+    {
+        $actor = Auth::user();
+        $accessLevel = $actor->getAccessLevel();
+        $scopedId = $actor->getScopedId();
+
+        $allowed = match (true) {
+            $actor->is_super_admin || $accessLevel === 'national' => true,
+            $accessLevel === 'branch' => $scopedId && (int) $target->branch_id === (int) $scopedId,
+            $accessLevel === 'division' => $scopedId && (int) $target->division_id === (int) $scopedId,
+            default => false,
+        };
+
+        abort_unless($allowed, 403, 'This user is outside your branch or division.');
     }
 
     /**
