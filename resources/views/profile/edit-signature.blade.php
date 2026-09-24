@@ -44,6 +44,28 @@
                         @endif
                     </div>
 
+                    <!-- Signature Guidance -->
+                    <div class="mb-6 border border-indigo-200 bg-indigo-50 rounded-lg p-4">
+                        <p class="text-sm font-bold text-indigo-900 mb-3">
+                            <i class="fas fa-circle-info mr-1"></i> What makes a good signature photo?
+                        </p>
+                        <div class="flex flex-col sm:flex-row gap-4 items-center">
+                            <div class="flex-shrink-0 flex flex-col items-center">
+                                <img src="{{ asset('images/examples/signature-example.jpg') }}"
+                                     alt="Example of a good signature"
+                                     class="w-40 h-20 object-contain border-2 border-indigo-300 bg-white rounded shadow-sm">
+                                <span class="text-xs text-indigo-700 font-semibold mt-1">✔ Good example</span>
+                            </div>
+                            <ul class="text-sm text-gray-700 space-y-1.5 list-none">
+                                <li><span class="text-green-600 font-bold">✔</span> Sign on a <strong>plain white background</strong>.</li>
+                                <li><span class="text-green-600 font-bold">✔</span> Use <strong>black or blue ink</strong>.</li>
+                                <li><span class="text-green-600 font-bold">✔</span> Make sure the signature is <strong>clear and unbroken</strong>.</li>
+                                <li><span class="text-green-600 font-bold">✔</span> Fill most of the frame — <strong>not too small</strong>.</li>
+                                <li><span class="text-red-600 font-bold">✘</span> Avoid <strong>shadows, glare, or lined paper</strong>.</li>
+                            </ul>
+                        </div>
+                    </div>
+
                     @if ($errors->has('signature_file') || $errors->has('captured_signature'))
                         <div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
                             <p class="text-red-600 text-sm">

@@ -349,6 +349,7 @@
                                     <option value="photo_no"  {{ request('photo_signature_filter') === 'photo_no'  ? 'selected' : '' }}>No profile photo</option>
                                     <option value="sign_yes"  {{ request('photo_signature_filter') === 'sign_yes'  ? 'selected' : '' }}>Has signature</option>
                                     <option value="sign_no"   {{ request('photo_signature_filter') === 'sign_no'   ? 'selected' : '' }}>No signature</option>
+                                    <option value="sign_rejected" {{ request('photo_signature_filter') === 'sign_rejected' ? 'selected' : '' }}>Signature rejected</option>
                                 </select>
                             </div>
 
@@ -824,7 +825,9 @@
                                         {{-- Line 6: Signature --}}
                                         <div class="leading-snug py-0.5">
                                             Signature:
-                                            @if($user->hasSignature())
+                                            @if($user->needsSignatureReupload())
+                                                <span class="text-red-600">Rejected {{ $user->signature_rejected_at->format('d M Y') }}</span>
+                                            @elseif($user->hasSignature())
                                                 OK
                                             @else
                                                 <span class="text-red-600">Not uploaded</span>

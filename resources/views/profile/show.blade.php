@@ -100,6 +100,31 @@
                             <p class="text-base text-gray-700 italic text-center leading-relaxed mt-2"><strong>Humanity</strong> · <strong>Impartiality</strong> · <strong>Neutrality</strong> · <strong>Independence</strong> · <strong>Voluntary Service</strong> · <strong>Unity</strong> · <strong>Universality</strong></p>
                         </div>
 
+                        {{-- Outside the volunteer-only Signature section: members' ID cards carry a signature too. --}}
+                        @if($user->needsSignatureReupload())
+                            <div class="mt-4 flex justify-center">
+                                <div class="w-full max-w-2xl rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-amber-900">
+                                    <div class="flex items-start gap-3">
+                                        <i class="fas fa-triangle-exclamation mt-0.5 text-amber-600"></i>
+                                        <div class="text-sm leading-relaxed">
+                                            <div class="font-semibold">
+                                                Please upload a new signature
+                                            </div>
+                                            <p class="mt-1">
+                                                Your current signature image isn't clear enough to use on your
+                                                ID card. Please upload a new, clearer one.
+                                            </p>
+                                            <p class="mt-2">
+                                                <a href="{{ route('profile.edit-signature') }}" class="btn-primary">
+                                                    <i class="fas fa-signature mr-2"></i>Update Signature
+                                                </a>
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        @endif
+
                         @php
                             // Shared source of truth for Member-vs-Volunteer wording throughout
                             // this whole page (the unassigned-unit explainer directly below, and
@@ -516,31 +541,6 @@
                             </div>
                         </div>
                     </div>
-
-                    {{-- Outside the volunteer-only Signature section: members' ID cards carry a signature too. --}}
-                    @if($user->needsSignatureReupload())
-                        <div class="mb-6 flex justify-center">
-                            <div class="w-full max-w-2xl rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-amber-900">
-                                <div class="flex items-start gap-3">
-                                    <i class="fas fa-triangle-exclamation mt-0.5 text-amber-600"></i>
-                                    <div class="text-sm leading-relaxed">
-                                        <div class="font-semibold">
-                                            Please upload a new signature
-                                        </div>
-                                        <p class="mt-1">
-                                            Your current signature image isn't clear enough to use on your
-                                            ID card. Please upload a new, clearer one.
-                                        </p>
-                                        <p class="mt-2">
-                                            <a href="{{ route('profile.edit-signature') }}" class="btn-primary">
-                                                <i class="fas fa-signature mr-2"></i>Update Signature
-                                            </a>
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    @endif
 
                     @if(blank($user->email))
                         <div class="mb-6 flex justify-center">

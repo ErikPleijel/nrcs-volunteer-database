@@ -403,6 +403,7 @@ class IdCardController extends Controller
     public function rejectSignature(User $user): JsonResponse
     {
         $this->authorizeWithinScope($user);
+        abort_unless($user->hasSignature(), 422, 'This user has no signature to reject.');
 
         $user->signature_rejected_at = now();
         $user->signature_rejected_by_id = Auth::id();

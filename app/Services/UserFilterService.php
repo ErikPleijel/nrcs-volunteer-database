@@ -433,6 +433,10 @@ class UserFilterService
                 $query->where(function ($q) {
                     $q->whereNull('signature')->orWhere('signature', '');
                 });
+
+            } elseif ($value === 'sign_rejected') {
+                // Subset of sign_yes: flagged for re-upload on the ID card bulk-print page.
+                $query->whereNotNull('signature_rejected_at');
             }
         }
 

@@ -93,6 +93,7 @@ class UserFilterDescriber
                 'photo_no' => 'No profile photo',
                 'sign_yes' => 'With signature',
                 'sign_no' => 'No signature',
+                'sign_rejected' => 'Signature rejected',
                 default => null,
             };
         }
