@@ -256,6 +256,7 @@ class DashboardController extends Controller
             $revenueMemberFees       = $revenueBreakdown['memberFees'];
             $revenueVolunteerFees    = $revenueBreakdown['volunteerFees'];
             $revenueOrganisationFees = $revenueBreakdown['organisationFees'];
+            $revenueRcuFees          = $revenueBreakdown['rcuFees'];
 
             $revenueChangeYear       = $revenuePrevious12Months > 0
                 ? round((($revenueLast12Months - $revenuePrevious12Months) / $revenuePrevious12Months) * 100, 1)
@@ -294,6 +295,7 @@ class DashboardController extends Controller
             $revenueMemberFees        = null;
             $revenueVolunteerFees     = null;
             $revenueOrganisationFees  = null;
+            $revenueRcuFees           = null;
             $totalTrainingsLast12Months       = null;
             $totalTrainings12to24MonthsAgo    = null;
             $firstAidTrainingsLast12Months    = null;
@@ -358,6 +360,7 @@ class DashboardController extends Controller
             'revenueMemberFees'                        => $revenueMemberFees,
             'revenueVolunteerFees'                      => $revenueVolunteerFees,
             'revenueOrganisationFees'                   => $revenueOrganisationFees,
+            'revenueRcuFees'                            => $revenueRcuFees,
             'volunteersCount'        => $volunteersCount,
             'volunteersChangeMonth'  => $volunteersChangeMonth,
             'volunteersChangeYear'   => $volunteersChangeYear,

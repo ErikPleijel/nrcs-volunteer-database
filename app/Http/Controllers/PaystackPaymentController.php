@@ -7,6 +7,7 @@ use App\Models\Donation;
 use App\Models\MembershipFee;
 use App\Models\MembershipPayment;
 use App\Models\PaymentTransaction;
+use App\Models\RedCrossUnit;
 use App\Services\PaystackService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -63,21 +64,53 @@ class PaystackPaymentController extends Controller
             $lockedOrganisation = $organisations->firstWhere('id', $organisationId);
         }
 
-        // for_organizations and is_volunteer_fee are both plain NOT NULL
+        // Set by the RCU payment page's CTA via ?red_cross_unit_id=X, locking
+        // the form to that unit's annual fee. Unlike the organisation lock this
+        // is the ONLY way to reach an RCU payment (there's no "Paying as"
+        // toggle for units), so a bad lock is an error rather than a silent
+        // fallback to the personal form: 403 unless the payer leads the unit.
+        // An archived unit, or a payer with no email, gets the locked banner
+        // with an explanation in place of the form (see $rcuBlockedReason).
+        $redCrossUnitId = $request->query('red_cross_unit_id');
+        $lockedRedCrossUnit = null;
+        $rcuBlockedReason = null;
+        if (filled($redCrossUnitId)) {
+            abort_if(filled($organisationId), 400, 'A payment can be for an organisation or a Red Cross Unit, not both.');
+
+            $lockedRedCrossUnit = RedCrossUnit::with('division.branch')->findOrFail($redCrossUnitId);
+
+            abort_unless($lockedRedCrossUnit->isLedBy($user), 403, 'Only the team leader or assistant team leader of this Red Cross Unit can pay its annual fee.');
+
+            // The unit's annual fee is a membership payment only.
+            $lockedPaymentType = 'membership';
+
+            if (! $lockedRedCrossUnit->is_active) {
+                $rcuBlockedReason = 'This Red Cross Unit is archived, so its annual fee can no longer be paid. Please contact your branch if you think this is a mistake.';
+            } elseif (blank($user->email)) {
+                // Same copy as profile/organisation.blade.php's no-email CTA.
+                $rcuBlockedReason = 'Add an email address to your profile to pay online, or contact your branch to pay directly.';
+            }
+        }
+
+        // for_organizations, for_red_cross_units and is_volunteer_fee are all plain NOT NULL
         // booleans (default false) — no nullable/legacy-null case to account
         // for, so a straight true/false split is exact, not an approximation.
         // Volunteer fees are excluded here: volunteers pay their branch
         // directly, not through this self-service online flow.
-        $personalMembershipFees = MembershipFee::active()->where('for_organizations', false)->where('is_volunteer_fee', false)->orderBy('validity_years')->orderBy('amount')->get();
+        $personalMembershipFees = MembershipFee::active()->forPersons()->where('is_volunteer_fee', false)->orderBy('validity_years')->orderBy('amount')->get();
         $organisationMembershipFees = MembershipFee::active()->where('for_organizations', true)->where('is_volunteer_fee', false)->orderBy('validity_years')->orderBy('amount')->get();
+        $rcuMembershipFees = MembershipFee::active()->forRedCrossUnits()->orderBy('validity_years')->orderBy('amount')->get();
 
         return view('make-payment.show', [
             'user' => $user,
             'organisations' => $organisations,
             'personalMembershipFees' => $personalMembershipFees,
             'organisationMembershipFees' => $organisationMembershipFees,
+            'rcuMembershipFees' => $rcuMembershipFees,
             'lockedPaymentType' => $lockedPaymentType,
             'lockedOrganisation' => $lockedOrganisation,
+            'lockedRedCrossUnit' => $lockedRedCrossUnit,
+            'rcuBlockedReason' => $rcuBlockedReason,
         ]);
     }
 
@@ -93,11 +126,46 @@ class PaystackPaymentController extends Controller
             'payment_type' => ['required', 'in:donation,membership'],
             'amount' => ['nullable', 'required_if:payment_type,donation', 'numeric', 'min:1'],
             'organisation_id' => ['nullable', 'exists:organisations,id'],
+            'red_cross_unit_id' => ['nullable', 'exists:red_cross_units,id', 'prohibits:organisation_id'],
             'membership_fee_id' => ['nullable', 'required_if:payment_type,membership', 'exists:membership_fees,id'],
+        ], [
+            'red_cross_unit_id.prohibits' => 'A payment can be for an organisation or a Red Cross Unit, not both.',
         ]);
 
         $organisationId = $validated['organisation_id'] ?? null;
         $isOrgPayment = $organisationId !== null;
+        $redCrossUnitId = $validated['red_cross_unit_id'] ?? null;
+        $isRcuPayment = $redCrossUnitId !== null;
+
+        // Guards for an RCU annual fee payment, re-checked here rather than
+        // trusted from show() — the form's hidden red_cross_unit_id can be
+        // hand-crafted just like organisation_id below.
+        if ($isRcuPayment) {
+            $redCrossUnit = RedCrossUnit::findOrFail($redCrossUnitId);
+
+            if (! $redCrossUnit->isLedBy($user)) {
+                return back()->with('error', 'Only the team leader or assistant team leader of this Red Cross Unit can pay its annual fee.');
+            }
+
+            if (! $redCrossUnit->is_active) {
+                return back()->with('error', 'This Red Cross Unit is archived, so its annual fee can no longer be paid.');
+            }
+
+            if ($validated['payment_type'] !== 'membership') {
+                return back()->with('error', 'Only the annual fee can be paid on behalf of a Red Cross Unit.');
+            }
+        }
+
+        // RCU fees are only payable on behalf of a unit, and a unit only pays
+        // RCU fees — otherwise an RCU fee paid "as myself" would count as the
+        // payer's own personal membership.
+        if ($validated['payment_type'] === 'membership') {
+            $isRcuFee = (bool) MembershipFee::whereKey($validated['membership_fee_id'])->value('for_red_cross_units');
+
+            if ($isRcuFee !== $isRcuPayment) {
+                return back()->with('error', 'That fee cannot be used for this payment.');
+            }
+        }
 
         // Guard: an org-sponsored payment must actually belong to one of the
         // payer's own linked organisations — this is member self-service (no
@@ -117,12 +185,12 @@ class PaystackPaymentController extends Controller
         }
 
         // THE ARCHIVED-MEMBER GUARD: applies only to a personal membership
-        // payment. Org-sponsored payments deliberately skip individual
+        // payment. Org-sponsored and RCU payments deliberately skip individual
         // lifecycle checks — MembershipPaymentController::store() already
         // exempts $isOrgPayment from the fee/RCU validation on the same
-        // reasoning (organisational payments are attributed to the
-        // organisation, not the contact person's own membership standing).
-        if ($validated['payment_type'] === 'membership' && ! $isOrgPayment && $user->lifecycle_status === 'archived') {
+        // reasoning (these payments are attributed to the organisation or
+        // unit, not the payer's own membership standing).
+        if ($validated['payment_type'] === 'membership' && ! $isOrgPayment && ! $isRcuPayment && $user->lifecycle_status === 'archived') {
             return back()->with('error', 'Your account is archived. Please contact your branch or Red Cross Unit directly to renew your membership.');
         }
 
@@ -143,11 +211,13 @@ class PaystackPaymentController extends Controller
             'donation_purpose' => $validated['payment_type'] === 'donation' ? $request->input('purpose') : null,
             'anonymous' => $validated['payment_type'] === 'donation' ? $request->boolean('anonymous') : null,
             'organisation_id' => $organisationId,
+            'red_cross_unit_id' => $redCrossUnitId,
         ];
 
         $transaction = PaymentTransaction::create([
             'user_id' => $user->id,
             'organisation_id' => $organisationId,
+            'red_cross_unit_id' => $redCrossUnitId,
             'payable_type' => $validated['payment_type'] === 'membership' ? 'membership_payment' : 'donation',
             'reference' => $reference,
             'amount' => $amountInKobo,
@@ -275,12 +345,16 @@ class PaystackPaymentController extends Controller
                     // organisations have no division of their own (Organisation ->
                     // Branch only, confirmed against every organisations-table
                     // migration), so division_id stays null for these.
-                    if ($transaction->organisation_id === null) {
-                        $branchId = $transaction->user->branch_id;
-                        $divisionId = $transaction->user->division_id;
-                    } else {
+                    // RCU payment: scope to the unit's own division and branch.
+                    if ($transaction->red_cross_unit_id !== null) {
+                        $branchId = $transaction->redCrossUnit->division?->branch_id;
+                        $divisionId = $transaction->redCrossUnit->division_id;
+                    } elseif ($transaction->organisation_id !== null) {
                         $branchId = $transaction->organisation->branch_id;
                         $divisionId = null;
+                    } else {
+                        $branchId = $transaction->user->branch_id;
+                        $divisionId = $transaction->user->division_id;
                     }
 
                     if ($transaction->payable_type === 'membership_payment') {
@@ -292,6 +366,7 @@ class PaystackPaymentController extends Controller
                         $record = MembershipPayment::create([
                             'user_id' => $transaction->user_id,
                             'organisation_id' => $transaction->organisation_id,
+                            'red_cross_unit_id' => $transaction->red_cross_unit_id,
                             'payment_date' => $paymentDate,
                             'expiry_date' => $expiryDate,
                             'membership_fee_id' => $fee->id,

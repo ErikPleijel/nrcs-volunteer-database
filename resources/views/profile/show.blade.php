@@ -367,6 +367,45 @@
                         </div>
                     @endif
 
+                    {{-- Your Red Cross Unit(s) — units this user LEADS (team leader or
+                         assistant), not the unit they're a member of: a leader isn't
+                         necessarily a member of the unit they lead. --}}
+                    @php $leadUnits = $user->leadRedCrossUnits(); @endphp
+                    @if($leadUnits->isNotEmpty())
+                        <div class="bg-white rounded-lg shadow-lg p-6">
+                            <div class="flex items-center mb-4">
+                                <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mr-4">
+                                    <i class="fas fa-people-group text-blue-600 text-xl"></i>
+                                </div>
+                                <h2 class="text-xl font-bold text-gray-900">YOUR RED CROSS UNIT</h2>
+                            </div>
+                            <p class="text-base text-gray-600">
+                                You lead the following Red Cross Unit{{ $leadUnits->count() > 1 ? 's' : '' }}. Click on a unit to view its annual fee status and pay it online:
+                            </p>
+
+                            <div class="space-y-3">
+                                @foreach($leadUnits as $leadUnit)
+                                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                        <div>
+                                            <a href="{{ route('profile.red-cross-unit', $leadUnit) }}"
+                                               class="font-medium text-blue-600 hover:text-blue-800">
+                                                {{ $leadUnit->name }}
+                                            </a>
+                                            <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                                {{ (int) $leadUnit->team_leader_user_id === (int) $user->id ? 'Team Leader' : 'Assistant Team Leader' }}
+                                            </span>
+                                        </div>
+                                        <a href="{{ route('profile.red-cross-unit', $leadUnit) }}"
+                                           class="text-sm text-blue-600 hover:text-blue-800 whitespace-nowrap ml-4">
+                                            View &rarr;
+                                        </a>
+                                    </div>
+                                @endforeach
+                            </div>
+
+                        </div>
+                    @endif
+
                     <!-- Membership Section -->
                     <div class="bg-white rounded-lg shadow-lg p-6">
                         <div class="flex items-center mb-4">
@@ -519,6 +558,8 @@
                                                     {{ $payment['membership_type'] }}
                                                     @if($payment['organisation_name'])
                                                         <span class="block text-xs text-indigo-600 italic">On behalf of {{ $payment['organisation_name'] }}</span>
+                                                    @elseif($payment['rcu_name'])
+                                                        <span class="block text-xs text-indigo-600 italic">On behalf of {{ $payment['rcu_name'] }}</span>
                                                     @endif
                                                 </td>
                                                 <td class="py-2">{{ $payment['formatted_amount'] }}</td>

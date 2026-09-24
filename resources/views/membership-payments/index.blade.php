@@ -20,6 +20,23 @@
         @endcan
     </x-slot>
 
+    {{-- RCU annual fees are registered from the unit's own page
+         (red-cross-units/show → Add Payment); this just gets you there. --}}
+    <x-slot name="button2">
+        @can('add_payments')
+            @can('view_red_cross_unit')
+                <a href="{{ route('red-cross-units.index') }}" class="btn-add flex flex-col items-center justify-center text-center p-4">
+                    <span class="flex items-center font-medium">
+                        <i class="fas fa-people-group mr-2"></i>Add RCU Payment
+                    </span>
+                    <span class="text-xs font-normal opacity-80 uppercase  tracking-wider">
+                          Choose a unit
+                    </span>
+                </a>
+            @endcan
+        @endcan
+    </x-slot>
+
     <div class="flex justify-center mb-4">
         <x-help-popup trigger-class="help-btn">
             <x-slot:trigger><i class="fas fa-question-circle text-base mr-1"></i>Guide</x-slot:trigger>
@@ -291,6 +308,7 @@
                                     <option value="">All</option>
                                     <option value="person" {{ request('organisation_scope') == 'person' ? 'selected' : '' }}>Person</option>
                                     <option value="organisation" {{ request('organisation_scope') == 'organisation' ? 'selected' : '' }}>Organisation</option>
+                                    <option value="rcu" {{ request('organisation_scope') == 'rcu' ? 'selected' : '' }}>Red Cross Unit</option>
                                 </select>
                             </div>
                         </div>
@@ -522,6 +540,8 @@
                                     @endif
                                     @if($payment->organisation)
                                         <div class="text-xs font-medium text-purple-800">Organisation</div>
+                                    @elseif($payment->redCrossUnit)
+                                        <div class="text-xs font-medium text-purple-800">Red Cross Unit: {{ $payment->redCrossUnit->name }}</div>
                                     @endif
                                     @if($payment->is_deleted)
                                         <div class="text-xs font-semibold text-red-700 tracking-wide mt-1">
@@ -606,6 +626,8 @@
                                     @endif
                                     @if($payment->organisation)
                                         <div class="text-xs font-medium text-purple-800">Organisation</div>
+                                    @elseif($payment->redCrossUnit)
+                                        <div class="text-xs font-medium text-purple-800">Red Cross Unit: {{ $payment->redCrossUnit->name }}</div>
                                     @endif
                                     @if($payment->is_deleted)
                                         <div class="text-xs font-semibold text-red-700 tracking-wide mt-1">

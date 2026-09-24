@@ -529,3 +529,242 @@ test('webhook logs the exception and still returns 200 (not a retry-triggering s
     expect($transaction->refresh()->status)->toBe('initiated');
     expect(MembershipPayment::count())->toBe(0);
 });
+
+/*
+|--------------------------------------------------------------------------
+| RCU annual fee payments (?red_cross_unit_id= lock)
+|--------------------------------------------------------------------------
+*/
+
+/**
+ * A branch -> division -> RCU chain with $leader as team leader, plus an
+ * RCU fee. Returns [$unit, $fee, $branch, $division].
+ */
+function paystackRcuSetup(User $leader, array $unitOverrides = []): array
+{
+    $branch = \App\Models\Branch::create(['name' => 'Rcu Branch', 'code' => 'RCB']);
+    $division = \App\Models\Division::create(['name' => 'Rcu Division', 'branch_id' => $branch->id]);
+    $unit = \App\Models\RedCrossUnit::create(array_merge([
+        'name' => 'Unit Paystack',
+        'division_id' => $division->id,
+        'team_leader_user_id' => $leader->id,
+        'is_active' => true,
+    ], $unitOverrides));
+    $fee = MembershipFee::factory()->forRedCrossUnits()->create(['name' => 'Unit Test Fee', 'amount' => 20000]);
+
+    return [$unit, $fee, $branch, $division];
+}
+
+test('show locks the form to the leader\'s RCU and lists only RCU fees', function () {
+    $leader = User::factory()->create();
+    [$unit] = paystackRcuSetup($leader);
+    MembershipFee::factory()->create(['name' => 'Personal Annual Fee']);
+
+    $this->actingAs($leader)
+        ->get(route('make-payment.show', ['red_cross_unit_id' => $unit->id]))
+        ->assertOk()
+        ->assertSee('Paying the annual fee for')
+        ->assertSee('Unit Paystack')
+        ->assertSee('name="red_cross_unit_id" value="'.$unit->id.'"', false)
+        ->assertSee('Unit Test Fee')
+        ->assertSee('RCU annual fee') // seeded by Group 1's data migration
+        ->assertDontSee('Personal Annual Fee')
+        ->assertDontSee('<input type="hidden" name="organisation_id"', false)
+        ->assertDontSee('id="paying_as_self"', false)
+        ->assertDontSee('id="type_donation"', false);
+});
+
+test('show lets the assistant team leader pay too', function () {
+    $leader = User::factory()->create();
+    $assistant = User::factory()->create();
+    [$unit] = paystackRcuSetup($leader, ['assistant_team_leader_user_id' => $assistant->id]);
+
+    $this->actingAs($assistant)
+        ->get(route('make-payment.show', ['red_cross_unit_id' => $unit->id]))
+        ->assertOk()
+        ->assertSee('Unit Paystack');
+});
+
+test('show returns 403 to someone who does not lead the RCU', function () {
+    [$unit] = paystackRcuSetup(User::factory()->create());
+
+    $this->actingAs(User::factory()->create())
+        ->get(route('make-payment.show', ['red_cross_unit_id' => $unit->id]))
+        ->assertForbidden();
+});
+
+test('show rejects a URL locking to both an organisation and an RCU', function () {
+    $leader = User::factory()->create();
+    [$unit] = paystackRcuSetup($leader);
+    $organisation = Organisation::create(['name' => 'Sponsor Org']);
+    $organisation->users()->attach($leader->id, ['is_primary_contact' => true, 'linked_at' => now()]);
+
+    $this->actingAs($leader)
+        ->get(route('make-payment.show', ['red_cross_unit_id' => $unit->id, 'organisation_id' => $organisation->id]))
+        ->assertStatus(400);
+});
+
+test('show blocks an archived RCU with a clear message instead of the form', function () {
+    $leader = User::factory()->create();
+    [$unit] = paystackRcuSetup($leader, ['is_active' => false]);
+
+    $this->actingAs($leader)
+        ->get(route('make-payment.show', ['red_cross_unit_id' => $unit->id]))
+        ->assertOk()
+        ->assertSee('This Red Cross Unit is archived')
+        ->assertDontSee(route('make-payment.initiate'));
+});
+
+test('show gives a leader with no email the add-an-email prompt instead of the form', function () {
+    $leader = User::factory()->create(['email' => null]);
+    [$unit] = paystackRcuSetup($leader);
+
+    $this->actingAs($leader)
+        ->get(route('make-payment.show', ['red_cross_unit_id' => $unit->id]))
+        ->assertOk()
+        ->assertSee('Add an email address to your profile to pay online, or contact your branch to pay directly.')
+        ->assertDontSee(route('make-payment.initiate'));
+});
+
+test('initiate rejects a request naming both an organisation and an RCU', function () {
+    $leader = User::factory()->create();
+    [$unit, $fee] = paystackRcuSetup($leader);
+    $organisation = Organisation::create(['name' => 'Sponsor Org']);
+    $organisation->users()->attach($leader->id, ['is_primary_contact' => true, 'linked_at' => now()]);
+
+    $this->actingAs($leader)
+        ->from(route('make-payment.show'))
+        ->post(route('make-payment.initiate'), [
+            'payment_type' => 'membership',
+            'membership_fee_id' => $fee->id,
+            'red_cross_unit_id' => $unit->id,
+            'organisation_id' => $organisation->id,
+        ])
+        ->assertSessionHasErrors('red_cross_unit_id');
+
+    expect(PaymentTransaction::count())->toBe(0);
+});
+
+test('initiate refuses an RCU payment from someone who does not lead the unit', function () {
+    [$unit, $fee] = paystackRcuSetup(User::factory()->create());
+
+    $this->actingAs(User::factory()->create())
+        ->from(route('make-payment.show'))
+        ->post(route('make-payment.initiate'), [
+            'payment_type' => 'membership',
+            'membership_fee_id' => $fee->id,
+            'red_cross_unit_id' => $unit->id,
+        ])
+        ->assertSessionHas('error', 'Only the team leader or assistant team leader of this Red Cross Unit can pay its annual fee.');
+
+    expect(PaymentTransaction::count())->toBe(0);
+});
+
+test('initiate refuses an RCU payment for an archived unit', function () {
+    $leader = User::factory()->create();
+    [$unit, $fee] = paystackRcuSetup($leader, ['is_active' => false]);
+
+    $this->actingAs($leader)
+        ->from(route('make-payment.show'))
+        ->post(route('make-payment.initiate'), [
+            'payment_type' => 'membership',
+            'membership_fee_id' => $fee->id,
+            'red_cross_unit_id' => $unit->id,
+        ])
+        ->assertSessionHas('error', 'This Red Cross Unit is archived, so its annual fee can no longer be paid.');
+
+    expect(PaymentTransaction::count())->toBe(0);
+});
+
+test('initiate refuses an RCU fee paid as a personal payment, and a personal fee paid for an RCU', function () {
+    $leader = User::factory()->create();
+    [$unit, $rcuFee] = paystackRcuSetup($leader);
+    $personalFee = MembershipFee::factory()->create();
+
+    $this->actingAs($leader)->from(route('make-payment.show'))
+        ->post(route('make-payment.initiate'), ['payment_type' => 'membership', 'membership_fee_id' => $rcuFee->id])
+        ->assertSessionHas('error', 'That fee cannot be used for this payment.');
+
+    $this->actingAs($leader)->from(route('make-payment.show'))
+        ->post(route('make-payment.initiate'), ['payment_type' => 'membership', 'membership_fee_id' => $personalFee->id, 'red_cross_unit_id' => $unit->id])
+        ->assertSessionHas('error', 'That fee cannot be used for this payment.');
+
+    expect(PaymentTransaction::count())->toBe(0);
+});
+
+test('initiate allows an RCU payment even for an archived leader, like org payments', function () {
+    $leader = User::factory()->create(['lifecycle_status' => 'archived']);
+    [$unit, $fee] = paystackRcuSetup($leader);
+
+    Http::fake([
+        'api.paystack.co/*' => Http::response([
+            'status' => true,
+            'data' => ['authorization_url' => 'https://checkout.paystack.com/rcu'],
+        ], 200),
+    ]);
+
+    $this->actingAs($leader)
+        ->post(route('make-payment.initiate'), [
+            'payment_type' => 'membership',
+            'membership_fee_id' => $fee->id,
+            'red_cross_unit_id' => $unit->id,
+        ])
+        ->assertRedirect('https://checkout.paystack.com/rcu');
+
+    expect(PaymentTransaction::count())->toBe(1);
+});
+
+test('an RCU payment flows end to end: initiate -> webhook -> MembershipPayment attributed to the unit', function () {
+    $leader = User::factory()->create(['branch_id' => null, 'division_id' => null]);
+    [$unit, $fee, $branch, $division] = paystackRcuSetup($leader);
+
+    Http::fake([
+        'api.paystack.co/transaction/initialize' => Http::response([
+            'status' => true,
+            'data' => ['authorization_url' => 'https://checkout.paystack.com/rcu-e2e'],
+        ], 200),
+        'api.paystack.co/transaction/verify/*' => Http::response([
+            'status' => true,
+            'data' => ['status' => 'success', 'amount' => 2000000],
+        ], 200),
+    ]);
+
+    $this->actingAs($leader)
+        ->post(route('make-payment.initiate'), [
+            'payment_type' => 'membership',
+            'membership_fee_id' => $fee->id,
+            'red_cross_unit_id' => $unit->id,
+        ])
+        ->assertRedirect('https://checkout.paystack.com/rcu-e2e');
+
+    $transaction = PaymentTransaction::sole();
+    expect($transaction->red_cross_unit_id)->toBe($unit->id)
+        ->and($transaction->organisation_id)->toBeNull()
+        ->and($transaction->meta['red_cross_unit_id'])->toBe($unit->id)
+        ->and($transaction->amount)->toBe(2000000);
+
+    $payload = ['event' => 'charge.success', 'data' => ['reference' => $transaction->reference]];
+    $this->postJson('/webhooks/paystack', $payload, paystackWebhookHeaders($payload))
+        ->assertOk()
+        ->assertJson(['status' => 'processed']);
+
+    $payment = MembershipPayment::withAnyApprovalStatus()->sole();
+    expect($payment->red_cross_unit_id)->toBe($unit->id)
+        ->and($payment->organisation_id)->toBeNull()
+        ->and($payment->user_id)->toBe($leader->id)
+        ->and($payment->branch_id)->toBe($branch->id)
+        ->and($payment->division_id)->toBe($division->id)
+        ->and($payment->payment_channel)->toBe('paystack')
+        ->and($payment->approval_status)->toBe(MembershipPayment::APPROVED)
+        ->and($transaction->refresh()->status)->toBe('success')
+        ->and($transaction->membership_payment_id)->toBe($payment->id)
+        // Group 2 regression: the unit's payment is not the leader's own membership.
+        ->and(MembershipPayment::personal()->count())->toBe(0)
+        ->and($unit->fresh()->isPaid())->toBeTrue();
+
+    // The callback holding page is payer-agnostic.
+    $this->actingAs($leader)
+        ->get(route('make-payment.callback', ['reference' => $transaction->reference]))
+        ->assertOk()
+        ->assertSee('Payment received');
+});

@@ -13,6 +13,7 @@ class PaymentTransaction extends Model
     protected $fillable = [
         'user_id',
         'organisation_id',
+        'red_cross_unit_id',
         'payable_type',
         'reference',
         'amount',
@@ -36,6 +37,11 @@ class PaymentTransaction extends Model
     public function organisation(): BelongsTo
     {
         return $this->belongsTo(Organisation::class);
+    }
+
+    public function redCrossUnit(): BelongsTo
+    {
+        return $this->belongsTo(RedCrossUnit::class);
     }
 
     public function donation(): BelongsTo

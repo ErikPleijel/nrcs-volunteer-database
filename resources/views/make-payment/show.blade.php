@@ -54,6 +54,22 @@
                         </div>
                     @endif
 
+                    @if($lockedRedCrossUnit && $rcuBlockedReason)
+                        {{-- Locked to an RCU that can't pay online right now (archived
+                             unit, or payer has no email): banner + reason, no form. --}}
+                        <p class="text-sm text-gray-600 mb-4">
+                            Paying the annual fee for <strong>{{ $lockedRedCrossUnit->name }}</strong>
+                        </p>
+                        <div class="mb-6 flex items-center gap-3 rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
+                            <i class="fas fa-triangle-exclamation text-yellow-500"></i>{{ $rcuBlockedReason }}
+                        </div>
+                        <div class="flex justify-end">
+                            <a href="{{ route('profile.show') }}"
+                               class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+                                Back to your profile
+                            </a>
+                        </div>
+                    @else
                     <form method="POST" action="{{ route('make-payment.initiate') }}">
                         @csrf
 
@@ -83,7 +99,12 @@
                             </div>
                         @endif
 
-                        @if($lockedOrganisation)
+                        @if($lockedRedCrossUnit)
+                            <input type="hidden" name="red_cross_unit_id" value="{{ $lockedRedCrossUnit->id }}">
+                            <p class="text-sm text-gray-600 mb-4">
+                                Paying the annual fee for <strong>{{ $lockedRedCrossUnit->name }}</strong>
+                            </p>
+                        @elseif($lockedOrganisation)
                             <input type="hidden" name="organisation_id" value="{{ $lockedOrganisation->id }}">
                             <p class="text-sm text-gray-600 mb-4">
                                 Paying on behalf of <strong>{{ $lockedOrganisation->name }}</strong>
@@ -120,7 +141,27 @@
                             <div id="membership_fields" class="entry-card">
                                 <h4 class="entry-card-title">Membership Details</h4>
 
-                                @if($lockedOrganisation)
+                                @if($lockedRedCrossUnit)
+                                    {{-- Locked to an RCU: its annual fee list only, same shape as
+                                         the locked-organisation list below. --}}
+                                    <div>
+                                        <label for="membership_fee_id" class="block text-sm font-medium text-gray-700 mb-2">
+                                            Annual Fee <span class="text-red-500">*</span>
+                                        </label>
+                                        <select name="membership_fee_id" id="membership_fee_id" required
+                                                class="entry-field @error('membership_fee_id') border-red-500 @enderror">
+                                            <option value="">Select a fee</option>
+                                            @foreach($rcuMembershipFees as $fee)
+                                                <option value="{{ $fee->id }}" {{ (string) old('membership_fee_id') === (string) $fee->id ? 'selected' : '' }}>
+                                                    {{ $fee->name }} — ₦{{ number_format($fee->amount, 2) }} ({{ $fee->validity_years }} years)
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                        @error('membership_fee_id')
+                                            <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+                                        @enderror
+                                    </div>
+                                @elseif($lockedOrganisation)
                                     {{-- Locked to a single organisation: no personal/org toggle to
                                          speak of, just the one relevant fee list, always visible and
                                          enabled. Not wired into updateMembershipFeeSelects() — that
@@ -242,6 +283,7 @@
                             </button>
                         </div>
                     </form>
+                    @endif
                 </div>
             </div>
         </div>

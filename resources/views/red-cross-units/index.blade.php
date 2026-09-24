@@ -141,7 +141,7 @@
         <div class="filter-container">
             <div class="filter-form-content">
                 <form method="GET" action="{{ route('red-cross-units.index') }}" id="filterForm" class="filter-form">
-                    <div class="filter-grid filter-grid-4">
+                    <div class="filter-grid {{ $status === 'active' ? 'filter-grid-5' : 'filter-grid-4' }}">
                         <div>
                             <label for="search" class="filter-label">Search</label>
                             <input type="text" name="search" id="search" value="{{ request('search') }}"
@@ -201,6 +201,17 @@
                                 <option value="archived" {{ $status === 'archived' ? 'selected' : '' }}>Archived</option>
                             </select>
                         </div>
+                        @if($status === 'active')
+                            <div>
+                                <label for="fee" class="filter-label">Annual Fee</label>
+                                <select name="fee" id="fee" class="filter-select {{ $fee !== 'all' ? 'filter-active' : '' }}">
+                                    <option value="all" {{ $fee === 'all' ? 'selected' : '' }}>All</option>
+                                    <option value="paid" {{ $fee === 'paid' ? 'selected' : '' }}>Paid</option>
+                                    <option value="expiring_28" {{ $fee === 'expiring_28' ? 'selected' : '' }}>Expiring in 28 days</option>
+                                    <option value="unpaid" {{ $fee === 'unpaid' ? 'selected' : '' }}>Not paid</option>
+                                </select>
+                            </div>
+                        @endif
                     </div>
 
                     <div class="filter-actions">
@@ -228,6 +239,7 @@
                         <th class="table-header-cell">Branch / Division</th>
                         <th class="table-header-cell">Members</th>
                         <th class="table-header-cell">Leadership</th>
+                        <th class="table-header-cell">Annual Fee</th>
                         <th class="table-header-cell">Actions</th>
                     </tr>
                     </thead>
@@ -272,6 +284,31 @@
                                 @endif
                             </td>
 
+                            {{-- Same badge markup as organisations/index's Membership column. --}}
+                            <td class="table-body-cell">
+                                @if($unit->activeMembership)
+                                    <span class="badge-style bg-green-100 text-green-800 whitespace-nowrap">
+                                        <i class="fas fa-id-card mr-2"></i>
+                                        <span class="flex flex-col leading-tight text-left">
+                                            <span class="font-semibold">Paid</span>
+                                            @if($unit->activeMembership->membershipFee)
+                                                <span class="text-[10px] opacity-80">{{ $unit->activeMembership->membershipFee->name }}</span>
+                                            @endif
+                                        </span>
+                                    </span>
+                                @elseif($unit->latestMembership)
+                                    <span class="badge-style bg-red-100 text-red-800 whitespace-nowrap">
+                                        <i class="fas fa-id-card mr-2"></i>
+                                        <span class="flex flex-col leading-tight text-left">
+                                            <span class="font-semibold">Annual fee</span>
+                                            <span class="text-[10px] opacity-80">Expired</span>
+                                        </span>
+                                    </span>
+                                @else
+                                    <span class="text-gray-400 text-xs">—</span>
+                                @endif
+                            </td>
+
                             <td class="table-body-cell">
                                 <div class="flex gap-2 items-center">
                                     <a href="{{ route('red-cross-units.show', $unit) }}"
@@ -284,7 +321,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="py-4 text-center text-gray-500 italic">
+                            <td colspan="6" class="py-4 text-center text-gray-500 italic">
                                 No red cross units found.
                             </td>
                         </tr>

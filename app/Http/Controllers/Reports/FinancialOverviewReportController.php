@@ -14,6 +14,13 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class FinancialOverviewReportController extends Controller
 {
+    /**
+     * Which of the mutually exclusive payer categories a membership payment
+     * falls into: an RCU annual fee, an organisation-sponsored payment, or a
+     * personal one. Used as a SELECT/GROUP BY expression.
+     */
+    private const PAYER_CATEGORY_SQL = "(CASE WHEN membership_payments.red_cross_unit_id IS NOT NULL THEN 'rcu' WHEN membership_payments.organisation_id IS NOT NULL THEN 'organisation' ELSE 'personal' END)";
+
     public function index(Request $request)
     {
         $activeTab   = $request->input('tab', 'payments');
@@ -51,7 +58,9 @@ class FinancialOverviewReportController extends Controller
             : null;
 
         // Tab 1 — Payments: full-year (Q1-Q4) breakdown per branch/division,
-        // each quarter split into member/volunteer/organisation amounts.
+        // each quarter split into member/volunteer/organisation/RCU amounts.
+        // Member/volunteer are personal-only (neither organisation_id nor
+        // red_cross_unit_id set), so the four columns never overlap.
         //
         // Single grouped query (GROUP BY row + QUARTER(payment_date)) rather
         // than the old per-row × per-category × per-quarter loop — mirrors
@@ -86,13 +95,16 @@ class FinancialOverviewReportController extends Controller
                     "{$joinTable}.name as row_name",
                     DB::raw('QUARTER(membership_payments.payment_date) as quarter'),
                     DB::raw('
-                        SUM(CASE WHEN membership_payments.organisation_id IS NULL AND membership_fees.is_volunteer_fee = 0 THEN membership_fees.amount ELSE 0 END) as member_amount
+                        SUM(CASE WHEN membership_payments.organisation_id IS NULL AND membership_payments.red_cross_unit_id IS NULL AND membership_fees.is_volunteer_fee = 0 THEN membership_fees.amount ELSE 0 END) as member_amount
                     '),
                     DB::raw('
-                        SUM(CASE WHEN membership_payments.organisation_id IS NULL AND membership_fees.is_volunteer_fee = 1 THEN membership_fees.amount ELSE 0 END) as volunteer_amount
+                        SUM(CASE WHEN membership_payments.organisation_id IS NULL AND membership_payments.red_cross_unit_id IS NULL AND membership_fees.is_volunteer_fee = 1 THEN membership_fees.amount ELSE 0 END) as volunteer_amount
                     '),
                     DB::raw('
                         SUM(CASE WHEN membership_payments.organisation_id IS NOT NULL THEN membership_fees.amount ELSE 0 END) as org_amount
+                    '),
+                    DB::raw('
+                        SUM(CASE WHEN membership_payments.red_cross_unit_id IS NOT NULL THEN membership_fees.amount ELSE 0 END) as rcu_amount
                     ')
                 )
                 ->groupBy("{$joinTable}.id", "{$joinTable}.name", DB::raw('QUARTER(membership_payments.payment_date)'))
@@ -107,10 +119,10 @@ class FinancialOverviewReportController extends Controller
                 $items = $groupedRows->get($rowItem->id, collect());
 
                 $quarters = [
-                    1 => ['member' => 0.0, 'volunteer' => 0.0, 'org' => 0.0],
-                    2 => ['member' => 0.0, 'volunteer' => 0.0, 'org' => 0.0],
-                    3 => ['member' => 0.0, 'volunteer' => 0.0, 'org' => 0.0],
-                    4 => ['member' => 0.0, 'volunteer' => 0.0, 'org' => 0.0],
+                    1 => ['member' => 0.0, 'volunteer' => 0.0, 'org' => 0.0, 'rcu' => 0.0],
+                    2 => ['member' => 0.0, 'volunteer' => 0.0, 'org' => 0.0, 'rcu' => 0.0],
+                    3 => ['member' => 0.0, 'volunteer' => 0.0, 'org' => 0.0, 'rcu' => 0.0],
+                    4 => ['member' => 0.0, 'volunteer' => 0.0, 'org' => 0.0, 'rcu' => 0.0],
                 ];
 
                 foreach ($items as $item) {
@@ -121,11 +133,12 @@ class FinancialOverviewReportController extends Controller
                     $quarters[$q]['member']    += (float) $item->member_amount;
                     $quarters[$q]['volunteer'] += (float) $item->volunteer_amount;
                     $quarters[$q]['org']       += (float) $item->org_amount;
+                    $quarters[$q]['rcu']       += (float) $item->rcu_amount;
                 }
 
                 $yearTotal = 0.0;
                 foreach ($quarters as $q) {
-                    $yearTotal += $q['member'] + $q['volunteer'] + $q['org'];
+                    $yearTotal += $q['member'] + $q['volunteer'] + $q['org'] + $q['rcu'];
                 }
 
                 return [
@@ -135,15 +148,19 @@ class FinancialOverviewReportController extends Controller
                     'q1_member'    => $quarters[1]['member'],
                     'q1_volunteer' => $quarters[1]['volunteer'],
                     'q1_org'       => $quarters[1]['org'],
+                    'q1_rcu'       => $quarters[1]['rcu'],
                     'q2_member'    => $quarters[2]['member'],
                     'q2_volunteer' => $quarters[2]['volunteer'],
                     'q2_org'       => $quarters[2]['org'],
+                    'q2_rcu'       => $quarters[2]['rcu'],
                     'q3_member'    => $quarters[3]['member'],
                     'q3_volunteer' => $quarters[3]['volunteer'],
                     'q3_org'       => $quarters[3]['org'],
+                    'q3_rcu'       => $quarters[3]['rcu'],
                     'q4_member'    => $quarters[4]['member'],
                     'q4_volunteer' => $quarters[4]['volunteer'],
                     'q4_org'       => $quarters[4]['org'],
+                    'q4_rcu'       => $quarters[4]['rcu'],
                     'year_total'   => $yearTotal,
                 ];
             })->values()->all();
@@ -151,15 +168,17 @@ class FinancialOverviewReportController extends Controller
 
         // Tab 2 — Fee Breakdown: full-year (Q1-Q4 + Year Total) breakdown per
         // fee, in three mutually exclusive sections by contributor type.
+        // A fourth section, Red Cross Unit, holds RCU annual fee payments
+        // (red_cross_unit_id set), likewise regardless of fee flavour.
         // Organisation is scoped by organisation_id regardless of
         // is_volunteer_fee (an org-attributed payment can use either fee
         // flavour — see MembershipPaymentController::store()'s
         // fee-eligibility check, which keys off the linked user's own RC-unit
         // status, not organisation_id), so Member/Volunteer here are always
-        // personal-only (organisation_id IS NULL) to keep the three sections
-        // non-overlapping.
+        // personal-only (organisation_id and red_cross_unit_id IS NULL) to
+        // keep the four sections non-overlapping.
         //
-        // Single grouped query (GROUP BY fee + organisation-flag +
+        // Single grouped query (GROUP BY fee + payer category +
         // QUARTER(payment_date)) rather than the old per-fee sum() loop (66
         // queries on a national dev load: 24 member + 9 volunteer + 33
         // organisation-eligible fees). Grouping on
@@ -178,6 +197,7 @@ class FinancialOverviewReportController extends Controller
         $memberFeeBreakdown = collect();
         $volunteerFeeBreakdown = collect();
         $organisationFeeBreakdown = collect();
+        $rcuFeeBreakdown = collect();
         $feeBreakdownGrandTotal = 0;
         $feeBreakdownData = collect();
         if ($activeTab === 'breakdown') {
@@ -196,7 +216,7 @@ class FinancialOverviewReportController extends Controller
                     'membership_fees.name as fee_name',
                     'membership_fees.validity_years',
                     'membership_fees.is_volunteer_fee',
-                    DB::raw('(membership_payments.organisation_id IS NOT NULL) as is_organisation'),
+                    DB::raw(self::PAYER_CATEGORY_SQL.' as payer_category'),
                     DB::raw('QUARTER(membership_payments.payment_date) as quarter'),
                     DB::raw('SUM(membership_fees.amount) as amount')
                 )
@@ -205,7 +225,7 @@ class FinancialOverviewReportController extends Controller
                     'membership_fees.name',
                     'membership_fees.validity_years',
                     'membership_fees.is_volunteer_fee',
-                    DB::raw('(membership_payments.organisation_id IS NOT NULL)'),
+                    DB::raw(self::PAYER_CATEGORY_SQL),
                     DB::raw('QUARTER(membership_payments.payment_date)')
                 )
                 ->get();
@@ -236,12 +256,17 @@ class FinancialOverviewReportController extends Controller
                 ];
             };
 
-            $personalRows = $groupedFeeRows->where('is_organisation', 0)
+            $personalRows = $groupedFeeRows->where('payer_category', 'personal')
                 ->groupBy('membership_fee_id')
                 ->map($buildYearRow)
                 ->values();
 
-            $organisationRows = $groupedFeeRows->where('is_organisation', 1)
+            $organisationRows = $groupedFeeRows->where('payer_category', 'organisation')
+                ->groupBy('membership_fee_id')
+                ->map($buildYearRow)
+                ->values();
+
+            $rcuRows = $groupedFeeRows->where('payer_category', 'rcu')
                 ->groupBy('membership_fee_id')
                 ->map($buildYearRow)
                 ->values();
@@ -265,9 +290,15 @@ class FinancialOverviewReportController extends Controller
                 ->sortBy(fn ($row) => $row['is_volunteer_fee'] ? 1 : 0)
                 ->values();
 
+            $rcuFeeBreakdown = $rcuRows
+                ->filter(fn ($row) => $row['year_total'] > 0)
+                ->sortBy('fee_name')
+                ->values();
+
             $feeBreakdownGrandTotal = $memberFeeBreakdown->sum('year_total')
                 + $volunteerFeeBreakdown->sum('year_total')
-                + $organisationFeeBreakdown->sum('year_total');
+                + $organisationFeeBreakdown->sum('year_total')
+                + $rcuFeeBreakdown->sum('year_total');
 
             // Kept for exportFeeBreakdownCsv()/the empty-state check below —
             // a flat concat of the three (mutually exclusive, so no
@@ -279,6 +310,7 @@ class FinancialOverviewReportController extends Controller
             $feeBreakdownData = $memberFeeBreakdown
                 ->concat($volunteerFeeBreakdown)
                 ->concat($organisationFeeBreakdown)
+                ->concat($rcuFeeBreakdown)
                 ->values();
         }
 
@@ -290,7 +322,7 @@ class FinancialOverviewReportController extends Controller
             $scopeName = !$isNational ? $selectedBranchName : null;
 
             return $activeTab === 'breakdown'
-                ? $this->exportFeeBreakdownCsv($memberFeeBreakdown, $volunteerFeeBreakdown, $organisationFeeBreakdown, $feeBreakdownGrandTotal, $isNational, $scopeName, $selectedYear)
+                ? $this->exportFeeBreakdownCsv($memberFeeBreakdown, $volunteerFeeBreakdown, $organisationFeeBreakdown, $rcuFeeBreakdown, $feeBreakdownGrandTotal, $isNational, $scopeName, $selectedYear)
                 : $this->exportPaymentsCsv($paymentsData, $rowType, $isNational, $scopeName, $selectedYear);
         }
 
@@ -309,6 +341,7 @@ class FinancialOverviewReportController extends Controller
             'memberFeeBreakdown',
             'volunteerFeeBreakdown',
             'organisationFeeBreakdown',
+            'rcuFeeBreakdown',
             'feeBreakdownGrandTotal',
         ));
     }
@@ -391,11 +424,12 @@ class FinancialOverviewReportController extends Controller
             ->whereBetween('payment_date', [$qStart, $qEnd])
             ->when($level === 'division', fn ($q) => $q->where('division_id', $id))
             ->when($level === 'branch', fn ($q) => $q->where('branch_id', $id))
-            ->when($category === 'member', fn ($q) => $q->whereNull('organisation_id')
+            ->when($category === 'member', fn ($q) => $q->personal()
                 ->whereHas('membershipFee', fn ($fq) => $fq->where('is_volunteer_fee', false)))
-            ->when($category === 'volunteer', fn ($q) => $q->whereNull('organisation_id')
+            ->when($category === 'volunteer', fn ($q) => $q->personal()
                 ->whereHas('membershipFee', fn ($fq) => $fq->where('is_volunteer_fee', true)))
-            ->when($category === 'organisation', fn ($q) => $q->whereNotNull('organisation_id'));
+            ->when($category === 'organisation', fn ($q) => $q->organisational())
+            ->when($category === 'rcu', fn ($q) => $q->rcuAttributed());
 
         // Computed on clones BEFORE ->paginate() — paginate() only returns the
         // current page's 200 rows, but the "Total (N payments)" row must
@@ -413,7 +447,7 @@ class FinancialOverviewReportController extends Controller
         // (a date, not datetime, column) can have many ties, which without a
         // tiebreaker can shuffle rows between pages across requests.
         $payments = $baseQuery
-            ->with(['user', 'organisation', 'membershipFee'])
+            ->with(['user', 'organisation', 'redCrossUnit', 'membershipFee'])
             ->orderBy('payment_date', 'desc')
             ->orderBy('id', 'desc')
             ->paginate(200);
@@ -499,11 +533,12 @@ class FinancialOverviewReportController extends Controller
             ->whereBetween('payment_date', [$qStart, $qEnd])
             ->where('membership_fee_id', $feeId)
             ->when($scopeBranchId, fn ($q) => $q->where('branch_id', $scopeBranchId))
-            ->when($category === 'member', fn ($q) => $q->whereNull('organisation_id')
+            ->when($category === 'member', fn ($q) => $q->personal()
                 ->whereHas('membershipFee', fn ($fq) => $fq->where('is_volunteer_fee', false)))
-            ->when($category === 'volunteer', fn ($q) => $q->whereNull('organisation_id')
+            ->when($category === 'volunteer', fn ($q) => $q->personal()
                 ->whereHas('membershipFee', fn ($fq) => $fq->where('is_volunteer_fee', true)))
-            ->when($category === 'organisation', fn ($q) => $q->whereNotNull('organisation_id'));
+            ->when($category === 'organisation', fn ($q) => $q->organisational())
+            ->when($category === 'rcu', fn ($q) => $q->rcuAttributed());
 
         // Computed on clones BEFORE ->paginate() — paginate() only returns the
         // current page's 200 rows, but the "Total (N payments)" row must
@@ -521,7 +556,7 @@ class FinancialOverviewReportController extends Controller
         // (a date, not datetime, column) can have many ties, which without a
         // tiebreaker can shuffle rows between pages across requests.
         $payments = $baseQuery
-            ->with(['user', 'organisation', 'membershipFee', 'branch'])
+            ->with(['user', 'organisation', 'redCrossUnit', 'membershipFee', 'branch'])
             ->orderBy('payment_date', 'desc')
             ->orderBy('id', 'desc')
             ->paginate(200);
@@ -542,7 +577,7 @@ class FinancialOverviewReportController extends Controller
     /**
      * Streams the Payments tab as CSV — same row shape/order as the
      * on-screen table (one row per branch/division, plus a Total row),
-     * now the full-year Q1-Q4 × Member/Volunteer/Organisation breakdown
+     * now the full-year Q1-Q4 × Member/Volunteer/Organisation/RCU breakdown
      * instead of a single quarter. Same BOM + sep=, + fputcsv pattern as
      * MemberReportController::exportCsv(). Every numeric value (detail rows
      * and the Total row alike) is passed through number_format($x, 0, '.', '')
@@ -558,10 +593,10 @@ class FinancialOverviewReportController extends Controller
         $areaLabel = $rowType === 'branch' ? 'Branch' : 'Division';
 
         $columns = [
-            'q1_member', 'q1_volunteer', 'q1_org',
-            'q2_member', 'q2_volunteer', 'q2_org',
-            'q3_member', 'q3_volunteer', 'q3_org',
-            'q4_member', 'q4_volunteer', 'q4_org',
+            'q1_member', 'q1_volunteer', 'q1_org', 'q1_rcu',
+            'q2_member', 'q2_volunteer', 'q2_org', 'q2_rcu',
+            'q3_member', 'q3_volunteer', 'q3_org', 'q3_rcu',
+            'q4_member', 'q4_volunteer', 'q4_org', 'q4_rcu',
         ];
 
         return response()->streamDownload(function () use ($paymentsData, $areaLabel, $columns) {
@@ -572,10 +607,10 @@ class FinancialOverviewReportController extends Controller
 
             fputcsv($out, [
                 $areaLabel,
-                'Q1 Members', 'Q1 Volunteers', 'Q1 Organisations',
-                'Q2 Members', 'Q2 Volunteers', 'Q2 Organisations',
-                'Q3 Members', 'Q3 Volunteers', 'Q3 Organisations',
-                'Q4 Members', 'Q4 Volunteers', 'Q4 Organisations',
+                'Q1 Members', 'Q1 Volunteers', 'Q1 Organisations', 'Q1 Red Cross Units',
+                'Q2 Members', 'Q2 Volunteers', 'Q2 Organisations', 'Q2 Red Cross Units',
+                'Q3 Members', 'Q3 Volunteers', 'Q3 Organisations', 'Q3 Red Cross Units',
+                'Q4 Members', 'Q4 Volunteers', 'Q4 Organisations', 'Q4 Red Cross Units',
                 'Year Total',
             ]);
 
@@ -630,6 +665,7 @@ class FinancialOverviewReportController extends Controller
         $memberFeeBreakdown,
         $volunteerFeeBreakdown,
         $organisationFeeBreakdown,
+        $rcuFeeBreakdown,
         float $grandTotal,
         bool $isNational,
         ?string $scopeName,
@@ -641,14 +677,17 @@ class FinancialOverviewReportController extends Controller
         $memberSubtotals       = $this->sumFeeQuarterColumns($memberFeeBreakdown);
         $volunteerSubtotals    = $this->sumFeeQuarterColumns($volunteerFeeBreakdown);
         $organisationSubtotals = $this->sumFeeQuarterColumns($organisationFeeBreakdown);
+        $rcuSubtotals          = $this->sumFeeQuarterColumns($rcuFeeBreakdown);
 
         return response()->streamDownload(function () use (
             $memberFeeBreakdown,
             $volunteerFeeBreakdown,
             $organisationFeeBreakdown,
+            $rcuFeeBreakdown,
             $memberSubtotals,
             $volunteerSubtotals,
             $organisationSubtotals,
+            $rcuSubtotals,
             $grandTotal
         ) {
             $out = fopen('php://output', 'w');
@@ -690,7 +729,14 @@ class FinancialOverviewReportController extends Controller
                 $writeRow($out, 'Organisation fees subtotal', $organisationSubtotals);
             }
 
-            if ($memberFeeBreakdown->isNotEmpty() || $volunteerFeeBreakdown->isNotEmpty() || $organisationFeeBreakdown->isNotEmpty()) {
+            foreach ($rcuFeeBreakdown as $row) {
+                $writeRow($out, $row['fee_name'].' (Red Cross Unit)', $row);
+            }
+            if ($rcuFeeBreakdown->isNotEmpty()) {
+                $writeRow($out, 'Red Cross Unit fees subtotal', $rcuSubtotals);
+            }
+
+            if ($memberFeeBreakdown->isNotEmpty() || $volunteerFeeBreakdown->isNotEmpty() || $organisationFeeBreakdown->isNotEmpty() || $rcuFeeBreakdown->isNotEmpty()) {
                 fputcsv($out, ['Grand Total', '', '', '', '', number_format($grandTotal, 0, '.', '')]);
             }
 

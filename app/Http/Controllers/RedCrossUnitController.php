@@ -596,9 +596,24 @@ class RedCrossUnitController extends Controller
 
         $status = $request->input('status', 'active');
 
-        $query = RedCrossUnit::with(['division.branch', 'teamLeader', 'assistantTeamLeader'])
+        // Annual fee filter (mirrors OrganisationController::index()'s
+        // membership filter); only meaningful for active units.
+        $fee = $request->input('fee', 'all');
+
+        $query = RedCrossUnit::with(['division.branch', 'teamLeader', 'assistantTeamLeader', 'activeMembership.membershipFee', 'latestMembership'])
             ->withCount('activeUsers')
             ->where('is_active', $status === 'archived' ? false : true);
+
+        if ($status !== 'archived') {
+            match ($fee) {
+                'paid' => $query->whereHas('membershipPayments', fn ($q) => $q->where('is_deleted', false)->where('expiry_date', '>=', now())),
+                'expiring_28' => $query->whereHas('membershipPayments', fn ($q) => $q->where('is_deleted', false)
+                    ->where('expiry_date', '>=', now())
+                    ->where('expiry_date', '<=', now()->addDays(28))),
+                'unpaid' => $query->whereDoesntHave('membershipPayments', fn ($q) => $q->where('is_deleted', false)->where('expiry_date', '>=', now())),
+                default => null,
+            };
+        }
 
         // Apply global access level filters FIRST to the query
         if ($accessLevel === 'branch' && $scopedId) {
@@ -683,7 +698,8 @@ class RedCrossUnitController extends Controller
             'scopedId',     // Pass scoped ID to the view
             'userBranchId',
             'userDivisionId',
-            'status'
+            'status',
+            'fee'
         ));
     }
 

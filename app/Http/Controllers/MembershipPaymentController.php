@@ -46,7 +46,7 @@ class MembershipPaymentController extends Controller
      */
     private function getFilteredPaymentsQuery(Request $request)
     {
-        $query = MembershipPayment::with(['user', 'membershipFee', 'submittedByUser', 'branch', 'division', 'user.redCrossUnit'])
+        $query = MembershipPayment::with(['user', 'membershipFee', 'submittedByUser', 'branch', 'division', 'user.redCrossUnit', 'organisation', 'redCrossUnit'])
             ->whereHas('user')
             ->whereHas('membershipFee');
 
@@ -100,6 +100,7 @@ class MembershipPaymentController extends Controller
             match ($request->organisation_scope) {
                 'person' => $query->personal(),
                 'organisation' => $query->organisational(),
+                'rcu' => $query->rcuAttributed(),
                 default => null,
             };
         }
@@ -351,6 +352,43 @@ class MembershipPaymentController extends Controller
     }
 
     /**
+     * Staff registration of a Red Cross Unit's annual fee, reached from
+     * red-cross-units/show → Add Payment. The payer must be the unit's team
+     * leader or assistant (re-checked in store()), so a unit with neither, or
+     * an archived unit, is sent back to its page instead.
+     */
+    public function createForRedCrossUnit(RedCrossUnit $redCrossUnit)
+    {
+        abort_unless($redCrossUnit->isViewableBy(Auth::user()), 403, 'You are not authorized to view this Red Cross Unit.');
+
+        if (! $redCrossUnit->is_active) {
+            return redirect()->route('red-cross-units.show', $redCrossUnit)
+                ->with('error', 'This Red Cross Unit is archived, so no payment can be registered for it.');
+        }
+
+        if (! $redCrossUnit->hasLeadership()) {
+            return redirect()->route('red-cross-units.show', $redCrossUnit)
+                ->with('error', 'Assign a team leader before registering a payment for this unit.');
+        }
+
+        $redCrossUnit->load(['division.branch', 'teamLeader', 'assistantTeamLeader']);
+
+        // Only the unit's leaders can be recorded as the payer.
+        $payers = collect([
+            'Team Leader' => $redCrossUnit->teamLeader,
+            'Assistant Team Leader' => $redCrossUnit->assistantTeamLeader,
+        ])->filter();
+
+        $membershipFees = MembershipFee::select('id', 'name', 'amount', 'id_card_fee', 'validity_years')
+            ->forRedCrossUnits()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
+
+        return view('membership-payments.create_for_red_cross_unit', compact('redCrossUnit', 'payers', 'membershipFees'));
+    }
+
+    /**
      * Show the form for creating a new resource.
      */
     public function create(?User $user = null)
@@ -364,8 +402,11 @@ class MembershipPaymentController extends Controller
             $user->rcu_name = $user->redCrossUnit?->name;
         }
 
+        // Personal payment form: organisation and Red Cross Unit fees have
+        // their own entry flows.
         $membershipFees = MembershipFee::select('id', 'name', 'amount', 'id_card_fee', 'validity_years', 'is_volunteer_fee')
             ->where('is_active', true)
+            ->forPersons()
             ->orderBy('name')
             ->orderBy('validity_years', 'asc')
             ->get();
@@ -495,14 +536,37 @@ class MembershipPaymentController extends Controller
     public function store(Request $request)
     {
         $isOrgPayment = $request->filled('organisation_id');
+        $isRcuPayment = $request->filled('red_cross_unit_id');
 
         $request->validate([
             'user_id' => 'required|exists:users,id',
             'organisation_id' => $isOrgPayment ? 'required|exists:organisations,id' : 'nullable|exists:organisations,id',
+            // An RCU annual fee: the payer must be the unit's team leader or
+            // assistant, and the unit must be active — re-checked here, not
+            // just enforced by the form's payer dropdown.
+            'red_cross_unit_id' => [
+                'nullable',
+                'exists:red_cross_units,id',
+                'prohibits:organisation_id',
+                function ($attribute, $value, $fail) use ($request) {
+                    $unit = RedCrossUnit::find($value);
+                    $payer = User::find($request->user_id);
+
+                    if (! $unit || ! $payer) {
+                        return;
+                    }
+
+                    if (! $unit->is_active) {
+                        $fail('This Red Cross Unit is archived, so no payment can be registered for it.');
+                    } elseif (! $unit->isLedBy($payer)) {
+                        $fail('The payer must be the team leader or assistant team leader of this Red Cross Unit.');
+                    }
+                },
+            ],
             'membership_fee_id' => [
                 'required',
                 'exists:membership_fees,id',
-                function ($attribute, $value, $fail) use ($request, $isOrgPayment) {
+                function ($attribute, $value, $fail) use ($request, $isOrgPayment, $isRcuPayment) {
                     $fee = MembershipFee::find($value);
                     $targetUser = User::find($request->user_id);
 
@@ -510,7 +574,18 @@ class MembershipPaymentController extends Controller
                         return; // let the other rules handle missing records
                     }
 
-                    if ($isOrgPayment) {
+                    // RCU fees belong to RCU payments only, and vice versa —
+                    // otherwise an RCU fee would count as someone's personal
+                    // (or an organisation's) membership.
+                    if ((bool) $fee->for_red_cross_units !== $isRcuPayment) {
+                        $fail($isRcuPayment
+                            ? 'Only a Red Cross Unit fee can be registered for a Red Cross Unit.'
+                            : 'A Red Cross Unit fee can only be registered for a Red Cross Unit.');
+
+                        return;
+                    }
+
+                    if ($isOrgPayment || $isRcuPayment) {
                         return; // fee/RCU matching only applies to personal payments
                     }
 
@@ -536,10 +611,11 @@ class MembershipPaymentController extends Controller
         $paymentDate = Carbon::parse($request->payment_date);
         $expiryDate = $paymentDate->copy()->addYears($membershipFee->validity_years);
 
-        // Organisational payments are attributed and tracked independently of a
-        // member's personal membership history (see scopePersonal()) — the
-        // overlap check only applies between personal payments.
-        if (! $isOrgPayment) {
+        // Organisational and RCU payments are attributed and tracked
+        // independently of a member's personal membership history (see
+        // scopePersonal()) — the overlap check only applies between personal
+        // payments.
+        if (! $isOrgPayment && ! $isRcuPayment) {
             try {
                 $overlapping = $this->findOverlappingMembershipPayment($request->user_id, $paymentDate, $expiryDate);
 
@@ -553,9 +629,20 @@ class MembershipPaymentController extends Controller
             }
         }
 
+        // An RCU payment is scoped to the unit's own division and branch,
+        // taken from the unit rather than the form's hidden fields.
+        $branchId = $request->branch_id;
+        $divisionId = $request->division_id;
+        if ($isRcuPayment) {
+            $unit = RedCrossUnit::with('division')->findOrFail($request->red_cross_unit_id);
+            $branchId = $unit->division?->branch_id;
+            $divisionId = $unit->division_id;
+        }
+
         $membershipPayment = MembershipPayment::create([
             'user_id' => $request->user_id,
             'organisation_id' => $request->organisation_id ?: null,
+            'red_cross_unit_id' => $request->red_cross_unit_id ?: null,
             'payment_date' => $request->payment_date,
             'expiry_date' => $expiryDate,
             'membership_fee_id' => $request->membership_fee_id,
@@ -563,8 +650,8 @@ class MembershipPaymentController extends Controller
             'submission_name' => auth()->user()->name,
             'submitted_by_user_id' => auth()->id(),
             'submitted_at' => now(),
-            'branch_id' => $request->branch_id,
-            'division_id' => $request->division_id,
+            'branch_id' => $branchId,
+            'division_id' => $divisionId,
             'id_card_included' => $request->boolean('id_card_included'),
             'is_deleted' => false,
         ]);
@@ -587,6 +674,13 @@ class MembershipPaymentController extends Controller
         if ($isOrgPayment) {
             return redirect()->route('organisations.payments.create', $request->organisation_id)
                 ->with('success', 'Membership payment added successfully.');
+        }
+
+        // Back to the unit's page, whose Annual Fee card lists the new
+        // (pending) payment.
+        if ($isRcuPayment) {
+            return redirect()->route('red-cross-units.show', $request->red_cross_unit_id)
+                ->with('success', 'Annual fee payment registered. It will count once approved.');
         }
 
         return redirect()->route('membership-payments.create')->with('success', 'Membership payment created successfully.');

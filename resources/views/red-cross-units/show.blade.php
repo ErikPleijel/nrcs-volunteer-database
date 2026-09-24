@@ -29,6 +29,18 @@
 
 
 
+            @if(session('success'))
+                <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-6">
+                    {{ session('success') }}
+                </div>
+            @endif
+
+            @if(session('error'))
+                <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6">
+                    {{ session('error') }}
+                </div>
+            @endif
+
             <!-- Unit identity -->
             <div class="mb-6">
                 <h2 class="text-2xl font-bold text-gray-900">{{ $redCrossUnit->name }}</h2>
@@ -135,6 +147,103 @@
                 </div>
             </div>
             <!-- ⬆️ END leaders -->
+
+            <!-- Annual Fee (mirrors organisations/show's Membership card) -->
+            <div class="bg-white rounded-lg shadow overflow-hidden mb-8">
+                <div class="flex justify-between items-center p-6">
+                    <div class="flex items-center">
+                        <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mr-4">
+                            <i class="fas fa-id-card text-blue-600 text-xl"></i>
+                        </div>
+                        <h2 class="text-xl font-bold text-gray-900">ANNUAL FEE</h2>
+                    </div>
+                    @can('add_payments')
+                        @if($redCrossUnit->is_active && $redCrossUnit->hasLeadership())
+                            <a href="{{ route('red-cross-units.payments.create', $redCrossUnit) }}"
+                               class="btn-primary-small whitespace-nowrap">
+                                <i class="fas fa-plus mr-2"></i>Add Payment
+                            </a>
+                        @endif
+                    @endcan
+                </div>
+                @can('add_payments')
+                    @if($redCrossUnit->is_active && ! $redCrossUnit->hasLeadership())
+                        <p class="px-6 text-sm text-orange-600">
+                            <i class="fas fa-triangle-exclamation mr-1"></i>Assign a team leader before registering a payment for this unit.
+                        </p>
+                    @endif
+                @endcan
+                <div class="px-6 py-4 flex items-center gap-4 flex-wrap">
+                    @if($redCrossUnit->isPaid())
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                            Paid
+                        </span>
+                        @if($redCrossUnit->membership_expiry_date)
+                            <p class="text-sm text-gray-600">
+                                Expires: <span class="font-medium">{{ $redCrossUnit->membership_expiry_date->format('M d, Y') }}</span>
+                            </p>
+                        @endif
+                    @else
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-500">
+                            Not Paid
+                        </span>
+                    @endif
+                </div>
+
+                @php
+                    $rcuPayments = $redCrossUnit->membershipPayments()
+                        ->withAnyApprovalStatus()
+                        ->whereIn('approval_status', ['approved', 'pending'])
+                        ->with(['user', 'membershipFee'])
+                        ->where('is_deleted', false)
+                        ->orderBy('payment_date', 'desc')
+                        ->get();
+                @endphp
+
+                <div class="border-t px-6 pb-4">
+                    <div class="overflow-x-auto mt-4">
+                        <table class="min-w-full text-sm">
+                            <tbody>
+                            @forelse($rcuPayments as $payment)
+                                @php
+                                    $isValid = $payment->expiry_date && $payment->expiry_date->isFuture();
+                                    if ($payment->expiry_date) {
+                                        $statusClass = $isValid ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
+                                        $statusText = ($isValid ? 'Valid until ' : 'Expired ') . $payment->expiry_date->format('M d, Y');
+                                    } else {
+                                        $statusClass = 'bg-gray-100 text-gray-800';
+                                        $statusText = 'Unknown';
+                                    }
+                                @endphp
+                                <tr class="border-b border-gray-100 gap-2">
+                                    <td class="py-1 pr-1 text-xs text-gray-500"><x-time-ago :date="$payment->payment_date" :today="true" placeholder="—" /></td>
+                                    <td class="py-1 pr-1 text-xs text-gray-500">
+                                        <div>{{ $payment->membershipFee->name ?? '—' }}</div>
+                                        <div class="text-xs">{!! $payment->payment_reference_link !!}</div>
+                                    </td>
+                                    <td class="py-1 pr-1 text-xs text-gray-500">{{ $payment->user->full_name ?? '—' }}</td>
+                                    <td class="py-1 pr-1 text-xs text-gray-500">₦{{ number_format($payment->membershipFee->amount ?? 0, 2) }}</td>
+                                    <td class="py-1">
+                                        <span class="{{ $statusClass }} px-1 py-1 rounded-full text-xs">
+                                            {{ $statusText }}
+                                        </span>
+                                        @if($payment->approval_status === 'pending')
+                                            <x-approval-status-badge status="pending" class="ml-1" />
+                                        @endif
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="5" class="py-4 text-center text-gray-500 italic">
+                                        No annual fee payments found
+                                    </td>
+                                </tr>
+                            @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
 
             <!-- Unit Members -->
             @if($totalMembers > 0)

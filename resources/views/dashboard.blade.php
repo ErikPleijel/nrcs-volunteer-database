@@ -356,6 +356,7 @@
                     $revMemberFees       = $dashboardData['revenueMemberFees'] ?? 0;
                     $revVolunteerFees    = $dashboardData['revenueVolunteerFees'] ?? 0;
                     $revOrganisationFees = $dashboardData['revenueOrganisationFees'] ?? 0;
+                    $revRcuFees          = $dashboardData['revenueRcuFees'] ?? 0;
                 @endphp
 
                 <div class="mt-4 pt-3 border-t border-gray-200 dark:border-gray-700 space-y-1">
@@ -373,6 +374,11 @@
                     <div class="flex justify-between text-xs">
                         <span class="text-gray-600 dark:text-gray-300">Organisation-sponsored:</span>
                         <span class="font-semibold text-gray-900 dark:text-white">₦{{ number_format($revOrganisationFees, 0) }}</span>
+                    </div>
+
+                    <div class="flex justify-between text-xs">
+                        <span class="text-gray-600 dark:text-gray-300">Red Cross Unit fees:</span>
+                        <span class="font-semibold text-gray-900 dark:text-white">₦{{ number_format($revRcuFees, 0) }}</span>
                     </div>
 
                 </div>

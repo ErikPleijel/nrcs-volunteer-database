@@ -546,7 +546,7 @@ class MembershipStatsService
 
     /**
      * Shared cohort for the Retained/Lost membership card: distinct PERSONAL
-     * (organisation_id IS NULL) membership_payments expiry events in the last 12
+     * (organisation_id and red_cross_unit_id IS NULL) membership_payments expiry events in the last 12
      * months, approved and not deleted, for users outside the RC-unit hierarchy.
      * Both getExpiredCohortLast12Months() and getRetainedFromCohort() build on this
      * so the denominator (X) and numerator (Y) are guaranteed to use the same
@@ -565,6 +565,7 @@ class MembershipStatsService
             ->where('mp1.is_deleted', 0)
             ->where('mp1.approval_status', 'approved')
             ->whereNull('mp1.organisation_id')
+            ->whereNull('mp1.red_cross_unit_id')
             ->whereBetween('mp1.expiry_date', [$oneYearAgo, $today])
             ->join('users', 'mp1.user_id', '=', 'users.id')
             ->whereNull('users.red_cross_unit_id');
@@ -631,6 +632,7 @@ class MembershipStatsService
             ->where('mp2.is_deleted', 0)
             ->where('mp2.approval_status', 'approved')
             ->whereNull('mp2.organisation_id')
+            ->whereNull('mp2.red_cross_unit_id')
             ->where('mp2.expiry_date', '>=', $today)
             ->when($branchId, function ($query) use ($branchId) {
                 $query->where('mp2.branch_id', $branchId);
@@ -736,17 +738,17 @@ class MembershipStatsService
      * @param  int|null  $redCrossUnitId  Filter by Red Cross Unit ID
      */
     /**
-     * Membership revenue for a period, split into the three mutually-exclusive
+     * Membership revenue for a period, split into the four mutually-exclusive
      * contributor categories used throughout financial reporting (same
      * categorization as FinancialOverviewReportController::index()'s Payments tab):
-     * personal member fees, personal volunteer fees, and organisation-sponsored
-     * payments (either fee type). The prior single-total version summed only
+     * personal member fees, personal volunteer fees, organisation-sponsored
+     * payments (either fee type), and Red Cross Unit annual fees. The prior single-total version summed only
      * personal, non-volunteer-fee payments for users outside the RC-unit hierarchy —
      * since volunteer-fee payments are validated to require an RC-unit-linked user
      * (see Decisions.md), that filter silently excluded essentially all
      * volunteer-fee revenue and most organisation-sponsored revenue.
      *
-     * @return array{memberFees: float, volunteerFees: float, organisationFees: float, total: float}
+     * @return array{memberFees: float, volunteerFees: float, organisationFees: float, rcuFees: float, total: float}
      */
     public function getMembershipRevenueBreakdown(
         Carbon $startDate,
@@ -775,19 +777,24 @@ class MembershipStatsService
         };
 
         $memberFees = (float) $base()
-            ->whereNull('organisation_id')
+            ->personal()
             ->whereHas('membershipFee', fn ($q) => $q->where('is_volunteer_fee', false))
             ->join('membership_fees', 'membership_payments.membership_fee_id', '=', 'membership_fees.id')
             ->sum('membership_fees.amount');
 
         $volunteerFees = (float) $base()
-            ->whereNull('organisation_id')
+            ->personal()
             ->whereHas('membershipFee', fn ($q) => $q->where('is_volunteer_fee', true))
             ->join('membership_fees', 'membership_payments.membership_fee_id', '=', 'membership_fees.id')
             ->sum('membership_fees.amount');
 
         $organisationFees = (float) $base()
-            ->whereNotNull('organisation_id')
+            ->organisational()
+            ->join('membership_fees', 'membership_payments.membership_fee_id', '=', 'membership_fees.id')
+            ->sum('membership_fees.amount');
+
+        $rcuFees = (float) $base()
+            ->rcuAttributed()
             ->join('membership_fees', 'membership_payments.membership_fee_id', '=', 'membership_fees.id')
             ->sum('membership_fees.amount');
 
@@ -795,7 +802,8 @@ class MembershipStatsService
             'memberFees' => $memberFees,
             'volunteerFees' => $volunteerFees,
             'organisationFees' => $organisationFees,
-            'total' => $memberFees + $volunteerFees + $organisationFees,
+            'rcuFees' => $rcuFees,
+            'total' => $memberFees + $volunteerFees + $organisationFees + $rcuFees,
         ];
     }
 

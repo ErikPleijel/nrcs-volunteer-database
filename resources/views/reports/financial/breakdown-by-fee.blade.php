@@ -6,6 +6,7 @@
         'member'       => 'Member Fees',
         'volunteer'    => 'Volunteer Fees',
         'organisation' => 'Organisation Fees',
+        'rcu'          => 'Red Cross Unit Fees',
     ];
     $categoryLabel = $categoryLabels[$category] ?? ucfirst($category);
 
@@ -62,7 +63,7 @@
                         @forelse ($payments as $payment)
                             <tr class="table-body-row">
                                 <td class="table-body-cell">
-                                    {{ $payment->organisation_id ? $payment->organisation->name : ($payment->user->full_name ?? 'N/A (User Not Found)') }}
+                                    {{ $payment->red_cross_unit_id ? $payment->redCrossUnit?->name : ($payment->organisation_id ? $payment->organisation->name : ($payment->user->full_name ?? 'N/A (User Not Found)')) }}
                                 </td>
                                 <td class="table-body-cell">
                                     {!! $payment->payment_reference_link !!}

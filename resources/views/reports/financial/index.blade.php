@@ -3,7 +3,7 @@
         <i class="fas fa-coins mr-3"></i> Membership Revenue Report
     </x-slot>
     <x-slot name="subHeader">
-        Membership, volunteer, and organisation revenue
+        Membership, volunteer, organisation, and Red Cross Unit revenue
     </x-slot>
 
     <div class="container mx-auto px-4 py-6">
@@ -164,12 +164,12 @@
                 <p class="text-center text-gray-400 italic py-12">No payment data available for the selected period.</p>
             @else
                 @php
-                    // 12 quarter×category columns, in on-screen left-to-right order.
+                    // 16 quarter×category columns, in on-screen left-to-right order.
                     $yearColumns = [
-                        'q1_member', 'q1_volunteer', 'q1_org',
-                        'q2_member', 'q2_volunteer', 'q2_org',
-                        'q3_member', 'q3_volunteer', 'q3_org',
-                        'q4_member', 'q4_volunteer', 'q4_org',
+                        'q1_member', 'q1_volunteer', 'q1_org', 'q1_rcu',
+                        'q2_member', 'q2_volunteer', 'q2_org', 'q2_rcu',
+                        'q3_member', 'q3_volunteer', 'q3_org', 'q3_rcu',
+                        'q4_member', 'q4_volunteer', 'q4_org', 'q4_rcu',
                     ];
                     $columnTotals = [];
                     foreach ($yearColumns as $col) {
@@ -186,7 +186,7 @@
                                     {{ $rowType === 'branch' ? 'Branch' : 'Division' }}
                                 </th>
                                 @foreach ([1, 2, 3, 4] as $qNum)
-                                    <th colspan="3" class="px-2 py-2 text-center border-l border-gray-200">Q{{ $qNum }}</th>
+                                    <th colspan="4" class="px-2 py-2 text-center border-l border-gray-200">Q{{ $qNum }}</th>
                                 @endforeach
                                 <th rowspan="2" class="px-2 py-2 text-right align-middle border-l border-gray-300">Year Total</th>
                             </tr>
@@ -195,6 +195,7 @@
                                     <th class="px-1 py-1 text-right border-l border-gray-200">Mem</th>
                                     <th class="px-1 py-1 text-right">Vol</th>
                                     <th class="px-1 py-1 text-right">Org</th>
+                                    <th class="px-1 py-1 text-right" title="Red Cross Unit">RCU</th>
                                 @endforeach
                             </tr>
                         </thead>
@@ -241,7 +242,7 @@
                                     </td>
 
                                     @foreach ([1, 2, 3, 4] as $qNum)
-                                        @foreach (['member' => 'member', 'volunteer' => 'volunteer', 'org' => 'organisation'] as $catKey => $catParam)
+                                        @foreach (['member' => 'member', 'volunteer' => 'volunteer', 'org' => 'organisation', 'rcu' => 'rcu'] as $catKey => $catParam)
                                             @php
                                                 $value = $row["q{$qNum}_{$catKey}"];
                                             @endphp
@@ -320,6 +321,7 @@
                                 ['label' => 'Member Fee', 'rows' => $memberFeeBreakdown, 'subtotalLabel' => 'Member fees subtotal', 'category' => 'member'],
                                 ['label' => 'Volunteer Fee', 'rows' => $volunteerFeeBreakdown, 'subtotalLabel' => 'Volunteer fees subtotal', 'category' => 'volunteer'],
                                 ['label' => 'Organisation Fee', 'rows' => $organisationFeeBreakdown, 'subtotalLabel' => 'Organisation fees subtotal', 'category' => 'organisation'],
+                                ['label' => 'Red Cross Unit Fee', 'rows' => $rcuFeeBreakdown, 'subtotalLabel' => 'Red Cross Unit fees subtotal', 'category' => 'rcu'],
                             ] as $section)
                                 @if($section['rows']->isNotEmpty())
                                     <tr>

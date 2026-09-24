@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class RedCrossUnit extends Model
 {
@@ -93,6 +95,52 @@ class RedCrossUnit extends Model
     public function getUsersCountAttribute()
     {
         return $this->activeUsers()->count();
+    }
+
+    /**
+     * Whether the given user is this unit's team leader or assistant team
+     * leader — the people allowed to pay the unit's annual fee.
+     */
+    public function isLedBy(User $user): bool
+    {
+        return in_array((int) $user->id, array_map('intval', array_filter([
+            $this->team_leader_user_id,
+            $this->assistant_team_leader_user_id,
+        ])), true);
+    }
+
+    /**
+     * Annual fee payments attributed to this unit (mirrors
+     * Organisation::membershipPayments()).
+     */
+    public function membershipPayments(): HasMany
+    {
+        return $this->hasMany(MembershipPayment::class, 'red_cross_unit_id');
+    }
+
+    public function activeMembership(): HasOne
+    {
+        return $this->hasOne(MembershipPayment::class, 'red_cross_unit_id')
+            ->where('is_deleted', false)
+            ->where('expiry_date', '>=', now())
+            ->latest('expiry_date');
+    }
+
+    public function latestMembership(): HasOne
+    {
+        return $this->hasOne(MembershipPayment::class, 'red_cross_unit_id')
+            ->where('is_deleted', false)
+            ->latest('expiry_date');
+    }
+
+    public function isPaid(): bool
+    {
+        return (bool) $this->activeMembership()->first();
+    }
+
+    public function getMembershipExpiryDateAttribute()
+    {
+        return $this->activeMembership()->first()?->expiry_date;
     }
 
     /**

@@ -51,7 +51,7 @@
                             <ul class="space-y-1 text-gray-700 list-disc pl-4">
                                 <li>Click <span class="font-semibold">Add New Membership Category</span>.</li>
                                 <li>Fill in the name, amount, ID card fee, and validity period.</li>
-                                <li>Choose whether it's for <span class="font-semibold">Individuals</span> or <span class="font-semibold">Organizations</span>, and whether it's a <span class="font-semibold">Volunteer Fee</span>.</li>
+                                <li>Choose whether it's for <span class="font-semibold">Individuals</span>, <span class="font-semibold">Organizations</span> or <span class="font-semibold">Red Cross Units</span>, and whether it's a <span class="font-semibold">Volunteer Fee</span>.</li>
                             </ul>
                         </div>
                     </div>
@@ -195,9 +195,16 @@
                                 {{ $fee->validity_years }} year{{ $fee->validity_years > 1 ? 's' : '' }}
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full {{ $fee->for_organizations ? 'bg-blue-100' : 'bg-green-100' }} {{ !$fee->is_active ? 'text-gray-400' : ($fee->for_organizations ? 'text-blue-800' : 'text-green-800') }}">
-                                    <i class="fas {{ $fee->for_organizations ? 'fa-building' : 'fa-user' }} mr-1"></i>
-                                    {{ $fee->for_organizations ? 'Organization' : 'Individual' }}
+                                @php
+                                    [$typeBg, $typeText, $typeIcon, $typeLabel] = match (true) {
+                                        $fee->for_red_cross_units => ['bg-purple-100', 'text-purple-800', 'fa-people-group', 'Red Cross Unit'],
+                                        $fee->for_organizations => ['bg-blue-100', 'text-blue-800', 'fa-building', 'Organization'],
+                                        default => ['bg-green-100', 'text-green-800', 'fa-user', 'Individual'],
+                                    };
+                                @endphp
+                                <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full {{ $typeBg }} {{ !$fee->is_active ? 'text-gray-400' : $typeText }}">
+                                    <i class="fas {{ $typeIcon }} mr-1"></i>
+                                    {{ $typeLabel }}
                                 </span>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">

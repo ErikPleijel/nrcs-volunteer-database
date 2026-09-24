@@ -255,6 +255,7 @@ Route::middleware(['auth', 'verified.or.absent'])->group(function () {
             Route::post('/update-signature', [ProfileController::class, 'updateSignature'])->name('update-signature');
             Route::get('/branches/{branch}/divisions', [ProfileController::class, 'getDivisionsByBranch'])->name('branches.divisions');
             Route::get('/organisation/{organisation}', [ProfileController::class, 'organisationProfile'])->name('organisation');
+            Route::get('/red-cross-unit/{redCrossUnit}', [ProfileController::class, 'redCrossUnitProfile'])->name('red-cross-unit');
             Route::post('/communication-preferences', [ProfileController::class, 'updateCommunicationPreferences'])->name('communication.update');
             Route::post('/self-archive', [ProfileController::class, 'selfArchive'])->name('self-archive');
         });
@@ -537,6 +538,9 @@ Route::middleware(['auth', 'verified.or.absent'])->group(function () {
             Route::put('/{red_cross_unit}', [RedCrossUnitController::class, 'update'])->name('update')->middleware('can:edit_red_cross_unit');
             Route::put('/{red_cross_unit}/reactivate', [RedCrossUnitController::class, 'reactivate'])->name('reactivate')->middleware('can:edit_red_cross_unit');
             Route::delete('/{red_cross_unit}', [RedCrossUnitController::class, 'destroy'])->name('destroy')->middleware('can:remove_red_cross_unit');
+
+            // Admin manual registration of an RCU annual fee payment (posts to membership-payments.store).
+            Route::get('/{red_cross_unit}/payments/create', [MembershipPaymentController::class, 'createForRedCrossUnit'])->name('payments.create')->middleware('can:add_payments');
         });
 
         // Task Force Management

@@ -248,6 +248,20 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
+     * Red cross units this user leads as team leader or assistant team
+     * leader. Not a relation (two foreign keys) — eager-load
+     * 'ledRedCrossUnits' and 'assistantLedRedCrossUnits' to avoid the two
+     * queries per call.
+     */
+    public function leadRedCrossUnits(): \Illuminate\Database\Eloquent\Collection
+    {
+        return $this->ledRedCrossUnits
+            ->merge($this->assistantLedRedCrossUnits)
+            ->sortBy('name')
+            ->values();
+    }
+
+    /**
      * Task forces where this user is the team leader
      */
     public function ledTaskForces()

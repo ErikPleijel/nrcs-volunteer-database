@@ -19,6 +19,7 @@ use Illuminate\View\View; // Import the View class
 use App\Models\CertificatePrint;
 use App\Models\IdCardPrint;
 use App\Models\Organisation;
+use App\Models\RedCrossUnit;
 use App\Models\Log as AuditLog;
 
 
@@ -37,6 +38,8 @@ class ProfileController extends Controller
             'activeMembershipPayments.membershipFee',
             'activeMembershipPayments.organisation',
             'organisations.users',
+            'ledRedCrossUnits.division.branch',
+            'assistantLedRedCrossUnits.division.branch',
         ])->find($userId);
 
         // Initialize variables
@@ -64,7 +67,7 @@ class ProfileController extends Controller
             // involved in," not "my own membership." See $currentMembership
             // below, which is personal-only.
             $allPayments = $user->activeMembershipPayments()
-                ->with(['membershipFee', 'organisation'])
+                ->with(['membershipFee', 'organisation', 'redCrossUnit'])
                 ->orderBy('payment_date', 'desc')
                 ->get();
 
@@ -83,6 +86,7 @@ class ProfileController extends Controller
                     'is_valid' => $payment->isValid(),
                     'is_expired' => $payment->isExpired(),
                     'organisation_name' => $payment->organisation->name ?? null,
+                    'rcu_name' => $payment->redCrossUnit->name ?? null,
                 ];
             });
 
@@ -603,6 +607,76 @@ class ProfileController extends Controller
             'certificatePrints',
             'certificatePrintsLimitMessage',
             'hasEverHadOrgPayment',
+            'canPayOnline'
+        ));
+    }
+
+    /**
+     * The team leader / assistant team leader's page for a Red Cross Unit
+     * they lead: unit details, annual fee status and history, and the
+     * "Make a Payment" CTA into the RCU-locked Paystack form. Mirrors
+     * organisationProfile() (no donations or certificates for units).
+     */
+    public function redCrossUnitProfile(RedCrossUnit $redCrossUnit)
+    {
+        $authUser = Auth::user();
+
+        abort_unless($redCrossUnit->isLedBy($authUser), 403);
+
+        $redCrossUnit->load(['division.branch', 'teamLeader', 'assistantTeamLeader']);
+
+        // Approved and pending (e.g. registered by staff, awaiting review) —
+        // same set organisations/show lists; pending rows are flagged.
+        $allPayments = $redCrossUnit->membershipPayments()
+            ->withAnyApprovalStatus()
+            ->whereIn('approval_status', ['approved', 'pending'])
+            ->where('is_deleted', false)
+            ->with('membershipFee')
+            ->orderBy('payment_date', 'desc')
+            ->get();
+
+        $showingLimitMessage = $allPayments->count() >= 6;
+
+        $membershipPayments = $allPayments->map(function ($payment) {
+            return [
+                'payment_date'     => $payment->payment_date->format('M d, Y'),
+                'membership_type'  => $payment->membershipFee->name ?? 'N/A',
+                'formatted_amount' => '₦' . number_format($payment->membershipFee->amount ?? 0, 2),
+                'status'           => $this->getPaymentStatus($payment),
+                'expiry_date'      => $payment->expiry_date?->format('M d, Y'),
+                'is_valid'         => $payment->isValid(),
+                'is_pending'       => $payment->approval_status === 'pending',
+            ];
+        });
+
+        // Current status counts approved payments only (the default scope),
+        // exactly like organisationProfile().
+        $currentPayment = $redCrossUnit->membershipPayments()
+            ->where('is_deleted', false)
+            ->with('membershipFee')
+            ->get()
+            ->first(fn ($payment) => $payment->isValid());
+
+        $currentMembership = $currentPayment ? [
+            'membership_type' => $currentPayment->membershipFee->name ?? 'N/A',
+            'formatted_amount' => '₦' . number_format($currentPayment->membershipFee->amount ?? 0, 2),
+            'expiry_date' => $currentPayment->expiry_date?->format('M d, Y'),
+            'expiring_soon' => $currentPayment?->expiresSoon(28) ?? false,
+            'days_until_expiry' => $currentPayment?->days_until_expiry,
+        ] : null;
+
+        $hasEverHadRcuPayment = $redCrossUnit->membershipPayments()->exists();
+
+        // Paystack charges the logged-in leader's own email, as for
+        // organisation contacts.
+        $canPayOnline = ! blank($authUser->email);
+
+        return view('profile.red-cross-unit', compact(
+            'redCrossUnit',
+            'membershipPayments',
+            'currentMembership',
+            'showingLimitMessage',
+            'hasEverHadRcuPayment',
             'canPayOnline'
         ));
     }

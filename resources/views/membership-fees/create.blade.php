@@ -151,13 +151,16 @@
                             <label class="block text-sm font-medium text-gray-700 mb-3">
                                 <i class="fas fa-users mr-2"></i>Fee Type *
                             </label>
+                            @php
+                                $selectedFeeType = old('fee_type', 'individual');
+                            @endphp
                             <div class="space-y-3">
                                 <label class="flex items-center p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
                                     <input type="radio"
-                                           name="for_organizations"
-                                           value="0"
+                                           name="fee_type"
+                                           value="individual"
                                            class="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300"
-                                           {{ old('for_organizations', '0') == '0' ? 'checked' : '' }}>
+                                           {{ $selectedFeeType === 'individual' ? 'checked' : '' }}>
                                     <div class="ml-3">
                                         <div class="flex items-center">
                                             <i class="fas fa-user mr-2 text-green-600"></i>
@@ -169,10 +172,10 @@
 
                                 <label class="flex items-center p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
                                     <input type="radio"
-                                           name="for_organizations"
-                                           value="1"
+                                           name="fee_type"
+                                           value="organisation"
                                            class="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300"
-                                           {{ old('for_organizations') == '1' ? 'checked' : '' }}>
+                                           {{ $selectedFeeType === 'organisation' ? 'checked' : '' }}>
                                     <div class="ml-3">
                                         <div class="flex items-center">
                                             <i class="fas fa-building mr-2 text-blue-600"></i>
@@ -181,13 +184,30 @@
                                         <p class="text-sm text-gray-500">For organization members</p>
                                     </div>
                                 </label>
+
+                                <label class="flex items-center p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                                    <input type="radio"
+                                           name="fee_type"
+                                           value="red_cross_unit"
+                                           class="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300"
+                                           {{ $selectedFeeType === 'red_cross_unit' ? 'checked' : '' }}>
+                                    <div class="ml-3">
+                                        <div class="flex items-center">
+                                            <i class="fas fa-people-group mr-2 text-purple-600"></i>
+                                            <span class="font-medium text-gray-900">Red Cross Unit</span>
+                                        </div>
+                                        <p class="text-sm text-gray-500">Annual fee paid by a Red Cross Unit</p>
+                                    </div>
+                                </label>
                             </div>
-                            @error('for_organizations')
-                                <p class="mt-1 text-sm text-red-600 flex items-center">
-                                    <i class="fas fa-exclamation-circle mr-1"></i>
-                                    {{ $message }}
-                                </p>
-                            @enderror
+                            @foreach(['fee_type', 'for_organizations', 'for_red_cross_units'] as $field)
+                                @error($field)
+                                    <p class="mt-1 text-sm text-red-600 flex items-center">
+                                        <i class="fas fa-exclamation-circle mr-1"></i>
+                                        {{ $message }}
+                                    </p>
+                                @enderror
+                            @endforeach
                         </div>
                     </div>
                 </div>

@@ -27,6 +27,7 @@ class MembershipFee extends Model
         'id_card_fee',
         'validity_years',
         'for_organizations',
+        'for_red_cross_units',
         'is_active',
         'is_volunteer_fee',
         'description',
@@ -42,6 +43,7 @@ class MembershipFee extends Model
         'id_card_fee' => 'decimal:2',
         'validity_years' => 'integer',
         'for_organizations' => 'boolean',
+        'for_red_cross_units' => 'boolean',
         'is_active' => 'boolean',
         'is_volunteer_fee' => 'boolean',
     ];
@@ -79,11 +81,21 @@ class MembershipFee extends Model
     }
 
     /**
-     * Scope a query to only include membership types for individuals.
+     * Scope a query to only include membership types for Red Cross Units.
+     */
+    public function scopeForRedCrossUnits($query)
+    {
+        return $query->where('for_red_cross_units', true);
+    }
+
+    /**
+     * Scope a query to only include membership types for individuals
+     * (neither organisation nor Red Cross Unit fees).
      */
     public function scopeForPersons($query)
     {
-        return $query->where('for_organizations', false);
+        return $query->where('for_organizations', false)
+            ->where('for_red_cross_units', false);
     }
 
     /**
@@ -118,6 +130,7 @@ class MembershipFee extends Model
         return self::query()
             ->select('name', 'amount', 'description')
             ->where('is_active', true)
+            ->forPersons()
             ->where('validity_years', 1)
             ->where('is_volunteer_fee', $volunteerFees)
             ->distinct()

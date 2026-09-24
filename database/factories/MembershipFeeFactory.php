@@ -28,7 +28,20 @@ class MembershipFeeFactory extends Factory
             'id_card_fee' => 0,
             'validity_years' => 1,
             'for_organizations' => false,
+            'for_red_cross_units' => false,
             'is_active' => true,
         ];
+    }
+
+    /**
+     * A Red Cross Unit annual fee.
+     */
+    public function forRedCrossUnits(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'for_organizations' => false,
+            'for_red_cross_units' => true,
+            'is_volunteer_fee' => false,
+        ]);
     }
 }

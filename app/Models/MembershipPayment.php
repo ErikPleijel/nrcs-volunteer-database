@@ -31,6 +31,7 @@ class MembershipPayment extends Model
     protected $fillable = [
         'user_id',
         'organisation_id',
+        'red_cross_unit_id',
         'payment_date',
         'expiry_date',
         'membership_fee_id',
@@ -96,6 +97,20 @@ class MembershipPayment extends Model
         return $this->belongsTo(Organisation::class, 'organisation_id');
     }
 
+    public function redCrossUnit()
+    {
+        return $this->belongsTo(RedCrossUnit::class, 'red_cross_unit_id');
+    }
+
+    /**
+     * Whether this payment belongs to an organisation or a Red Cross Unit
+     * rather than to the paying user personally.
+     */
+    public function isAttributed(): bool
+    {
+        return $this->organisation_id !== null || $this->red_cross_unit_id !== null;
+    }
+
     /**
      * Get the user who submitted this payment record.
      */
@@ -111,14 +126,14 @@ class MembershipPayment extends Model
     }
 
     /**
-     * An organisational payment's contact person should not be promoted from
-     * pending_engagement to active on approval — the payment belongs to the
-     * organisation, not the contact person's own membership. Personal payments
-     * (organisation_id null) still promote as before.
+     * An organisational or RCU payment's payer (contact person / team
+     * leader) should not be promoted from pending_engagement to active on
+     * approval — the payment belongs to the organisation or unit, not the
+     * payer's own membership. Personal payments still promote as before.
      */
     public function promotesFromPendingEngagement(): bool
     {
-        return $this->organisation_id === null;
+        return ! $this->isAttributed();
     }
 
     /** Label => value detail rows for the review page. */
@@ -173,7 +188,7 @@ class MembershipPayment extends Model
      */
     public function contributionMismatchNote(): ?string
     {
-        if ($this->organisation_id !== null) {
+        if ($this->isAttributed()) {
             return null;
         }
 
@@ -350,11 +365,13 @@ class MembershipPayment extends Model
 
     /**
      * Scope a query to only include payments belonging to this user
-     * personally, not an organisation.
+     * personally, not an organisation or a Red Cross Unit. Columns are
+     * qualified: users also has a red_cross_unit_id column.
      */
     public function scopePersonal(Builder $query): Builder
     {
-        return $query->whereNull('organisation_id');
+        return $query->whereNull($query->qualifyColumn('organisation_id'))
+            ->whereNull($query->qualifyColumn('red_cross_unit_id'));
     }
 
     /**
@@ -362,7 +379,26 @@ class MembershipPayment extends Model
      */
     public function scopeOrganisational(Builder $query): Builder
     {
-        return $query->whereNotNull('organisation_id');
+        return $query->whereNotNull($query->qualifyColumn('organisation_id'));
+    }
+
+    /**
+     * Scope a query to only include payments attributed to a Red Cross Unit.
+     */
+    public function scopeRcuAttributed(Builder $query): Builder
+    {
+        return $query->whereNotNull($query->qualifyColumn('red_cross_unit_id'));
+    }
+
+    /**
+     * Scope a query to only include payments attributed to some entity
+     * (organisation or Red Cross Unit) rather than a person — the exact
+     * complement of personal().
+     */
+    public function scopeAttributed(Builder $query): Builder
+    {
+        return $query->where(fn ($q) => $q->whereNotNull($query->qualifyColumn('organisation_id'))
+            ->orWhereNotNull($query->qualifyColumn('red_cross_unit_id')));
     }
 
     /**

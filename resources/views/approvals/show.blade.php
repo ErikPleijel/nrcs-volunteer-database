@@ -65,6 +65,16 @@
                 </div>
             @endif
 
+            @if($record->red_cross_unit_id && $record->redCrossUnit)
+                <div class="px-6 py-4 border-b border-gray-100">
+                    <div class="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1">Red Cross Unit</div>
+                    <div class="text-base font-medium text-gray-900">{{ $record->redCrossUnit->name }}</div>
+                    <div class="text-sm text-gray-500">
+                        {{ $record->redCrossUnit->division?->branch?->name ?? '—' }}@if($record->redCrossUnit->division) – {{ $record->redCrossUnit->division->name }}@endif
+                    </div>
+                </div>
+            @endif
+
             {{-- Detail rows --}}
             <dl class="divide-y divide-gray-100">
                 @foreach($record->approvalDetailRows() as $label => $value)

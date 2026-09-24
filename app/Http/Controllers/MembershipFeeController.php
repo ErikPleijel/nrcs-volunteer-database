@@ -15,6 +15,7 @@ class MembershipFeeController extends Controller
     {
         $membershipFees = MembershipFee::orderByDesc('is_active')
                                         ->orderBy('for_organizations')
+                                        ->orderBy('for_red_cross_units')
                                         ->orderBy('validity_years')
                                         ->orderBy('amount')
                                         ->paginate(200);
@@ -36,13 +37,19 @@ class MembershipFeeController extends Controller
      */
     public function store(Request $request)
     {
+        $this->mergeFeeTypeFlags($request);
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'amount' => 'required|numeric|min:0',
             'id_card_fee' => 'nullable|numeric|min:0',
             'validity_years' => 'required|integer|min:1',
-            'for_organizations' => 'boolean',
+            'fee_type' => 'nullable|in:individual,organisation,red_cross_unit',
+            'is_volunteer_fee' => 'boolean',
+            ...$this->feeTypeFlagRules($request),
         ]);
+
+        unset($validated['fee_type']);
 
         // Set is_active to true by default for new records, as the checkbox is removed from the form
         $validated['is_active'] = true;
@@ -88,7 +95,7 @@ class MembershipFeeController extends Controller
             // We re-validate them here to ensure data integrity, but changes to them should not trigger a new record.
             'name' => 'required|string|max:255',
             'validity_years' => 'required|integer|min:1',
-            'for_organizations' => 'boolean',
+            ...$this->feeTypeFlagRules($request),
 
             // These fields can trigger a new record if changed
             'amount' => 'required|numeric|min:0',
@@ -125,6 +132,7 @@ class MembershipFeeController extends Controller
                 'id_card_fee' => $validated['id_card_fee'] ?? 0,
                 'validity_years' => $membershipFee->validity_years,
                 'for_organizations' => $membershipFee->for_organizations,
+                'for_red_cross_units' => $membershipFee->for_red_cross_units,
                 'is_active' => (bool) ($validated['is_active'] ?? false),
                 'is_volunteer_fee' => (bool)($validated['is_volunteer_fee'] ?? false),
             ]);
@@ -187,6 +195,44 @@ class MembershipFeeController extends Controller
 
         // If no relevant changes were made
         return redirect()->route('membership-fees.index')->with('info', "No changes were made to Membership Fee '{$membershipFee->name}'.");
+    }
+
+    /**
+     * The create form's single "Fee Type" radio (fee_type) maps onto the two
+     * independent payer flags. Requests posting the flags directly are left
+     * as-is.
+     */
+    private function mergeFeeTypeFlags(Request $request): void
+    {
+        $flags = match ($request->input('fee_type')) {
+            'individual' => ['for_organizations' => false, 'for_red_cross_units' => false],
+            'organisation' => ['for_organizations' => true, 'for_red_cross_units' => false],
+            'red_cross_unit' => ['for_organizations' => false, 'for_red_cross_units' => true],
+            default => null,
+        };
+
+        if ($flags) {
+            $request->merge($flags);
+        }
+    }
+
+    /**
+     * A fee is for individuals, organisations or Red Cross Units — never both
+     * of the latter two.
+     */
+    private function feeTypeFlagRules(Request $request): array
+    {
+        return [
+            'for_organizations' => 'boolean',
+            'for_red_cross_units' => [
+                'boolean',
+                function ($attribute, $value, $fail) use ($request) {
+                    if ($request->boolean('for_organizations') && filter_var($value, FILTER_VALIDATE_BOOLEAN)) {
+                        $fail('A fee cannot be for both organisations and Red Cross Units.');
+                    }
+                },
+            ],
+        ];
     }
 
     /**
