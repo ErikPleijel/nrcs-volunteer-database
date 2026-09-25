@@ -262,14 +262,14 @@
 
             <x-tutorial.slide audio="tutorials/audio/level0-member_volunteer.mp3">
                 <div>
-                    <h2 class="text-2xl font-bold text-gray-900 mb-6 text-center" data-reveal>Member or volunteer?</h2>
+                    <h2 class="text-2xl font-bold text-gray-900 mb-6 text-center" data-reveal>Supporting member or volunteer?</h2>
                     <div class="max-w-3xl mx-auto">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 
                             {{-- Member --}}
                             <div class="rounded-xl bg-gray-50 border border-gray-100 p-6 text-center" data-reveal>
                                 <i class="fas fa-id-card text-4xl text-indigo-500 mb-3"></i>
-                                <p class="text-lg font-bold text-gray-900 mb-2">Member</p>
+                                <p class="text-lg font-bold text-gray-900 mb-2">Supporting Member</p>
                                 <p class="text-sm text-gray-600">Pays a membership fee</p>
                                 <p class="text-sm text-gray-600">Not in a Red Cross Unit</p>
                             </div>
@@ -294,7 +294,7 @@
                         Yes <i class="fas fa-arrow-right text-xs"></i> Volunteer
                     </span>
                                 <span class="inline-flex items-center justify-center gap-2 rounded-full bg-indigo-50 text-indigo-700 px-4 py-1.5 font-medium">
-                        No + fee paid <i class="fas fa-arrow-right text-xs"></i> Member
+                        No + fee paid <i class="fas fa-arrow-right text-xs"></i> Supporting Member
                     </span>
                             </div>
                         </div>

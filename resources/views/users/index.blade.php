@@ -311,10 +311,10 @@
                             <x-filters.demography class="lg:col-span-3" />
 
                             <div class="flex flex-col space-y-0.5">
-                                <label for="person_type" class="text-xs font-medium text-gray-700">Members / Volunteers</label>
+                                <label for="person_type" class="text-xs font-medium text-gray-700">Supporting Members / Volunteers</label>
                                 <select name="person_type" id="person_type" class="filter-select-small {{ request('person_type') ? 'filter-active' : '' }}">
                                     <option value="" {{ request('person_type', '') === '' ? 'selected' : '' }}>All</option>
-                                    <option value="member"    {{ request('person_type') === 'member'    ? 'selected' : '' }}>Members</option>
+                                    <option value="member"    {{ request('person_type') === 'member'    ? 'selected' : '' }}>Supporting Members</option>
                                     <option value="volunteer" {{ request('person_type') === 'volunteer' ? 'selected' : '' }}>Volunteers</option>
                                     <option value="unassigned" {{ request('person_type') === 'unassigned' ? 'selected' : '' }}>Unassigned (Volunteers in Limbo)</option>
                                 </select>
@@ -1337,8 +1337,8 @@
                                         <input type="radio" name="wizard_membership_person" value="member"
                                                class="text-slate-700 border-slate-300" checked>
                                         <span>
-                                            <span class="font-medium text-slate-800">Members only</span>
-                                            <span class="block text-xs text-slate-400">Only those registered as members</span>
+                                            <span class="font-medium text-slate-800">Supporting Members only</span>
+                                            <span class="block text-xs text-slate-400">Only those registered as supporting members</span>
                                         </span>
                                     </label>
                                 </div>
@@ -1856,8 +1856,8 @@
                                     <input type="radio" name="wizard_newsletter_person" value="member"
                                            class="text-slate-700 border-slate-300">
                                     <span>
-                                        <span class="font-medium text-slate-800">Members only</span>
-                                        <span class="block text-xs text-slate-400">Only those registered as members</span>
+                                        <span class="font-medium text-slate-800">Supporting Members only</span>
+                                        <span class="block text-xs text-slate-400">Only those registered as supporting members</span>
                                     </span>
                                 </label>
                             </div>
@@ -1913,8 +1913,8 @@
                                     <input type="radio" name="wizard_fundraising_audience" value="member"
                                            class="text-slate-700 border-slate-300">
                                     <span>
-                                        <span class="font-medium text-slate-800">Members</span>
-                                        <span class="block text-xs text-slate-400">Only those registered as members</span>
+                                        <span class="font-medium text-slate-800">Supporting Members</span>
+                                        <span class="block text-xs text-slate-400">Only those registered as supporting members</span>
                                     </span>
                                 </label>
                                 <label class="inline-flex items-center gap-3 cursor-pointer">

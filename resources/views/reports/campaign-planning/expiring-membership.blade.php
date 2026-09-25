@@ -140,11 +140,11 @@
 
                         {{-- Col 1: Person type --}}
                         <div>
-                            <label for="person_type" class="filter-label">Members/Volunteers</label>
+                            <label for="person_type" class="filter-label">Supporting Members/Volunteers</label>
                             <select name="person_type" id="person_type"
                                     class="filter-select {{ request('person_type', '') !== '' ? 'filter-active' : '' }}">
                                 <option value="" @selected(request('person_type', '') === '')>All</option>
-                                <option value="member"    @selected(request('person_type') === 'member')>Members</option>
+                                <option value="member"    @selected(request('person_type') === 'member')>Supporting Members</option>
                                 <option value="volunteer" @selected(request('person_type') === 'volunteer')>Volunteers</option>
                             </select>
                         </div>

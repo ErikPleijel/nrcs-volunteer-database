@@ -341,7 +341,7 @@
                                 </label>
                                 <p class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 mb-1">
                                     <strong>Volunteer?</strong> Assign a unit. &nbsp;|&nbsp;
-                                    <strong>Member?</strong> Leave this empty.
+                                    <strong>Supporting Member?</strong> Leave this empty.
                                 </p>
                                 <select id="red_cross_unit_id" name="red_cross_unit_id"
                                         class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"

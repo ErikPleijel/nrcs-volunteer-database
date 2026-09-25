@@ -32,6 +32,19 @@ class RedCrossUnitStatsService
         return $query->count();
     }
 
+    /**
+     * The Volunteer & Member subset of getActiveUnitVolunteersCount():
+     * same base, narrowed by User::contributorType() so it matches the
+     * classification shown on badges, profile and reports.
+     */
+    public function getActiveUnitVolunteeringMembersCount(): int
+    {
+        return User::whereHas('redCrossUnit', fn ($query) => $query->where('is_active', true))
+            ->where('lifecycle_status', '!=', 'archived')
+            ->contributorType(User::CONTRIBUTOR_VOLUNTEER_MEMBER)
+            ->count();
+    }
+
 
     public function getActiveUnitVolunteersCountAt(Carbon $date, ?int $branchId = null): int
     {

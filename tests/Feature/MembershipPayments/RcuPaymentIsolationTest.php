@@ -115,7 +115,7 @@ test('an RCU payment does not give the paying leader the Member badge', function
     $badge = new UserMembershipStatusBadge($this->leader->fresh());
 
     expect($badge->type)->toBe('membership_interested')
-        ->and($badge->line1)->not->toBe('Member');
+        ->and($badge->line1)->not->toBe('Supporting Member');
 });
 
 test('an RCU payment is not the leader\'s current membership on their ID card', function () {
@@ -303,4 +303,100 @@ test('the financial report puts RCU payments in their own category on both tabs'
 
     expect($drillDown->viewData('totalCount'))->toBe(1)
         ->and((float) $drillDown->viewData('total'))->toBe(20000.0);
+});
+
+/*
+|--------------------------------------------------------------------------
+| Membership badge: Volunteer vs Vol & Member
+|--------------------------------------------------------------------------
+*/
+
+/** A user in $this->unit, optionally holding a current payment (personal unless overridden). */
+function badgeUnitMember(?array $payment = null, array $attrs = []): User
+{
+    $user = User::factory()->create(array_merge(['red_cross_unit_id' => test()->unit->id], $attrs));
+
+    if ($payment !== null) {
+        MembershipPayment::factory()->approved()->create(array_merge([
+            'user_id' => $user->id,
+            'membership_fee_id' => MembershipFeeFactory::new()->create(['name' => 'Detachment', 'is_volunteer_fee' => true])->id,
+            'payment_date' => now()->subMonth()->toDateString(),
+            'expiry_date' => now()->addMonths(11)->toDateString(),
+        ], $payment));
+    }
+
+    return $user->fresh();
+}
+
+test('an RCU member with a current personal fee shows Vol & Member, with the fee name underneath', function () {
+    $badge = new UserMembershipStatusBadge(badgeUnitMember([]));
+
+    expect($badge->type)->toBe('volunteer')
+        ->and($badge->line1)->toBe('Vol & Member')
+        ->and($badge->line2)->toBe('Detachment')
+        ->and($badge->line2Danger)->toBeFalse()
+        ->and($badge->styles)->toBe('bg-green-100 text-green-800');
+});
+
+test('an RCU member whose personal fee has lapsed shows Volunteer / Expired fee', function () {
+    $badge = new UserMembershipStatusBadge(badgeUnitMember([
+        'payment_date' => now()->subMonths(18)->toDateString(),
+        'expiry_date' => now()->subMonths(6)->toDateString(),
+    ]));
+
+    expect($badge->type)->toBe('volunteer')
+        ->and($badge->line1)->toBe('Volunteer')
+        ->and($badge->line2)->toBe('Expired fee')
+        ->and($badge->line2Danger)->toBeTrue()
+        ->and($badge->styles)->toBe('bg-green-100 text-green-800');
+});
+
+test('an RCU member who never paid a personal fee shows Volunteer with no second line', function (?array $payment) {
+    $badge = new UserMembershipStatusBadge(badgeUnitMember($payment));
+
+    expect($badge->type)->toBe('volunteer')
+        ->and($badge->line1)->toBe('Volunteer')
+        ->and($badge->line2)->toBe('')
+        ->and($badge->styles)->toBe('bg-green-100 text-green-800');
+})->with([
+    'no payment at all' => [null],
+    // Closure dataset (needs test()): its return value is the argument itself.
+    'RCU-attributed payment only' => fn () => ['red_cross_unit_id' => test()->unit->id, 'membership_fee_id' => test()->rcuFee->id],
+]);
+
+test('Volunteer/Limbo is unchanged, including for a ghost holding only a current volunteer-type fee', function (?array $payment, string $line2) {
+    $ghost = badgeUnitMember($payment, ['red_cross_unit_id' => null, 'assigned_rcu_date' => now()->subYear()]);
+    $badge = new UserMembershipStatusBadge($ghost);
+
+    expect($badge->type)->toBe('unassigned')
+        ->and($badge->line1)->toBe('Volunteer/Limbo')
+        ->and($badge->line2)->toBe($line2)
+        ->and($badge->styles)->toBe('bg-yellow-100 text-yellow-800');
+})->with([
+    'no fee' => [null, 'No unit assigned'],
+    'current volunteer-type fee' => [[], 'Detachment'],
+]);
+
+test('users/index and users/show render the Vol & Member badge in the green volunteer style', function () {
+    $user = badgeUnitMember([], [
+        'first_name' => 'Badgey',
+        'branch_id' => $this->branch->id,
+        'division_id' => $this->division->id,
+    ]);
+    $expected = '/badge-style bg-green-100 text-green-800[^"]*">\s*<i class="fas fa-hands-helping mr-2"><\/i>\s*<span[^>]*>\s*<span class="font-semibold">\s*Vol &amp; Member\s*<\/span>\s*<span[^>]*>\s*Detachment/';
+
+    $index = $this->actingAs($this->admin)->get(route('users.index', ['search' => 'Badgey']))->assertOk();
+    $show = $this->actingAs($this->admin)->get(route('users.show', $user))->assertOk();
+
+    expect($index->getContent())->toMatch($expected)
+        ->and($show->getContent())->toMatch($expected);
+});
+
+test('users/show renders a never-paid RCU member\'s badge with no second line', function () {
+    $user = badgeUnitMember(null, ['branch_id' => $this->branch->id, 'division_id' => $this->division->id]);
+
+    $html = $this->actingAs($this->admin)->get(route('users.show', $user))->assertOk()->getContent();
+
+    // "Volunteer" is followed directly by the closing of the badge's text column.
+    expect($html)->toMatch('/<span class="font-semibold">\s*Volunteer\s*<\/span>\s*<\/span>\s*<\/span>/');
 });

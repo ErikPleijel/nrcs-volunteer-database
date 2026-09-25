@@ -319,7 +319,7 @@
                             @endphp
                             <div class="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-green-900">
                                 <div class="font-semibold">Your membership:</div>
-                                <div class="mt-1 text-2xl font-medium">{{ optional($currentPayment?->membershipFee)->name ?? 'Member' }}</div>
+                                <div class="mt-1 text-2xl font-medium">{{ optional($currentPayment?->membershipFee)->name ?? 'Supporting Member' }}</div>
                             </div>
 
                         @elseif(($latestPayment = $u->latestMembershipPayment()->personal()->first()) && $latestPayment->isExpired())
@@ -413,12 +413,12 @@
                         ],
                         [
                             'route' => 'membership.journey',
-                            'badge' => 'M',
-                            'title' => 'Member',
+                            'badge' => 'SM',
+                            'title' => 'Supporting Member',
                             'tagline' => 'Support us financially',
                             'description' => 'Support our mission without volunteering. Register and pay online in minutes.',
                             'categories' => $supportingMemberFeeNames,
-                            'cta' => 'Become a Member',
+                            'cta' => 'Become a Supporting Member',
                             'bar' => 'bg-purple-600',
                             'badgeClass' => 'bg-purple-100 text-purple-700',
                             'accent' => 'text-purple-600',
@@ -491,14 +491,15 @@
                     <h3 class="text-3xl font-bold mb-2">{{ number_format($totalVolunteers) }}</h3>
                     <p class="text-green-100">Volunteers</p>
                     <p class="text-sm text-green-200">Active volunteers</p>
+                    <p class="text-sm text-green-200">including {{ number_format($volunteeringMembersCount) }} volunteering members</p>
                 </div>
                 <div class="bg-purple-600 text-white p-6 rounded-lg text-center">
                     <div class="mb-4">
                         <i class="fas fa-id-card text-4xl opacity-75"></i>
                     </div>
                     <h3 class="text-3xl font-bold mb-2">{{ number_format($totalMembers) }}</h3>
-                    <p class="text-purple-100">Total Members</p>
-                    <p class="text-sm text-purple-200">Active memberships</p>
+                    <p class="text-purple-100">Total Supporting Members</p>
+                    <p class="text-sm text-purple-200">Active memberships, not in a unit</p>
                 </div>
                 <div class="bg-indigo-600 text-white p-6 rounded-lg text-center">
                     <div class="mb-4">

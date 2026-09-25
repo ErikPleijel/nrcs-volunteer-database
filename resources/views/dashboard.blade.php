@@ -129,7 +129,7 @@
                     <i class="fa-solid fa-users"></i>
                 </div>
 
-                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Members</h3>
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Supporting Members</h3>
 
                 {{-- Main number --}}
                 <p class="text-4xl font-bold text-indigo-600 dark:text-indigo-400">
@@ -476,6 +476,11 @@
                 <p class="text-4xl font-bold text-blue-600 dark:text-blue-400">
                     {{ number_format($dashboardData['volunteersCount']) }}
                 </p>
+
+                {{-- Absent from dashboard data cached before this line existed; appears on the next rebuild. --}}
+                @isset($dashboardData['volunteeringMembersCount'])
+                    <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">including {{ number_format($dashboardData['volunteeringMembersCount']) }} volunteering members</p>
+                @endisset
 
                 {{-- Trend info --}}
                 <div class="mt-3 space-y-1">

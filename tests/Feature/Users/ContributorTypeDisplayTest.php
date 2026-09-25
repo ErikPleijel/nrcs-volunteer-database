@@ -58,7 +58,7 @@ test('the profile badge shows the user\'s own contributor type', function (strin
 })->with([
     ['volunteer', 'Volunteer'],
     ['volunteer_member', 'Volunteer & Member'],
-    ['member', 'Member'],
+    ['member', 'Supporting Member'],
     ['neither', null],
 ]);
 

@@ -43,7 +43,7 @@
                 Volunteers: {{ number_format($stats['volunteer_only']) }}
                 · Volunteers &amp; Members: {{ number_format($stats['volunteer_member']) }}
                 @if($stats['scope'] !== 'unit')
-                    · Members: {{ number_format($stats['member_only']) }}
+                    · Supporting Members: {{ number_format($stats['member_only']) }}
                     @if($stats['unclassified'] > 0)
                         · Other: {{ number_format($stats['unclassified']) }}
                     @endif

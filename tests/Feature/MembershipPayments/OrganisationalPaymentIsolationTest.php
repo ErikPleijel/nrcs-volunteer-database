@@ -72,7 +72,7 @@ test('a user with only an organisational payment does not show the Member badge'
     $badge = new UserMembershipStatusBadge($user->fresh());
 
     expect($badge->type)->not->toBe('active')
-        ->and($badge->line1)->not->toBe('Member');
+        ->and($badge->line1)->not->toBe('Supporting Member');
 });
 
 test('a user with only an organisational payment does not show Expired either, and falls through to membership_interested', function () {
@@ -271,4 +271,24 @@ test('the same fee/RCU mismatch on an organisational payment is NOT rejected', f
     $response->assertSessionDoesntHaveErrors('membership_fee_id');
     $response->assertSessionHas('success');
     expect(MembershipPayment::withAnyApprovalStatus()->where('user_id', $contact->id)->where('organisation_id', $organisation->id)->count())->toBe(1);
+});
+
+// An organisational payment isn't the user's own fee, so this counts as never paid.
+test('an RCU member whose only payment is organisational shows plain Volunteer with no second line, not Vol & Member', function () {
+    $unit = RedCrossUnit::create(['name' => 'Unit Org']);
+    $user = User::factory()->create(['red_cross_unit_id' => $unit->id]);
+
+    MembershipPayment::factory()->approved()->create([
+        'user_id' => $user->id,
+        'organisation_id' => Organisation::create(['name' => 'Test Org'])->id,
+        'membership_fee_id' => MembershipFeeFactory::new()->create(['is_volunteer_fee' => false])->id,
+        'payment_date' => now()->subDay()->toDateString(),
+        'expiry_date' => now()->addYear()->toDateString(),
+    ]);
+
+    $badge = new UserMembershipStatusBadge($user->fresh());
+
+    expect($badge->type)->toBe('volunteer')
+        ->and($badge->line1)->toBe('Volunteer')
+        ->and($badge->line2)->toBe('');
 });

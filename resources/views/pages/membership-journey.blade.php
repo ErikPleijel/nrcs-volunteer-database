@@ -1,10 +1,10 @@
-<x-layouts.app title="Your Journey to Become a Red Cross Member">
+<x-layouts.app title="Your Journey to Become a Red Cross Supporting Member">
     <!-- Membership Steps Section -->
     <section class="py-8 lg:py-24 bg-white">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="text-center mb-16">
                 <h2 class="text-3xl font-bold text-gray-900 mb-4">Your Journey to Become a
-                    <span class="text-red-600">Red Cross Member</span></h2>
+                    <span class="text-red-600">Red Cross Supporting Member</span></h2>
                 <p class="text-lg text-gray-600 max-w-2xl mx-auto">
                     Support our mission without volunteering — register and pay online in minutes.<br>
                     Here's how to get started:

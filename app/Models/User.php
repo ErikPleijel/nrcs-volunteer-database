@@ -1206,7 +1206,7 @@ class User extends Authenticatable implements MustVerifyEmail
         return match ($this->contributor_type) {
             self::CONTRIBUTOR_VOLUNTEER => 'Volunteer',
             self::CONTRIBUTOR_VOLUNTEER_MEMBER => 'Volunteer & Member',
-            self::CONTRIBUTOR_MEMBER => 'Member',
+            self::CONTRIBUTOR_MEMBER => 'Supporting Member',
             default => null,
         };
     }

@@ -221,6 +221,11 @@ class DashboardController extends Controller
 
         $volunteersCount = (int) ($volunteerGenderCounts->total ?? 0);
 
+        // Volunteer & Member subset, via the classification's own scope.
+        $volunteeringMembersCount = $volunteerBase()
+            ->contributorType(\App\Models\User::CONTRIBUTOR_VOLUNTEER_MEMBER)
+            ->count();
+
         // Reuse the same snapshot rows fetched for members above
         $volunteersOneMonthAgo     = $snapMonth?->volunteers_total !== null ? (int) $snapMonth->volunteers_total : null;
         $volunteersTwelveMonthsAgo = $snapYear?->volunteers_total  !== null ? (int) $snapYear->volunteers_total  : null;
@@ -362,6 +367,7 @@ class DashboardController extends Controller
             'revenueOrganisationFees'                   => $revenueOrganisationFees,
             'revenueRcuFees'                            => $revenueRcuFees,
             'volunteersCount'        => $volunteersCount,
+            'volunteeringMembersCount' => $volunteeringMembersCount,
             'volunteersChangeMonth'  => $volunteersChangeMonth,
             'volunteersChangeYear'   => $volunteersChangeYear,
             'volunteerGenderMen'     => (int) ($volunteerGenderCounts->men ?? 0),

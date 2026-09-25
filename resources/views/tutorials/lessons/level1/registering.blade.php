@@ -225,7 +225,7 @@
                 <div class="space-y-4">
                     <x-tutorial.step n="1">Choose the <strong>Fee</strong> — the list shows the fees that fit this person (member or volunteer).</x-tutorial.step>
                     <x-tutorial.step n="2">For volunteers, tick <strong>ID Card</strong> to add one — its fee joins the total.
-                        <span class="block mt-1 text-sm text-gray-500">Members don't receive ID cards here.</span>
+                        <span class="block mt-1 text-sm text-gray-500">Supporting members don't receive ID cards here.</span>
                     </x-tutorial.step>
                     <x-tutorial.step n="3">Set the <strong>Payment Date</strong> — it shifts automatically if a still-valid membership would overlap.</x-tutorial.step>
                     <x-tutorial.step n="4">Add a <strong>Reference</strong> if you have one.</x-tutorial.step>

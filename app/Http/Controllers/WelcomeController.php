@@ -9,6 +9,7 @@ use App\Services\Reports\BranchStatsService;
 use App\Services\Reports\MembershipStatsService;
 use App\Services\Reports\RedCrossUnitStatsService;
 use App\Services\Reports\TaskForceStatsService;
+use Illuminate\Support\Facades\Cache;
 
 class WelcomeController extends Controller
 {
@@ -27,6 +28,9 @@ class WelcomeController extends Controller
         // Get key statistics from existing services
         $totalMembers = $this->membershipStatsService->getTotalMembersCount();
         $totalVolunteers = $this->redCrossUnitStatsService->getActiveUnitVolunteersCount();
+        // ~200ms query on a public page, so cached (the other figures here are not).
+        $volunteeringMembersCount = Cache::remember('welcome:volunteering-members-count', now()->addMinutes(30),
+            fn () => $this->redCrossUnitStatsService->getActiveUnitVolunteeringMembersCount());
         $totalRedCrossUnits = $this->redCrossUnitStatsService->getActiveUnitsCount();
         $totalTaskForces = $this->taskForceStatsService->getTotalTaskForces();
         $totalActivityHours = $this->activityStatsService->getTotalHours();
@@ -62,6 +66,7 @@ class WelcomeController extends Controller
         return view('welcome', compact(
             'totalMembers',
             'totalVolunteers',
+            'volunteeringMembersCount',
             'totalRedCrossUnits',
             'totalTaskForces',
             'totalActivityHours',

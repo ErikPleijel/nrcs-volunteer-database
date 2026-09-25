@@ -23,12 +23,21 @@ class UserMembershipStatusBadge extends Component
         $canMember      = $user->wantsMembership();       // can_contribute_member
 
         if ($isVolunteer) {
-            // In an RC unit — always a volunteer regardless of payment
+            // In an RC unit — always a volunteer; with a current personal fee
+            // also a member (User::CONTRIBUTOR_VOLUNTEER_MEMBER)
             $payment = $user->currentMembershipPayment()->personal()->first();
             $this->type   = 'volunteer';
-            $this->line1  = 'Volunteer';
-            $this->line2  = optional($payment?->membershipFee)->name ?? 'No payment';
-            $this->line2Danger = is_null($payment);
+            $this->line1  = $payment ? 'Vol & Member' : 'Volunteer';
+            if ($payment) {
+                $this->line2 = optional($payment->membershipFee)->name ?? '';
+            } elseif ($user->latestMembershipPayment()->personal()->exists()) {
+                // Paid a personal fee before, now lapsed
+                $this->line2 = 'Expired fee';
+                $this->line2Danger = true;
+            } else {
+                // Never paid a personal fee: nothing to show
+                $this->line2 = '';
+            }
             $this->icon   = 'fa-hands-helping';
             $this->styles = 'bg-green-100 text-green-800';
             $this->line3  = $this->expiryWarningLine($payment);
@@ -46,7 +55,7 @@ class UserMembershipStatusBadge extends Component
         } elseif ($payment = $user->currentMembershipPayment()->personal()->first()) {
             // Valid payment, not in RC unit
             $this->type   = 'active';
-            $this->line1  = 'Member';
+            $this->line1  = 'Supporting Member';
             $this->line2  = optional($payment->membershipFee)->name ?? '';
             $this->icon   = 'fa-id-card';
             $this->styles = 'bg-blue-100 text-blue-800';

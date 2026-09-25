@@ -68,7 +68,7 @@
     />
 
     <div class="mt-8">
-        <h2 class="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Total Members by Division</h2>
+        <h2 class="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Total Supporting Members by Division</h2>
 
         @if (! $latestDate)
             <p class="text-center italic text-gray-500 py-8">No snapshot data available yet. Run the stats:snapshot command.</p>
