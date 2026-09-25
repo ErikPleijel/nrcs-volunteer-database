@@ -129,11 +129,15 @@ class MembershipPayment extends Model
      * An organisational or RCU payment's payer (contact person / team
      * leader) should not be promoted from pending_engagement to active on
      * approval — the payment belongs to the organisation or unit, not the
-     * payer's own membership. Personal payments still promote as before.
+     * payer's own membership. Personal payments promote only while
+     * currently valid — a back-dated, already-expired payment is not a
+     * "paid fee" (see User::promoteFromPendingIfQualified()).
      */
     public function promotesFromPendingEngagement(): bool
     {
-        return ! $this->isAttributed();
+        return ! $this->isAttributed()
+            && $this->expiry_date !== null
+            && $this->expiry_date->gte(today());
     }
 
     /** Label => value detail rows for the review page. */

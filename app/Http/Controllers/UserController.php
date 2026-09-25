@@ -448,6 +448,10 @@ class UserController extends Controller
         $validated['is_form_registration'] = true;
         $validated['form_reg_id'] = auth()->id();
 
+        // Explicit (matches the column default) so promoteFromPendingIfQualified()
+        // below sees it on the in-memory model.
+        $validated['lifecycle_status'] = 'pending_engagement';
+
         $user = User::create($validated);
 
         $user->last_activity_at = now();
@@ -459,8 +463,10 @@ class UserController extends Controller
         if ($user->red_cross_unit_id !== null) {
             $user->assigned_rcu_date = now();
             $user->assigned_rcu_by_id = Auth::id();
-            $user->markActive();
+            $user->save();
         }
+
+        $user->promoteFromPendingIfQualified(touchActivity: true);
 
         if ($admin = Auth::user()) {
             $admin->touchLastAdminActivity();
@@ -969,24 +975,16 @@ class UserController extends Controller
         // Reactivation target status
         // -------------------------------
         // Decided here (not above) so a same-request RCU change is judged on
-        // $newUnitId, not a stale $user->red_cross_unit_id. Mirrors the
-        // qualifying-for-promotion rule from the original data migration
-        // (FixUserDataCommand::handle(), "Promote eligible pending_engagement
-        // users"): an active RCU assignment or a genuine (non-volunteer-fee)
-        // membership payment. $newUnitId is already validated as an active
-        // unit above, so its presence alone is sufficient. Neither basis →
-        // back to pending_engagement instead of being blindly marked active.
+        // $newUnitId, not a stale $user->red_cross_unit_id. Same rule as
+        // User::promoteFromPendingIfQualified(): an RCU assignment or a
+        // current personal fee of any type. $newUnitId is already validated
+        // as an active unit above, so its presence alone is sufficient.
+        // Neither basis → back to pending_engagement instead of being
+        // blindly marked active.
         $reactivatingToActive = false;
 
         if ($lifecycleChanging && ! $wantsArchived) {
-            $hasActiveRcu = $newUnitId !== null;
-            $hasQualifyingPayment = $user->membershipPayments()
-                ->where('is_deleted', false)
-                ->personal()
-                ->whereHas('membershipFee', fn ($q) => $q->where('is_volunteer_fee', false))
-                ->exists();
-
-            if ($hasActiveRcu || $hasQualifyingPayment) {
+            if ($newUnitId !== null || $user->hasCurrentPersonalFee()) {
                 $user->lifecycle_status = 'active';
                 $reactivatingToActive = true;
             } else {
@@ -1105,8 +1103,8 @@ class UserController extends Controller
         // unassignment, and not for an already-active/dormant user being reassigned —
         // that would silently override a dormant user's staleness status with no
         // real activity signal behind it)
-        if ($unitChanged && $newUnitId !== null && $user->lifecycle_status === 'pending_engagement') {
-            $user->markActive();
+        if ($unitChanged && $newUnitId !== null) {
+            $user->promoteFromPendingIfQualified(touchActivity: true);
         }
 
         // 👉 Touch admin activity separately

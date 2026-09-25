@@ -393,7 +393,10 @@ test('reactivating an archived user via a qualifying, non-expired personal membe
     expect($user->fresh()->lifecycle_status)->toBe('active');
 });
 
-test('reactivating via a qualifying-type payment that is expired initially sets active then demotes back to dormant', function () {
+// Behaviour change (V/M classification, Option A): an expired fee is no
+// longer a basis for reactivation at all, so the user returns to
+// pending_engagement rather than being set active then demoted to dormant.
+test('reactivating an archived user whose only payment is expired returns them to pending_engagement', function () {
     $user = User::factory()->create([
         'lifecycle_status' => 'archived',
         'branch_id' => $this->branch->id,
@@ -413,7 +416,30 @@ test('reactivating via a qualifying-type payment that is expired initially sets 
         ]))
         ->assertRedirect(route('users.show', $user));
 
-    expect($user->fresh()->lifecycle_status)->toBe('dormant');
+    expect($user->fresh()->lifecycle_status)->toBe('pending_engagement');
+});
+
+test('reactivating an archived user via a current volunteer-type personal fee lands them active', function () {
+    $user = User::factory()->create([
+        'lifecycle_status' => 'archived',
+        'branch_id' => $this->branch->id,
+        'division_id' => $this->division->id,
+    ]);
+    $fee = MembershipFeeFactory::new()->create(['is_volunteer_fee' => true]);
+    MembershipPayment::factory()->approved()->create([
+        'user_id' => $user->id,
+        'membership_fee_id' => $fee->id,
+        'payment_date' => now()->subMonth()->toDateString(),
+        'expiry_date' => now()->addMonths(11)->toDateString(),
+    ]);
+
+    $this->actingAs($this->admin)
+        ->put(route('users.update', $user), minimalUpdatePayload($this->branch, $this->division, [
+            'is_inactive' => '0',
+        ]))
+        ->assertRedirect(route('users.show', $user));
+
+    expect($user->fresh()->lifecycle_status)->toBe('active');
 });
 
 test('reactivating an archived user whose only qualifying payment is organisational does not count as a basis', function () {

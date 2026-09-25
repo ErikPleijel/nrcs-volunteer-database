@@ -208,6 +208,17 @@ class User extends Authenticatable implements MustVerifyEmail
     ];
 
     /**
+     * Contributor classification (see getContributorTypeAttribute()):
+     * computed from RCU assignment + a current personal fee, never stored.
+     * A user with neither has no classification (null).
+     */
+    const CONTRIBUTOR_VOLUNTEER = 'volunteer';
+
+    const CONTRIBUTOR_VOLUNTEER_MEMBER = 'volunteer_member';
+
+    const CONTRIBUTOR_MEMBER = 'member';
+
+    /**
      * A user belongs to a branch
      */
     public function branch()
@@ -1142,9 +1153,9 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     public function isMember()
     {
-        // A user is considered a member if they have an active and valid membership payment.
-        // The currentMembershipPayment() method already returns the latest valid membership if one exists.
-        return (bool) $this->currentMembershipPayment()->first();
+        // A user is considered a member if they have a current PERSONAL membership
+        // payment — an organisation or RCU payment made by this user is not theirs.
+        return $this->hasCurrentPersonalFee();
     }
 
     /**
@@ -1155,6 +1166,106 @@ class User extends Authenticatable implements MustVerifyEmail
     public function isVolunteer(): bool
     {
         return $this->red_cross_unit_id !== null;
+    }
+
+    /**
+     * Whether the user holds a currently valid (non-expired, approved,
+     * non-deleted) personal membership payment, of any fee type. Uses the
+     * has_current_fee value from scopeWithContributorFacts() when loaded.
+     */
+    public function hasCurrentPersonalFee(): bool
+    {
+        if (array_key_exists('has_current_fee', $this->attributes)) {
+            return (bool) $this->attributes['has_current_fee'];
+        }
+
+        return $this->currentMembershipPayment()->personal()->exists();
+    }
+
+    /**
+     * Volunteer / Volunteer & Member / Member classification: RCU assignment
+     * and a current personal fee (any type — unlike scopeUnassignedGhost(),
+     * a volunteer fee counts here). Null when the user has neither.
+     */
+    public function getContributorTypeAttribute(): ?string
+    {
+        $hasFee = $this->hasCurrentPersonalFee();
+
+        if ($this->isVolunteer()) {
+            return $hasFee ? self::CONTRIBUTOR_VOLUNTEER_MEMBER : self::CONTRIBUTOR_VOLUNTEER;
+        }
+
+        return $hasFee ? self::CONTRIBUTOR_MEMBER : null;
+    }
+
+    /**
+     * Display label for contributor_type; null when unclassified.
+     */
+    public function getContributorTypeLabelAttribute(): ?string
+    {
+        return match ($this->contributor_type) {
+            self::CONTRIBUTOR_VOLUNTEER => 'Volunteer',
+            self::CONTRIBUTOR_VOLUNTEER_MEMBER => 'Volunteer & Member',
+            self::CONTRIBUTOR_MEMBER => 'Member',
+            default => null,
+        };
+    }
+
+    /**
+     * Query-side mirror of getContributorTypeAttribute().
+     */
+    public function scopeContributorType(Builder $query, string $type): Builder
+    {
+        $hasFee = fn ($q) => $q->personal();
+
+        return match ($type) {
+            self::CONTRIBUTOR_VOLUNTEER => $query->whereNotNull('red_cross_unit_id')
+                ->whereDoesntHave('currentMembershipPayment', $hasFee),
+            self::CONTRIBUTOR_VOLUNTEER_MEMBER => $query->whereNotNull('red_cross_unit_id')
+                ->whereHas('currentMembershipPayment', $hasFee),
+            self::CONTRIBUTOR_MEMBER => $query->whereNull('red_cross_unit_id')
+                ->whereHas('currentMembershipPayment', $hasFee),
+            default => throw new \InvalidArgumentException("Unknown contributor type [{$type}]."),
+        };
+    }
+
+    /**
+     * Load has_current_fee in the same query, so contributor_type and
+     * hasCurrentPersonalFee() cost no extra queries across a list.
+     */
+    public function scopeWithContributorFacts(Builder $query): Builder
+    {
+        return $query->withExists(['currentMembershipPayment as has_current_fee' => fn ($q) => $q->personal()]);
+    }
+
+    /**
+     * pending_engagement -> active when the user is assigned to a Red Cross
+     * Unit OR holds a current personal fee, whichever comes first. No-op for
+     * any other lifecycle status.
+     *
+     * $touchActivity: also bump last_activity_at (via markActive()) — for
+     * callers promoting on a real event such as an RCU assignment, not for
+     * backfills.
+     *
+     * @return bool whether the user was promoted
+     */
+    public function promoteFromPendingIfQualified(bool $touchActivity = false): bool
+    {
+        if ($this->lifecycle_status !== 'pending_engagement') {
+            return false;
+        }
+
+        if (! $this->isVolunteer() && ! $this->hasCurrentPersonalFee()) {
+            return false;
+        }
+
+        if ($touchActivity) {
+            $this->markActive();
+        } else {
+            $this->forceFill(['lifecycle_status' => 'active'])->save();
+        }
+
+        return true;
     }
 
     /**

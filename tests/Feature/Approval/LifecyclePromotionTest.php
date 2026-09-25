@@ -97,17 +97,13 @@ test('approving a pending_engagement user\'s donation does NOT promote them to a
         ->and($member->refresh()->lifecycle_status)->toBe('pending_engagement');
 });
 
-test('a pending_engagement user with no RC unit is re-demoted to dormant when the promoting membership payment is already expired', function () {
+test('a pending_engagement user with no RC unit is not promoted by an already-expired membership payment', function () {
     $submitter = User::factory()->create();
     $approver = User::factory()->create();
-    // No red_cross_unit_id, no assigned_rcu_date: classification only turns
-    // 'member' when a CURRENT (unexpired) membership payment exists —
-    // User::currentMembershipPayment() filters expiry_date >= today. An
-    // already-expired payment therefore leaves the member classified as
-    // 'neither', governed purely by last_activity_at against the default
-    // 12-month dormant_after_months threshold. This replaces the old
-    // training-based version of this test, since Training no longer
-    // promotes at all.
+    // No red_cross_unit_id: only a CURRENT (unexpired) personal payment is a
+    // basis for promotion (MembershipPayment::promotesFromPendingEngagement()).
+    // Previously this lifted to active and recalculateLifecycle() immediately
+    // walked it back to dormant; now the lift never happens.
     $member = User::factory()->create(['lifecycle_status' => 'pending_engagement']);
 
     $payment = MembershipPayment::factory()->create([
@@ -119,17 +115,12 @@ test('a pending_engagement user with no RC unit is re-demoted to dormant when th
         'expiry_date' => now()->subMonths(6)->toDateString(),
     ]);
 
+    expect($payment->promotesFromPendingEngagement())->toBeFalse();
+
     $payment->approve($approver);
 
-    // The lift-then-recompute sequence promotes to 'active' first, then
-    // recalculateLifecycle() immediately walks it back to 'dormant' in the
-    // same request: the expired payment doesn't count as a CURRENT
-    // membership, so the member classifies as 'neither', and
-    // last_activity_at (derived from the payment_date) is too old to
-    // satisfy the inactivity threshold.
-    $member->refresh();
-    expect($member->lifecyclePolicyType())->toBe('neither')
-        ->and($member->lifecycle_status)->toBe('dormant');
+    expect(MembershipPayment::withAnyApprovalStatus()->find($payment->id)->approval_status)->toBe(MembershipPayment::APPROVED)
+        ->and($member->refresh()->lifecycle_status)->toBe('pending_engagement');
 });
 
 test('two earlier non-promoting approvals (donation, training) do not block a later membership payment from promoting the member', function () {
