@@ -108,6 +108,9 @@ class RedCrossUnitsReportController extends Controller
                 $total = (clone $q)->count();
                 $men = (clone $q)->where('gender', 'male')->count();
                 $women = (clone $q)->where('gender', 'female')->count();
+                // Everyone here has an RCU, so contributor_type is only ever
+                // Volunteer or Volunteer & Member — never Member.
+                $volunteerMember = (clone $q)->contributorType(User::CONTRIBUTOR_VOLUNTEER_MEMBER)->count();
                 $avgAge = (clone $q)->whereNotNull('birth_year')
                     ->selectRaw('AVG(? - birth_year) as avg_age', [$currentYear])
                     ->value('avg_age');
@@ -130,6 +133,8 @@ class RedCrossUnitsReportController extends Controller
                     'link' => $rowLink($row),
                     'total_volunteers' => $total,
                     'total_units' => $countUnits($row),
+                    'volunteer_only' => $total - $volunteerMember,
+                    'volunteer_member' => $volunteerMember,
                     'men' => $men,
                     'women' => $women,
                     'women_display' => $women.($total > 0 ? ' ('.round(($women / $total) * 100).'%)' : ''),

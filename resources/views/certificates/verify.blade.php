@@ -113,6 +113,12 @@
             margin: 0;
         }
 
+        .stats-breakdown {
+            font-size: 12px;
+            color: #888;
+            margin: 8px 0 0;
+        }
+
         .footer-note {
             margin-top: 30px;
             font-size: 12px;

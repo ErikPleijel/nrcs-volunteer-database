@@ -66,6 +66,8 @@
                                 @if($level !== 'unit')
                                     <th class="px-4 py-2 text-center">Total<br>Units</th>
                                 @endif
+                                <th class="px-4 py-2 text-center">Volunteers<br>Only</th>
+                                <th class="px-4 py-2 text-center">Volunteers &amp;<br>Members</th>
                                 <th class="px-4 py-2 text-center">Men</th>
                                 <th class="px-4 py-2 text-center">Women</th>
                                 <th class="px-4 py-2 text-center">Avg Age</th>
@@ -92,6 +94,8 @@
                                             <span class="inline-block bg-indigo-100 text-indigo-700 rounded-full px-2 py-0.5 text-xs font-medium">{{ $row['total_units'] }}</span>
                                         </td>
                                     @endif
+                                    <td class="px-4 py-3 text-center text-gray-700" data-col="volunteer-only">{{ $row['volunteer_only'] }}</td>
+                                    <td class="px-4 py-3 text-center text-gray-700" data-col="volunteer-member">{{ $row['volunteer_member'] }}</td>
                                     <td class="px-4 py-3 text-center">
                                         <span class="inline-block bg-blue-100 text-blue-700 rounded-full px-2 py-0.5 text-xs font-medium">{{ $row['men'] }}</span>
                                     </td>

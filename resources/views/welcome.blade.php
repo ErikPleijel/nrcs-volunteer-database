@@ -294,8 +294,9 @@
                         @php
                             /** @var \App\Models\User $u */
                             $u = auth()->user();
-                            $currentPayment = $u->currentMembershipPayment()->personal()->first();
-                            $latestPayment  = $u->latestMembershipPayment()->personal()->first();
+                            // Single source of truth: User::contributor_type. Volunteer and
+                            // Volunteer & Member share the volunteer box (unit name).
+                            $contributorType = $u->contributor_type;
                         @endphp
 
                         @if($u->lifecycle_status === 'pending_engagement')
@@ -304,21 +305,24 @@
                                 <div class="font-semibold">Registration pending</div>
                             </div>
 
-                        @elseif($u->isVolunteer())
+                        @elseif(in_array($contributorType, [\App\Models\User::CONTRIBUTOR_VOLUNTEER, \App\Models\User::CONTRIBUTOR_VOLUNTEER_MEMBER], true))
                             {{-- Volunteer: show RC unit name --}}
                             <div class="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-green-900">
                                 <div class="font-semibold">You're a volunteer</div>
                                 <div class="mt-1 text-lg">{{ $u->redCrossUnit->name ?? 'Unit assigned' }}</div>
                             </div>
 
-                        @elseif($currentPayment)
+                        @elseif($contributorType === \App\Models\User::CONTRIBUTOR_MEMBER)
                             {{-- Valid personal membership --}}
+                            @php
+                                $currentPayment = $u->currentMembershipPayment()->personal()->with('membershipFee')->first();
+                            @endphp
                             <div class="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-green-900">
                                 <div class="font-semibold">Your membership:</div>
-                                <div class="mt-1 text-2xl font-medium">{{ optional($currentPayment->membershipFee)->name ?? 'Member' }}</div>
+                                <div class="mt-1 text-2xl font-medium">{{ optional($currentPayment?->membershipFee)->name ?? 'Member' }}</div>
                             </div>
 
-                        @elseif($latestPayment && $latestPayment->isExpired())
+                        @elseif(($latestPayment = $u->latestMembershipPayment()->personal()->first()) && $latestPayment->isExpired())
                             {{-- Expired personal membership --}}
                             <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-900">
                                 <div class="font-semibold">Your membership has expired</div>

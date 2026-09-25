@@ -36,6 +36,19 @@
                     <div class="stat-label">Have had first aid training</div>
                 </div>
             </div>
+
+            {{-- Volunteer / Volunteer & Member / Member split. A unit's own
+                 people all belong to it, so Member and Other never apply there. --}}
+            <p class="stats-breakdown">
+                Volunteers: {{ number_format($stats['volunteer_only']) }}
+                · Volunteers &amp; Members: {{ number_format($stats['volunteer_member']) }}
+                @if($stats['scope'] !== 'unit')
+                    · Members: {{ number_format($stats['member_only']) }}
+                    @if($stats['unclassified'] > 0)
+                        · Other: {{ number_format($stats['unclassified']) }}
+                    @endif
+                @endif
+            </p>
         @endif
     </div>
 @endif

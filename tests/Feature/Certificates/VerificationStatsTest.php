@@ -236,3 +236,103 @@ test('neither failure page shows a stats block', function () {
             ->assertDontSee('Volunteers');
     }
 });
+
+/*
+|--------------------------------------------------------------------------
+| Volunteer / Volunteer & Member / Member split
+|--------------------------------------------------------------------------
+*/
+
+/** Approved personal (or, via overrides, attributed) payment; 'expired' => true for a lapsed one. */
+function statsFee(User $user, array $overrides = []): void
+{
+    $expired = $overrides['expired'] ?? false;
+    unset($overrides['expired']);
+
+    MembershipPayment::factory()->approved()->create(array_merge([
+        'user_id' => $user->id,
+        'membership_fee_id' => MembershipFee::factory()->create(['is_volunteer_fee' => true])->id,
+        'payment_date' => $expired ? now()->subMonths(18)->toDateString() : now()->subMonth()->toDateString(),
+        'expiry_date' => $expired ? now()->subMonths(6)->toDateString() : now()->addMonths(11)->toDateString(),
+    ], $overrides));
+}
+
+/** Mark the first $n counted users matching $where as holders of a fee described by $overrides. */
+function giveStatsFees(int $n, callable $where, array $overrides = []): void
+{
+    User::query()->where('lifecycle_status', 'active')->where($where)->orderBy('id')->limit($n)->get()
+        ->each(fn (User $u) => statsFee($u, $overrides));
+}
+
+test('unit figures split into Volunteer and Volunteer & Member, summing to the total', function () {
+    seedKnownUnit($this->unit);
+    $inUnit = fn ($q) => $q->where('red_cross_unit_id', $this->unit->id)->where('is_super_admin', false);
+    giveStatsFees(3, $inUnit);
+
+    // Neither makes a Volunteer & Member: a lapsed fee, or a fee paid for an organisation.
+    $lapsed = User::where('red_cross_unit_id', $this->unit->id)->where('lifecycle_status', 'dormant')->first();
+    statsFee($lapsed, ['expired' => true]);
+    $orgPayer = User::where('red_cross_unit_id', $this->unit->id)->where('lifecycle_status', 'dormant')->skip(1)->first();
+    statsFee($orgPayer, ['organisation_id' => \App\Models\Organisation::create(['name' => 'Org'])->id]);
+
+    // Not counted at all: a pending user with a fee.
+    statsFee(User::where('red_cross_unit_id', $this->unit->id)->where('lifecycle_status', 'pending_engagement')->first());
+
+    $stats = app(VerificationStatsService::class)->forUnit($this->unit);
+
+    expect($stats)->toMatchArray([
+        'total' => 12,
+        'volunteer_only' => 9,
+        'volunteer_member' => 3,
+        'member_only' => 0,
+        'unclassified' => 0,
+    ])->and($stats['volunteer_only'] + $stats['volunteer_member'] + $stats['member_only'] + $stats['unclassified'])->toBe($stats['total']);
+});
+
+test('branch figures add Members and an unclassified bucket, summing to the total', function () {
+    seedKnownUnit($this->unit);
+    giveStatsFees(2, fn ($q) => $q->where('red_cross_unit_id', $this->unit->id));
+
+    statsVolunteers(4, null);
+    $noUnit = fn ($q) => $q->whereNull('red_cross_unit_id')->where('branch_id', $this->branch->id);
+    giveStatsFees(3, $noUnit);                        // 3 Members
+    $lapsedMember = User::whereNull('red_cross_unit_id')->where('branch_id', $this->branch->id)
+        ->whereDoesntHave('membershipPayments')->first();
+    statsFee($lapsedMember, ['expired' => true]);     // no RCU, lapsed fee: unclassified
+
+    $stats = app(VerificationStatsService::class)->forBranch($this->branch);
+
+    expect($stats)->toMatchArray([
+        'total' => 16,
+        'volunteer_only' => 10,
+        'volunteer_member' => 2,
+        'member_only' => 3,
+        'unclassified' => 1,
+    ])->and($stats['volunteer_only'] + $stats['volunteer_member'] + $stats['member_only'] + $stats['unclassified'])->toBe($stats['total']);
+});
+
+test('a suppressed group exposes none of the split, even when its members pay fees', function () {
+    statsVolunteers(9, $this->unit);
+    giveStatsFees(4, fn ($q) => $q->where('red_cross_unit_id', $this->unit->id));
+
+    expect(app(VerificationStatsService::class)->forUnit($this->unit))
+        ->toBe(['scope' => 'unit', 'scope_label' => 'Unit Stats', 'suppressed' => true]);
+});
+
+test('the verification page shows the split under the four figures, and never for a suppressed group', function () {
+    seedKnownUnit($this->unit);
+    giveStatsFees(3, fn ($q) => $q->where('red_cross_unit_id', $this->unit->id));
+
+    $this->get(rcuCertificateUrl($this->unit))
+        ->assertOk()
+        ->assertSeeInOrder(['Have had first aid training', 'Volunteers: 9', 'Volunteers &amp; Members: 3'], false)
+        ->assertDontSee('Members: 0', false); // unit scope: no Members / Other
+
+    $small = RedCrossUnit::create(['name' => 'Unit Orphan', 'is_active' => true]);
+    User::factory()->count(3)->create(['red_cross_unit_id' => $small->id, 'lifecycle_status' => 'active']);
+
+    $this->get(rcuCertificateUrl($small))
+        ->assertOk()
+        ->assertSee('Statistics are shown for groups of 10 or more members.')
+        ->assertDontSee('class="stats-breakdown"', false);
+});
