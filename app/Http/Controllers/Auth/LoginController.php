@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\PhoneNumber;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -81,23 +82,35 @@ class LoginController extends Controller
                 ]);
             }
 
-            if ($candidates->count() > 1) {
+            // Phone login is permitted ONLY for accounts WITHOUT an email, so
+            // only those can collide: an emailed account sharing the number
+            // logs in by email and must not block someone else's phone login.
+            $phoneOnly = $candidates->filter(fn (User $user) => empty($user->email))->values();
+
+            // Archived duplicates (e.g. from users:archive-phone-duplicates)
+            // don't block the live account. Only when every email-less match
+            // is archived do they count, so a lone archived account still
+            // reaches the archived-account page below.
+            $live = $phoneOnly->reject(fn (User $user) => $user->lifecycle_status === 'archived')->values();
+            if ($live->isNotEmpty()) {
+                $phoneOnly = $live;
+            }
+
+            if ($phoneOnly->count() > 1) {
                 throw ValidationException::withMessages([
                     'login' => ['Multiple accounts share this phone number. '
                               . 'Please log in with your email address instead.'],
                 ]);
             }
 
-            $candidate = $candidates->first();
-
-            // Phone login is permitted ONLY for accounts WITHOUT an email.
-            // Accounts that have an email must use it.
-            if (! empty($candidate->email)) {
+            if ($phoneOnly->isEmpty()) {
                 throw ValidationException::withMessages([
                     'login' => ['This account has an email address. '
                               . 'Please log in with your email instead.'],
                 ]);
             }
+
+            $candidate = $phoneOnly->first();
 
             if (Auth::attempt(['id' => $candidate->id, 'password' => $password], $remember)) {
                 $loggedInUser = Auth::user();
@@ -205,26 +218,11 @@ class LoginController extends Controller
     }
 
     /**
-     * Canonicalise a phone number for exact comparison: strip formatting,
-     * then strip AT MOST ONE of a leading '234' country code or a single
-     * leading '0' trunk prefix. Deliberately not repeated/unbounded —
-     * unlike ltrim($digits, '0'), this won't eat digits that just happen
-     * to start with zero, and won't let a longer/unrelated number collide
-     * on a shared digit suffix.
+     * See PhoneNumber::normalize() — shared with users:report-phone-duplicates.
      */
     private function normalizePhone(string $raw): string
     {
-        $digits = preg_replace('/\D/', '', $raw);
-
-        if (str_starts_with($digits, '234')) {
-            return substr($digits, 3);
-        }
-
-        if (str_starts_with($digits, '0')) {
-            return substr($digits, 1);
-        }
-
-        return $digits;
+        return PhoneNumber::normalize($raw);
     }
 
     /**

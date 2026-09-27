@@ -90,3 +90,104 @@ test('two accounts with the exact same normalised phone number still trigger the
     expect(session('errors')->get('login')[0])
         ->toContain('Multiple accounts share this phone number');
 });
+
+test('emailed accounts sharing the number do not block the one email-less account', function () {
+    $phoneOnly = User::factory()->create([
+        'email' => null,
+        'telephone1' => '08077777777',
+        'lifecycle_status' => 'active',
+    ]);
+
+    User::factory()->count(2)->create([
+        'telephone1' => '+234 807 777 7777',
+        'lifecycle_status' => 'active',
+    ]);
+
+    $response = $this->post('/login', [
+        'login' => '08077777777',
+        'password' => 'password',
+    ]);
+
+    $response->assertRedirect('/profile');
+    $this->assertAuthenticatedAs($phoneOnly);
+});
+
+test('two email-less accounts still block even alongside an emailed one', function () {
+    User::factory()->count(2)->create([
+        'email' => null,
+        'telephone1' => '08066666666',
+        'lifecycle_status' => 'active',
+    ]);
+
+    User::factory()->create([
+        'telephone1' => '08066666666',
+        'lifecycle_status' => 'active',
+    ]);
+
+    $response = $this->from('/login')->post('/login', [
+        'login' => '08066666666',
+        'password' => 'password',
+    ]);
+
+    $response->assertRedirect('/login');
+    $this->assertGuest();
+
+    expect(session('errors')->get('login')[0])
+        ->toContain('Multiple accounts share this phone number');
+});
+
+test('a number held only by emailed accounts points to email login, not the multiple-accounts error', function () {
+    User::factory()->count(2)->create([
+        'telephone1' => '08055555555',
+        'lifecycle_status' => 'active',
+    ]);
+
+    $response = $this->from('/login')->post('/login', [
+        'login' => '08055555555',
+        'password' => 'password',
+    ]);
+
+    $response->assertRedirect('/login');
+    $this->assertGuest();
+
+    expect(session('errors')->get('login')[0])
+        ->toContain('This account has an email address');
+});
+
+test('an archived email-less duplicate does not block the live account', function () {
+    User::factory()->create([
+        'email' => null,
+        'telephone1' => '08044444444',
+        'lifecycle_status' => 'archived',
+    ]);
+
+    $live = User::factory()->create([
+        'email' => null,
+        'telephone1' => '08044444444',
+        'lifecycle_status' => 'dormant',
+    ]);
+
+    $response = $this->post('/login', [
+        'login' => '08044444444',
+        'password' => 'password',
+    ]);
+
+    $response->assertRedirect('/profile');
+    $this->assertAuthenticatedAs($live);
+});
+
+test('a lone archived email-less account still reaches the archived-account page', function () {
+    User::factory()->create([
+        'email' => null,
+        'telephone1' => '08033333333',
+        'lifecycle_status' => 'archived',
+    ]);
+
+    $response = $this->post('/login', [
+        'login' => '08033333333',
+        'password' => 'password',
+    ]);
+
+    $response->assertRedirectContains(route('archived-account.show', [], false));
+    $this->assertGuest();
+});
