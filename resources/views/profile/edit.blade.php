@@ -437,7 +437,7 @@
                                 <div class="ml-3 text-sm">
                                     <span class="font-medium text-gray-700">Volunteer Services</span>
                                     <p class="text-gray-500 mt-1">
-                                        I can contribute my time and skills as a volunteer.
+                                        I can contribute my time and skills as a volunteer, with or without also paying a membership fee.
                                     </p>
                                 </div>
                             </label>
@@ -453,9 +453,9 @@
                                            {{ old('contribution_type', $currentContributionType) === 'member' ? 'checked' : '' }}>
                                 </div>
                                 <div class="ml-3 text-sm">
-                                    <span class="font-medium text-gray-700">Active Membership</span>
+                                    <span class="font-medium text-gray-700">Supporting Membership</span>
                                     <p class="text-gray-500 mt-1">
-                                        I want to be an active member of the Red Cross
+                                        I want to support the Red Cross financially as a member. Volunteering isn't required, but I'm welcome to get involved if I'd like.
                                     </p>
                                 </div>
                             </label>

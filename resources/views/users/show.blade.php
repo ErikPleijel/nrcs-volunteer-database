@@ -364,7 +364,7 @@
                                 </span>
                             @elseif($user->can_contribute_member)
                                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                    <i class="fas fa-id-card mr-1"></i>Active Membership
+                                    <i class="fas fa-id-card mr-1"></i>Supporting Membership
                                 </span>
                             @else
                                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">

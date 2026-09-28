@@ -544,7 +544,7 @@
                             @endif
                         @elseif($membershipCtaPath === 'volunteer')
                             @if($membershipCtaSubcase === 'new')
-                                <p class="profile-instruction-text mb-6">As a volunteer, your annual fee is paid at your branch, not online. Your branch will let you know how to proceed.</p>
+                                <p class="profile-instruction-text mb-6">Your membership fee hasn't been paid yet.</p>
                             @elseif($membershipCtaSubcase === 'lapsed')
                                 <p class="profile-instruction-text mb-6">Your membership has expired. Please renew at your branch.</p>
                             @elseif($membershipCtaSubcase === 'expiring_soon')
@@ -1327,7 +1327,7 @@
                                         </span>
                                     @elseif($user->can_contribute_member)
                                         <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">
-                                            <i class="fas fa-id-card mr-1"></i>Active Membership
+                                            <i class="fas fa-id-card mr-1"></i>Supporting Membership
                                         </span>
                                     @else
                                         <span class="bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-xs">

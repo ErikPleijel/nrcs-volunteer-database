@@ -23,10 +23,10 @@
 
             <ul class="mt-4 space-y-1 text-base text-gray-700 list-disc pl-5">
                 <li>
-                    <span class="font-semibold">Volunteer Services</span> — "I can contribute my time and skills as a volunteer."
+                    <span class="font-semibold">Volunteer Services</span> — "I can contribute my time and skills as a volunteer, with or without also paying a membership fee."
                 </li>
                 <li>
-                    <span class="font-semibold">Active Membership</span> — "I want to be an active member of the Red Cross."
+                    <span class="font-semibold">Supporting Membership</span> — "I want to support the Red Cross financially as a member. Volunteering isn't required, but I'm welcome to get involved if I'd like."
                 </li>
             </ul>
 

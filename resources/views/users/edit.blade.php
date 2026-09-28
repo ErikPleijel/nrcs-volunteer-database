@@ -638,7 +638,7 @@
                                     </div>
                                     <div class="ml-3 text-sm">
                                         <span class="font-medium text-gray-700">Volunteer Services</span>
-                                        <p class="text-gray-500 mt-1">Available for volunteering</p>
+                                        <p class="text-gray-500 mt-1">Available for volunteering, with or without also paying a membership fee.</p>
                                     </div>
                                 </label>
                                 <label for="contribution_member" class="flex items-start p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors duration-200 cursor-pointer @error('contribution_type') border-red-300 @enderror">
@@ -651,8 +651,8 @@
                                                {{ old('contribution_type', $currentContributionType) === 'member' ? 'checked' : '' }}>
                                     </div>
                                     <div class="ml-3 text-sm">
-                                        <span class="font-medium text-gray-700">Active Membership</span>
-                                        <p class="text-gray-500 mt-1">Available as member</p>
+                                        <span class="font-medium text-gray-700">Supporting Membership</span>
+                                        <p class="text-gray-500 mt-1">Available as a supporting member; volunteering isn't required.</p>
                                     </div>
                                 </label>
                             </div>
