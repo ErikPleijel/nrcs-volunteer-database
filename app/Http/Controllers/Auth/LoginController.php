@@ -147,7 +147,7 @@ class LoginController extends Controller
         if ($legacyUser = $this->attemptLegacyLogin($user, $password, $remember, $request)) {
             LoginThrottle::clear($throttleKey);
 
-            return $this->completeLegacyLogin($request, $legacyUser);
+            return $this->completeLogin($request, $legacyUser);
         }
 
         // Authentication failed
@@ -432,7 +432,7 @@ class LoginController extends Controller
         if ($legacyUser = $this->attemptLegacyLogin($candidate, $password, $remember, $request)) {
             LoginThrottle::clear($throttleKey);
 
-            return $this->completeLegacyLogin($request, $legacyUser);
+            return $this->completeLogin($request, $legacyUser);
         }
 
         return null;
@@ -472,7 +472,9 @@ class LoginController extends Controller
     }
 
     /**
-     * Post-login handling after a successful Auth::attempt().
+     * Post-login handling for every successful password check — Auth::attempt()
+     * or the legacy md5 path alike — so the maintenance gate and the archived
+     * check can never be skipped by whichever hash the account happens to have.
      */
     private function completeLogin(Request $request, User $loggedInUser)
     {
@@ -500,22 +502,6 @@ class LoginController extends Controller
         }
 
         $request->session()->regenerate();
-        $this->touchLastLogin();
-        return redirect()->intended($this->redirectTo);
-    }
-
-    /**
-     * Post-login handling after the legacy md5 path (which has already
-     * logged in and regenerated the session).
-     */
-    private function completeLegacyLogin(Request $request, User $legacyUser)
-    {
-        $request->session()->forget(self::PHONE_FLOW);
-
-        if ($this->maintenanceGateBlocks($legacyUser)) {
-            return $this->redirectForMaintenanceGate($request);
-        }
-
         $this->touchLastLogin();
         return redirect()->intended($this->redirectTo);
     }
