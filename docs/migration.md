@@ -19,8 +19,18 @@ NOTES while migrating:
  - You have to type "Yes" when it reaches Migrate Branches (the second step)
  - When migrating users, Check users phpMyAdmin to see progress.
  - migrate:organisations now runs automatically as part of this step. 
---> SELECT * FROM `users` where division_id is null; the migration might have missed some division_id; if not too many set manually. Probably a non-issue just double check. 
 
+Telephone duplicate clean-up. Handles & archives some, but not all duplications 
+--> php artisan users:report-phone-duplicates
+Small spot-check with --commit
+Pick 3-5 real phone numbers from this VPS's own report output  that cover a mix of cases: a simple 2-account merge, a case with moved records, and a role-holder group if one exists.
+--> php artisan users:archive-phone-duplicates --phones="<comma-separated numbers>" --commit
+--> php artisan users:archive-phone-duplicates --limit=25 --commit
+Re-run the report, confirm expected drop in actionable groups, check for surprises.
+--> php artisan users:archive-phone-duplicates --limit=250 --commit
+Re run report again
+--> php artisan users:archive-phone-duplicates --commit
+Full run, check report again
 
 (((--> php artisan fix:userdata  (VARIOUS SQL RUN)))) this is now in migrate old orchestrator.
 --> php artisan db:seed --class=UserTokenSeeder (, CHECK: SELECT * FROM `users` where id_check_token is null; should be 0)
