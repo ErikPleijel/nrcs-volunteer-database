@@ -98,6 +98,13 @@ Route::group([], function () {
     Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
     Route::post('/login', [LoginController::class, 'login'])->middleware('throttle:5,1');
 
+    // Phone-collision disambiguation (several email-less accounts share the
+    // phone number). A named limiter, not throttle:5,1: unnamed throttles
+    // share one per-IP counter, so a normal multi-step pass through this
+    // flow would exhaust the login route's budget.
+    Route::get('/login/phone', [LoginController::class, 'showPhoneStep'])->name('login.phone');
+    Route::post('/login/phone', [LoginController::class, 'phoneStep'])->middleware('throttle:login-phone-flow');
+
     // Registration
     Route::get('/register', [RegisterController::class, 'showRegistrationForm'])->name('register');
     Route::post('/register', [RegisterController::class, 'register'])->middleware('throttle:register');

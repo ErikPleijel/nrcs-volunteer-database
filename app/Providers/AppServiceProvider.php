@@ -56,6 +56,13 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(5)->by($request->ip());
         });
 
+        // Per-IP cap on the phone-login disambiguation steps. A full pass is
+        // at most 5 POSTs (DB number, name, birth year, pick, password); wrong
+        // answers are separately limited per phone number by LoginThrottle.
+        RateLimiter::for('login-phone-flow', function (Request $request) {
+            return Limit::perMinute(10)->by($request->ip());
+        });
+
         \Illuminate\Support\Facades\View::composer(
             [
                 'components.navigation',

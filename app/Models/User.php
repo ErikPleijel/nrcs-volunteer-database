@@ -1514,7 +1514,7 @@ class User extends Authenticatable implements MustVerifyEmail
         return "DB-{$this->formatUserIdForDisplay()}-{$branchCode}-{$divisionName}";
     }
 
-    private function formatUserIdForDisplay(): string
+    public function formatUserIdForDisplay(): string
     {
         // Thin space (U+2009) grouping every 3 digits, for readability as
         // IDs grow past 5-6 digits. Not a comma (avoids confusion if

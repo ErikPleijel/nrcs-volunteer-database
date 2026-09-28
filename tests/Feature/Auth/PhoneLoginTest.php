@@ -65,7 +65,7 @@ test('a country-code variant of a phone number still resolves to the correct sin
     $this->assertAuthenticatedAs($other);
 });
 
-test('two accounts with the exact same normalised phone number still trigger the multiple-accounts error', function () {
+test('two accounts with the exact same normalised phone number start the disambiguation flow', function () {
     User::factory()->create([
         'email' => null,
         'telephone1' => '08099999999',
@@ -83,12 +83,8 @@ test('two accounts with the exact same normalised phone number still trigger the
         'password' => 'password',
     ]);
 
-    $response->assertRedirect('/login');
-    $response->assertSessionHasErrors('login');
+    $response->assertRedirect(route('login.phone'));
     $this->assertGuest();
-
-    expect(session('errors')->get('login')[0])
-        ->toContain('Multiple accounts share this phone number');
 });
 
 test('emailed accounts sharing the number do not block the one email-less account', function () {
@@ -112,7 +108,7 @@ test('emailed accounts sharing the number do not block the one email-less accoun
     $this->assertAuthenticatedAs($phoneOnly);
 });
 
-test('two email-less accounts still block even alongside an emailed one', function () {
+test('two email-less accounts still collide even alongside an emailed one', function () {
     User::factory()->count(2)->create([
         'email' => null,
         'telephone1' => '08066666666',
@@ -129,11 +125,8 @@ test('two email-less accounts still block even alongside an emailed one', functi
         'password' => 'password',
     ]);
 
-    $response->assertRedirect('/login');
+    $response->assertRedirect(route('login.phone'));
     $this->assertGuest();
-
-    expect(session('errors')->get('login')[0])
-        ->toContain('Multiple accounts share this phone number');
 });
 
 test('a number held only by emailed accounts points to email login, not the multiple-accounts error', function () {

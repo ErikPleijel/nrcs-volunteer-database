@@ -112,4 +112,22 @@ return [
 
     'password_timeout' => env('AUTH_PASSWORD_TIMEOUT', 10800),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Per-Identifier Login Lockout
+    |--------------------------------------------------------------------------
+    |
+    | Failed sign-ins are counted per submitted email / normalised phone
+    | number (see App\Support\LoginThrottle), on top of the per-IP
+    | throttle on the login route. Once max_attempts failures land within
+    | decay_minutes, that identifier is locked until the window expires.
+    | Only wrong passwords (and failed phone-disambiguation answers) count.
+    |
+    */
+
+    'login_throttle' => [
+        'max_attempts' => (int) env('LOGIN_MAX_FAILED_ATTEMPTS', 5),
+        'decay_minutes' => (int) env('LOGIN_LOCKOUT_MINUTES', 15),
+    ],
+
 ];
