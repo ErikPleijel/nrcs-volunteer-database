@@ -112,12 +112,10 @@ class Organisation extends Model
 
     private function formatIdForDisplay(): string
     {
-        // Thin space (U+2009) grouping every 3 digits, for readability as
-        // ids grow. Not a comma (avoids confusion if someone types the
-        // reference into a search box), not a full non-breaking space
-        // (visually too wide). Display-only — never use for route()/lookup
-        // params, which must keep using the raw integer.
-        return number_format($this->id, 0, '.', "\u{2009}");
+        // Bare digits, no grouping — same as User::formatUserIdForDisplay().
+        // Display-only — never use for route()/lookup params, which must
+        // keep using the raw integer.
+        return (string) $this->id;
     }
 
     public function getOrgReferenceLinkAttribute(): string

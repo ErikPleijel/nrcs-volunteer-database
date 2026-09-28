@@ -43,7 +43,7 @@ class RedCrossUnit extends Model
     }
 
     /**
-     * Human-readable reference, RCU-{id}/{BRANCH} — same id grouping and
+     * Human-readable reference, RCU-{id}/{BRANCH} — same bare id and
      * branch-code fallback as MembershipPayment::payment_reference.
      * Display-only; never use for lookups.
      */
@@ -52,7 +52,7 @@ class RedCrossUnit extends Model
         $branch = $this->division?->branch;
         $branchCode = strtoupper($branch->code ?? $branch->name ?? 'UNK');
 
-        return 'RCU-'.number_format($this->id, 0, '.', "\u{2009}").'/'.$branchCode;
+        return 'RCU-'.$this->id.'/'.$branchCode;
     }
 
     /**

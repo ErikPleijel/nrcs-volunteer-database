@@ -23,7 +23,7 @@
                         <div class="mb-6">
                             <label for="db_number" class="block text-sm font-medium text-gray-700 mb-2">DB number</label>
                             <p class="text-sm text-gray-600 mb-2">
-                                If you have your DB number (it's on your ID card, e.g. DB-123&thinsp;456), enter it here.
+                                If you have your DB number (it's on your ID card, e.g. DB-123456), enter it here.
                                 Otherwise, skip this step.
                             </p>
                             <input id="db_number" type="text" name="db_number" autofocus autocomplete="off"

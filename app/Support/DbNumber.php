@@ -8,8 +8,8 @@ class DbNumber
      * Parse a typed DB number back to a users.id, or null if it isn't one.
      *
      * Accepts the forms people copy off ID cards and profiles:
-     * 'DB-123456', 'DB 123 456', 'db123456', the thin-space grouping from
-     * User::formatUserIdForDisplay() ('DB-123 456'), a bare '123456', and
+     * 'DB-123456', 'DB 123 456', 'db123456', the thin-space grouping that
+     * older printed cards and certificates show ('DB-123 456'), a bare '123456', and
      * the longer card/reference forms 'DB-123456-BRANCH-DIV' and
      * 'DB-123456/BRANCH/DIV/UNIT' — the branch/division suffix is ignored.
      */

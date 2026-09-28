@@ -1542,13 +1542,12 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function formatUserIdForDisplay(): string
     {
-        // Thin space (U+2009) grouping every 3 digits, for readability as
-        // IDs grow past 5-6 digits. Not a comma (avoids confusion if
-        // someone types the reference into a search box), and not a full
-        // non-breaking space (visually too wide at this size). Display-only
+        // Bare digits, no grouping, so the reference copies and pastes
+        // cleanly. (Older printed cards show a thin-space-grouped form,
+        // 'DB-123 456'; DbNumber::parse() still accepts it.) Display-only
         // — never use this for route() params, lookups, or anything that
         // needs the raw integer.
-        return number_format($this->id, 0, '.', "\u{2009}");
+        return (string) $this->id;
     }
 
     public function getUserIdReferenceLinkAttribute(): string
