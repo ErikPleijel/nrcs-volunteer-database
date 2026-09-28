@@ -15,11 +15,13 @@ use App\Models\RedCrossUnit; // Import the trait
 use App\Models\TaskForce;
 use App\Models\TrainingType;
 use App\Models\User;
+use App\Rules\NationalIdNumberRule;
 use App\Services\UserFilterService;
 use App\Support\Filters\UserFilterDescriber;
 use App\Traits\HandlesImageUploads;
 use Carbon\Carbon; // Ensure Log facade is imported
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests; // Import Validator
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -364,7 +366,12 @@ class UserController extends Controller
             'gender' => 'required|in:male,female', // Changed to required
             'birth_year' => 'required|integer|min:1900|max:'.date('Y'),
             'marital_status' => 'nullable|in:single,married,other', // Changed allowed values
-            'national_id_number' => 'nullable|string|max:255',
+            // Required unless the birth year makes them under 18.
+            'national_id_number' => [
+                Rule::requiredIf(NationalIdNumberRule::requiredForBirthYear($request->input('birth_year'))),
+                'nullable',
+                new NationalIdNumberRule,
+            ],
             'organisation' => 'nullable|string|max:255',
             'occupation' => 'nullable|string|max:255',
             'residential_address' => 'nullable|string|max:500', // Added max:500
@@ -407,6 +414,7 @@ class UserController extends Controller
             'consent_notes' => 'nullable|string|max:255',
         ], [
             'red_cross_unit_id.required_if' => 'A Red Cross Unit must be selected for volunteers.',
+            'national_id_number.required' => NationalIdNumberRule::REQUIRED_MESSAGE,
         ]);
 
         if ($validator->fails()) {
@@ -452,7 +460,12 @@ class UserController extends Controller
         // below sees it on the in-memory model.
         $validated['lifecycle_status'] = 'pending_engagement';
 
-        $user = User::create($validated);
+        try {
+            $user = User::create($validated);
+        } catch (QueryException $e) {
+            NationalIdNumberRule::rethrowIfDuplicate($e);
+            throw $e;
+        }
 
         $user->last_activity_at = now();
         $user->consent_obtained_at = now();
@@ -834,7 +847,7 @@ class UserController extends Controller
             'gender' => 'required|in:male,female',
             'birth_year' => 'required|integer|min:1900|max:'.date('Y'),
             'marital_status' => 'nullable|in:single,married,other',
-            'national_id_number' => 'nullable|string|max:255',
+            'national_id_number' => ['nullable', new NationalIdNumberRule($user->id)],
             'organisation' => 'nullable|string|max:255',
             'occupation' => 'nullable|string|max:255',
             'residential_address' => 'nullable|string|max:500',
@@ -1072,7 +1085,12 @@ class UserController extends Controller
         // Persist main update
         // -------------------------------
         // lifecycle_status change (if any) is on $user already, so update() will persist it too.
-        $user->update($validated);
+        try {
+            $user->update($validated);
+        } catch (QueryException $e) {
+            NationalIdNumberRule::rethrowIfDuplicate($e);
+            throw $e;
+        }
 
         // Handle opt-out timestamp logic separately to avoid mass-assignment of _at fields
         $user->email_opt_out = $newEmailOptOut;

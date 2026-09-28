@@ -5,6 +5,9 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
+use Illuminate\Database\QueryException;
+use App\Rules\NationalIdNumberRule;
 use Illuminate\Support\Facades\Hash;
 use App\Models\User;
 use App\Models\Donation;
@@ -303,7 +306,7 @@ class ProfileController extends Controller
                 'gender' => 'required|in:male,female',
                 'birth_year' => 'required|integer|min:1900|max:' . date('Y'),
                 'marital_status' => 'nullable|in:single,married,other',
-                'national_id_number' => 'nullable|string|max:255',
+                'national_id_number' => ['nullable', new NationalIdNumberRule($user->id)],
                 'organisation' => 'nullable|string|max:255',
                 'occupation' => 'nullable|string|max:255',
                 'disciplin' => 'nullable|string|max:255',
@@ -393,7 +396,12 @@ class ProfileController extends Controller
             }
 
             // Perform update
-            $user->update($updateData);
+            try {
+                $user->update($updateData);
+            } catch (QueryException $e) {
+                NationalIdNumberRule::rethrowIfDuplicate($e);
+                throw $e;
+            }
 
             // Send a fresh verification email now that the address has changed
             if ($emailChanged) {
@@ -403,6 +411,9 @@ class ProfileController extends Controller
             return redirect()->route('profile.show')
                 ->with('success', 'Profile updated successfully!');
 
+        } catch (ValidationException $e) {
+            // e.g. the NIN unique-index race above — show it on the form, not the generic error.
+            throw $e;
         } catch (\Exception $e) {
             Log::error('Profile update error: ' . $e->getMessage());
             return redirect()->back()->with('error', 'An error occurred while updating your profile. Please try again.');

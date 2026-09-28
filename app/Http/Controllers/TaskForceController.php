@@ -513,15 +513,26 @@ class TaskForceController extends Controller
             ->orderBy('first_name')
             ->orderBy('last_name')
             ->limit(10) // Limit search results
-            ->with(['branch', 'division']) // Eager load relationships for display
+            ->with(['branch', 'division', 'redCrossUnit']) // user_id_reference reads these
             ->get();
 
-        // Append the accessor attributes for the response
-        $users->each(function ($user) {
-            $user->append(['full_name', 'user_id_reference']);
-        });
+        // Only what the task-force edit page shows. Never the whole model:
+        // that would serialise the decrypted national_id_number and
+        // personal_info.
+        return response()->json($users->map(fn (User $user) => $this->memberSearchPayload($user))->values());
+    }
 
-        return response()->json($users);
+    /**
+     * The fields task-forces/edit.blade.php reads for a search result or a
+     * newly added member.
+     */
+    private function memberSearchPayload(User $user): array
+    {
+        return [
+            'id' => $user->id,
+            'full_name' => $user->full_name,
+            'user_id_reference' => $user->user_id_reference,
+        ];
     }
 
     /**
@@ -542,9 +553,9 @@ class TaskForceController extends Controller
 
         try {
             $taskForce->users()->attach($userId);
-            $user = User::find($userId); // Get the user object to return
-            $user->append(['full_name', 'user_id_reference']); // Append the accessor attributes
-            return response()->json(['success' => true, 'message' => 'Member added successfully.', 'user' => $user]);
+            $user = User::find($userId);
+
+            return response()->json(['success' => true, 'message' => 'Member added successfully.', 'user' => $this->memberSearchPayload($user)]);
         } catch (\Exception $e) {
             Log::error("Failed to add member to task force: " . $e->getMessage());
             return response()->json(['success' => false, 'message' => 'Failed to remove member.'], 500);

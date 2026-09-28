@@ -23,7 +23,7 @@ ADAPT procedure accordingly. This might need changes:
 
 ### Migration
 - [ ] Download old database to local environment
-- [ ] php artisan key:generate and put APP_KEY on local .env 
+- [ ] php artisan key:generate and put APP_KEY on local .env  + NIN_HASH_KEY
 - [ ] Do data migration procedure in MIGRATION.md
 
 

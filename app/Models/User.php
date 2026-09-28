@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Log as AuditLog;
+use App\Support\NationalIdNumber;
 use Carbon\Carbon;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Builder;
@@ -69,6 +70,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'password',
         'remember_token',
         'legacy_password_hash', // Added to hide the legacy hash from array/JSON output
+        'national_id_number_hash', // Keyed hash, but still derived from the NIN — never serialise it
     ];
 
     protected $casts = [
@@ -103,6 +105,30 @@ class User extends Authenticatable implements MustVerifyEmail
             if (empty($user->id_check_token)) {
                 $user->id_check_token = Str::random(32);
             }
+        });
+
+        // Store the NIN normalized and keep its uniqueness hash in step, for
+        // every code path that sets it (all four forms, factories, commands).
+        // Query-builder updates (DB::table / User::query()->update()) bypass
+        // this and must set the hash themselves.
+        static::saving(function (User $user) {
+            if (! $user->isDirty('national_id_number')) {
+                return;
+            }
+
+            $normalized = NationalIdNumber::normalize($user->national_id_number);
+
+            if ($normalized === '') {
+                $user->national_id_number = null;
+                $user->national_id_number_hash = null;
+
+                return;
+            }
+
+            if ($normalized !== $user->national_id_number) {
+                $user->national_id_number = $normalized;
+            }
+            $user->national_id_number_hash = NationalIdNumber::hash($normalized);
         });
 
         static::saving(function (User $user) {

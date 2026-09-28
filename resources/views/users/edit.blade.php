@@ -587,7 +587,7 @@
                                 <!-- National ID -->
                                 <div>
                                     <label for="national_id_number" class="form-label">
-                                        National ID Number
+                                        National ID number (NIN)
                                     </label>
                                     <input type="text"
                                            id="national_id_number"

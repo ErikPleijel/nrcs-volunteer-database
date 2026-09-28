@@ -8,11 +8,14 @@ use App\Models\Division;
 use App\Models\RedCrossUnit;
 use App\Models\User;
 use App\Notifications\VerifyEmailNotification;
+use App\Rules\NationalIdNumberRule;
 use App\Traits\HandlesImageUploads;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log; // Import the trait
 use Illuminate\Support\Facades\Validator; // Ensure Log is imported for trait methods
+use Illuminate\Validation\Rule;
 
 class RegisterController extends Controller
 {
@@ -92,7 +95,12 @@ class RegisterController extends Controller
                 ->withInput();
         }
 
-        $user = $this->create($request->all());
+        try {
+            $user = $this->create($request->all());
+        } catch (QueryException $e) {
+            NationalIdNumberRule::rethrowIfDuplicate($e);
+            throw $e;
+        }
 
         // CRITICAL: Log the user in immediately
         auth()->login($user);
@@ -163,7 +171,12 @@ class RegisterController extends Controller
                 },
             ],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
-            'national_id_number' => ['nullable', 'string', 'max:255'],
+            // Required unless the birth year makes them under 18.
+            'national_id_number' => [
+                Rule::requiredIf(NationalIdNumberRule::requiredForBirthYear($data['birth_year'] ?? null)),
+                'nullable',
+                new NationalIdNumberRule(explainArchived: true),
+            ],
             'telephone1' => ['required', 'string', 'max:20'],
             'telephone2' => ['nullable', 'string', 'max:20'],
             'residential_address' => ['nullable', 'string', 'max:500'],
@@ -199,7 +212,9 @@ class RegisterController extends Controller
             'coc_commitment_2' => ['accepted'],
             'coc_commitment_3' => ['accepted'],
             'coc_commitment_4' => ['accepted'],
-        ], [], [
+        ], [
+            'national_id_number.required' => NationalIdNumberRule::REQUIRED_MESSAGE,
+        ], [
             'contribution_type' => 'contribution type',
             'coc_commitment_1' => 'Code of Conduct confirmation 1',
             'coc_commitment_2' => 'Code of Conduct confirmation 2',

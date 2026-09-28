@@ -35,6 +35,8 @@ function minimalStorePayload(Branch $branch, Division $division, array $override
         'last_name' => 'User',
         'gender' => 'male',
         'birth_year' => 1990,
+        // Required for adults on admin registration; unique per call.
+        'national_id_number' => (string) fake()->unique()->numerify('###########'),
         'telephone1' => '08012345678',
         'branch_id' => $branch->id,
         'division_id' => $division->id,

@@ -179,7 +179,7 @@
                             <!-- National ID Number -->
                             <div>
                                 <label for="national_id_number" class="block text-sm font-medium text-gray-700 mb-2">
-                                    National ID Number
+                                    National ID number (NIN)
                                 </label>
                                 <input type="text"
                                        id="national_id_number"

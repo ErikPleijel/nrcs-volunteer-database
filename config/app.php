@@ -103,6 +103,10 @@ return [
 
     'key' => env('APP_KEY'),
 
+    // Secret for the keyed hash in users.national_id_number_hash (see
+    // App\Support\NationalIdNumber::hash()). Never change it once set.
+    'nin_hash_key' => env('NIN_HASH_KEY'),
+
     'previous_keys' => [
         ...array_filter(
             explode(',', (string) env('APP_PREVIOUS_KEYS', ''))

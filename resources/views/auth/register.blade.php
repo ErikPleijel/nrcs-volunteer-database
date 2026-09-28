@@ -145,12 +145,13 @@
                             <!-- National ID Number -->
                             <div class="mb-4">
                                 <label for="national_id_number" class="block text-sm font-medium text-gray-700 mb-1">
-                                    National ID Number
+                                    National ID number (NIN) <span class="text-red-500">*</span>
                                 </label>
                                 <input type="text" id="national_id_number" name="national_id_number"
                                        class="w-full md:w-1/2 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 @error('national_id_number') border-red-500 @enderror"
                                        value="{{ old('national_id_number') }}"
-                                       maxlength="50">
+                                       maxlength="50" inputmode="numeric" autocomplete="off">
+                                <p class="text-gray-500 text-xs mt-1">11 digits. Not required for anyone under 18.</p>
 
                                 @error('national_id_number')
                                 <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
