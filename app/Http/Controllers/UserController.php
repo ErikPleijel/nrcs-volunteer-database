@@ -366,12 +366,7 @@ class UserController extends Controller
             'gender' => 'required|in:male,female', // Changed to required
             'birth_year' => 'required|integer|min:1900|max:'.date('Y'),
             'marital_status' => 'nullable|in:single,married,other', // Changed allowed values
-            // Required unless the birth year makes them under 18.
-            'national_id_number' => [
-                Rule::requiredIf(NationalIdNumberRule::requiredForBirthYear($request->input('birth_year'))),
-                'nullable',
-                new NationalIdNumberRule,
-            ],
+            'national_id_number' => ['nullable', new NationalIdNumberRule],
             'organisation' => 'nullable|string|max:255',
             'occupation' => 'nullable|string|max:255',
             'residential_address' => 'nullable|string|max:500', // Added max:500
@@ -414,7 +409,6 @@ class UserController extends Controller
             'consent_notes' => 'nullable|string|max:255',
         ], [
             'red_cross_unit_id.required_if' => 'A Red Cross Unit must be selected for volunteers.',
-            'national_id_number.required' => NationalIdNumberRule::REQUIRED_MESSAGE,
         ]);
 
         if ($validator->fails()) {

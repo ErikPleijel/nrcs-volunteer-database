@@ -14,14 +14,13 @@ use Illuminate\Validation\ValidationException;
  * used: the column is encrypted (every ciphertext differs), so uniqueness
  * is checked on national_id_number_hash instead.
  *
- * Not implicit, so it only runs when a value was given — pair it with
- * 'nullable' or a required rule as the form needs.
+ * Not implicit, so it only runs when a value was given. The NIN is
+ * optional on every form (NIMC coverage is far from universal among the
+ * people NRCS serves), so pair it with 'nullable'.
  */
 class NationalIdNumberRule implements ValidationRule
 {
     public const FORMAT_MESSAGE = 'The National ID number (NIN) must be exactly 11 digits.';
-
-    public const REQUIRED_MESSAGE = 'The National ID number (NIN) is required for anyone aged 18 or over.';
 
     public const TAKEN_MESSAGE = 'This National ID number (NIN) is already registered to another account.';
 
@@ -64,21 +63,6 @@ class NationalIdNumberRule implements ValidationRule
         $fail($this->explainArchived && $existing->lifecycle_status === 'archived'
             ? self::ARCHIVED_MESSAGE
             : self::TAKEN_MESSAGE);
-    }
-
-    /**
-     * Registration forms: a NIN is required unless the birth year makes the
-     * registrant under 18 (same current-year-minus-birth-year age the app
-     * uses elsewhere, User::getAgeAttribute()). An unusable birth year
-     * counts as adult — birth_year's own validation reports that.
-     */
-    public static function requiredForBirthYear(mixed $birthYear): bool
-    {
-        if (! is_numeric($birthYear)) {
-            return true;
-        }
-
-        return (now()->year - (int) $birthYear) >= 18;
     }
 
     /**

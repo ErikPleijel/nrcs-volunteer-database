@@ -15,7 +15,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log; // Import the trait
 use Illuminate\Support\Facades\Validator; // Ensure Log is imported for trait methods
-use Illuminate\Validation\Rule;
 
 class RegisterController extends Controller
 {
@@ -171,12 +170,7 @@ class RegisterController extends Controller
                 },
             ],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
-            // Required unless the birth year makes them under 18.
-            'national_id_number' => [
-                Rule::requiredIf(NationalIdNumberRule::requiredForBirthYear($data['birth_year'] ?? null)),
-                'nullable',
-                new NationalIdNumberRule(explainArchived: true),
-            ],
+            'national_id_number' => ['nullable', new NationalIdNumberRule(explainArchived: true)],
             'telephone1' => ['required', 'string', 'max:20'],
             'telephone2' => ['nullable', 'string', 'max:20'],
             'residential_address' => ['nullable', 'string', 'max:500'],
@@ -212,9 +206,7 @@ class RegisterController extends Controller
             'coc_commitment_2' => ['accepted'],
             'coc_commitment_3' => ['accepted'],
             'coc_commitment_4' => ['accepted'],
-        ], [
-            'national_id_number.required' => NationalIdNumberRule::REQUIRED_MESSAGE,
-        ], [
+        ], [], [
             'contribution_type' => 'contribution type',
             'coc_commitment_1' => 'Code of Conduct confirmation 1',
             'coc_commitment_2' => 'Code of Conduct confirmation 2',

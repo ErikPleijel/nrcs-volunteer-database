@@ -1,9 +1,9 @@
 <?php
 
 /**
- * National ID number (NIN): normalization, format, required-for-adults on
- * the two registration forms, optional-but-validated on the two edit
- * forms, uniqueness via the keyed national_id_number_hash column (the NIN
+ * National ID number (NIN): normalization, format, optional-but-validated
+ * on all four forms (never required — NIMC coverage is far from
+ * universal among the people NRCS serves), uniqueness via the keyed national_id_number_hash column (the NIN
  * column itself is encrypted), the archived-account message, the DB
  * unique-index fallback, the migration's collision stop, and that neither
  * the hash nor the decrypted NIN leaks into JSON.
@@ -28,11 +28,6 @@ use Tests\TestCase;
 uses(TestCase::class, RefreshDatabase::class);
 
 const ADULT_BIRTH_YEAR = 1990;
-
-function ninMinorBirthYear(): int
-{
-    return now()->year - 15;
-}
 
 function publicRegistrationPayload(Branch $branch, Division $division, array $overrides = []): array
 {
@@ -206,13 +201,16 @@ test('the hash column never appears in a User model JSON serialization', functio
 |--------------------------------------------------------------------------
 */
 
-test('public registration requires a NIN for an adult', function () {
-    $this->from(route('register'))
-        ->post(route('register'), publicRegistrationPayload($this->branch, $this->division))
-        ->assertRedirect(route('register'));
+test('public registration succeeds without a NIN, even for an adult', function () {
+    $this->post(route('register'), publicRegistrationPayload($this->branch, $this->division, [
+        'email' => 'no-nin@example.com',
+        'birth_year' => ADULT_BIRTH_YEAR,
+        'national_id_number' => '', // the blank field a real form submits
+    ]))->assertRedirect(route('registration.success'));
 
-    expect(ninError())->toBe(NationalIdNumberRule::REQUIRED_MESSAGE);
-    $this->assertGuest();
+    $user = User::where('email', 'no-nin@example.com')->firstOrFail();
+    expect($user->national_id_number)->toBeNull()
+        ->and($user->national_id_number_hash)->toBeNull();
 });
 
 test('public registration succeeds for an adult with a NIN, typed with separators', function () {
@@ -223,24 +221,6 @@ test('public registration succeeds for an adult with a NIN, typed with separator
 
     $user = User::where('email', 'ada@example.com')->firstOrFail();
     expect($user->national_id_number)->toBe('12345678901');
-});
-
-test('public registration succeeds without a NIN for a minor', function () {
-    $this->post(route('register'), publicRegistrationPayload($this->branch, $this->division, [
-        'email' => 'minor@example.com',
-        'birth_year' => ninMinorBirthYear(),
-    ]))->assertRedirect(route('registration.success'));
-
-    expect(User::where('email', 'minor@example.com')->value('national_id_number_hash'))->toBeNull();
-});
-
-test('a minor who does enter a NIN still has it format-checked', function () {
-    $this->from(route('register'))->post(route('register'), publicRegistrationPayload($this->branch, $this->division, [
-        'birth_year' => ninMinorBirthYear(),
-        'national_id_number' => '12345',
-    ]));
-
-    expect(ninError())->toBe(NationalIdNumberRule::FORMAT_MESSAGE);
 });
 
 test('public registration rejects a badly formatted NIN', function () {
@@ -277,12 +257,15 @@ test('public registration explains when the NIN belongs to an archived account',
 |--------------------------------------------------------------------------
 */
 
-test('admin registration requires a NIN for an adult', function () {
-    $this->actingAs($this->admin)->from(route('users.create'))
-        ->post(route('users.store'), adminStorePayload($this->branch, $this->division));
+test('admin registration succeeds without a NIN, even for an adult', function () {
+    $this->actingAs($this->admin)
+        ->post(route('users.store'), adminStorePayload($this->branch, $this->division, [
+            'birth_year' => ADULT_BIRTH_YEAR,
+            'national_id_number' => '',
+        ]))->assertSessionHasNoErrors();
 
-    expect(ninError())->toBe(NationalIdNumberRule::REQUIRED_MESSAGE);
-    expect(User::where('first_name', 'Musa')->exists())->toBeFalse();
+    expect(User::where('first_name', 'Musa')->value('national_id_number_hash'))->toBeNull()
+        ->and(User::where('first_name', 'Musa')->exists())->toBeTrue();
 });
 
 test('admin registration succeeds for an adult with a valid NIN', function () {
@@ -293,15 +276,6 @@ test('admin registration succeeds for an adult with a valid NIN', function () {
 
     expect(User::where('first_name', 'Musa')->value('national_id_number_hash'))
         ->toBe(NationalIdNumber::hash('98765432109'));
-});
-
-test('admin registration succeeds without a NIN for a minor', function () {
-    $this->actingAs($this->admin)
-        ->post(route('users.store'), adminStorePayload($this->branch, $this->division, [
-            'birth_year' => ninMinorBirthYear(),
-        ]))->assertSessionHasNoErrors();
-
-    expect(User::where('first_name', 'Musa')->exists())->toBeTrue();
 });
 
 test('admin registration rejects a NIN already on another account, with the plain message even if archived', function () {
