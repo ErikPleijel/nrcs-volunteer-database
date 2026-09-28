@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\PaginatesMembers;
 use App\Models\Activity;
 use App\Models\Branch;
 use App\Models\Division;
@@ -15,6 +16,8 @@ use Illuminate\Support\Facades\DB; // Import Auth facade
 
 class RedCrossUnitController extends Controller
 {
+    use PaginatesMembers;
+
     /**
      * Display the user's Red Cross Unit details (User-facing view)
      */
@@ -31,9 +34,6 @@ class RedCrossUnitController extends Controller
             'division.branch',
             'teamLeader',
             'assistantTeamLeader',
-            'activeUsers' => function ($query) {
-                $query->orderBy('first_name')->orderBy('last_name');
-            },
         ]);
 
         // Get some statistics for this unit
@@ -45,7 +45,8 @@ class RedCrossUnitController extends Controller
             ->with(['user', 'activityType'])
             ->where('is_deleted', false)
             ->latest('date')
-            ->paginate(15);
+            ->paginate(15)
+            ->withQueryString();
 
         // Summary of activities for the last 12 months for this Red Cross Unit using the scope
         $activitiesSummary = Activity::forRedCrossUnit($redCrossUnit->id)
@@ -62,79 +63,10 @@ class RedCrossUnitController extends Controller
             })
             ->sortByDesc('total_hours');
 
-        // Fetch all members of the unit with their current membership payments and activities (for existing table)
-        // Note: $redCrossUnit->activeUsers() already has orderBy('first_name')->orderBy('last_name') from the load() call above.
-        $unitMembersData = $redCrossUnit->activeUsers
-            ->map(function ($user) {
-                $user->loadMissing([
-                    'currentMembershipPayment' => fn ($q) => $q->personal(),
-                    'currentMembershipPayment.membershipFee',
-                    'activities' => function ($query) {
-                        $query->where('date', '>=', Carbon::now()->subYear()); // Activities in the last 12 months
-                    },
-                ]);
-
-                // Ensure days_to_expiry is an integer
-                $daysToExpiry = $user->currentMembershipPayment->days_until_expiry ?? 'N/A';
-                // If daysToExpiry is a number, cast it to int to remove decimals
-                if (is_numeric($daysToExpiry)) {
-                    $daysToExpiry = (int) $daysToExpiry;
-                }
-
-                $membershipType = $user->currentMembershipPayment->membershipFee->name ?? 'N/A';
-                $volunteeringHoursLast12Months = $user->activities->sum('hours');
-
-                return [
-                    'id' => $user->id,
-                    'full_name' => $user->full_name,
-                    'membership_type' => $membershipType,
-                    'days_to_expiry' => $daysToExpiry,
-                    'volunteering_hours_last_12_months' => $volunteeringHoursLast12Months,
-                ];
-            });
-
-        // Fetch all members of the unit with their trainings for the new table, sorted by first name
-        // Note: $redCrossUnit->activeUsers() already has orderBy('first_name')->orderBy('last_name') from the load() call above.
-        $membersWithTrainingsDetails = $redCrossUnit->activeUsers
-            ->map(function ($user) {
-                $user->loadMissing(['trainings.trainingType']); // Eager load trainings and their types
-
-                $trainingsData = $user->trainings->map(function ($training) {
-                    // Calculate expiry_date based on training_date and valid_years
-                    $expiryDate = null;
-                    if ($training->training_date && $training->valid_years !== null) {
-                        $expiryDate = Carbon::parse($training->training_date)->addYears($training->valid_years);
-                    }
-
-                    $daysUntilExpiry = null;
-                    if ($expiryDate) {
-                        $daysUntilExpiry = now()->diffInDays($expiryDate, false);
-                    }
-
-                    $expiryStatus = 'N/A';
-                    if ($daysUntilExpiry !== null) {
-                        if ($daysUntilExpiry < 0) {
-                            $expiryStatus = 'Expired';
-                        } else {
-                            $expiryStatus = round($daysUntilExpiry).' days left';
-                        }
-                    } else {
-                        $expiryStatus = 'No Expiry'; // Or similar, if valid_years is null, meaning it never expires
-                    }
-
-                    return [
-                        'training_name' => $training->trainingType->name ?? 'Unknown Training',
-                        'training_date' => $training->training_date,
-                        'expiry_status' => $expiryStatus,
-                    ];
-                });
-
-                return [
-                    'id' => $user->id,
-                    'full_name' => $user->full_name,
-                    'trainings' => $trainingsData,
-                ];
-            });
+        // One page of the member grid. Units can hold thousands of members,
+        // so never load the whole list; branch/division feed the per-card
+        // user_id_reference_short.
+        $members = $this->paginateMembers($redCrossUnit->activeUsers()->with(['branch', 'division']));
 
         return view('red-cross-units.my-unit', compact(
             'redCrossUnit',
@@ -142,8 +74,7 @@ class RedCrossUnitController extends Controller
             'activeMembers',
             'recentActivities',
             'activitiesSummary',
-            'unitMembersData',
-            'membersWithTrainingsDetails'
+            'members'
         ));
     }
 
@@ -158,11 +89,15 @@ class RedCrossUnitController extends Controller
             return redirect()->route('red-cross-units.my-unit');
         }
 
-        $redCrossUnit->load([
-            'users' => function ($query) {
-                $query->orderBy('first_name')->orderBy('last_name');
+        // One page of active members, loaded once, for both member tables.
+        $members = $this->paginateMembers($redCrossUnit->activeUsers()->with([
+            'currentMembershipPayment' => fn ($q) => $q->personal(),
+            'currentMembershipPayment.membershipFee',
+            'activities' => function ($query) {
+                $query->where('date', '>=', Carbon::now()->subYear());
             },
-        ]);
+            'trainings.trainingType',
+        ]));
 
         $recentActivities = Activity::forRedCrossUnit($redCrossUnit->id)
             ->with(['user', 'activityType'])
@@ -184,16 +119,8 @@ class RedCrossUnitController extends Controller
             })
             ->sortByDesc('total_hours');
 
-        $unitMembersData = $redCrossUnit->users
+        $unitMembersData = $members->getCollection()
             ->map(function ($user) {
-                $user->loadMissing([
-                    'currentMembershipPayment' => fn ($q) => $q->personal(),
-                    'currentMembershipPayment.membershipFee',
-                    'activities' => function ($query) {
-                        $query->where('date', '>=', Carbon::now()->subYear());
-                    },
-                ]);
-
                 $daysToExpiry = $user->currentMembershipPayment->days_until_expiry ?? 'N/A';
                 if (is_numeric($daysToExpiry)) {
                     $daysToExpiry = (int) $daysToExpiry;
@@ -208,10 +135,8 @@ class RedCrossUnitController extends Controller
                 ];
             });
 
-        $membersWithTrainingsDetails = $redCrossUnit->users
+        $membersWithTrainingsDetails = $members->getCollection()
             ->map(function ($user) {
-                $user->loadMissing(['trainings.trainingType']);
-
                 $trainingsData = $user->trainings->map(function ($training) {
                     $expiryDate = null;
                     if ($training->training_date && $training->valid_years !== null) {
@@ -246,6 +171,7 @@ class RedCrossUnitController extends Controller
 
         return view('red-cross-units.my-unit-tables', compact(
             'redCrossUnit',
+            'members',
             'unitMembersData',
             'membersWithTrainingsDetails',
             'activitiesSummary',
@@ -412,18 +338,42 @@ class RedCrossUnitController extends Controller
             'division.branch',
             'teamLeader',
             'assistantTeamLeader',
-            'users' => function ($query) {
-                $query->with([
-                        'branch', 'division',
-                        'currentMembershipPayment' => fn ($q) => $q->personal(),
-                        'currentMembershipPayment.membershipFee',
-                    ])
-                    ->orderBy('first_name')
-                    ->orderBy('last_name');
-            },
         ]);
 
-        return view('red-cross-units.my-unit-report', compact('redCrossUnit'));
+        // Active members only, like the other unit pages; the summary tiles
+        // and the paginated cards both use activeUsers() so they agree.
+        $membership = [
+            'currentMembershipPayment' => fn ($q) => $q->personal(),
+            'currentMembershipPayment.membershipFee',
+        ];
+
+        // Summary tiles cover the whole unit, not just the current page.
+        // Streamed in chunks over only the columns the checks read, so a
+        // 5,000-member unit stays at a handful of queries and flat memory.
+        $summary = ['total' => 0, 'complete' => 0, 'oldPhoto' => 0];
+        $redCrossUnit->activeUsers()
+            ->select(['id', 'first_name', 'last_name', 'picture', 'signature', 'national_id_number', 'image_upload_date'])
+            ->with($membership)
+            ->lazyById(1000)
+            ->each(function (User $u) use (&$summary) {
+                $summary['total']++;
+                // Same completeness rule as the per-card check in the view
+                if ($u->picture && $u->hasSignature() && $u->national_id_number
+                    && $u->currentMembershipPayment?->membershipFee?->name
+                    && $u->last_name && $u->first_name) {
+                    $summary['complete']++;
+                }
+                if ($u->picture && ! is_null($u->image_age_in_years) && $u->image_age_in_years >= 5) {
+                    $summary['oldPhoto']++;
+                }
+            });
+
+        // One page of cards; branch/division/redCrossUnit feed user_id_reference.
+        $users = $this->paginateMembers($redCrossUnit->activeUsers()->with([
+            'branch', 'division', 'redCrossUnit', ...$membership,
+        ]));
+
+        return view('red-cross-units.my-unit-report', compact('redCrossUnit', 'summary', 'users'));
     }
 
     /**
@@ -777,9 +727,6 @@ class RedCrossUnitController extends Controller
             'division.branch',
             'teamLeader',
             'assistantTeamLeader',
-            'activeUsers' => function ($query) {
-                $query->orderBy('first_name')->orderBy('last_name');
-            },
         ]);
 
         // Get some statistics for this unit
@@ -787,11 +734,13 @@ class RedCrossUnitController extends Controller
         $activeMembers = $redCrossUnit->activeUsers()->whereNotNull('email_verified_at')->count();
 
         // Fetch recent activities assigned to this Red Cross Unit using the scope
+        // (user.branch/division feed the per-row user_id_reference_link)
         $recentActivities = Activity::forRedCrossUnit($redCrossUnit->id)
-            ->with(['user', 'activityType'])
+            ->with(['user.branch', 'user.division', 'activityType'])
             ->where('is_deleted', false)
             ->latest('date')
-            ->paginate(15);
+            ->paginate(15)
+            ->withQueryString();
 
         // Summary of activities for the last 12 months for this Red Cross Unit using the scope
         $activitiesSummary = Activity::forRedCrossUnit($redCrossUnit->id)
@@ -808,9 +757,12 @@ class RedCrossUnitController extends Controller
             })
             ->sortByDesc('total_hours');
 
-        // Fetch all members of the unit with their current membership payments and activities (for existing table)
-        $unitMembersData = $redCrossUnit->activeUsers()
+        // One page of members, loaded once. The card grid and both tables
+        // below all render this same page, so they stay in step and share
+        // the one 'members_page' paginator.
+        $members = $this->paginateMembers($redCrossUnit->activeUsers()
             ->with([
+                'branch', 'division', // user_id_reference_link
                 'currentMembershipPayment' => fn ($q) => $q->personal(),
                 'currentMembershipPayment.membershipFee',
                 // Separate, additional eager-load (existing membershipPayments() relation,
@@ -827,9 +779,12 @@ class RedCrossUnitController extends Controller
                 'activities' => function ($query) {
                     $query->where('date', '>=', Carbon::now()->subYear()); // Activities in the last 12 months
                 },
-            ])
-            ->orderBy('first_name')
-            ->get()
+                'trainings' => fn ($q) => $q->withAnyApprovalStatus(), // include pending, not just approved
+                'trainings.trainingType',
+            ]));
+
+        // Membership/volunteering table rows for this page
+        $unitMembersData = $members->getCollection()
             ->map(function ($user) {
                 // Ensure days_to_expiry is an integer
                 $daysToExpiry = $user->currentMembershipPayment->days_until_expiry ?? 'N/A';
@@ -857,14 +812,8 @@ class RedCrossUnitController extends Controller
                 ];
             });
 
-        // Fetch all members of the unit with their trainings for the new table, sorted by first name
-        $membersWithTrainingsDetails = $redCrossUnit->activeUsers()
-            ->with([
-                'trainings' => fn ($q) => $q->withAnyApprovalStatus(), // include pending, not just approved
-                'trainings.trainingType',
-            ]) // Eager load trainings and their types
-            ->orderBy('first_name')
-            ->get()
+        // Trainings table rows for the same page
+        $membersWithTrainingsDetails = $members->getCollection()
             ->map(function ($user) {
                 $trainingsData = $user->trainings->map(function ($training) {
                     // Calculate expiry_date based on training_date and valid_years
@@ -926,6 +875,7 @@ class RedCrossUnitController extends Controller
             'activeMembers',
             'recentActivities',
             'activitiesSummary',
+            'members',
             'unitMembersData',
             'membersWithTrainingsDetails',
             'showPhotos',

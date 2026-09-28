@@ -28,6 +28,8 @@ Inertia.js is **not** used — this is a traditional Blade + React hybrid where 
 
 MySQL for production (see `docs/deploymentVPS.md`). Legacy data migration commands are in `app/Console/Commands/Migrate*` — these were one-time operations for importing from the old system.
 
+**Large local fixture:** the local database includes "NYSC Unit" (`red_cross_units.id` 1039, Abuja Municipal division / FCT branch) with 5,143 active members (1,782 with photos) and no team leader. Use it to test pagination and query counts on unit pages (`/my-unit`, `/my-unit/report`, `/my-unit/tables`, `/red-cross-units/1039`) without needing the VPS. Member 3573 belongs to it, and a national admin such as 2246 can view it.
+
 ### Email
 
 Legacy password hash support exists for migrated users.

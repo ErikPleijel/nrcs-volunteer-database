@@ -162,7 +162,7 @@
 
                 <!-- Unit Members -->
                 @if($totalMembers > 0)
-                    <div class="bg-white rounded-lg shadow mb-8">
+                    <div id="unit-members" class="bg-white rounded-lg shadow mb-8">
 
                         <div class="px-6 py-4">
                             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -170,16 +170,16 @@
                                     $teamLeaderId = $redCrossUnit->teamLeader->id ?? null;
                                     $assistantTeamLeaderId = $redCrossUnit->assistantTeamLeader->id ?? null;
 
-                                    $filteredMembers = $redCrossUnit->users->filter(function ($member) use ($teamLeaderId, $assistantTeamLeaderId) {
+                                    $filteredMembers = $members->filter(function ($member) use ($teamLeaderId, $assistantTeamLeaderId) {
                                         return $member->id !== $teamLeaderId && $member->id !== $assistantTeamLeaderId;
                                     });
                                 @endphp
-                                @foreach($filteredMembers as $member)
+                                @forelse($filteredMembers as $member)
                                     @php $grad = ($member->gender ?? 'male') === 'female' ? 'from-pink-400 to-purple-500' : 'from-blue-400 to-blue-600'; @endphp
                                     <div class="flex items-center space-x-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50">
                                         <div data-img-container class="hidden w-20 h-28 rounded-lg overflow-hidden flex items-center justify-center border-4 border-white shadow-lg bg-gradient-to-br {{ $grad }}">
                                             @if($member->picture)
-                                                <img data-img data-src="{{ $member->picture ? route('photos.show', [$member->id, 'profile', 'context' => 'red_cross_unit']) : asset('images/placeholders/profile-placeholder.png') }}" src="" alt="Profile Photo" class="w-full h-full object-cover hidden">
+                                                <img data-img data-src="{{ $member->picture ? route('photos.show', [$member->id, 'profile', 'context' => 'red_cross_unit']) : asset('images/placeholders/profile-placeholder.png') }}" src="" alt="Profile Photo" loading="lazy" class="w-full h-full object-cover hidden">
                                                 <i class="fas fa-user text-2xl text-white hidden" data-img-placeholder></i>
                                             @else
                                                 <i class="fas fa-user text-2xl text-white"></i>
@@ -201,7 +201,12 @@
                                             <p class="text-sm text-gray-600 truncate">{{ $member->user_id_reference_short }}</p>
                                         </div>
                                     </div>
-                                @endforeach
+                                @empty
+                                    <div class="col-span-full text-center text-gray-500 py-4"><x-members-empty-state :members="$members" /></div>
+                                @endforelse
+                            </div>
+                            <div class="mt-4">
+                                {{ $members->onEachSide(1)->links() }}
                             </div>
                         </div>
                     </div>

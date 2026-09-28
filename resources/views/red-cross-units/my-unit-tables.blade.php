@@ -32,7 +32,7 @@
 
             {{-- Tab: Membership & Volunteering --}}
             @if($activeTab === 'membership')
-                <div class="bg-white rounded-lg shadow mb-8">
+                <div id="unit-members" class="bg-white rounded-lg shadow mb-8">
                     <div class="px-6 py-4 border-b border-gray-200">
                         <h3 class="text-lg font-semibold text-gray-900 flex items-center">
                             <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -52,23 +52,30 @@
                             </tr>
                             </thead>
                             <tbody>
-                            @foreach($unitMembersData as $member)
+                            @forelse($unitMembersData as $member)
                                 <tr class="border-b border-gray-100 hover:bg-gray-50">
                                     <td class="py-2 px-4 text-sm text-gray-900 truncate">{{ $member['full_name'] }}</td>
                                     <td class="py-2 px-4 text-sm text-gray-900">{{ $member['membership_type'] }}</td>
                                     <td class="py-2 px-4 text-sm text-gray-900">{{ $member['days_to_expiry'] }}</td>
                                     <td class="py-2 px-4 text-sm text-gray-900">{{ $member['volunteering_hours_last_12_months'] }}</td>
                                 </tr>
-                            @endforeach
+                            @empty
+                                <tr>
+                                    <td colspan="4" class="py-4 text-center text-gray-500"><x-members-empty-state :members="$members" empty-text="No members in this unit." /></td>
+                                </tr>
+                            @endforelse
                             </tbody>
                         </table>
+                    </div>
+                    <div class="px-6 py-4">
+                        {{ $members->onEachSide(1)->links() }}
                     </div>
                 </div>
             @endif
 
             {{-- Tab: Trainings --}}
             @if($activeTab === 'trainings')
-                <div class="bg-white rounded-lg shadow mb-8">
+                <div id="unit-members" class="bg-white rounded-lg shadow mb-8">
                     <div class="px-6 py-4 border-b border-gray-200">
                         <h3 class="text-lg font-semibold text-gray-900 flex items-center">
                             <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -86,7 +93,7 @@
                             </tr>
                             </thead>
                             <tbody>
-                            @foreach($membersWithTrainingsDetails as $member)
+                            @forelse($membersWithTrainingsDetails as $member)
                                 <tr class="border-b border-gray-100 hover:bg-gray-50">
                                     <td class="py-2 px-4 text-sm text-gray-900 truncate">{{ $member['full_name'] }}</td>
                                     <td class="py-2 px-4">
@@ -122,9 +129,16 @@
                                         @endif
                                     </td>
                                 </tr>
-                            @endforeach
+                            @empty
+                                <tr>
+                                    <td colspan="2" class="py-4 text-center text-gray-500"><x-members-empty-state :members="$members" empty-text="No members in this unit." /></td>
+                                </tr>
+                            @endforelse
                             </tbody>
                         </table>
+                    </div>
+                    <div class="px-6 py-4">
+                        {{ $members->onEachSide(1)->links() }}
                     </div>
                 </div>
             @endif

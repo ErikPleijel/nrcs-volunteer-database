@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\PaginatesMembers;
 use App\Models\Activity;
 use App\Models\TaskForce;
 use App\Models\TaskForceType;
@@ -16,6 +17,8 @@ use Carbon\Carbon;
 
 class TaskForceController extends Controller
 {
+    use PaginatesMembers;
+
     /**
      * Display a listing of the resource.
      */
@@ -175,18 +178,21 @@ class TaskForceController extends Controller
         // Display preference: show profile photos (per-browser cookie, off by default)
         $showPhotos = $request->cookie('users_show_photos') === '1';
 
-        // Load relationships - use 'activeUsers' (belongsToMany, excludes archived) instead of 'members' (hasMany)
-        $taskForce->load([
-            'taskForceType',
-            'activeUsers' // This is the belongsToMany relationship with pivot data
-        ]);
+        $taskForce->load('taskForceType');
+
+        // Members via 'activeUsers' (belongsToMany, excludes archived) instead of
+        // 'members' (hasMany). One page only; branch/division feed the per-card
+        // user_id_reference link/short.
+        $totalMembers = $taskForce->activeUsers()->count();
+        $members = $this->paginateMembers($taskForce->activeUsers()->with(['branch', 'division']));
 
         // Fetch recent activities assigned to this Task Force using the scope
         $recentActivities = Activity::forTaskForce($taskForce->id)
             ->with(['user', 'activityType'])
             ->where('is_deleted', false)
             ->latest('date')
-            ->paginate(15);
+            ->paginate(15)
+            ->withQueryString();
 
         // Summary of activities for the last 12 months for this Task Force using the scope
         $activitiesSummary = Activity::forTaskForce($taskForce->id)
@@ -203,7 +209,7 @@ class TaskForceController extends Controller
             })
             ->sortByDesc('total_hours');
 
-        return view('task-forces.show', compact('taskForce', 'recentActivities', 'activitiesSummary', 'showPhotos'));
+        return view('task-forces.show', compact('taskForce', 'totalMembers', 'members', 'recentActivities', 'activitiesSummary', 'showPhotos'));
     }
 
     /**

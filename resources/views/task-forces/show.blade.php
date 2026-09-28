@@ -4,8 +4,6 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             {{-- The activity and summary queries are now handled in the controller. --}}
             @php
-                $totalMembers = $taskForce->activeUsers->count();
-
                 $adminUser     = auth()->user();
                 $adminAccess   = $adminUser->getAccessLevel();
                 $adminScopedId = $adminUser->getScopedId();
@@ -165,16 +163,17 @@
 
             <!-- Task Force Members -->
             @if($totalMembers > 0)
-                <div class="bg-white rounded-lg shadow mb-8">
+                <div id="unit-members" class="bg-white rounded-lg shadow mb-8">
                     <div class="px-6 py-4">
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                             @php
                                 $teamLeaderId = $taskForce->teamLeader->id ?? null;
                                 $assistantTeamLeaderId = $taskForce->assistantTeamLeader->id ?? null;
 
-                                $filteredMembers = $taskForce->activeUsers->filter(function ($member) use ($teamLeaderId, $assistantTeamLeaderId) {
+                                // $members is already sorted by name (see PaginatesMembers)
+                                $filteredMembers = $members->filter(function ($member) use ($teamLeaderId, $assistantTeamLeaderId) {
                                     return $member->id !== $teamLeaderId && $member->id !== $assistantTeamLeaderId;
-                                })->sortBy('first_name');
+                                });
                             @endphp
                             @forelse($filteredMembers as $member)
                                 @php $grad = ($member->gender ?? 'male') === 'female' ? 'from-pink-400 to-purple-500' : 'from-blue-400 to-blue-600'; @endphp
@@ -182,7 +181,7 @@
                                     @if($showPhotos)
                                         <div class="w-20 h-28 rounded-lg overflow-hidden flex items-center justify-center border-4 border-white shadow-lg bg-gradient-to-br {{ $grad }}">
                                             @if($member->picture)
-                                                <img src="{{ route('photos.show', [$member->id, 'profile', 'context' => 'task_force']) }}" alt="Profile Photo" class="w-full h-full object-cover">
+                                                <img src="{{ route('photos.show', [$member->id, 'profile', 'context' => 'task_force']) }}" alt="Profile Photo" loading="lazy" class="w-full h-full object-cover">
                                             @else
                                                 <i class="fas fa-user text-2xl text-white"></i>
                                             @endif
@@ -204,8 +203,11 @@
                                     </div>
                                 </div>
                             @empty
-                                <div class="col-span-full text-center text-gray-500 py-4">No members in this task force (excluding leaders).</div>
+                                <div class="col-span-full text-center text-gray-500 py-4"><x-members-empty-state :members="$members" empty-text="No members in this task force (excluding leaders)." /></div>
                             @endforelse
+                        </div>
+                        <div class="mt-4">
+                            {{ $members->onEachSide(1)->links() }}
                         </div>
                     </div>
                 </div>

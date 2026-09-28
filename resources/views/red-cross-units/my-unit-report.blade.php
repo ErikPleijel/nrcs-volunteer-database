@@ -42,18 +42,12 @@
             </div>
         </div>
 
-        {{-- Summary --}}
+        {{-- Summary (whole unit, computed in the controller — the cards below are one page) --}}
         @php
-            $total = $redCrossUnit->users->count();
-            $complete = $redCrossUnit->users->filter(function ($u) {
-                $membershipType = $u->currentMembershipPayment?->membershipFee?->name;
-                return $u->picture && $u->hasSignature() && $u->national_id_number
-                    && $membershipType && $u->last_name && $u->first_name;
-            })->count();
+            $total = $summary['total'];
+            $complete = $summary['complete'];
             $incomplete = $total - $complete;
-            $oldPhoto = $redCrossUnit->users->filter(function ($u) {
-                return $u->picture && !is_null($u->image_age_in_years) && $u->image_age_in_years >= 5;
-            })->count();
+            $oldPhoto = $summary['oldPhoto'];
         @endphp
 
         <div class="mb-6 flex flex-wrap gap-4 text-sm">
@@ -88,8 +82,8 @@
         </div>
 
         {{-- Cards grid --}}
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            @foreach($redCrossUnit->users as $user)
+        <div id="unit-members" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            @forelse($users as $user)
                 @php
                     $membershipType = $user->currentMembershipPayment?->membershipFee?->name;
                     $hasMissingData = !$user->picture
@@ -114,7 +108,7 @@
                                 @else bg-gradient-to-br from-blue-400 to-blue-600 @endif">
                                 @if($user->picture)
                                     <img data-img data-src="{{ $user->profile_photo_url }}"
-                                         src="" alt="Profile Photo"
+                                         src="" alt="Profile Photo" loading="lazy"
                                          class="w-full h-full object-cover hidden">
                                     <div class="text-center" data-img-placeholder>
                                         <i class="fas fa-circle-check text-green-400 text-2xl"></i>
@@ -216,7 +210,13 @@
                     @endif
 
                 </div>
-            @endforeach
+            @empty
+                <div class="col-span-full text-center text-gray-500 py-4"><x-members-empty-state :members="$users" empty-text="No members in this unit." /></div>
+            @endforelse
+        </div>
+
+        <div class="mt-6">
+            {{ $users->onEachSide(1)->links() }}
         </div>
 
         {{-- Back button --}}
