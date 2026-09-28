@@ -88,6 +88,9 @@ FROM users;"
 Expected result: both columns show 0.
 
 
+For DB-273857: since it holds a finance role and would be the one archived, don't run it through the automated tool. Have someone who knows this person look at both accounts directly — compare the winner and DB-273857 by hand (name, branch, activity) to confirm they really are the same person, then decide whether to manually merge (moving DB-273857's finance role onto the winner, if needed) or leave both as separate legitimate accounts. Not worth automating for one case
+
+
 ```
 ### Upload DB to VPS
 - [ ] Upload the migrated database to NRCS VPS
