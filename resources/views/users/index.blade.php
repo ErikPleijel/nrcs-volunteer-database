@@ -65,6 +65,46 @@
                         </div>
                     </div>
 
+                    {{-- A person can't log in --}}
+                    <div class="rounded-md border border-gray-200 overflow-hidden">
+                        <button type="button"
+                                @click="open = open === 'cant_login' ? null : 'cant_login'"
+                                class="w-full flex items-center justify-between px-3 py-2 bg-gray-50 hover:bg-gray-100 text-left font-semibold text-gray-700 text-sm">
+                            <span><i class="fas fa-right-to-bracket mr-2 text-rose-400"></i>A person can't log in — what do I do?</span>
+                            <i class="fas fa-chevron-down text-xs text-gray-400 transition-transform"
+                               :class="open === 'cant_login' ? 'rotate-180' : ''"></i>
+                        </button>
+                        <div x-show="open === 'cant_login'" x-collapse class="px-4 py-3 bg-white">
+                            <ul class="space-y-1 text-gray-700 list-disc pl-4">
+                                <li>Ask: does the person have an email on file?</li>
+
+                                <li><span class="font-semibold">Yes:</span>
+                                    <ul class="list-circle pl-4 mt-1 space-y-0.5">
+                                        <li>Tell them to log in with their email.</li>
+                                        <li>Forgot the password? Use <span class="font-semibold">Forgot your password?</span> on the login page.</li>
+                                        <li>Reset email never arrives? Check spam/junk first. Still nothing? The email may be wrong. Search → <span class="font-semibold">Edit</span> → fix the email → click <span class="font-semibold">Update Person</span>. Then try <span class="font-semibold">Forgot your password?</span> again.</li>
+                                    </ul>
+                                </li>
+
+                                <li><span class="font-semibold">No:</span>
+                                    <ul class="list-circle pl-4 mt-1 space-y-0.5">
+                                        <li>They log in with their phone number and password.</li>
+                                        <li>If the number matches more than one account, the system asks a few questions: DB number (on their ID card — they can skip it), then first and last name, then maybe birth year. This is normal.</li>
+                                        <li><span class="font-semibold">Best fix:</span> ask if they have an email. If yes, add it now: Search → <span class="font-semibold">Edit</span> → enter the email → click <span class="font-semibold">Update Person</span>. Next time they can reset their own password.</li>
+                                    </ul>
+                                </li>
+
+                                <li><span class="font-semibold">To find the account:</span>
+                                    <ul class="list-circle pl-4 mt-1 space-y-0.5">
+                                        <li>Search by name or phone number.</li>
+                                        <li>Not found? <span class="font-semibold">Show all filters → Lifecycle → All</span>.</li>
+                                        <li>Open the account with <span class="font-semibold">View</span>, then click <span class="font-semibold">Edit</span> to make changes.</li>
+                                    </ul>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
                     {{-- Move user to another branch/division --}}
                     <div class="rounded-md border border-gray-200 overflow-hidden">
                         <button type="button"
