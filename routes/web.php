@@ -169,7 +169,7 @@ Route::middleware('auth')->group(function () {
 // Used for cascading dropdowns in public forms like registration.
 Route::get('/register/divisions/by-branch', [RegisterController::class, 'getDivisions'])
     ->name('register.divisions.by-branch') // Changed URI and name
-    ->middleware('throttle:20,1');
+    ->middleware('throttle:register-lookups');
 
 // Add this single route for Red Cross Units by division
 Route::get('/red-cross-units/by-division', [RedCrossUnitController::class, 'getRedCrossUnitsByDivision'])

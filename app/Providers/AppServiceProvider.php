@@ -56,6 +56,13 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(5)->by($request->ip());
         });
 
+        // Registration-form dropdown lookups, 20/min per IP. Named rather than
+        // throttle:20,1 because every unnamed throttle:N,1 shares one per-IP
+        // counter — so dropdown browsing was using up the login route's budget.
+        RateLimiter::for('register-lookups', function (Request $request) {
+            return Limit::perMinute(20)->by($request->ip());
+        });
+
         // Per-IP cap on the phone-login disambiguation steps. A full pass is
         // at most 5 POSTs (DB number, name, birth year, pick, password); wrong
         // answers are separately limited per phone number by LoginThrottle.

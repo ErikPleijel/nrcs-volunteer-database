@@ -163,6 +163,35 @@ test('the per-IP throttle still applies alongside the identifier lockout', funct
         ->assertSee('Too Many Attempts');
 });
 
+test('registration dropdown lookups do not use up the login budget from the same IP', function () {
+    // Twice the login route's 5/min: under the old shared throttle:N,1
+    // counter this alone would have 429'd the very next login attempt.
+    foreach (range(1, 10) as $i) {
+        $this->withServerVariables(['REMOTE_ADDR' => '10.8.8.8'])
+            ->getJson(route('register.divisions.by-branch', ['branch_id' => 1]))
+            ->assertStatus(200);
+    }
+
+    foreach (range(1, 5) as $i) {
+        attemptLoginFrom('10.8.8.8', "nobody$i@example.com", 'wrong-password')->assertStatus(302);
+    }
+
+    // The login limit itself is still enforced.
+    attemptLoginFrom('10.8.8.8', 'nobody6@example.com', 'wrong-password')->assertStatus(429);
+});
+
+test('the registration dropdown keeps its own 20-per-minute limit', function () {
+    foreach (range(1, 20) as $i) {
+        $this->withServerVariables(['REMOTE_ADDR' => '10.7.7.7'])
+            ->getJson(route('register.divisions.by-branch', ['branch_id' => 1]))
+            ->assertStatus(200);
+    }
+
+    $this->withServerVariables(['REMOTE_ADDR' => '10.7.7.7'])
+        ->getJson(route('register.divisions.by-branch', ['branch_id' => 1]))
+        ->assertStatus(429);
+});
+
 test('a normal email user logging in correctly is unaffected', function () {
     $user = User::factory()->create(['email' => 'amina@example.com']);
 
