@@ -587,13 +587,13 @@
                                 <!-- National ID -->
                                 <div>
                                     <label for="national_id_number" class="form-label">
-                                        National ID number (NIN)
+                                        National ID number (NIN) @if(blank(old('national_id_number', $user->national_id_number)))<span class="bg-amber-100 text-amber-900 rounded px-2 py-1 inline-block">(missing)</span>@endif
                                     </label>
                                     <input type="text"
                                            id="national_id_number"
                                            name="national_id_number"
                                            value="{{ old('national_id_number', $user->national_id_number) }}"
-                                           class="form-input @error('national_id_number') form-input-error @enderror">
+                                           class="scroll-mt-16 form-input @error('national_id_number') form-input-error @enderror">
                                     @error('national_id_number')
                                     <p class="form-error">{{ $message }}</p>
                                     @enderror

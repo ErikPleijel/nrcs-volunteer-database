@@ -179,13 +179,14 @@
                             <!-- National ID Number -->
                             <div>
                                 <label for="national_id_number" class="block text-sm font-medium text-gray-700 mb-2">
-                                    National ID number (NIN)
+                                    National ID number (NIN) @if(blank(old('national_id_number', $user->national_id_number)))<span class="bg-amber-100 text-amber-900 rounded px-2 py-1 inline-block">(missing)</span>@endif
                                 </label>
                                 <input type="text"
                                        id="national_id_number"
                                        name="national_id_number"
                                        value="{{ old('national_id_number', $user->national_id_number) }}"
-                                       class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 @error('national_id_number') border-red-500 @enderror">
+                                       {{-- scroll-mt: the profile page's "Add NIN" link jumps here (#national_id_number); keep the label in view --}}
+                                       class="scroll-mt-16 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 @error('national_id_number') border-red-500 @enderror">
                                 @error('national_id_number')
                                 <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                                 @enderror
