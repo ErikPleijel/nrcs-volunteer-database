@@ -171,10 +171,6 @@ Route::get('/register/divisions/by-branch', [RegisterController::class, 'getDivi
     ->name('register.divisions.by-branch') // Changed URI and name
     ->middleware('throttle:register-lookups');
 
-// Add this single route for Red Cross Units by division
-Route::get('/red-cross-units/by-division', [RedCrossUnitController::class, 'getRedCrossUnitsByDivision'])
-    ->name('red-cross-units.by-division');
-
 // Public ID card verification
 Route::get('/idcheck/{token}', [IdCardController::class, 'verifyId'])->name('id.verify');
 
