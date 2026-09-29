@@ -232,6 +232,8 @@ class CampaignAdminController extends Controller
             ));
         }
 
+        $this->auditCampaign('campaign_approved', $campaign, [], "Campaign #{$campaign->id} approved.");
+
         return back()->with('success', 'Campaign approved.');
     }
 
@@ -450,6 +452,13 @@ class CampaignAdminController extends Controller
             'daily_sent_count' => 0,
         ]);
 
+        // Audited before the first batch runs, so it is recorded even if that batch fails.
+        $this->auditCampaign('campaign_send_started', $campaign, [
+            'batch' => $batch,
+            'dry_run' => $dryRun,
+            'force_outside_window' => $forceOutsideWindow,
+        ], "Sending started for campaign #{$campaign->id}.");
+
         // ✅ Kick one run immediately
         $result = $runner->runOneBatch($campaign->fresh(), batch: $batch, dryRun: $dryRun, force: $forceOutsideWindow);
 
@@ -462,9 +471,15 @@ class CampaignAdminController extends Controller
 
         abort_unless(in_array($campaign->status, ['sending', 'queued', 'approved'], true), 422);
 
+        $previousStatus = $campaign->status;
+
         $campaign->update([
             'status' => 'cancelled',
         ]);
+
+        $this->auditCampaign('campaign_stopped', $campaign, [
+            'previous_status' => $previousStatus,
+        ], "Campaign #{$campaign->id} stopped (was {$previousStatus}).");
 
         if ($campaign->submitted_by && ($submitter = \App\Models\User::find($campaign->submitted_by))) {
             $submitter->notify(new CampaignDecided(
@@ -576,9 +591,41 @@ class CampaignAdminController extends Controller
         $dryRun = !empty($data['dry_run']);
         $force = !empty($data['force']);
 
+        $this->auditCampaign('campaign_run_once', $campaign, [
+            'batch' => $batch,
+            'dry_run' => $dryRun,
+            'force_outside_window' => $force,
+        ], "Manual send batch run for campaign #{$campaign->id}.");
+
         $result = $runner->runOneBatch($campaign->fresh(), batch: $batch, dryRun: $dryRun, force: $force);
 
         return back()->with('success', "Run once: processed {$result['processed']} (sent {$result['sent']}, failed {$result['failed']}).");
+    }
+
+    /**
+     * Audit a send-related campaign action: who, which channel, how many recipients and the
+     * projected SMS pages (see SmsProjection).
+     */
+    private function auditCampaign(string $action, MessagingCampaign $campaign, array $extra, string $description): void
+    {
+        $sms = $this->smsProjection($campaign);
+
+        AuditLog::write(
+            $action,
+            $campaign,
+            ['branch_id' => $campaign->origin_branch_id],
+            null,
+            [
+                'channel' => $campaign->channel,
+                'status' => $campaign->status,
+                'recipients' => (int) $campaign->stats_total,
+                'sms_recipients_projected' => $sms['recipients'] ?? 0,
+                'sms_pages_projected' => $sms['pages'] ?? 0,
+                'sms_cost_projected' => $sms['cost'] ?? null,
+                ...$extra,
+            ],
+            $description
+        );
     }
 
 

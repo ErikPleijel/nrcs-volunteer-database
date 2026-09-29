@@ -3,6 +3,7 @@
 namespace App\Campaigns\Delivery;
 
 use App\Models\MessagingRecipient;
+use App\Support\PhoneNumber;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
@@ -32,8 +33,9 @@ final class LogSmsChannel implements DeliveryChannel
             'recipient_id' => $recipient->id,
             'user_id' => $recipient->user_id ?? null,
 
-            'to' => $recipient->phone,
-            'body' => $message->smsBody ?? $message->body,
+            // NDPA: masked number, and no message body (it holds personal details).
+            'to' => PhoneNumber::mask($recipient->phone),
+            'body_length' => mb_strlen($message->smsBody ?? $message->body),
             'meta' => $message->meta,
         ]);
 

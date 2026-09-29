@@ -3,6 +3,7 @@
 namespace App\Campaigns\Delivery;
 
 use App\Models\MessagingRecipient;
+use App\Support\PhoneNumber;
 use Illuminate\Support\Facades\Log;
 
 final class CampaignDeliveryService
@@ -77,8 +78,8 @@ final class CampaignDeliveryService
                 'Fallback to SMS (email channel missing)',
                 [
                     'recipient_id' => $recipient->id,
-                    'email' => $recipient->email ?? null,
-                    'phone' => $recipient->phone ?? null,
+                    'email' => PhoneNumber::maskEmail($recipient->email),
+                    'phone' => PhoneNumber::mask($recipient->phone),
                 ]
             );
 
@@ -92,8 +93,8 @@ final class CampaignDeliveryService
                 'Fallback to SMS (email unsupported)',
                 [
                     'recipient_id' => $recipient->id,
-                    'email' => $recipient->email ?? null,
-                    'phone' => $recipient->phone ?? null,
+                    'email' => PhoneNumber::maskEmail($recipient->email),
+                    'phone' => PhoneNumber::mask($recipient->phone),
                 ]
             );
 
@@ -115,8 +116,8 @@ final class CampaignDeliveryService
                 'Fallback to SMS (email delivery failed)',
                 [
                     'recipient_id' => $recipient->id,
-                    'email' => $recipient->email ?? null,
-                    'phone' => $recipient->phone ?? null,
+                    'email' => PhoneNumber::maskEmail($recipient->email),
+                    'phone' => PhoneNumber::mask($recipient->phone),
                     'error' => $emailAttempt->errorMessage ?? null,
                 ]
             );

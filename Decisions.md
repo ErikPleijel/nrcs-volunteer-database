@@ -1233,3 +1233,20 @@ needs (placeholders change lengths per person).
 **Consequences:** it is an estimate. For `email_fallback_sms` it excludes people whose email
 fails at send time and falls back to SMS (a lower bound). The planner now reads plain rows
 (~4–5 s for a national audience locally, down from ~30 s).
+
+## 2026-09-29 — Campaign delivery logs: masked contacts, no message bodies; send actions audited
+
+**Decision:** the `campaign_deliveries` log (kept 30 days) never holds a full phone number,
+email address or SMS body: `LogSmsChannel` and `CampaignDeliveryService` log
+`PhoneNumber::mask()` (`+234803****567`), `PhoneNumber::maskEmail()` (`a***@example.org`) and
+the body length only. Approve, start sending, run-once and stop write `logs` audit entries
+(`campaign_approved`, `campaign_send_started`, `campaign_run_once`, `campaign_stopped`) with
+the channel, recipient count and projected SMS recipients/pages/cost.
+
+**Rationale:** NDPA data minimisation — message bodies carry personal details (names,
+membership data) and the log is a plain file. The audit entries record who authorised
+spending on SMS.
+
+**Consequences:** `LogEmailChannel` (dry-run email) still logs the full address and body —
+out of this SMS-only scope; left for a separate decision.
+

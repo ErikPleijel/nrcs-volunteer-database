@@ -76,6 +76,40 @@ class PhoneNumber
     }
 
     /**
+     * A phone number safe to write to logs: +2348031234567 → +234803****567.
+     * Keeps the country/network prefix and the last three digits.
+     */
+    public static function mask(?string $phone): ?string
+    {
+        $phone = trim((string) $phone);
+        $length = strlen($phone);
+
+        if ($length === 0) {
+            return null;
+        }
+        if ($length < 10) {
+            return str_repeat('*', max(0, $length - 3)).substr($phone, -3);
+        }
+
+        return substr($phone, 0, 7).str_repeat('*', $length - 10).substr($phone, -3);
+    }
+
+    /**
+     * An email address safe to write to logs: ada.obi@example.org → a***@example.org.
+     */
+    public static function maskEmail(?string $email): ?string
+    {
+        $email = trim((string) $email);
+        if ($email === '') {
+            return null;
+        }
+
+        [$local, $domain] = array_pad(explode('@', $email, 2), 2, '');
+
+        return substr($local, 0, 1).'***'.($domain !== '' ? '@'.$domain : '');
+    }
+
+    /**
      * stripFormatting() over the phone fields present in form input, ready to merge back
      * into the request before validation.
      */
