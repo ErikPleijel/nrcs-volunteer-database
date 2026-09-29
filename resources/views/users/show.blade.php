@@ -675,6 +675,9 @@
                         <div>
 
                             <p class="font-medium text-gray-900">{{ $currentMembership['membership_type'] }}</p>
+                            @can('view_payments')
+                                <div class="text-xs">{!! $currentMembership['reference_link'] !!}</div>
+                            @endcan
                         </div>
                         <div>
 
@@ -724,7 +727,9 @@
                                     <td class="py-1 pr-1 text-xs text-gray-500">{{ $payment['payment_date'] }}</td>
                                     <td class="py-1 pr-1 text-xs text-gray-500">
                                         <div>{{ $payment['membership_type'] }}</div>
-                                        <div class="text-xs">{!! $payment['reference_link'] !!}</div>
+                                        @can('view_payments')
+                                            <div class="text-xs">{!! $payment['reference_link'] !!}</div>
+                                        @endcan
                                     </td>
                                     <td class="py-1 pr-1 text-xs text-gray-500">{{ $payment['formatted_amount'] }}</td>
                                     <td class="py-1">

@@ -13,6 +13,7 @@
         "s-ichikawa/laravel-sendgrid-driver": "^4.0",
         "simplesoftwareio/simple-qrcode": "^4.2",
         "spatie/laravel-permission": "^6.21",
+        "symfony/html-sanitizer": "^7.3",
         "symfony/sendgrid-mailer": "^7.3"
     },
     "require-dev": {

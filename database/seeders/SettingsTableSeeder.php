@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Setting;
+use App\Support\FooterDefaults;
 use Illuminate\Database\Seeder;
 
 class SettingsTableSeeder extends Seeder
@@ -41,6 +42,31 @@ class SettingsTableSeeder extends Seeder
                 'group'       => 'site',
                 'label'       => 'HQ Physical Address',
                 'description' => 'Printed on the back of ID cards.',
+                'autoload'    => true,
+            ]
+        );
+
+        // Admin-edited HTML: firstOrCreate, so re-seeding never resets an edit.
+        Setting::firstOrCreate(
+            ['key' => 'site.footer_contact_html'],
+            [
+                'type'        => 'html',
+                'group'       => 'site',
+                'label'       => 'Footer: Contact Information',
+                'description' => 'Shown under "Contact Information" in the footer of every page. Allowed: strong, b, em, br, p, ul, li and links (http, https, mailto).',
+                'value'       => FooterDefaults::CONTACT_HTML,
+                'autoload'    => true,
+            ]
+        );
+
+        Setting::firstOrCreate(
+            ['key' => 'site.footer_quick_links_html'],
+            [
+                'type'        => 'html',
+                'group'       => 'site',
+                'label'       => 'Footer: Quick Links',
+                'description' => 'Shown under "Quick Links" in the footer of every page. Allowed: strong, b, em, br, p, ul, li and links (http, https, mailto).',
+                'value'       => FooterDefaults::QUICK_LINKS_HTML,
                 'autoload'    => true,
             ]
         );

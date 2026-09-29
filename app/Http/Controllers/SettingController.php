@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Models\Log as AuditLog;
 use App\Models\Setting;
+use App\Services\SettingHtmlSanitizer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 
 class SettingController extends Controller
 {
@@ -21,13 +23,20 @@ class SettingController extends Controller
         return view('settings.edit', compact('settings'));
     }
 
-    public function update(Request $request)
+    public function update(Request $request, SettingHtmlSanitizer $sanitizer)
     {
         $settings = $request->input('settings', []);
 
         foreach ($settings as $key => $value) {
             $setting = Setting::where('key', $key)->first();
             if ($setting) {
+                // HTML settings render unescaped on every page: only the
+                // allowlisted markup is ever stored (the footer re-sanitizes).
+                if ($setting->type === 'html') {
+                    $value = $sanitizer->sanitize($value);
+                }
+
+
                 $oldValue = $setting->value;
                 $setting->value = $value;
                 $setting->save();
@@ -35,13 +44,19 @@ class SettingController extends Controller
                 Cache::forget("setting.{$key}");
 
                 if ($oldValue !== $value) {
+                    // logs.description is varchar(255); the full values are
+                    // in old_values / new_values, so HTML isn't repeated here.
+                    $description = $setting->type === 'html'
+                        ? sprintf('Setting "%s" updated.', $key)
+                        : sprintf('Setting "%s" updated from "%s" to "%s".', $key, $oldValue, $value);
+
                     AuditLog::write(
                         'setting_changed',
                         null,
                         null,
                         [$key => $oldValue],
                         [$key => $value],
-                        sprintf('Setting "%s" updated from "%s" to "%s".', $key, $oldValue, $value)
+                        Str::limit($description, 252) // + '...' = 255
                     );
                 }
             }

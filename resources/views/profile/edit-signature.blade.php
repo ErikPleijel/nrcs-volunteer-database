@@ -62,6 +62,7 @@
                                 <li><span class="text-green-600 font-bold">✔</span> Make sure the signature is <strong>clear and unbroken</strong>.</li>
                                 <li><span class="text-green-600 font-bold">✔</span> Fill most of the frame — <strong>not too small</strong>.</li>
                                 <li><span class="text-red-600 font-bold">✘</span> Avoid <strong>shadows, glare, or lined paper</strong>.</li>
+                                <li class="pt-1 mt-1 border-t border-indigo-200 text-indigo-800"><i class="fas fa-circle-exclamation mr-1"></i> If your signature doesn't meet these guidelines, we'll ask you to upload a new one.</li>
                             </ul>
                         </div>
                     </div>

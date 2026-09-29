@@ -1,3 +1,22 @@
+{{-- Contact Information and Quick Links content is admin-edited HTML
+     (settings site.footer_*_html). Sanitized when saved and again here;
+     it carries no classes, so .footer-html styles it. The settings page's
+     preview reuses these classes. --}}
+@php $footerSanitizer = app(\App\Services\SettingHtmlSanitizer::class); @endphp
+
+<style>
+    .footer-html > * + * { margin-top: 1rem; }
+    .footer-html p { margin-bottom: 0; }
+    .footer-html ul { list-style: none; margin-bottom: 0; padding: 0; }
+    .footer-html li + li { margin-top: 1rem; }
+    .footer-html strong, .footer-html b { font-weight: 700; }
+    .footer-html em { font-style: italic; }
+    .footer-html a { transition: opacity 150ms; }
+    .footer-html a:hover { opacity: 0.75; }
+    .footer-contact a { color: #dc2626; font-weight: 500; }  /* text-red-600 font-medium */
+    .footer-links a { color: #374151; }                       /* text-gray-700 */
+</style>
+
 <footer class="bg-white border-t border-gray-200">
     <div class="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div class="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
@@ -15,27 +34,16 @@
 
             <div>
                 <p class="font-medium text-gray-900 mb-4">Contact Information</p>
-                <div class="space-y-2 text-base text-gray-700">
-                    <div>
-                        <strong>Email:</strong> info@redcrossnigeria.org
-                    </div>
-                    <div class="mt-4">
-                        <strong>Phone Number (TOLL FREE)</strong><br>
-                        (+234) 803 123 0430 (MTN)<br>
-                        (+234) 809 993 7357 (9Mobile)
-                    </div>
-                    <div class="mt-4">
-                        <a href="https://www.redcrossnigeria.org/contact-us" class="text-red-600 transition hover:opacity-75 font-medium" target="_blank">Contact form </a>
-                    </div>
+                <div class="footer-html footer-contact text-base text-gray-700">
+                    {!! $footerSanitizer->sanitize(\App\Models\Setting::get('site.footer_contact_html', \App\Support\FooterDefaults::CONTACT_HTML)) !!}
                 </div>
             </div>
 
             <div>
                 <p class="font-medium text-gray-900">Quick Links</p>
-                <ul class="mt-6 space-y-4 text-sm">
-                    <li><a href="https://www.redcrossnigeria.org" class="text-gray-700 transition hover:opacity-75" target="_blank">Nigerian Red Cross website</a></li>
-                    <li><a href="https://www.redcrossnigeria.org/about-us" class="text-gray-700 transition hover:opacity-75" target="_blank">About us</a></li>
-                </ul>
+                <div class="footer-html footer-links mt-6 text-sm">
+                    {!! $footerSanitizer->sanitize(\App\Models\Setting::get('site.footer_quick_links_html', \App\Support\FooterDefaults::QUICK_LINKS_HTML)) !!}
+                </div>
             </div>
         </div>
 

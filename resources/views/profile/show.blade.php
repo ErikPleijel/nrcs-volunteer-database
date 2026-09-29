@@ -109,7 +109,6 @@
                             <p class="text-base text-gray-700 italic text-center leading-relaxed mt-2"><strong>Humanity</strong> · <strong>Impartiality</strong> · <strong>Neutrality</strong> · <strong>Independence</strong> · <strong>Voluntary Service</strong> · <strong>Unity</strong> · <strong>Universality</strong></p>
                         </div>
 
-                        {{-- Outside the volunteer-only Signature section: members' ID cards carry a signature too. --}}
                         @if($user->needsSignatureReupload())
                             <div class="mt-4 flex justify-center">
                                 <div class="w-full max-w-2xl rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-amber-900">
@@ -1348,10 +1347,9 @@
                     </div>
 
                     <!-- Signature Section -->
-                    @if($user->isVolunteer())
                     <div class="bg-white rounded-lg shadow-lg p-6">
                         <h2 class="text-xl font-bold text-gray-900 mb-4">Signature</h2>
-                        <p class="profile-instruction-text mb-4">The signature image will be used for making ID-cards for volunteers.</p>
+                        <p class="profile-instruction-text mb-4">The signature image will be used for making your ID card.</p>
                         <div class="flex flex-col items-center justify-center border border-gray-300 bg-gray-50 p-4 rounded-lg w-48 h-24 mx-auto">
                             @if($user->hasSignature())
                                 <img src="{{ $user->getSignatureUrlAttribute() }}" alt="User Signature" class="max-w-full h-auto max-h-48 object-contain">
@@ -1365,7 +1363,6 @@
                             </a>
                         </div>
                     </div>
-                    @endif {{-- can_contribute_volunteering / redCrossUnit --}}
 
                     <!-- Communication Preferences -->
                     <div class="bg-white rounded-lg shadow-lg p-6">
