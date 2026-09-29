@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Reports;
 
 use App\Http\Controllers\Controller;
 use App\Models\Branch;
+use App\Models\MessagingRecipient;
 use App\Models\CampaignPurpose;
 use App\Models\Division;
 use App\Models\User;
@@ -117,7 +118,7 @@ class ExpiringMembershipCampaignPlanningController extends Controller
                     ->join('messaging_campaigns', 'messaging_recipients.messaging_campaign_id', '=', 'messaging_campaigns.id')
                     ->whereIn('messaging_recipients.recipient_id', $baseIds)
                     ->where('messaging_recipients.recipient_type', 'App\\Models\\User')
-                    ->where('messaging_recipients.status', 'sent')
+                    ->whereIn('messaging_recipients.status', MessagingRecipient::SENT_STATUSES)
                     ->where('messaging_campaigns.purpose_id', $purposeId)
                     ->where('messaging_recipients.sent_at', '>=', $contactWindowStart)
                     ->select('messaging_recipients.recipient_id', DB::raw('COUNT(*) as cnt'))

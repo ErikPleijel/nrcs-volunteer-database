@@ -3,6 +3,7 @@
 namespace App\Campaigns\Sending;
 
 use App\Campaigns\Delivery\CampaignDeliveryService;
+use App\Campaigns\Delivery\DeliveryAttempt;
 use App\Campaigns\Delivery\DeliveryMessage;
 use App\Models\MessagingCampaign;
 use App\Models\MessagingRecipient;
@@ -276,11 +277,15 @@ final class CampaignSendRunner
                     : $outcome->okAll());
 
                 if ($ok) {
-                    $this->markSent($campaign, $r);
+                    $this->markSent($campaign, $r, $outcome->firstSuccess());
                     $sentThisRun++;
                 } else {
                     $fail = $outcome->firstFailure();
-                    $r->update(['status' => 'failed', 'last_error' => $fail?->errorMessage ?? 'Delivery failed']);
+                    $r->update([
+                        'status' => 'failed',
+                        'last_error' => $fail?->errorMessage ?? 'Delivery failed',
+                        ...$this->attemptColumns($fail),
+                    ]);
                     $failedThisRun++;
                 }
             }
@@ -346,11 +351,33 @@ final class CampaignSendRunner
     /**
      * Record one successful send immediately, including the campaign's daily counter.
      */
-    private function markSent(MessagingCampaign $campaign, MessagingRecipient $r): void
+    private function markSent(MessagingCampaign $campaign, MessagingRecipient $r, ?DeliveryAttempt $attempt): void
     {
-        $r->update(['status' => 'sent', 'sent_at' => now(), 'last_error' => null]);
+        $r->update([
+            'status' => 'sent',
+            'sent_at' => now(),
+            'last_error' => null,
+            ...$this->attemptColumns($attempt),
+        ]);
 
         $campaign->increment('daily_sent_count');
+    }
+
+    /**
+     * Provider details of the attempt that decided the outcome. For "both", where email
+     * and SMS can each succeed, this is the first successful attempt (email).
+     */
+    private function attemptColumns(?DeliveryAttempt $attempt): array
+    {
+        if (! $attempt) {
+            return [];
+        }
+
+        return [
+            'channel_used' => $attempt->channel,
+            'provider' => $attempt->provider,
+            'provider_message_id' => $attempt->providerMessageId,
+        ];
     }
 
     /**
@@ -384,18 +411,7 @@ final class CampaignSendRunner
 
     private function refreshCampaignStats(MessagingCampaign $campaign): void
     {
-        $total = MessagingRecipient::query()->where('messaging_campaign_id', $campaign->id)->count();
-        $sent = MessagingRecipient::query()->where('messaging_campaign_id', $campaign->id)->where('status', 'sent')->count();
-        $failed = MessagingRecipient::query()
-            ->where('messaging_campaign_id', $campaign->id)
-            ->whereIn('status', ['failed', 'bounced', 'undeliverable'])
-            ->count();
-
-        $campaign->update([
-            'stats_total' => $total,
-            'stats_sent' => $sent,
-            'stats_failed' => $failed,
-        ]);
+        $campaign->refreshRecipientStats();
     }
 
     private function remainingToday(MessagingCampaign $campaign, array $throttling): int

@@ -115,19 +115,22 @@ class CampaignAudienceSummaryService
     {
         $base = MessagingRecipient::query()
             ->where('messaging_campaign_id', $campaign->id)
-            ->where('status', 'sent');
+            ->whereIn('status', MessagingRecipient::SENT_STATUSES);
 
+        // channel_used is exact; rows sent before it existed are inferred from contact details.
         $willEmail = (clone $base)
-            ->whereNotNull('email')
-            ->where('email', '!=', '')
+            ->where(fn ($q) => $q->where('channel_used', 'email')
+                ->orWhere(fn ($legacy) => $legacy->whereNull('channel_used')
+                    ->whereNotNull('email')
+                    ->where('email', '!=', '')))
             ->count();
 
         $willSms = (clone $base)
-            ->where(function ($q) {
-                $q->whereNull('email')->orWhere('email', '=', '');
-            })
-            ->whereNotNull('phone')
-            ->where('phone', '!=', '')
+            ->where(fn ($q) => $q->where('channel_used', 'sms')
+                ->orWhere(fn ($legacy) => $legacy->whereNull('channel_used')
+                    ->where(fn ($e) => $e->whereNull('email')->orWhere('email', '=', ''))
+                    ->whereNotNull('phone')
+                    ->where('phone', '!=', '')))
             ->count();
 
         return [

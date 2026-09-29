@@ -16,14 +16,15 @@ class CampaignPipelineStatsService
         $todayStart = Carbon::now()->startOfDay();
         $failedSince = Carbon::now()->subDays(7);
 
+        // Status lists mirror MessagingRecipient::FAILED_STATUSES and SENT_STATUSES.
         $stats = MessagingRecipient::query()
             ->from("{$recipientTable} as mr")
             ->join('messaging_campaigns as mc', 'mr.messaging_campaign_id', '=', 'mc.id')
             ->selectRaw(
                 "SUM(CASE WHEN mr.status = 'pending' AND mc.status = 'queued' THEN 1 ELSE 0 END) as queued_total,
                  SUM(CASE WHEN mr.status = 'pending' AND mc.status = 'sending' THEN 1 ELSE 0 END) as sending_total,
-                 SUM(CASE WHEN mr.status in ('failed','bounced','undeliverable') AND mr.updated_at >= ? THEN 1 ELSE 0 END) as failed_total,
-                 SUM(CASE WHEN mr.status = 'sent' AND mr.sent_at >= ? THEN 1 ELSE 0 END) as sent_today_total",
+                 SUM(CASE WHEN mr.status in ('failed','bounced','undeliverable','expired') AND mr.updated_at >= ? THEN 1 ELSE 0 END) as failed_total,
+                 SUM(CASE WHEN mr.status in ('sent','delivered') AND mr.sent_at >= ? THEN 1 ELSE 0 END) as sent_today_total",
                 [$failedSince, $todayStart]
             )
             ->first();

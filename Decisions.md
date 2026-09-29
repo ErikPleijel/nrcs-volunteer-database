@@ -1101,3 +1101,19 @@ delivered. No automatic re-queueing.
 
 **Consequences:** "Reset failed" skips rows carrying that error, so a stuck row can never
 be sent again through the UI. Retrying one would need a deliberate DB change.
+
+## 2026-09-29 — Delivery tracking: one provider record per recipient row
+
+**Decision:** `messaging_recipients` stores one `channel_used` / `provider` /
+`provider_message_id` per row: the successful attempt, or the failed one. For a `both`
+campaign where email AND SMS succeed, that is the email attempt — the SMS id is not kept.
+"Reset failed" clears these columns, since they describe the previous attempt.
+`delivered` counts as sent everywhere a report asks "was this person messaged"
+(`MessagingRecipient::SENT_STATUSES`).
+
+**Rationale:** `both` is rarely used (the default is `email_fallback_sms`, where only one
+channel ever delivers). A per-channel row would mean reshaping the whole recipient model.
+
+**Consequences:** if `both` is ever used for paid SMS, SMS delivery polling cannot find
+those messages — revisit before building polling. The daily SMS/email rate widget keeps
+inferring channels for `both` campaigns for the same reason.

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Reports;
 
 use App\Http\Controllers\Controller;
 use App\Models\Branch;
+use App\Models\MessagingRecipient;
 use App\Models\Division;
 use App\Models\MessagingCampaign;
 use App\Models\User;
@@ -75,7 +76,7 @@ class CampaignsReportController extends Controller
             $sentPairs = DB::table('messaging_recipients')
                 ->join('users', 'users.id', '=', 'messaging_recipients.recipient_id')
                 ->where('messaging_recipients.recipient_type', User::class)
-                ->where('messaging_recipients.status', 'sent')
+                ->whereIn('messaging_recipients.status', MessagingRecipient::SENT_STATUSES)
                 ->whereIn('messaging_recipients.messaging_campaign_id', $campaigns->keys())
                 ->when($branchId, fn($q) => $q->where('users.branch_id', $branchId))
                 ->groupBy('messaging_recipients.messaging_campaign_id', 'users.branch_id')

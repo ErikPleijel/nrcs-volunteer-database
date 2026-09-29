@@ -96,6 +96,26 @@ class MessagingCampaign extends Model
     |--------------------------------------------------------------------------
     */
 
+    /**
+     * Recompute stats_total / stats_sent / stats_failed from the recipient rows.
+     * Skipped and queued rows count toward the total only.
+     */
+    public function refreshRecipientStats(): void
+    {
+        $counts = $this->recipients()
+            ->selectRaw('status, count(*) as aggregate')
+            ->groupBy('status')
+            ->pluck('aggregate', 'status');
+
+        $sum = fn (array $statuses) => (int) $counts->only($statuses)->sum();
+
+        $this->update([
+            'stats_total' => (int) $counts->sum(),
+            'stats_sent' => $sum(MessagingRecipient::SENT_STATUSES),
+            'stats_failed' => $sum(MessagingRecipient::FAILED_STATUSES),
+        ]);
+    }
+
     public function recipients(): HasMany
     {
         return $this->hasMany(MessagingRecipient::class, 'messaging_campaign_id');

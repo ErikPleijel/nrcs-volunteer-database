@@ -34,6 +34,14 @@ final class DeliveryOutcome
         return true;
     }
 
+    public function firstSuccess(): ?DeliveryAttempt
+    {
+        foreach ($this->attempts as $a) {
+            if ($a->ok) return $a;
+        }
+        return null;
+    }
+
     public function firstFailure(): ?DeliveryAttempt
     {
         foreach ($this->attempts as $a) {

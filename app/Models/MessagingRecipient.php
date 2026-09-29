@@ -41,11 +41,24 @@ class MessagingRecipient extends Model
         'status',
         'last_error',
         'sent_at',
+
+        // Delivery tracking
+        'provider',
+        'provider_message_id',
+        'provider_batch_id',
+        'channel_used',
+        'segments',
+        'cost',
+        'provider_status',
+        'delivered_at',
     ];
 
     protected $casts = [
         'payload_json' => 'array',
         'sent_at' => 'datetime',
+        'delivered_at' => 'datetime',
+        'segments' => 'integer',
+        'cost' => 'decimal:4',
     ];
 
     /**

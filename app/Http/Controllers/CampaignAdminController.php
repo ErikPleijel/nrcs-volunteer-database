@@ -434,26 +434,8 @@ class CampaignAdminController extends Controller
                     });
             }
 
-            // Update stats
-            $statsTotal = MessagingRecipient::query()
-                ->where('messaging_campaign_id', $campaign->id)
-                ->count();
-
-            $statsSent = MessagingRecipient::query()
-                ->where('messaging_campaign_id', $campaign->id)
-                ->where('status', 'sent')
-                ->count();
-
-            $statsFailed = MessagingRecipient::query()
-                ->where('messaging_campaign_id', $campaign->id)
-                ->whereIn('status', ['failed', 'bounced', 'undeliverable'])
-                ->count();
-
-            $campaign->update([
-                'stats_total' => $statsTotal,
-                'stats_sent' => $statsSent,
-                'stats_failed' => $statsFailed,
-            ]);
+            $campaign->refreshRecipientStats();
+            $statsTotal = $campaign->stats_total;
 
             DB::commit();
 
@@ -492,7 +474,7 @@ class CampaignAdminController extends Controller
         $includeBounced = !empty($data['include_bounced']) || (($data['only'] ?? '') === 'failed+bounced');
 
         $statusesToReset = $includeBounced
-            ? ['failed', 'bounced', 'undeliverable']
+            ? MessagingRecipient::FAILED_STATUSES
             : ['failed'];
 
         $affected = MessagingRecipient::query()
@@ -505,45 +487,24 @@ class CampaignAdminController extends Controller
                 'status' => 'pending',
                 'last_error' => null,
                 'sent_at' => null,
+                // The previous attempt's provider details no longer describe this row.
+                'provider' => null,
+                'provider_message_id' => null,
+                'channel_used' => null,
+                'provider_status' => null,
+                'delivered_at' => null,
                 'updated_at' => now(),
             ]);
 
         // If we brought recipients back to pending, campaign should no longer be "sent".
         if ($affected > 0 && in_array($campaign->status, ['sent', 'cancelled'], true)) {
             $campaign->status = 'queued';
-            $campaign->send_completed_at = null; // only if you have this column
+            $campaign->send_completed_at = null;
         }
 
-        // Refresh campaign stats
-        $statsTotal = MessagingRecipient::query()
-            ->where('messaging_campaign_id', $campaign->id)
-            ->count();
+        $campaign->refreshRecipientStats(); // also saves the status change above
 
-        $statsSent = MessagingRecipient::query()
-            ->where('messaging_campaign_id', $campaign->id)
-            ->where('status', 'sent')
-            ->count();
-
-        $statsFailed = MessagingRecipient::query()
-            ->where('messaging_campaign_id', $campaign->id)
-            ->whereIn('status', ['failed', 'bounced', 'undeliverable'])
-            ->count();
-
-        $update = [
-            'stats_total'  => $statsTotal,
-            'stats_sent'   => $statsSent,
-            'stats_failed' => $statsFailed,
-        ];
-
-        if ($affected > 0 && in_array($campaign->status, ['sent', 'cancelled'], true)) {
-            $update['status'] = 'queued';
-            // If you track completion timestamps:
-            // $update['send_completed_at'] = null;
-        }
-
-        $campaign->update($update);
-
-        $label = $includeBounced ? 'failed/bounced/undeliverable' : 'failed';
+        $label = $includeBounced ? 'failed/bounced/undeliverable/expired' : 'failed';
 
         return back()->with('success', "{$affected} {$label} recipients reset to pending.");
     }
@@ -568,7 +529,7 @@ class CampaignAdminController extends Controller
             ]);
 
         if ($affected > 0) {
-            $this->refreshRecipientStats($campaign);
+            $campaign->refreshRecipientStats();
 
             AuditLog::write(
                 'campaign_stuck_queued_marked_failed',
@@ -587,17 +548,6 @@ class CampaignAdminController extends Controller
         return redirect()
             ->route('campaigns.admin.show', $campaign)
             ->with('success', "{$affected} stuck recipient(s) marked failed. They will not be retried.");
-    }
-
-    private function refreshRecipientStats(MessagingCampaign $campaign): void
-    {
-        $base = MessagingRecipient::query()->where('messaging_campaign_id', $campaign->id);
-
-        $campaign->update([
-            'stats_total' => (clone $base)->count(),
-            'stats_sent' => (clone $base)->where('status', 'sent')->count(),
-            'stats_failed' => (clone $base)->whereIn('status', ['failed', 'bounced', 'undeliverable'])->count(),
-        ]);
     }
 
     public function startSending(Request $request, MessagingCampaign $campaign, CampaignSendRunner $runner)
@@ -666,26 +616,38 @@ class CampaignAdminController extends Controller
         $user = Auth::user();
         abort_unless($user->can('campaign_request_approve'), 403);
 
+        $tabStatuses = [
+            'pending' => ['pending'],
+            'queued' => ['queued'],
+            'sent' => MessagingRecipient::SENT_STATUSES,
+            'failed' => MessagingRecipient::FAILED_STATUSES,
+            'skipped' => MessagingRecipient::SKIPPED_STATUSES,
+        ];
+
         $tab = $request->get('tab', 'all');
-        if (!in_array($tab, ['all', 'pending', 'sent', 'failed'], true)) {
+        if ($tab !== 'all' && ! array_key_exists($tab, $tabStatuses)) {
             $tab = 'all';
         }
         $q = trim((string) $request->get('q', ''));
 
         $base = MessagingRecipient::query()->where('messaging_campaign_id', $campaign->id);
 
-        $totalCount   = (clone $base)->count();
-        $pendingCount = (clone $base)->where('status', 'pending')->count();
-        $sentCount    = (clone $base)->where('status', 'sent')->count();
-        $failedCount  = (clone $base)->whereIn('status', ['failed', 'bounced', 'undeliverable'])->count();
+        $statusCounts = (clone $base)
+            ->selectRaw('status, count(*) as aggregate')
+            ->groupBy('status')
+            ->pluck('aggregate', 'status');
+        $countFor = fn (string $tab) => (int) $statusCounts->only($tabStatuses[$tab])->sum();
+
+        $totalCount   = (int) $statusCounts->sum();
+        $pendingCount = $countFor('pending');
+        $queuedCount  = $countFor('queued');
+        $sentCount    = $countFor('sent');
+        $failedCount  = $countFor('failed');
+        $skippedCount = $countFor('skipped');
 
         $query = (clone $base);
-        if ($tab === 'pending') {
-            $query->where('status', 'pending');
-        } elseif ($tab === 'sent') {
-            $query->where('status', 'sent');
-        } elseif ($tab === 'failed') {
-            $query->whereIn('status', ['failed', 'bounced', 'undeliverable']);
+        if ($tab !== 'all') {
+            $query->whereIn('status', $tabStatuses[$tab]);
         }
 
         if ($q !== '') {
@@ -720,8 +682,10 @@ class CampaignAdminController extends Controller
             'throttling',
             'totalCount',
             'pendingCount',
+            'queuedCount',
             'sentCount',
             'failedCount',
+            'skippedCount',
             'recipients',
             'tab',
             'q'

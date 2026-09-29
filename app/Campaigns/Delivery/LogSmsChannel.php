@@ -37,6 +37,6 @@ final class LogSmsChannel implements DeliveryChannel
             'meta' => $message->meta,
         ]);
 
-        return DeliveryAttempt::success('sms', $fakeId);
+        return DeliveryAttempt::success('sms', $fakeId, provider: 'log-only');
     }
 }

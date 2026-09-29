@@ -88,7 +88,7 @@ class DonationAppreciationCampaignPlanningController extends Controller
                     WHERE mc.purpose_id = ?
                       AND mr.recipient_type = ?
                       AND mr.recipient_id = users.id
-                      AND mr.status = 'sent'
+                      AND mr.status IN ('sent', 'delivered')
                 )",
                 [$purposeId, 'App\\Models\\User']
             )
@@ -115,7 +115,7 @@ class DonationAppreciationCampaignPlanningController extends Controller
                     WHERE mc.purpose_id = ?
                       AND mr.recipient_type = ?
                       AND mr.recipient_id = users.id
-                      AND mr.status = \'sent\')',
+                      AND mr.status IN (\'sent\', \'delivered\'))',
                 [$purposeId, 'App\\Models\\User']
             )
             ->groupBy($areaField)

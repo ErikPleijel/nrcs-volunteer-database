@@ -229,7 +229,7 @@ class UserFilterService
                     SELECT 1 FROM messaging_recipients
                     WHERE messaging_recipients.recipient_type = ?
                       AND messaging_recipients.recipient_id = users.id
-                      AND messaging_recipients.status = 'sent'
+                      AND messaging_recipients.status IN ('sent', 'delivered')
                 )",
                 ['App\\Models\\User']
             );
@@ -259,7 +259,7 @@ class UserFilterService
                               WHERE messaging_campaigns.purpose_id = ?
                                 AND messaging_recipients.recipient_type = ?
                                 AND messaging_recipients.recipient_id = users.id
-                                AND messaging_recipients.status = 'sent'
+                                AND messaging_recipients.status IN ('sent', 'delivered')
                                 {$dateCondition}
                              ) {$operator} {$number}",
                             [$purpose->id, 'App\\Models\\User']
@@ -277,7 +277,7 @@ class UserFilterService
                     SELECT 1 FROM messaging_recipients
                     WHERE messaging_recipients.recipient_type = ?
                       AND messaging_recipients.recipient_id = users.id
-                      AND messaging_recipients.status = 'sent'
+                      AND messaging_recipients.status IN ('sent', 'delivered')
                 )",
                 ['App\\Models\\User']
             );
@@ -316,7 +316,7 @@ class UserFilterService
                                 WHERE mc.purpose_id = ?
                                   AND mr.recipient_type = ?
                                   AND mr.recipient_id = users.id
-                                  AND mr.status = \'sent\'
+                                  AND mr.status IN (\'sent\', \'delivered\')
                             )',
                             [$purpose->id, 'App\\Models\\User']
                         );
@@ -335,7 +335,7 @@ class UserFilterService
                                 WHERE mc.purpose_id = ?
                                   AND mr.recipient_type = ?
                                   AND mr.recipient_id = users.id
-                                  AND mr.status = \'sent\')',
+                                  AND mr.status IN (\'sent\', \'delivered\'))',
                             [$purpose->id, 'App\\Models\\User']
                         );
                     }

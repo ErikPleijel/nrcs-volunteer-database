@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Reports;
 
 use App\Http\Controllers\Controller;
 use App\Models\Branch;
+use App\Models\MessagingRecipient;
 use App\Models\Division;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -104,7 +105,7 @@ class WelcomeCampaignPlanningController extends Controller
                 ? DB::table('messaging_recipients')
                     ->whereIn('recipient_id', $baseIds)
                     ->where('recipient_type', 'App\\Models\\User')
-                    ->where('status', 'sent')
+                    ->whereIn('status', MessagingRecipient::SENT_STATUSES)
                     ->select('recipient_id', DB::raw('COUNT(*) as cnt'))
                     ->groupBy('recipient_id')
                     ->pluck('cnt', 'recipient_id')

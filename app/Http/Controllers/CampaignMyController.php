@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\MessagingCampaign;
+use App\Models\MessagingRecipient;
 use App\Models\User;
 use App\Services\CampaignAudienceSummaryService;
 use App\Services\UserFilterService;
@@ -137,8 +138,8 @@ class CampaignMyController extends Controller
 
         $deliveryStats = [
             'total' => $recipientCounts->sum(),
-            'sent' => (int)($recipientCounts['sent'] ?? 0),
-            'failed' => (int)($recipientCounts['failed'] ?? 0) + (int)($recipientCounts['bounced'] ?? 0) + (int)($recipientCounts['undeliverable'] ?? 0),
+            'sent' => (int) $recipientCounts->only(MessagingRecipient::SENT_STATUSES)->sum(),
+            'failed' => (int) $recipientCounts->only(MessagingRecipient::FAILED_STATUSES)->sum(),
             'pending' => (int)($recipientCounts['pending'] ?? 0),
             'queued' => (int)($recipientCounts['queued'] ?? 0),
         ];

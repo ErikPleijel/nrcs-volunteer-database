@@ -40,26 +40,20 @@
     @endif
 
     {{-- KPI cards --}}
-    <div class="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <div class="rounded-xl bg-white p-4 ring-1 ring-slate-200">
-            <div class="text-xs text-slate-500">Total</div>
-            <div class="mt-1 text-2xl font-semibold text-slate-900">{{ number_format($totalCount) }}</div>
-        </div>
-
-        <div class="rounded-xl bg-white p-4 ring-1 ring-slate-200">
-            <div class="text-xs text-slate-500">Pending</div>
-            <div class="mt-1 text-2xl font-semibold text-slate-900">{{ number_format($pendingCount) }}</div>
-        </div>
-
-        <div class="rounded-xl bg-white p-4 ring-1 ring-slate-200">
-            <div class="text-xs text-slate-500">Sent</div>
-            <div class="mt-1 text-2xl font-semibold text-slate-900">{{ number_format($sentCount) }}</div>
-        </div>
-
-        <div class="rounded-xl bg-white p-4 ring-1 ring-slate-200">
-            <div class="text-xs text-slate-500">Failed</div>
-            <div class="mt-1 text-2xl font-semibold text-slate-900">{{ number_format($failedCount) }}</div>
-        </div>
+    <div class="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+        @foreach ([
+            'Total' => $totalCount,
+            'Pending' => $pendingCount,
+            'Queued (in flight)' => $queuedCount,
+            'Sent' => $sentCount,
+            'Failed' => $failedCount,
+            'Skipped' => $skippedCount,
+        ] as $kpiLabel => $kpiValue)
+            <div class="rounded-xl bg-white p-4 ring-1 ring-slate-200">
+                <div class="text-xs text-slate-500">{{ $kpiLabel }}</div>
+                <div class="mt-1 text-2xl font-semibold text-slate-900">{{ number_format($kpiValue) }}</div>
+            </div>
+        @endforeach
     </div>
 
     {{-- Status + throttling --}}
@@ -136,8 +130,10 @@
             $recipientTabs = [
                 'all'     => 'All',
                 'pending' => 'Pending',
+                'queued'  => 'Queued',
                 'sent'    => 'Sent',
                 'failed'  => 'Failed (Resend)',
+                'skipped' => 'Skipped',
             ];
         @endphp
 
@@ -220,10 +216,14 @@
                     @php
                         $statusBadge = match ($r->status) {
                             'pending'       => 'bg-gray-100 text-gray-700',
+                            'queued'        => 'bg-amber-100 text-amber-800',
                             'sent'          => 'bg-green-100 text-green-800',
+                            'delivered'     => 'bg-emerald-100 text-emerald-800',
                             'failed'        => 'bg-red-100 text-red-800',
                             'bounced'       => 'bg-orange-100 text-orange-800',
                             'undeliverable' => 'bg-red-100 text-red-800',
+                            'expired'       => 'bg-red-100 text-red-800',
+                            'skipped_shared_number', 'skipped_invalid_number' => 'bg-slate-100 text-slate-700',
                             default         => 'bg-gray-100 text-gray-700',
                         };
                         $payload = is_array($r->payload_json) ? $r->payload_json : [];
@@ -238,8 +238,11 @@
                         <td class="px-4 py-3 text-sm text-gray-700">{{ $r->phone ?? '—' }}</td>
                         <td class="px-4 py-3">
                             <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{ $statusBadge }}">
-                                {{ ucfirst($r->status) }}
+                                {{ ucfirst(str_replace('_', ' ', $r->status)) }}
                             </span>
+                            @if ($r->channel_used)
+                                <div class="mt-1 text-xs text-gray-500">via {{ $r->channel_used === 'sms' ? 'SMS' : 'email' }}</div>
+                            @endif
                         </td>
                         <td class="px-4 py-3 text-sm text-gray-700">{{ $r->sent_at?->format('Y-m-d H:i') ?? '—' }}</td>
                         <td class="px-4 py-3 text-sm text-gray-700">

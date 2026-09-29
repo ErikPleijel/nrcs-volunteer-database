@@ -45,6 +45,6 @@ final class LogEmailChannel implements DeliveryChannel
             'meta' => $message->meta,
         ]);
 
-        return DeliveryAttempt::success('email', $fakeId);
+        return DeliveryAttempt::success('email', $fakeId, provider: 'log-only');
     }
 }
