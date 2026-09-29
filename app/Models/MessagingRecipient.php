@@ -20,7 +20,7 @@ class MessagingRecipient extends Model
     public const FAILED_STATUSES = ['failed', 'bounced', 'undeliverable', 'expired'];
 
     /** Deliberately not sent — neither sent nor failed. */
-    public const SKIPPED_STATUSES = ['skipped_shared_number', 'skipped_invalid_number'];
+    public const SKIPPED_STATUSES = ['skipped_shared_number', 'skipped_invalid_number', 'skipped_no_longer_eligible'];
 
     /** A queued row older than this was claimed by a runner that never recorded a result. */
     public const STUCK_QUEUED_MINUTES = 15;

@@ -25,7 +25,9 @@ use Illuminate\Database\Eloquent\Builder;
 final class CampaignRecipientBuilder
 {
     /** The only statuses a rebuild may change (or --fresh may delete). */
-    public const REBUILDABLE_STATUSES = ['pending', 'skipped_invalid_number', 'skipped_shared_number'];
+    public const REBUILDABLE_STATUSES = ['pending', 'skipped_invalid_number', 'skipped_shared_number', 'skipped_no_longer_eligible'];
+
+    public const NO_LONGER_ELIGIBLE_ERROR = 'No longer matches the campaign filter (found when recipients were rebuilt).';
 
     public const SHARED_NUMBER_ERROR = 'Shares an SMS number with another recipient of this campaign, who gets the SMS.';
 
@@ -56,7 +58,7 @@ final class CampaignRecipientBuilder
     {
         $counts = [
             'created' => 0, 'updated' => 0, 'kept' => 0, 'not_contactable' => 0, 'opted_out' => 0,
-            'invalid_numbers' => 0, 'shared_numbers' => 0, 'org_emails' => 0, 'total' => 0,
+            'invalid_numbers' => 0, 'shared_numbers' => 0, 'no_longer_eligible' => 0, 'org_emails' => 0, 'total' => 0,
         ];
 
         if ($fresh) {
@@ -146,6 +148,19 @@ final class CampaignRecipientBuilder
                 }
             });
 
+        // Pending rows of users who have left the audience since the last build must not be
+        // sent. Only pending rows: anything already attempted is never touched.
+        $counts['no_longer_eligible'] = MessagingRecipient::query()
+            ->where('messaging_campaign_id', $campaign->id)
+            ->where('recipient_type', User::class)
+            ->where('status', 'pending')
+            ->whereNotIn('recipient_id', (clone $audience)->toBase()->select('users.id'))
+            ->update([
+                'status' => 'skipped_no_longer_eligible',
+                'last_error' => self::NO_LONGER_ELIGIBLE_ERROR,
+                'updated_at' => now(),
+            ]);
+
         $counts['org_emails'] = $this->addOrganisationRepresentatives($campaign);
 
         $campaign->refreshRecipientStats();
@@ -160,6 +175,7 @@ final class CampaignRecipientBuilder
             ."Updated: {$counts['updated']}. Already attempted (left unchanged): {$counts['kept']}. "
             ."Skipped (not contactable): {$counts['not_contactable']}. Skipped (opted out): {$counts['opted_out']}. "
             ."No valid mobile number: {$counts['invalid_numbers']}. Shared SMS number (SMS to one recipient only): {$counts['shared_numbers']}. "
+            ."No longer match the filter (will not be sent): {$counts['no_longer_eligible']}. "
             ."Org emails added: {$counts['org_emails']}.";
     }
 

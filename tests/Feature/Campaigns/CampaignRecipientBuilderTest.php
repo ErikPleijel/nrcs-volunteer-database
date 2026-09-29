@@ -260,3 +260,49 @@ test('send time: an SMS is skipped when another recipient was already texted at 
     expect($sms->delivered)->toBeEmpty()
         ->and($lateRow->fresh()->status)->toBe('skipped_shared_number');
 });
+
+/*
+|--------------------------------------------------------------------------
+| People who leave the filter between builds
+|--------------------------------------------------------------------------
+*/
+
+test('a pending recipient who no longer matches the filter is skipped on rebuild and never sent', function () {
+    $branchA = \App\Models\Branch::create(['name' => 'Alpha Branch', 'code' => 'ALP']);
+    $branchB = \App\Models\Branch::create(['name' => 'Beta Branch', 'code' => 'BET']);
+
+    $stays = User::factory()->create(['email' => null, 'telephone1' => '08031111111', 'branch_id' => $branchA->id]);
+    $leaves = User::factory()->create(['email' => null, 'telephone1' => '08032222222', 'branch_id' => $branchA->id]);
+    $alreadySent = User::factory()->create(['email' => null, 'telephone1' => '08033333333', 'branch_id' => $branchA->id]);
+
+    $campaign = ($this->campaignFor)('sms');
+    $campaign->update(['filter_json' => [...$campaign->filter_json, 'branch_id' => $branchA->id]]);
+
+    buildRecipients($campaign, ['onlyContactable' => true]);
+    expect(row($campaign, $leaves)->status)->toBe('pending');
+    row($campaign, $alreadySent)->update(['status' => 'sent', 'channel_used' => 'sms']);
+
+    // Both move to another branch, so both leave the filter.
+    $leaves->update(['branch_id' => $branchB->id]);
+    $alreadySent->update(['branch_id' => $branchB->id]);
+
+    $counts = buildRecipients($campaign, ['onlyContactable' => true]);
+
+    expect(row($campaign, $leaves)->status)->toBe('skipped_no_longer_eligible')
+        ->and(row($campaign, $leaves)->last_error)->toBe(CampaignRecipientBuilder::NO_LONGER_ELIGIBLE_ERROR)
+        ->and(row($campaign, $alreadySent)->status)->toBe('sent') // attempted rows are never touched
+        ->and(row($campaign, $stays)->status)->toBe('pending')
+        ->and($counts['no_longer_eligible'])->toBe(1);
+
+    $campaign->update(['status' => 'sending']);
+    $sms = recordingChannel('sms');
+    (new CampaignSendRunner(new CampaignDeliveryService([$sms])))->runOneBatch($campaign->fresh(), batch: 50, force: true);
+
+    expect($sms->delivered)->toBe([row($campaign, $stays)->id]);
+
+    // Moving back into the filter makes them pending again on the next rebuild.
+    $leaves->update(['branch_id' => $branchA->id]);
+    $campaign->update(['status' => 'queued']);
+    buildRecipients($campaign, ['onlyContactable' => true]);
+    expect(row($campaign, $leaves)->status)->toBe('pending');
+});

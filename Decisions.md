@@ -1271,3 +1271,19 @@ status/balance response shapes (returned raw).
 `provider_status`, `cost`) and the scheduled balance check — wait for the confirmed response
 schema.
 
+## 2026-09-29 — Rebuild skips pending recipients who left the filter (`skipped_no_longer_eligible`)
+
+**Decision:** when recipients are rebuilt, `pending` rows of users who no longer match the
+campaign's filter get the new status `skipped_no_longer_eligible` (with a `last_error`
+explaining why), so they are not sent. Rows already attempted (queued, sent, delivered,
+failed, bounced, undeliverable, expired) are never touched. The status is rebuildable: if the
+person matches the filter again, the next rebuild makes them `pending` again.
+
+**Why a new status rather than reusing one:** `skipped_shared_number` and
+`skipped_invalid_number` tell the monitor *why* someone was not texted; reusing either would
+mislabel the row. The ENUM gained one value (migration `2026_09_29_170000`).
+
+**Consequences:** only User rows are checked, in one `NOT IN (audience)` update; organisation
+representative rows are unaffected. Opted-out users still in the filter keep their pending
+row — the runner's opt-out re-check stops them, as before.
+

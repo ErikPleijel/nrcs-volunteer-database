@@ -223,7 +223,7 @@
                             'bounced'       => 'bg-orange-100 text-orange-800',
                             'undeliverable' => 'bg-red-100 text-red-800',
                             'expired'       => 'bg-red-100 text-red-800',
-                            'skipped_shared_number', 'skipped_invalid_number' => 'bg-slate-100 text-slate-700',
+                            'skipped_shared_number', 'skipped_invalid_number', 'skipped_no_longer_eligible' => 'bg-slate-100 text-slate-700',
                             default         => 'bg-gray-100 text-gray-700',
                         };
                         $payload = is_array($r->payload_json) ? $r->payload_json : [];
