@@ -1200,3 +1200,18 @@ get `skipped_shared_number`; on `both`, a loser with email stays `pending` with 
 **Consequences:** the planner is an extra pass over the audience: ~25–30 s and ~20 MB for a
 national audience locally (~300k users). A national build from the web button may hit the
 PHP request time limit — use the CLI for very large builds.
+
+## 2026-09-29 — Branch and division assistants are appointed at branch level only
+
+**Decision:** `national_db_administrator` does NOT hold `authorize_branch_db_assistant`,
+`authorize_division_db_assistant_finance` or `authorize_division_db_assistant_operations`.
+Those three roles are appointed only by `branch_secretary` and `branch_db_administrator`.
+National admins appoint branch secretaries, branch DB administrators, national DB assistants
+and national observers.
+
+**Rationale:** deliberate — the branch knows its own assistants. (Briefly granted in commit
+aa115c3 after an audit read the role description literally; reverted.)
+
+**Consequences:** the role description no longer says "database assistants at all levels".
+With the 2026-09-29 role-removal rule, national admins also cannot change or remove those
+three roles; that too goes through the branch.

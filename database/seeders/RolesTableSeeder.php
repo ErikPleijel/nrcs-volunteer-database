@@ -25,7 +25,7 @@ class RolesTableSeeder extends Seeder
 
 
             'national_db_administrator' =>
-                'Oversees all national-level data operations. Authorizes roles at national level and appoints branch secretaries and branch/division database assistants.',
+                'Oversees all national-level data operations. Authorizes roles at national level and appoints branch secretaries and branch database administrators. Branch and division database assistants are appointed at branch level.',
 
             'national_db_assistant' =>
                 'Supports the national database administrator with data entry, corrections, and operational record-keeping at national level.',

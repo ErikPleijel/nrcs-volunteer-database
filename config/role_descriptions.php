@@ -16,7 +16,7 @@ return [
         'title' => 'National Database Administrator',
         'points' => [
             'View, enter, and edit records for <strong>all persons</strong> across all branches and divisions.',
-            'Assign roles to others, including branch secretaries and database assistants at all levels.',
+            'Appoint branch secretaries, branch database administrators, national database assistants and national observers. Branch and division database assistants are appointed by branch secretaries and branch database administrators.',
             'Access all <strong>national reports and statistics</strong>.',
             'Authorize and oversee the work of branch and division administrators.',
             'Approve <strong>Payments, Donations, Trainings, and Volunteering</strong> records submitted by other staff (four-eyes verification).',

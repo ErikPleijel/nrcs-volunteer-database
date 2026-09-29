@@ -76,8 +76,6 @@ beforeEach(function () {
         'manage-admin-panel', 'manage_roles_and_permissions',
         'authorize_branch_secretary', 'authorize_branch_db_administrator',
         'authorize_national_db_assistant', 'authorize_observer_national_level',
-        'authorize_branch_db_assistant', 'authorize_division_db_assistant_finance',
-        'authorize_division_db_assistant_operations',
     ]);
 
     Role::findOrCreate('branch_secretary', 'web')->syncPermissions([
@@ -430,13 +428,14 @@ test('a direct POST with ?user_id= in the query string is refused the same way',
     expect($target->fresh()->hasRole('national_db_administrator'))->toBeTrue();
 });
 
-test('a national_db_administrator can appoint branch and division database assistants', function (string $role) {
+// Branch and division assistants are appointed at branch level only, by design.
+test('a national_db_administrator cannot appoint branch or division database assistants', function (string $role) {
     $target = User::factory()->inBranch($this->branchA)->create();
 
     updateRolesRequest(nationalAdmin(), ['user_id' => $target->id, 'role' => $role])
-        ->assertSessionHasNoErrors();
+        ->assertForbidden();
 
-    expect($target->fresh()->hasRole($role))->toBeTrue();
+    expect($target->fresh()->hasRole($role))->toBeFalse();
 })->with(['branch_db_assistant', 'division_db_assistant_finance', 'division_db_assistant_operations']);
 
 test('the Secretary General flow works end to end: open the roles page, find a person, appoint and remove a national_db_administrator', function () {

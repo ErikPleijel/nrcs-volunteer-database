@@ -108,9 +108,8 @@ class PermissionsTableSeeder extends Seeder
                     'authorize_branch_db_administrator',
                     'authorize_national_db_assistant',
                     'authorize_observer_national_level',
-                    'authorize_branch_db_assistant',
-                    'authorize_division_db_assistant_finance',
-                    'authorize_division_db_assistant_operations',
+                    // Branch/division assistants are appointed at branch level only
+                    // (branch_secretary, branch_db_administrator) — by design.
 
                     // meta
                     'manage_roles_and_permissions',
