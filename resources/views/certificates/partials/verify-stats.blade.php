@@ -34,6 +34,27 @@
                 <div class="stat">
                     <div class="stat-value">{{ number_format($stats['first_aid']) }}</div>
                     <div class="stat-label">Have had first aid training</div>
+                    <div class="stat-label">{{ number_format($stats['first_aid_stale']) }} need a refresher (over {{ \App\Services\VerificationStatsService::FIRST_AID_STALE_MONTHS / 12 }} years)</div>
+                </div>
+            </div>
+
+            {{-- Volunteering hours logged for the unit / branch, by calendar year. --}}
+            <div class="stats-grid">
+                <div class="stat">
+                    <div class="stat-value">{{ number_format($stats['hours_total']) }}</div>
+                    <div class="stat-label">Volunteering hours, all time</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">{{ number_format($stats['hours_this_year']) }}</div>
+                    <div class="stat-label">Hours in {{ $stats['year'] }} so far</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">{{ number_format($stats['hours_last_year']) }}</div>
+                    <div class="stat-label">Hours in {{ $stats['year'] - 1 }}</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">{{ number_format($stats['hours_two_years_ago']) }}</div>
+                    <div class="stat-label">Hours in {{ $stats['year'] - 2 }}</div>
                 </div>
             </div>
 

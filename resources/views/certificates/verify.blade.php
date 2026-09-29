@@ -89,6 +89,10 @@
             gap: 10px;
         }
 
+        .stats-grid + .stats-grid {
+            margin-top: 10px;
+        }
+
         .stat {
             background: #fafafa;
             border-radius: 6px;

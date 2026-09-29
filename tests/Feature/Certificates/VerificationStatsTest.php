@@ -7,11 +7,13 @@
  * failure pages, and the 1-hour cache.
  */
 
+use App\Models\Activity;
 use App\Models\Branch;
 use App\Models\Division;
 use App\Models\MembershipFee;
 use App\Models\MembershipPayment;
 use App\Models\RedCrossUnit;
+use App\Models\TaskForce;
 use App\Models\User;
 use App\Services\VerificationStatsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -165,8 +167,12 @@ test('the aggregate query runs once per scope within the cache hour', function (
 
     $aggregates = collect(DB::getQueryLog())->filter(fn ($q) => str_contains($q['query'], 'COUNT(*) AS total'));
 
+    // Hours and first_aid_stale ride in the same statement: no extra query.
     expect($aggregates)->toHaveCount(2) // one unit, one branch
-        ->and($second)->toBe($first);
+        ->and($aggregates->every(fn ($q) => str_contains($q['query'], 'hours_total')))->toBeTrue()
+        ->and(collect(DB::getQueryLog())->filter(fn ($q) => str_contains($q['query'], 'activities')))->toHaveCount(2)
+        ->and($second)->toBe($first)
+        ->and($first)->toHaveKeys(['first_aid_stale', 'year', 'hours_total', 'hours_this_year', 'hours_last_year', 'hours_two_years_ago']);
 });
 
 /*
@@ -335,4 +341,164 @@ test('the verification page shows the split under the four figures, and never fo
         ->assertOk()
         ->assertSee('Statistics are shown for groups of 10 or more members.')
         ->assertDontSee('class="stats-breakdown"', false);
+});
+
+/*
+|--------------------------------------------------------------------------
+| Volunteering hours and first aid refreshers
+|--------------------------------------------------------------------------
+*/
+
+/** An activity of $hours on $date; approved and live unless $attrs say otherwise. */
+function statsActivity(int $hours, string $date, ?RedCrossUnit $unit, array $attrs = [], bool $approved = true): void
+{
+    $user = User::where('branch_id', test()->branch->id)->first()
+        ?? User::factory()->create(['branch_id' => test()->branch->id, 'lifecycle_status' => 'archived']);
+
+    $factory = Activity::factory();
+    $factory = $unit ? $factory->forRedCrossUnit($unit) : $factory;
+    $factory = $approved ? $factory->approved() : $factory;
+
+    $factory->create(array_merge([
+        'user_id' => $user->id,
+        'submitted_by_user_id' => $user->id,
+        'branch_id' => test()->branch->id,
+        'division_id' => test()->division->id,
+        'hours' => $hours,
+        'date' => $date,
+    ], $attrs));
+}
+
+/**
+ * Hours for $this->unit: this year 5 + 3, last year 7, two years ago 4,
+ * three years ago 10 (all-time only) — 29 in all. Plus hours that must not
+ * count for the unit: pending, deleted, another unit's, a task force's and
+ * an unassigned one (the last three are still in the branch).
+ */
+function seedKnownHours(RedCrossUnit $unit): void
+{
+    $y = test()->year;
+
+    statsActivity(5, "{$y}-01-10", $unit);
+    statsActivity(3, "{$y}-01-20", $unit);
+    statsActivity(7, ($y - 1).'-12-31', $unit);
+    statsActivity(4, ($y - 2).'-01-01', $unit);
+    statsActivity(10, ($y - 3).'-06-15', $unit);
+
+    statsActivity(50, "{$y}-01-10", $unit, approved: false);
+    statsActivity(60, "{$y}-01-10", $unit, ['is_deleted' => true]);
+
+    $other = RedCrossUnit::create(['name' => 'Unit Other', 'division_id' => test()->division->id, 'is_active' => true]);
+    statsActivity(100, "{$y}-01-10", $other);
+    statsActivity(200, "{$y}-01-10", null, ['assignable_type' => TaskForce::class, 'assignable_id' => $unit->id]);
+    statsActivity(400, "{$y}-01-10", null);
+}
+
+test('unit hours sum the unit\'s own approved, live activities by calendar year', function () {
+    statsVolunteers(10, $this->unit);
+    seedKnownHours($this->unit);
+
+    expect(app(VerificationStatsService::class)->forUnit($this->unit))->toMatchArray([
+        'total' => 10,
+        'year' => $this->year,
+        'hours_total' => 29,
+        'hours_this_year' => 8,
+        'hours_last_year' => 7,
+        'hours_two_years_ago' => 4,
+    ]);
+});
+
+test('unit hours still count a leaver\'s past activities, and a unit with none shows zeros', function () {
+    statsVolunteers(10, $this->unit);
+    $leaver = User::factory()->create(['branch_id' => $this->branch->id, 'lifecycle_status' => 'archived']);
+    statsActivity(6, ($this->year - 1).'-03-01', $this->unit, ['user_id' => $leaver->id]);
+
+    expect(app(VerificationStatsService::class)->forUnit($this->unit))
+        ->toMatchArray(['hours_total' => 6, 'hours_last_year' => 6, 'hours_this_year' => 0]);
+
+    $empty = RedCrossUnit::create(['name' => 'Unit Idle', 'division_id' => $this->division->id, 'is_active' => true]);
+    statsVolunteers(10, $empty);
+
+    expect(app(VerificationStatsService::class)->forUnit($empty))->toMatchArray([
+        'total' => 10, 'hours_total' => 0, 'hours_this_year' => 0, 'hours_last_year' => 0, 'hours_two_years_ago' => 0,
+    ]);
+});
+
+test('branch hours sum every approved, live activity in the branch, and none from another branch', function () {
+    statsVolunteers(10, null);
+    seedKnownHours($this->unit);
+
+    $bauchi = Branch::create(['name' => 'Bauchi', 'code' => 'BAU']);
+    statsActivity(1000, "{$this->year}-01-10", null, ['branch_id' => $bauchi->id]);
+
+    // 29 (unit) + 100 (other unit) + 200 (task force) + 400 (unassigned).
+    expect(app(VerificationStatsService::class)->forBranch($this->branch))->toMatchArray([
+        'total' => 10,
+        'hours_total' => 729,
+        'hours_this_year' => 708,
+        'hours_last_year' => 7,
+        'hours_two_years_ago' => 4,
+    ]);
+});
+
+test('only counted people whose last first aid is over 36 months old need a refresher', function () {
+    statsVolunteers(3, $this->unit);                                                                       // never trained
+    statsVolunteers(2, $this->unit, ['last_first_aid_at' => now()->subYear()->toDateString()]);          // recent
+    statsVolunteers(1, $this->unit, ['last_first_aid_at' => now()->subMonths(36)->toDateString()]);      // exactly 36 months: not yet
+    statsVolunteers(2, $this->unit, ['last_first_aid_at' => now()->subMonths(37)->toDateString()]);      // stale
+    statsVolunteers(2, $this->unit, ['last_first_aid_at' => now()->subYears(6)->toDateString(), 'lifecycle_status' => 'dormant']); // stale
+    // Stale but not counted.
+    statsVolunteers(2, $this->unit, ['last_first_aid_at' => now()->subYears(6)->toDateString(), 'lifecycle_status' => 'archived']);
+
+    expect(app(VerificationStatsService::class)->forUnit($this->unit))
+        ->toMatchArray(['total' => 10, 'first_aid' => 7, 'first_aid_stale' => 4]);
+});
+
+test('a small unit\'s fallback to its branch carries branch hours and refreshers', function () {
+    statsVolunteers(3, $this->unit, ['last_first_aid_at' => now()->subYears(5)->toDateString()]);
+    statsVolunteers(12, null, ['last_first_aid_at' => now()->subYears(4)->toDateString()]);
+    seedKnownHours($this->unit);
+
+    $response = $this->get(rcuCertificateUrl($this->unit))->assertOk()->assertSee('About Abia branch');
+
+    expect($response->viewData('stats'))->toMatchArray([
+        'scope' => 'branch',
+        'suppressed' => false,
+        'total' => 15,
+        'first_aid_stale' => 15,
+        'hours_total' => 729,
+        'hours_this_year' => 708,
+    ]);
+});
+
+test('the verification page shows the refresher count and the four hour figures', function () {
+    seedKnownUnit($this->unit); // 4 first aid trained: 1, 2, 3 and 4 years ago — only the last is stale
+    seedKnownHours($this->unit);
+    $y = $this->year;
+
+    $this->get(rcuCertificateUrl($this->unit))
+        ->assertOk()
+        ->assertSeeInOrder([
+            'Have had first aid training', '1 need a refresher (over 3 years)',
+            '29', 'Volunteering hours, all time',
+            '8', "Hours in {$y} so far",
+            '7', 'Hours in '.($y - 1),
+            '4', 'Hours in '.($y - 2),
+            'Volunteers: 12',
+        ]);
+});
+
+test('a suppressed group shows no hours or refresher figures, even with activity', function () {
+    $small = RedCrossUnit::create(['name' => 'Unit Orphan', 'is_active' => true]);
+    User::factory()->count(3)->create(['red_cross_unit_id' => $small->id, 'lifecycle_status' => 'active', 'last_first_aid_at' => now()->subYears(5)->toDateString()]);
+    statsActivity(9, "{$this->year}-01-10", $small);
+
+    expect(app(VerificationStatsService::class)->forUnit($small))
+        ->toBe(['scope' => 'unit', 'scope_label' => 'Unit Orphan', 'suppressed' => true]);
+
+    $this->get(rcuCertificateUrl($small))
+        ->assertOk()
+        ->assertSee('Statistics are shown for groups of 10 or more members.')
+        ->assertDontSee('Volunteering hours')
+        ->assertDontSee('need a refresher');
 });
