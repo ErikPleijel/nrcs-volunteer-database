@@ -37,8 +37,9 @@ class UserFilterDescriber
         // --------------------------------------------------
         // Search
         // --------------------------------------------------
-        if ($search = $get('search')) {
-            $labels[] = 'Search: "'.$search.'"';
+        // An 11-digit term (NIN or phone) is shown masked (see SearchTerm).
+        if (($search = SearchTerm::from($filters)) !== '') {
+            $labels[] = SearchTerm::label($search);
         }
 
         // --------------------------------------------------
@@ -351,6 +352,12 @@ class UserFilterDescriber
         }
         if ($get('email_status') === 'without') {
             $labels[] = 'Without email';
+        }
+        if ($get('nin_filter') === 'has') {
+            $labels[] = 'NIN on file';
+        }
+        if ($get('nin_filter') === 'none') {
+            $labels[] = 'No NIN on file';
         }
         if ($get('org_representatives') == '1') {
             $labels[] = 'Org representatives only';

@@ -3,6 +3,8 @@
 namespace App\Services;
 
 use App\Models\User;
+use App\Support\Filters\SearchTerm;
+use App\Support\NationalIdNumber;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -39,9 +41,10 @@ class UserFilterService
         // ----------------------------
         // Search
         // ----------------------------
-        if ($this->filled($filters, 'search')) {
-            $search = trim((string) $filters['search']);
+        // A saved campaign keeps a NIN search encrypted (see SearchTerm).
+        $search = SearchTerm::from($filters);
 
+        if ($search !== '') {
             $query->where(function ($q) use ($search) {
 
                 // If numeric → ID search
@@ -65,6 +68,14 @@ class UserFilterService
                 $q->orWhere('email', 'like', "%{$search}%")
                     ->orWhere('telephone1', 'like', "%{$search}%")
                     ->orWhere('telephone2', 'like', "%{$search}%");
+
+                // NIN: the column is encrypted, so only an exact match on the
+                // keyed hash works — no partial NIN search. Skipped when
+                // NIN_HASH_KEY is unset rather than failing the whole list.
+                $nin = NationalIdNumber::normalize($search);
+                if (NationalIdNumber::isValid($nin) && (string) config('app.nin_hash_key') !== '') {
+                    $q->orWhere('national_id_number_hash', NationalIdNumber::hash($nin));
+                }
             });
         }
 
@@ -437,6 +448,23 @@ class UserFilterService
             } elseif ($value === 'sign_rejected') {
                 // Subset of sign_yes: flagged for re-upload on the ID card bulk-print page.
                 $query->whereNotNull('signature_rejected_at');
+            }
+        }
+
+        // ----------------------------
+        // NIN on file filter
+        // (the encrypted column itself, not the hash: rows written outside
+        // the User model's saving hook may lack a hash)
+        // ----------------------------
+        if ($this->filled($filters, 'nin_filter')) {
+            $ninFilter = $filters['nin_filter'];
+
+            if ($ninFilter === 'has') {
+                $query->whereNotNull('national_id_number')->where('national_id_number', '!=', '');
+            } elseif ($ninFilter === 'none') {
+                $query->where(function ($q) {
+                    $q->whereNull('national_id_number')->orWhere('national_id_number', '');
+                });
             }
         }
 

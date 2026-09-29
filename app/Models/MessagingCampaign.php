@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use App\Support\Filters\SearchTerm;
 use App\Support\Filters\UserFilterDescriber;
 
 class MessagingCampaign extends Model
@@ -77,6 +78,17 @@ class MessagingCampaign extends Model
         'daily_sent_date' => 'date',
 
     ];
+
+    protected static function booted(): void
+    {
+        // Never store an 11-digit search (NIN or phone) in plain text, whichever form or wizard
+        // step wrote filter_json (see SearchTerm).
+        static::saving(function (MessagingCampaign $campaign) {
+            if ($campaign->isDirty('filter_json') && is_array($campaign->filter_json)) {
+                $campaign->filter_json = SearchTerm::forStorage($campaign->filter_json);
+            }
+        });
+    }
 
     /*
     |--------------------------------------------------------------------------

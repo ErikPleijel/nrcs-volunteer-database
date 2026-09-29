@@ -273,6 +273,7 @@
                 'volunteer_filter',
                 'org_representatives',
                 'team_leader_filter',
+                'nin_filter',
                 'database_role_filter',
                 'registration_filter',
                 'dormancy_filter',
@@ -301,7 +302,7 @@
                                 <label for="search" class="filter-label">Search</label>
                                 <input type="text" id="search" name="search"
                                        value="{{ request('search') }}"
-                                       placeholder="Name, DB, email, phone..."
+                                       placeholder="Name, DB, email, phone, NIN"
                                        class="filter-input {{ request('search') ? 'filter-active' : '' }}">
                             </div>
 
@@ -442,6 +443,15 @@
                                     <option value="rc_unit" {{ request('team_leader_filter') === 'rc_unit' ? 'selected' : '' }}>RC Unit Team Leaders</option>
                                     <option value="task_force" {{ request('team_leader_filter') === 'task_force' ? 'selected' : '' }}>Task Force Team Leaders</option>
                                     <option value="all" {{ request('team_leader_filter') === 'all' ? 'selected' : '' }}>All Team Leaders</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label for="nin_filter" class="filter-label-small">National ID (NIN)</label>
+                                <select name="nin_filter" id="nin_filter" class="filter-select-small {{ request('nin_filter') ? 'filter-active' : '' }}">
+                                    <option value=""     {{ request('nin_filter', '') === '' ? 'selected' : '' }}>All</option>
+                                    <option value="has"  {{ request('nin_filter') === 'has'  ? 'selected' : '' }}>NIN on file</option>
+                                    <option value="none" {{ request('nin_filter') === 'none' ? 'selected' : '' }}>No NIN on file</option>
                                 </select>
                             </div>
                         </div>
@@ -631,7 +641,8 @@
 
                             <form method="POST" action="{{ route('campaigns.wizard.start') }}" class="inline-block">
                                 @csrf
-                                <input type="hidden" name="filter_json" value='@json(request()->except(["page"]))'>
+                                {{-- An 11-digit search (NIN or phone) goes in encrypted, never as the plain number --}}
+                                <input type="hidden" name="filter_json" value='@json(\App\Support\Filters\SearchTerm::forStorage(request()->except(["page"])))'>
 
                                 <button
                                     type="submit"

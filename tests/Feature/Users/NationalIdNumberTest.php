@@ -473,3 +473,154 @@ test('task-force member search and add-member return only id, name and DB refere
             ->not->toContain('personal_info');
     }
 });
+
+/*
+|--------------------------------------------------------------------------
+| users/index: NIN search, "NIN on file" filter, masking
+|--------------------------------------------------------------------------
+*/
+
+function ninListPermissions(User $admin): void
+{
+    foreach (['view_user', 'campaign_request_create'] as $permission) {
+        Permission::findOrCreate($permission, 'web');
+    }
+    $admin->givePermissionTo(['view_user', 'campaign_request_create']);
+    app(PermissionRegistrar::class)->forgetCachedPermissions();
+}
+
+/** The "Found N result(s)" summary line under the filters. */
+function filterSummary(string $html): string
+{
+    preg_match('/<div class="text-lg text-gray-700 font-medium">(.*?)<\/div>/s', $html, $m);
+
+    return trim(html_entity_decode(strip_tags($m[1] ?? '')));
+}
+
+beforeEach(function () {
+    ninListPermissions($this->admin);
+
+    $this->ninHolder = User::factory()->create([
+        'first_name' => 'Ninholder', 'national_id_number' => '24681357902',
+        'branch_id' => $this->branch->id, 'division_id' => $this->division->id,
+    ]);
+    $this->ninless = User::factory()->create([
+        'first_name' => 'Ninless',
+        'branch_id' => $this->branch->id, 'division_id' => $this->division->id,
+    ]);
+});
+
+test('users/index finds a person by their full NIN, however it is typed', function (string $typed) {
+    $this->actingAs($this->admin)
+        ->get(route('users.index', ['search' => $typed]))
+        ->assertOk()
+        ->assertSee('Ninholder')
+        ->assertDontSee('Ninless');
+})->with([
+    ['24681357902'],
+    ['246 813 579 02'],
+    ['246-813-579-02'],
+]);
+
+test('users/index does not match part of a NIN', function () {
+    $this->actingAs($this->admin)
+        ->get(route('users.index', ['search' => '2468135']))
+        ->assertOk()
+        ->assertDontSee('Ninholder');
+});
+
+test('NIN search is skipped, not fatal, when NIN_HASH_KEY is unset', function () {
+    config(['app.nin_hash_key' => '']);
+
+    $this->actingAs($this->admin)
+        ->get(route('users.index', ['search' => '24681357902']))
+        ->assertOk()
+        ->assertDontSee('Ninholder');
+});
+
+test('nin_filter=has and nin_filter=none each return the right people', function () {
+    $this->actingAs($this->admin)
+        ->get(route('users.index', ['nin_filter' => 'has']))
+        ->assertOk()
+        ->assertSee('Ninholder')
+        ->assertDontSee('Ninless');
+
+    $html = $this->actingAs($this->admin)
+        ->get(route('users.index', ['nin_filter' => 'none']))
+        ->assertOk()
+        ->assertSee('Ninless')
+        ->assertDontSee('Ninholder')
+        ->assertSee('<option value="none" selected>No NIN on file</option>', false)
+        ->getContent();
+
+    expect(filterSummary($html))->toContain('No NIN on file');
+});
+
+test('the search summary masks any 11-digit term, NIN or phone, without calling it a NIN', function () {
+    $html = $this->actingAs($this->admin)
+        ->get(route('users.index', ['search' => '246 813 579 02']))
+        ->assertOk()
+        ->getContent();
+
+    expect(filterSummary($html))->toContain('Search: ●●●●●●●●902')
+        ->not->toContain('24681357902')
+        ->not->toContain('246 813 579 02');
+
+    $html = $this->actingAs($this->admin)
+        ->get(route('users.index', ['search' => 'Ninholder']))
+        ->getContent();
+
+    expect(filterSummary($html))->toContain('Search: "Ninholder"');
+
+    $html = $this->actingAs($this->admin)
+        ->get(route('users.index', ['search' => '0803-111-2222']))
+        ->getContent();
+
+    expect(filterSummary($html))->toContain('Search: ●●●●●●●●222')
+        ->not->toContain('NIN')
+        ->not->toContain('08031112222');
+});
+
+test('a campaign made from a NIN search stores it encrypted and still rebuilds the same audience', function () {
+    $html = $this->actingAs($this->admin)
+        ->get(route('users.index', ['search' => '24681357902']))
+        ->assertOk()
+        ->getContent();
+
+    preg_match('/name="filter_json" value=\'(.*?)\'/s', $html, $m);
+    $posted = $m[1] ?? '';
+
+    expect($posted)->not->toBe('')
+        ->not->toContain('24681357902');
+
+    $this->actingAs($this->admin)
+        ->post(route('campaigns.wizard.start'), ['filter_json' => $posted])
+        ->assertRedirect();
+
+    $campaign = \App\Models\MessagingCampaign::latest('id')->firstOrFail();
+    $raw = DB::table('messaging_campaigns')->where('id', $campaign->id)->value('filter_json');
+
+    expect($raw)->not->toContain('24681357902')
+        ->and($campaign->filter_json)->not->toHaveKey('search')
+        ->and($campaign->filter_description_html)->toContain('Search: ●●●●●●●●902')
+        ->not->toContain('24681357902');
+
+    $ids = app(\App\Services\UserFilterService::class)
+        ->apply(User::query(), $campaign->filter_json, 'national', null)
+        ->pluck('id');
+
+    expect($ids->all())->toBe([$this->ninHolder->id]);
+});
+
+test('a campaign saved with a plain NIN search (e.g. posted directly) is encrypted on save', function () {
+    $campaign = \App\Models\MessagingCampaign::create([
+        'channel' => 'email', 'audience_type' => 'volunteer', 'body' => ' ',
+        'status' => 'draft', 'created_by' => $this->admin->id,
+        'filter_json' => ['search' => '24681357902', 'nin_filter' => 'has'],
+    ]);
+
+    $raw = DB::table('messaging_campaigns')->where('id', $campaign->id)->value('filter_json');
+
+    expect($raw)->not->toContain('24681357902')
+        ->and($campaign->fresh()->filter_json['nin_filter'])->toBe('has');
+});
