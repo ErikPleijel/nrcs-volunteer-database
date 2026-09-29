@@ -1496,6 +1496,13 @@ class CertificateController extends Controller
             'certificateImageUrl' => asset('images/certificates/certificate_of_membership.png'),
             'payment'             => $payment,
             'organisation'        => $organisation,
+            // Rendered as a QR code by both templates; the payment is the
+            // approved, non-deleted one activeMembership resolves.
+            'verificationUrl'     => URL::signedRoute('certificates.verify', [
+                'org'     => $organisation->id_check_token,
+                'type'    => 'organisation_membership',
+                'payment' => $payment->id,
+            ]),
             'user'                => null,
         ];
     }
@@ -1582,6 +1589,13 @@ class CertificateController extends Controller
             'logoUrl'             => asset('images/NRCS_logo.jpg'),
             'certificateImageUrl' => asset('images/certificates/certificate_of_appreciation.png'),
             'organisation'        => $organisation,
+            // Rendered as a QR code by both templates. Verification confirms
+            // donor status only; as_of is the certificate's "as of" date.
+            'verificationUrl'     => URL::signedRoute('certificates.verify', [
+                'org'   => $organisation->id_check_token,
+                'type'  => 'organisation_donation',
+                'as_of' => now()->toDateString(),
+            ]),
             'user'                => null,
         ];
     }
@@ -1939,6 +1953,11 @@ class CertificateController extends Controller
             return $this->verifyRcuCertificate($request);
         }
 
+        // Organisation membership / donation certificate: likewise its own.
+        if ($request->filled('org')) {
+            return $this->verifyOrganisationCertificate($request);
+        }
+
         $userToken  = $request->query('u');
         $type       = $request->query('type');
         $trainingId = $request->query('training_id');
@@ -2044,6 +2063,94 @@ class CertificateController extends Controller
             'redCrossUnit' => $unit,
             'rcuPayment'   => $payment,
             'stats'        => $this->rcuVerificationStats($unit),
+        ]);
+    }
+
+    /**
+     * Verification of an organisation certificate's QR link:
+     * ?org={id_check_token}&type=organisation_membership&payment={id}, or
+     * ?org={id_check_token}&type=organisation_donation&as_of={Y-m-d}.
+     *
+     * A deactivated or soft-deleted organisation fails with its own reason.
+     * Membership: the payment must be one of the organisation's own approved,
+     * non-deleted payments (as for RCUs), shown with its period and live
+     * status. Donation: confirms donor status only — no amounts, no list,
+     * no count. Either way the organisation's branch figures are shown.
+     */
+    private function verifyOrganisationCertificate(Request $request)
+    {
+        $fail = fn (string $reason) => view('certificates.verify', [
+            'valid'        => false,
+            'reason'       => $reason,
+            'user'         => null,
+            'certificate'  => null,
+            'organisation' => null,
+            'orgPayment'   => null,
+        ]);
+
+        $type = $request->query('type');
+
+        if (! in_array($type, ['organisation_membership', 'organisation_donation'], true)) {
+            return $fail('invalid_parameters');
+        }
+
+        $organisation = Organisation::withTrashed()
+            ->with('branch')
+            ->where('id_check_token', $request->query('org'))
+            ->first();
+
+        if (! $organisation) {
+            return $fail('organisation_not_found');
+        }
+
+        if ($organisation->trashed() || $organisation->deactivated_date !== null) {
+            return $fail('organisation_inactive');
+        }
+
+        $payment = null;
+
+        if ($type === 'organisation_membership') {
+            $paymentId = filter_var($request->query('payment'), FILTER_VALIDATE_INT);
+
+            $payment = $paymentId === false ? null : $organisation->membershipPayments()
+                ->where('membership_payments.approval_status', MembershipPayment::APPROVED)
+                ->where('is_deleted', false)
+                ->with('membershipFee')
+                ->find($paymentId);
+
+            if (! $payment) {
+                return $fail('payment_not_found');
+            }
+        } else {
+            // donations() already excludes is_deleted; approved-only is also
+            // Donation's default scope.
+            $hasDonations = $organisation->donations()
+                ->where('donations.approval_status', Donation::APPROVED)
+                ->exists();
+
+            if (! $hasDonations) {
+                return $fail('no_donations_on_record');
+            }
+        }
+
+        // Signed with the link, so only malformed if the link was built wrong.
+        $asOf = null;
+        if ($request->filled('as_of')) {
+            try {
+                $asOf = \Illuminate\Support\Carbon::createFromFormat('!Y-m-d', $request->query('as_of'));
+            } catch (\Throwable) {
+                $asOf = null;
+            }
+        }
+
+        return view('certificates.verify', [
+            'valid'        => true,
+            'reason'       => null,
+            'user'         => null,
+            'certificate'  => ['type' => $type, 'asOf' => $asOf ?: null],
+            'organisation' => $organisation,
+            'orgPayment'   => $payment,
+            'stats'        => app(VerificationStatsService::class)->forBranch($organisation->branch),
         ]);
     }
 

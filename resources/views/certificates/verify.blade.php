@@ -255,6 +255,70 @@
 
             @include('certificates.partials.verify-stats', ['stats' => $stats ?? null])
 
+            {{-- Organisation membership / donation certificate. Membership: the
+                 fee period with its live status. Donation: donor status only —
+                 no amounts, list or count. --}}
+        @elseif($valid && ($organisation ?? null))
+            @php
+                $isOrgMembership = $certificate['type'] === 'organisation_membership';
+                $periodCurrent   = $isOrgMembership && $orgPayment->isValid();
+            @endphp
+
+            <div class="title ok">Certificate Verified</div>
+
+            <p style="text-align:center; color:#444; margin-top:-5px;">
+                This certificate belongs to an organisation registered in the<br>
+                <strong>Nigerian Red Cross Society</strong> database.
+            </p>
+
+            <div class="section">
+                <div class="label">Organisation</div>
+                <div class="value">{{ $organisation->name }}</div>
+                <div class="label">ID</div>
+                <div class="value">{{ $organisation->org_reference }}</div>
+            </div>
+            <div class="section">
+                <div class="label">Certificate Type</div>
+                <div class="value">{{ $isOrgMembership ? 'Organisation Membership' : 'Organisation Donation' }}</div>
+            </div>
+
+            <div class="section">
+                <table class="info-table">
+                    @if($isOrgMembership)
+                        <tr>
+                            <td class="label">Fee period</td>
+                            <td class="value">
+                                {{ $orgPayment->payment_date?->format('d M Y') ?? 'N/A' }} – {{ $orgPayment->expiry_date?->format('d M Y') ?? 'N/A' }}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="label">Status</td>
+                            <td class="value {{ $periodCurrent ? 'ok' : 'error' }}">
+                                {{ $periodCurrent ? 'Currently paid' : 'Period ended' }}
+                            </td>
+                        </tr>
+                    @else
+                        @if($certificate['asOf'] ?? null)
+                            <tr>
+                                <td class="label">Certificate date</td>
+                                <td class="value">{{ $certificate['asOf']->format('d M Y') }}</td>
+                            </tr>
+                        @endif
+                        <tr>
+                            <td class="label">Status</td>
+                            <td class="value ok">Donations on record</td>
+                        </tr>
+                    @endif
+                </table>
+            </div>
+
+            <div class="section">
+                <div class="label">Branch</div>
+                <div class="value">{{ $organisation->branch->name ?? 'N/A' }}</div>
+            </div>
+
+            @include('certificates.partials.verify-stats', ['stats' => $stats ?? null])
+
             {{-- Invalid or tampered link --}}
         @else
             <div class="title error">Verification Failed</div>
@@ -269,6 +333,12 @@
                 <p style="text-align:center; color:#888;">User not found in the Red Cross system.</p>
             @elseif($reason === 'unit_not_found')
                 <p style="text-align:center; color:#888;">Red Cross Unit not found in the Red Cross system.</p>
+            @elseif($reason === 'organisation_not_found')
+                <p style="text-align:center; color:#888;">Organisation not found in the Red Cross system.</p>
+            @elseif($reason === 'organisation_inactive')
+                <p style="text-align:center; color:#888;">This organisation's certificate is no longer active.</p>
+            @elseif($reason === 'no_donations_on_record')
+                <p style="text-align:center; color:#888;">No donations by this organisation could be confirmed.</p>
             @elseif($reason === 'payment_not_found')
                 <p style="text-align:center; color:#888;">The fee payment on this certificate could not be confirmed.</p>
             @elseif($reason === 'invalid_signature')

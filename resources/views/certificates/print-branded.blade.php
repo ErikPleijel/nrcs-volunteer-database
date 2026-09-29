@@ -260,7 +260,7 @@
                         ->generate($verificationUrl)
                 );
             }
-            // Certificates without a holder (RCU membership) supply their
+            // Certificates without a holder (RCU, organisation) supply their
             // own signed verification link.
             elseif (!empty($certificate['verificationUrl'])) {
                 $verificationUrl = $certificate['verificationUrl'];

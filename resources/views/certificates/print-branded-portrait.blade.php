@@ -307,6 +307,18 @@
                         ->generate($verificationUrl)
                 );
             }
+            // Certificates without a holder (organisation donation) supply
+            // their own signed verification link.
+            elseif (!empty($certificate['verificationUrl'])) {
+                $verificationUrl = $certificate['verificationUrl'];
+
+                $qrBase64 = base64_encode(
+                    \SimpleSoftwareIO\QrCode\Facades\QrCode::format('svg')
+                        ->size(120)
+                        ->margin(1)
+                        ->generate($verificationUrl)
+                );
+            }
         @endphp
 
         <div class="certificate-container">

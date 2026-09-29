@@ -10,10 +10,24 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 
 class Organisation extends Model
 {
     use SoftDeletes;
+
+    /**
+     * Opaque id_check_token for the membership and donation certificates' QR
+     * verification links — same generation as RedCrossUnit's and User's.
+     */
+    protected static function booted()
+    {
+        static::creating(function ($organisation) {
+            if (empty($organisation->id_check_token)) {
+                $organisation->id_check_token = Str::random(32);
+            }
+        });
+    }
 
     protected $fillable = [
         'name',
@@ -84,7 +98,10 @@ class Organisation extends Model
 
     public function activeMembership(): HasOne
     {
+        // Approved-only is also MembershipPayment's default scope; stated here
+        // because the membership certificate (and its QR link) is built from it.
         return $this->hasOne(MembershipPayment::class, 'organisation_id')
+            ->where('membership_payments.approval_status', MembershipPayment::APPROVED)
             ->where('is_deleted', false)
             ->where('expiry_date', '>=', now())
             ->latest('expiry_date');

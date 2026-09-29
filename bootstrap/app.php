@@ -45,6 +45,8 @@ $app = Application::configure(basePath: dirname(__DIR__))
                 'certificate'  => null,
                 'redCrossUnit' => null,
                 'rcuPayment'   => null,
+                'organisation' => null,
+                'orgPayment'   => null,
             ], 403);
         });
 
