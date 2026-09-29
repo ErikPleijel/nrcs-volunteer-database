@@ -1142,3 +1142,19 @@ which is unchanged.
 
 **Consequences:** members with foreign numbers can no longer register or change to one; a
 legacy foreign number stays until someone edits it.
+
+## 2026-09-29 — Removing or changing a role needs authority over the current role
+
+**Decision:** `UserController::updateRoles()` now requires the actor to be able to assign
+(via its `authorize_*` permissions, `getAssignableRoles()`) the target's **current** role as
+well as the incoming one. Clearing a role is no longer exempt. The last remaining
+`national_db_administrator` cannot be removed or changed (validation error, role kept).
+
+**Rationale:** clearing a role was unchecked, so any `manage_roles_and_permissions` holder at
+national level could strip any role by posting `user_id` directly — including one national
+admin removing another, and super-admin removing branch secretaries. The roles table only
+hid the button ("Edit by super-admin"); menu-hiding is not security.
+
+**Consequences:** super-admin can only appoint and remove `national_db_administrator`.
+National admins cannot remove each other — that goes through a super-admin. A role the actor
+cannot assign also blocks editing that user's direct permissions.

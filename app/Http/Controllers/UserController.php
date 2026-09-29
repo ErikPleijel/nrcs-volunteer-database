@@ -1311,20 +1311,34 @@ class UserController extends Controller
             abort(403, 'Branch-level administrators cannot modify the role of another branch_secretary or branch_db_administrator. Contact a National DB Administrator.');
         }
 
-        // Security check: the incoming role must be one the assigning user is
-        // actually authorized to grant (per getAssignableRoles()), regardless of
-        // the target's CURRENT role. Closes the gap where a target not caught by
-        // either guard above (e.g. a plain branch_db_assistant) could still be
-        // promoted to a role — such as national_db_administrator or super-admin —
-        // that the assigning user holds no authorize_* permission for.
-        if ($request->filled('role')) {
-            $assignableRoleNames = $assigningUser->getAssignableRoles()->pluck('name');
-            if (! $assignableRoleNames->contains($request->input('role'))) {
-                abort(403, 'You are not authorized to assign this role.');
-            }
+        // Security check: the assigning user must be authorized to grant (per
+        // getAssignableRoles()) BOTH the incoming role and the target's CURRENT role.
+        // Incoming: a target not caught by either guard above (e.g. a plain
+        // branch_db_assistant) cannot be promoted to a role — such as
+        // national_db_administrator or super-admin — the actor holds no authorize_*
+        // permission for. Current: removing or changing a role you could not have
+        // granted is refused too, so super-admin can only remove
+        // national_db_administrator, and national admins cannot remove each other.
+        $assignableRoleNames = $assigningUser->getAssignableRoles()->pluck('name');
+        $rolesToAuthorize = $user->getRoleNames()
+            ->when($request->filled('role'), fn ($roles) => $roles->push($request->input('role')))
+            ->unique();
+        $unauthorizedRoles = $rolesToAuthorize->diff($assignableRoleNames);
+
+        if ($unauthorizedRoles->isNotEmpty()) {
+            abort(403, 'You are not authorized to assign or remove this role ('.$unauthorizedRoles->implode(', ').').');
         }
 
         $incomingRole = $validated['role'] ?? '';
+
+        // Never leave the system without a National DB Administrator.
+        if ($user->hasRole('national_db_administrator')
+            && $incomingRole !== 'national_db_administrator'
+            && User::role('national_db_administrator')->count() <= 1) {
+            return redirect()
+                ->route('users.roles.edit', ['user_id' => $user->id])
+                ->withErrors(['role' => 'This is the last National DB Administrator. Appoint another one before removing or changing this role.']);
+        }
 
         // Whitelist: only the four direct permissions may be synced
         $incomingPermissions = collect($validated['permissions'] ?? [])

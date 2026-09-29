@@ -212,7 +212,9 @@ test('a national_db_administrator cannot assign super-admin — the fix is not s
     expect($target->fresh()->hasRole('super-admin'))->toBeFalse();
 });
 
-test('clearing a role entirely is not blocked by the getAssignableRoles() check', function () {
+// Clearing a role now needs the same authority as granting the target's current role
+// (see PART 4); a branch_secretary may still clear a role it can assign.
+test('clearing a role the actor could have assigned is allowed', function () {
     $actor = User::factory()->inBranch($this->branchA)->create();
     $actor->assignRole('branch_secretary');
 
@@ -343,4 +345,85 @@ test('a non-super-admin national_db_administrator viewer still sees the fallback
     $response->assertOk();
     $response->assertSee('Edit by super-admin');
     $response->assertDontSee(route('users.roles.edit', ['user_id' => $target->id]), false);
+});
+
+/*
+|--------------------------------------------------------------------------
+| PART 4 — removing or changing a role needs authority over the CURRENT role
+|--------------------------------------------------------------------------
+*/
+
+function nationalAdmin(): User
+{
+    $user = User::factory()->create();
+    $user->assignRole('national_db_administrator');
+
+    return $user;
+}
+
+function superAdmin(): User
+{
+    $user = User::factory()->create(['is_super_admin' => true]);
+    $user->assignRole('super-admin');
+
+    return $user;
+}
+
+test('a national_db_administrator cannot remove another national_db_administrator\'s role', function () {
+    $actor = nationalAdmin();
+    $target = nationalAdmin();
+
+    updateRolesRequest($actor, ['user_id' => $target->id, 'role' => null])->assertForbidden();
+
+    expect($target->fresh()->hasRole('national_db_administrator'))->toBeTrue();
+});
+
+test('a national_db_administrator cannot change another national_db_administrator to a role it may assign', function () {
+    $actor = nationalAdmin();
+    $target = nationalAdmin();
+
+    updateRolesRequest($actor, ['user_id' => $target->id, 'role' => 'branch_secretary'])->assertForbidden();
+
+    expect($target->fresh()->hasRole('national_db_administrator'))->toBeTrue();
+});
+
+test('a super-admin can remove a national_db_administrator\'s role', function () {
+    nationalAdmin(); // another one remains, so this is not the last
+    $target = nationalAdmin();
+
+    updateRolesRequest(superAdmin(), ['user_id' => $target->id, 'role' => null])
+        ->assertRedirect(route('users.roles.edit', ['user_id' => $target->id]))
+        ->assertSessionHasNoErrors();
+
+    expect($target->fresh()->getRoleNames())->toBeEmpty();
+});
+
+test('a super-admin cannot remove a branch_secretary\'s role', function () {
+    $target = User::factory()->inBranch($this->branchA)->create();
+    $target->assignRole('branch_secretary');
+
+    updateRolesRequest(superAdmin(), ['user_id' => $target->id, 'role' => null])->assertForbidden();
+
+    expect($target->fresh()->hasRole('branch_secretary'))->toBeTrue();
+});
+
+test('the last national_db_administrator cannot be removed', function () {
+    $target = nationalAdmin();
+
+    updateRolesRequest(superAdmin(), ['user_id' => $target->id, 'role' => null])
+        ->assertRedirect(route('users.roles.edit', ['user_id' => $target->id]))
+        ->assertSessionHasErrors('role');
+
+    expect($target->fresh()->hasRole('national_db_administrator'))->toBeTrue();
+});
+
+test('a direct POST with ?user_id= in the query string is refused the same way', function () {
+    $actor = nationalAdmin();
+    $target = nationalAdmin();
+
+    actingWithConfirmedPassword($actor)
+        ->post(route('users.roles.update', ['user_id' => $target->id]), ['role' => ''])
+        ->assertForbidden();
+
+    expect($target->fresh()->hasRole('national_db_administrator'))->toBeTrue();
 });
