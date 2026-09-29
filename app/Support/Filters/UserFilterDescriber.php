@@ -354,10 +354,10 @@ class UserFilterDescriber
             $labels[] = 'Without email';
         }
         if ($get('nin_filter') === 'has') {
-            $labels[] = 'NIN on file';
+            $labels[] = 'Has NIN';
         }
         if ($get('nin_filter') === 'none') {
-            $labels[] = 'No NIN on file';
+            $labels[] = 'Has no NIN';
         }
         if ($get('org_representatives') == '1') {
             $labels[] = 'Org representatives only';

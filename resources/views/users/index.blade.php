@@ -450,8 +450,8 @@
                                 <label for="nin_filter" class="filter-label-small">National ID (NIN)</label>
                                 <select name="nin_filter" id="nin_filter" class="filter-select-small {{ request('nin_filter') ? 'filter-active' : '' }}">
                                     <option value=""     {{ request('nin_filter', '') === '' ? 'selected' : '' }}>All</option>
-                                    <option value="has"  {{ request('nin_filter') === 'has'  ? 'selected' : '' }}>NIN on file</option>
-                                    <option value="none" {{ request('nin_filter') === 'none' ? 'selected' : '' }}>No NIN on file</option>
+                                    <option value="has"  {{ request('nin_filter') === 'has'  ? 'selected' : '' }}>Has NIN</option>
+                                    <option value="none" {{ request('nin_filter') === 'none' ? 'selected' : '' }}>Has no NIN</option>
                                 </select>
                             </div>
                         </div>
