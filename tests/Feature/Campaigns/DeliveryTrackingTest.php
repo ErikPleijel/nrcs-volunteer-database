@@ -157,3 +157,22 @@ test('the monitor has queued and skipped tabs and counts', function () {
         ->assertViewHas('recipients', fn ($page) => $page->total() === 1)
         ->assertSee('Skipped shared number');
 });
+
+test('a both campaign keeps the SMS record when email and SMS both succeed', function () {
+    $campaign = ($this->makeCampaign)('both');
+    $both = ($this->addRecipient)($campaign, 'c@example.com', '+2348031234567');
+    $emailOnly = ($this->addRecipient)($campaign, 'd@example.com', null);
+
+    $this->logRunner->runOneBatch($campaign->fresh(), batch: 50, force: true);
+
+    expect($both->fresh()->status)->toBe('sent')
+        ->and($both->fresh()->channel_used)->toBe('sms')
+        ->and($both->fresh()->provider_message_id)->toStartWith('log-sms-')
+        ->and($emailOnly->fresh()->status)->toBe('sent')
+        ->and($emailOnly->fresh()->channel_used)->toBe('email');
+
+    // The post-send summary for "both" still counts by contact details, as before.
+    $summary = app(\App\Services\CampaignAudienceSummaryService::class)->summarizeFromRecipients($campaign->fresh());
+    expect($summary['willEmail'])->toBe(2)
+        ->and($summary['willSms'])->toBe(0);
+});

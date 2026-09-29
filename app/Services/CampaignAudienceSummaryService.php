@@ -117,17 +117,25 @@ class CampaignAudienceSummaryService
             ->where('messaging_campaign_id', $campaign->id)
             ->whereIn('status', MessagingRecipient::SENT_STATUSES);
 
-        // channel_used is exact; rows sent before it existed are inferred from contact details.
+        // channel_used is exact for single-channel sends. Rows sent before it existed, and
+        // every row of a "both" campaign (channel_used keeps only the SMS record when both
+        // channels succeed), are inferred from contact details as before.
+        $useChannelUsed = $campaign->channel !== 'both';
+
         $willEmail = (clone $base)
-            ->where(fn ($q) => $q->where('channel_used', 'email')
-                ->orWhere(fn ($legacy) => $legacy->whereNull('channel_used')
+            ->where(fn ($q) => $q
+                ->when($useChannelUsed, fn ($q) => $q->where('channel_used', 'email'))
+                ->orWhere(fn ($legacy) => $legacy
+                    ->when($useChannelUsed, fn ($l) => $l->whereNull('channel_used'))
                     ->whereNotNull('email')
                     ->where('email', '!=', '')))
             ->count();
 
         $willSms = (clone $base)
-            ->where(fn ($q) => $q->where('channel_used', 'sms')
-                ->orWhere(fn ($legacy) => $legacy->whereNull('channel_used')
+            ->where(fn ($q) => $q
+                ->when($useChannelUsed, fn ($q) => $q->where('channel_used', 'sms'))
+                ->orWhere(fn ($legacy) => $legacy
+                    ->when($useChannelUsed, fn ($l) => $l->whereNull('channel_used'))
                     ->where(fn ($e) => $e->whereNull('email')->orWhere('email', '=', ''))
                     ->whereNotNull('phone')
                     ->where('phone', '!=', '')))

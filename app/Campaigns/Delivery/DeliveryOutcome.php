@@ -42,6 +42,14 @@ final class DeliveryOutcome
         return null;
     }
 
+    public function successOn(string $channel): ?DeliveryAttempt
+    {
+        foreach ($this->attempts as $a) {
+            if ($a->ok && $a->channel === $channel) return $a;
+        }
+        return null;
+    }
+
     public function firstFailure(): ?DeliveryAttempt
     {
         foreach ($this->attempts as $a) {

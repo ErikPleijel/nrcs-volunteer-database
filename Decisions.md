@@ -1106,14 +1106,15 @@ be sent again through the UI. Retrying one would need a deliberate DB change.
 
 **Decision:** `messaging_recipients` stores one `channel_used` / `provider` /
 `provider_message_id` per row: the successful attempt, or the failed one. For a `both`
-campaign where email AND SMS succeed, that is the email attempt — the SMS id is not kept.
-"Reset failed" clears these columns, since they describe the previous attempt.
-`delivered` counts as sent everywhere a report asks "was this person messaged"
-(`MessagingRecipient::SENT_STATUSES`).
+campaign where email AND SMS succeed, the **SMS** attempt is kept (updated 2026-09-29;
+originally the first success, i.e. email) — it is what delivery polling and cost tracking
+need; the email provider id is not kept. "Reset failed" clears these columns, since they
+describe the previous attempt. `delivered` counts as sent everywhere a report asks "was
+this person messaged" (`MessagingRecipient::SENT_STATUSES`).
 
 **Rationale:** `both` is rarely used (the default is `email_fallback_sms`, where only one
 channel ever delivers). A per-channel row would mean reshaping the whole recipient model.
 
-**Consequences:** if `both` is ever used for paid SMS, SMS delivery polling cannot find
-those messages — revisit before building polling. The daily SMS/email rate widget keeps
-inferring channels for `both` campaigns for the same reason.
+**Consequences:** for `both` campaigns `channel_used = 'sms'` does not mean email was not
+sent, so the daily SMS/email rate widget and the post-send audience summary keep inferring
+channels from contact details for `both` campaigns.

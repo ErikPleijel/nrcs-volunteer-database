@@ -277,7 +277,9 @@ final class CampaignSendRunner
                     : $outcome->okAll());
 
                 if ($ok) {
-                    $this->markSent($campaign, $r, $outcome->firstSuccess());
+                    // When both channels succeed ("both" campaigns), keep the SMS record: it is
+                    // the one delivery polling and cost tracking need.
+                    $this->markSent($campaign, $r, $outcome->successOn('sms') ?? $outcome->firstSuccess());
                     $sentThisRun++;
                 } else {
                     $fail = $outcome->firstFailure();
@@ -364,8 +366,8 @@ final class CampaignSendRunner
     }
 
     /**
-     * Provider details of the attempt that decided the outcome. For "both", where email
-     * and SMS can each succeed, this is the first successful attempt (email).
+     * Provider details of the attempt that decided the outcome (see markSent's caller for
+     * which attempt is kept when email and SMS both succeed).
      */
     private function attemptColumns(?DeliveryAttempt $attempt): array
     {
