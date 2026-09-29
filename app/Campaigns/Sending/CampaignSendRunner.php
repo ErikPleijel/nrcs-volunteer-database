@@ -34,9 +34,11 @@ final class CampaignSendRunner
 
         $throttling = is_array($campaign->filter_json) ? ($campaign->filter_json['_throttling'] ?? []) : [];
 
-        // Reset daily counter if date changed
+        // Reset daily counter if date changed. daily_sent_date is cast to a Carbon date, so
+        // compare date strings — comparing the object to a string was always "changed",
+        // which reset the counter on every run and meant the daily cap never applied.
         $today = now()->toDateString();
-        if ($campaign->daily_sent_date !== $today) {
+        if ($campaign->daily_sent_date?->toDateString() !== $today) {
             $campaign->daily_sent_date = $today;
             $campaign->daily_sent_count = 0;
             $campaign->save();

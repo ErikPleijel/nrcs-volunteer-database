@@ -1072,3 +1072,16 @@ ALTER is cheap. Status groupings for stats live in `MessagingRecipient::SENT_STA
 
 **Consequences:** every new status needs a migration. `down()` maps new values to the
 nearest old one before shrinking the ENUM.
+
+## 2026-09-29 — Campaign daily cap is now actually enforced
+
+**Decision:** fixed `CampaignSendRunner`'s daily-counter reset, which compared the
+date-cast `daily_sent_date` (Carbon) to a string, so it was "a new day" on every run:
+the counter reset each minute and `_throttling.daily_cap` never applied.
+
+**What starts applying:** only caps an admin typed into wizard Step 3 (1–10,000).
+There is no default cap — the field is empty by default, campaign purposes carry no
+throttling, and a null cap still means unlimited. (All 3 local campaigns: no cap.)
+
+**Consequences:** a capped campaign now pauses (stays `sending`) once it reaches its cap
+and resumes the next day. "Start sending" still resets the counter to 0, as before.
