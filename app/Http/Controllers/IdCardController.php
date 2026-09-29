@@ -462,7 +462,7 @@ class IdCardController extends Controller
         $scopedId = $actor->getScopedId();
 
         $allowed = match (true) {
-            $actor->is_super_admin || $accessLevel === 'national' => true,
+            $accessLevel === 'national' => true,
             $accessLevel === 'branch' => $scopedId && (int) $target->branch_id === (int) $scopedId,
             $accessLevel === 'division' => $scopedId && (int) $target->division_id === (int) $scopedId,
             default => false,

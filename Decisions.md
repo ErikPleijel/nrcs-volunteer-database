@@ -1158,3 +1158,18 @@ hid the button ("Edit by super-admin"); menu-hiding is not security.
 **Consequences:** super-admin can only appoint and remove `national_db_administrator`.
 National admins cannot remove each other — that goes through a super-admin. A role the actor
 cannot assign also blocks editing that user's direct permissions.
+
+## 2026-09-29 — Super-admin is granted only by SuperAdminSeeder; one email-list config
+
+**Decision:** `config/superadmin.php` (`superadmin.emails`, trimmed and lower-cased) is the
+only reader of `SUPER_ADMIN_EMAILS`; `app.super_admin_emails` was removed. `UserObserver` no
+longer grants the `super-admin` role when an account is created or its email changes — only
+`SuperAdminSeeder` grants it, setting role and `is_super_admin` together. The observer still
+revokes when a super-admin's email changes to one not on the list, and now clears
+`is_super_admin` with the role (audited as `super_admin_auto_revoked`).
+
+**Rationale:** granting on "created" meant anyone self-registering with a listed email became
+super-admin before verifying the address; and the observer set the role without the flag, so
+the two could disagree. The seeder already creates these accounts and refuses if one exists.
+
+**Consequences:** to (re)create a super-admin, run `db:seed --class=SuperAdminSeeder`.

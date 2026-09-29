@@ -113,15 +113,7 @@ return [
         ),
     ],
 
-    /*
-   |--------------------------------------------------------------------------
-   | Super Admin Emails
-   |--------------------------------------------------------------------------
-   | These email addresses will automatically be granted the 'super-admin' role.
-   | Separate multiple emails with a comma.
-   */
-    'super_admin_emails' => array_filter(explode(',', env('SUPER_ADMIN_EMAILS', ''))),
-
+    // Super-admin emails (SUPER_ADMIN_EMAILS) live in config/superadmin.php.
 
     /*
     |--------------------------------------------------------------------------

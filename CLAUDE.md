@@ -12,7 +12,7 @@ User lifecycle states: `awaiting_engagement` → `active` → `dormant` → `arc
 
 ### Authorization
 
-Uses `spatie/laravel-permission`. Super admins bypass all gates (configured in `AuthServiceProvider`). Route protection uses `can:permission_name` middleware. The `UserPolicy` handles model-level authorization. Roles and permissions are seeded via `RoleSeeder`.
+Uses `spatie/laravel-permission` with **no `Gate::before` bypass**. `super-admin` exists so the Secretary General can appoint and remove National DB Administrators (see Decisions.md). `national_db_administrator` is the top working role. Route protection uses `can:permission_name` middleware; `UserPolicy` handles model-level authorization. Roles and permissions are seeded by `RolesTableSeeder`, `PermissionsTableSeeder` and `SuperAdminSeeder` (accounts from `SUPER_ADMIN_EMAILS`).
 
 ### Key Subsystems
 

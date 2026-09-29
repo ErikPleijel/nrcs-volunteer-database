@@ -20,7 +20,7 @@ class RolesTableSeeder extends Seeder
         $roles = [
 
             'super-admin' =>
-                'Holds full system-wide authority. Intended for the President, Secretary General, or designated technical system administrators.',
+                'Appoints and removes National Database Administrators — this is its only purpose. Cannot edit records, make payments, run campaigns, or approve anything. Has no personal profile.',
 
 
 

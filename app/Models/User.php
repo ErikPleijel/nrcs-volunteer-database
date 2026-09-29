@@ -1156,16 +1156,6 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
-     * Check if user is an admin
-     */
-    public function isAdmin()
-    {
-        // This method might need to be re-evaluated given the new access level logic
-        // For now, retaining it as is, but consider using getAccessLevel() === 'national'
-        return $this->hasRole('admin') || $this->hasRole('super-admin');
-    }
-
-    /**
      * Check if user is a branch admin
      */
     public function isBranchAdmin()

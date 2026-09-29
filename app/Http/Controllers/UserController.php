@@ -43,7 +43,6 @@ class UserController extends Controller
      * This is the authoritative whitelist for direct-permission assignment.
      */
     private const DIRECT_PERMISSION_NAMES = [
-        'send_bulk_messages',
         'print_idcards',
         'print_certificates',
         'campaign_request_approve',
@@ -1347,9 +1346,9 @@ class UserController extends Controller
             ->all();
 
         // Rule A: direct permissions are only meaningful on a national-level role.
-        // The three direct permissions (send_bulk_messages, print_idcards,
-        // print_certificates) are only shown in the form for non-branch admins,
-        // but enforce server-side regardless.
+        // The direct permissions (print_idcards, print_certificates,
+        // campaign_request_approve) are only shown in the form for non-branch
+        // admins, but enforce server-side regardless.
         $nationalRoles = [
             'national_db_assistant',
         ];

@@ -137,25 +137,6 @@ class MessagingCampaignController extends Controller
         return back()->with('success', 'Campaign request rejected.');
     }
 
-    public function send(Request $request, MessagingCampaign $campaign)
-    {
-        $user = Auth::user();
-
-        $this->authorizeScope($campaign, $user);
-
-        // Only approved campaigns should be allowed to queue/send
-        if ($campaign->status !== 'approved') {
-            return back()->with('error', 'Only approved campaigns can be sent.');
-        }
-
-        // Queue it (your sending job/command can pick up queued rows)
-        $campaign->update([
-            'status' => 'queued',
-        ]);
-
-        return back()->with('success', 'Campaign queued for sending.');
-    }
-
     /**
      * Scope authorization using getAccessLevel/getScopedId.
      * Tune this logic to your exact hierarchy.

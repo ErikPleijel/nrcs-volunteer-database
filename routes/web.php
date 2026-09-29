@@ -685,10 +685,6 @@ Route::middleware(['auth', 'verified.or.absent'])->group(function () {
                             ->name('submit');
                     });
             });
-
-        Route::post('/campaigns/{campaign}/send', [MessagingCampaignController::class, 'send'])
-            ->middleware('can:campaign_send')
-            ->name('campaigns.send');
     });
 
     /*

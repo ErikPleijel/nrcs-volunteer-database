@@ -76,6 +76,8 @@ beforeEach(function () {
         'manage-admin-panel', 'manage_roles_and_permissions',
         'authorize_branch_secretary', 'authorize_branch_db_administrator',
         'authorize_national_db_assistant', 'authorize_observer_national_level',
+        'authorize_branch_db_assistant', 'authorize_division_db_assistant_finance',
+        'authorize_division_db_assistant_operations',
     ]);
 
     Role::findOrCreate('branch_secretary', 'web')->syncPermissions([
@@ -426,4 +428,48 @@ test('a direct POST with ?user_id= in the query string is refused the same way',
         ->assertForbidden();
 
     expect($target->fresh()->hasRole('national_db_administrator'))->toBeTrue();
+});
+
+test('a national_db_administrator can appoint branch and division database assistants', function (string $role) {
+    $target = User::factory()->inBranch($this->branchA)->create();
+
+    updateRolesRequest(nationalAdmin(), ['user_id' => $target->id, 'role' => $role])
+        ->assertSessionHasNoErrors();
+
+    expect($target->fresh()->hasRole($role))->toBeTrue();
+})->with(['branch_db_assistant', 'division_db_assistant_finance', 'division_db_assistant_operations']);
+
+test('the Secretary General flow works end to end: open the roles page, find a person, appoint and remove a national_db_administrator', function () {
+    nationalAdmin(); // an existing national admin, so a removal is never of the last one
+    $sg = superAdmin();
+    $person = User::factory()->inBranch($this->branchA)->create(['first_name' => 'Zainab', 'last_name' => 'Okafor']);
+
+    // The Authorizations page offers national_db_administrator.
+    actingWithConfirmedPassword($sg)->get(route('users.roles.edit'))
+        ->assertOk()
+        ->assertViewHas('roles', fn ($roles) => $roles->pluck('name')->all() === ['national_db_administrator']);
+
+    // The person search finds them.
+    actingWithConfirmedPassword($sg)->getJson(route('users.search-for-roles', ['search' => 'Okafor']))
+        ->assertOk()
+        ->assertJsonFragment(['id' => $person->id]);
+
+    // Selecting them opens the edit panel.
+    actingWithConfirmedPassword($sg)->get(route('users.roles.edit', ['user_id' => $person->id]))
+        ->assertOk()
+        ->assertViewHas('selectedUser', fn ($u) => $u->id === $person->id);
+
+    // Appoint.
+    updateRolesRequest($sg, ['user_id' => $person->id, 'role' => 'national_db_administrator'])
+        ->assertRedirect(route('users.roles.edit', ['user_id' => $person->id]))
+        ->assertSessionHasNoErrors();
+    expect($person->fresh()->hasRole('national_db_administrator'))->toBeTrue();
+
+    // Remove again.
+    updateRolesRequest($sg, ['user_id' => $person->id, 'role' => null])
+        ->assertSessionHasNoErrors();
+    expect($person->fresh()->getRoleNames())->toBeEmpty();
+
+    // Both changes are in the audit log.
+    expect(\App\Models\Log::where('action', 'user_roles_updated')->where('subject_id', $person->id)->count())->toBe(2);
 });

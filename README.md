@@ -112,7 +112,7 @@ php artisan db:seed
 
 ### First Login
 
-After seeding, a default super-admin account is created. Credentials are defined in `DatabaseSeeder.php`. Change the password immediately after first login.
+Set `SUPER_ADMIN_EMAILS` in `.env` (comma-separated) before seeding. `SuperAdminSeeder` creates one super-admin account per address, with a random password and a verified email — use "Forgot password" to set a password. Super-admin can only appoint and remove National DB Administrators; do the day-to-day administration as a `national_db_administrator`. The seeder stops if an account already exists for a listed address, so that account can be reviewed first.
 
 ---
 

@@ -1819,7 +1819,6 @@
         $myRole = auth()->user()->primary_role_name; // machine name, e.g. 'branch_secretary'
         $myExtraPermissions = auth()->user()->getDirectPermissions()->pluck('name');
         $extraPermissionLabels = [
-            'send_bulk_messages' => 'Bulk Messaging',
             'print_idcards' => 'Print ID Cards',
             'print_certificates' => 'Print Certificates',
             'campaign_request_approve' => 'Campaign Request Approve',
