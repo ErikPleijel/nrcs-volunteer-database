@@ -3,6 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Campaigns\Recipients\CampaignRecipientBuilder;
+use App\Campaigns\Sending\SmsFooter;
+use App\Campaigns\Sms\SmsProjection;
+use Illuminate\Support\Collection;
 use App\Models\Log as AuditLog;
 use App\Models\MessagingCampaign;
 use App\Models\User;
@@ -145,9 +148,12 @@ class CampaignAdminController extends Controller
             ->stuckQueued()
             ->count();
 
+        $smsProjection = $this->smsProjection($campaign, $sample);
+
         return view('campaigns.admin.show', compact(
             'campaign',
             'stuckQueuedCount',
+            'smsProjection',
             'filters',
             'throttling',
             'matchedTotal',
@@ -163,6 +169,30 @@ class CampaignAdminController extends Controller
             'reachabilityKnown'
         ));
 
+    }
+
+    /**
+     * Estimated SMS volume, or null when the campaign sends no SMS. Pages use the SMS body
+     * rendered for sample recipients (the campaign's own audience when none are given).
+     */
+    private function smsProjection(MessagingCampaign $campaign, ?Collection $sample = null): ?array
+    {
+        $smsText = trim((string) data_get($campaign->filter_json, '_content.sms_body', ''));
+
+        if ($smsText === '' || ! in_array($campaign->channel, ['sms', 'both', 'email_fallback_sms'], true)) {
+            return null;
+        }
+
+        $sample ??= app(CampaignRecipientBuilder::class)->audience($campaign)
+            ->select(CampaignPlaceholderRenderer::USER_COLUMNS)
+            ->with(CampaignPlaceholderRenderer::USER_RELATIONS)
+            ->limit(20)
+            ->get();
+
+        $footer = SmsFooter::preview();
+        $bodies = $sample->map(fn (User $u) => trim(CampaignPlaceholderRenderer::render($smsText, $u)).$footer)->all();
+
+        return app(SmsProjection::class)->estimate($campaign, [$smsText.$footer, ...$bodies]);
     }
 
     public function approve(Request $request, MessagingCampaign $campaign)

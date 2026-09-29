@@ -1215,3 +1215,21 @@ aa115c3 after an audit read the role description literally; reverted.)
 **Consequences:** the role description no longer says "database assistants at all levels".
 With the 2026-09-29 role-removal rule, national admins also cannot change or remove those
 three roles; that too goes through the branch.
+
+## 2026-09-29 — SMS page counting and the projected SMS volume
+
+**Decision:** SMS pages are counted by `App\Support\SmsSegments` (GSM-7 160/153 with
+extension characters counting double; any other character — Hausa ƙ ɗ ɓ, emoji — makes the
+message UCS-2 at 70/67). A JS twin (`campaigns/partials/sms-segments-js`) drives the live
+counters; keep the two in step. The opt-out footer is defined once (`SmsFooter`) and every
+count includes it.
+
+The projection shown at Step 5 and on the approval screen is **SMS recipients × pages =
+SMS pages** (× `sms.price_per_segment` when set). Recipients come from the built recipient
+rows once they exist, otherwise from `SmsNumberPlanner` (same opt-out / invalid / shared-number
+rules as the builder, cached 10 minutes). Pages are the most any rendered sample message
+needs (placeholders change lengths per person).
+
+**Consequences:** it is an estimate. For `email_fallback_sms` it excludes people whose email
+fails at send time and falls back to SMS (a lower bound). The planner now reads plain rows
+(~4–5 s for a national audience locally, down from ~30 s).

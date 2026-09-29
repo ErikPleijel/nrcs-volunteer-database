@@ -24,7 +24,10 @@ final class RecipientContact
         public readonly bool $getsSms,
     ) {}
 
-    public static function for(User $user, string $channel): self
+    /**
+     * @param  User|\stdClass  $user  a User, or a plain row with the SmsNumberPlanner::USER_COLUMNS
+     */
+    public static function for(object $user, string $channel): self
     {
         $usesEmail = in_array($channel, ['email', 'both', 'email_fallback_sms'], true);
         $usesSms = in_array($channel, ['sms', 'both', 'email_fallback_sms'], true);

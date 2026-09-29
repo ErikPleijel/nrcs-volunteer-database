@@ -28,9 +28,10 @@ final class SmsNumberPlanner
         /** @var array<string, array{0:int,1:int,2:int}> $best number => rank tuple (lower wins) */
         $best = [];
 
+        // Plain rows (toBase), not models: several times faster on a national audience.
         (clone $audience)
-            ->select(self::USER_COLUMNS)
-            ->orderBy('id')
+            ->toBase()
+            ->select(array_map(fn ($column) => 'users.'.$column, self::USER_COLUMNS))
             ->chunkById($chunk, function ($users) use ($channel, &$best) {
                 foreach ($users as $user) {
                     $contact = RecipientContact::for($user, $channel);
@@ -49,7 +50,7 @@ final class SmsNumberPlanner
                         $best[$number] = $rank;
                     }
                 }
-            });
+            }, 'users.id', 'id');
 
         return array_map(fn (array $rank) => $rank[2], $best);
     }

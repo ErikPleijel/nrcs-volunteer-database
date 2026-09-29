@@ -251,7 +251,7 @@ final class CampaignSendRunner
                                 .'</p>';
                         }
                         if ($wantsSms) {
-                            $smsBodyFinal .= "\nTo stop: ".url('/u/'.$token.'/sms');
+                            $smsBodyFinal .= SmsFooter::for($token);
                         }
                     }
                 }

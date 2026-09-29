@@ -64,16 +64,13 @@
                 );
             };
 
-            // Opt-out footer appended to every SMS at send time (CampaignSendRunner).
-            // Placeholder token is a fixed 32 X's, matching the real id_check_token
-            // length (Str::random(32)) exactly, so preview counts match reality.
-            $smsFooterPlaceholderToken = str_repeat('X', 32);
-            $smsFooterSuffix = "\nTo stop: ".config('app.url').'/u/'.$smsFooterPlaceholderToken.'/sms';
+            // Opt-out footer appended to every SMS at send time (CampaignSendRunner), with a
+            // placeholder token of the real length, so preview counts match reality.
+            $smsFooterSuffix = \App\Campaigns\Sending\SmsFooter::preview();
 
             $smsTrim = trim($smsText);
             $smsTrimWithFooter = ($hasSms && $smsTrim !== '') ? $smsTrim.$smsFooterSuffix : $smsTrim;
-            $smsChars = mb_strlen($smsTrimWithFooter);
-            $smsParts = $smsChars === 0 ? 0 : ($smsChars <= 160 ? 1 : (int) ceil($smsChars / 153));
+            $smsStats = \App\Support\SmsSegments::analyse($smsTrimWithFooter);
 
             // Build personalised previews from $sample (same pattern as wizard step 5)
             $samplePreviews = [];
@@ -280,8 +277,9 @@
                             <div class="rounded-md border border-gray-200 bg-white p-4 space-y-3">
                                 <div class="text-sm font-semibold uppercase tracking-wide text-gray-500">SMS</div>
                                 <div class="text-xs text-gray-500">
-                                    {{ $smsChars }} chars · {{ $smsParts }} part(s) · {{ number_format($willSms ?? 0) }} will receive SMS.
+                                    Template: {{ $smsStats['chars'] }} chars · {{ $smsStats['segments'] }} SMS page(s){{ $smsStats['encoding'] === 'UCS-2' ? ' · Unicode' : '' }} (opt-out link included).
                                 </div>
+                                @include('campaigns.partials.sms-projection')
                                 <div>
                                     <div class="text-xs text-gray-500 mb-1">Message (rendered)</div>
                                     <div id="admin-sms-body"
@@ -294,7 +292,7 @@
                                         <i class="fas fa-info-circle mr-1"></i>Includes the opt-out link every SMS gets at send time (shown with a placeholder token above).
                                     </div>
                                 @endif
-                                @if($smsChars > 160)
+                                @if($smsStats['segments'] > 1)
                                     <div class="text-xs text-gray-500">Note: multi-part SMS may arrive split on some phones.</div>
                                 @endif
                             </div>

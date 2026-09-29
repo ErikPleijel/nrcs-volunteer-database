@@ -175,7 +175,7 @@
                                       {{ $smsDisabled ? 'disabled' : '' }}>{{ old('sms_body', data_get($content, 'sms_body', '')) }}</textarea>
                             @if($showSms)
                                 <div class="rounded-md border border-gray-200 bg-gray-50 p-3 text-xs text-gray-500" id="sms-footer-preview">
-                                    <p class="break-all">To stop: {{ config('app.url') }}/u/<span class="not-italic text-gray-600 bg-gray-200 rounded px-0.5" title="Placeholder only — the real link uses a unique 32-character token per recipient">XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX</span>/sms</p>
+                                    <p class="break-all">To stop: {{ rtrim(config('app.url'), '/') }}/u/<span class="not-italic text-gray-600 bg-gray-200 rounded px-0.5" title="Placeholder only — the real link uses a unique 32-character token per recipient">XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX</span>/sms</p>
 
                                     <p class="mt-3  text-gray-600 mb-1"><i class="fas fa-lock mr-1"></i>Opt out automatically appended.</p>
 
@@ -183,6 +183,7 @@
                             @endif
 
                             @error('sms_body') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                            <div id="smsUnicodeWarning" class="hidden rounded-md bg-amber-50 border border-amber-200 p-3 text-xs text-amber-900"></div>
                             <div id="smsWarnings" class="hidden rounded-md bg-amber-50 p-3 text-xs text-amber-900"></div>
                             <div id="smsBodyWarning" class="hidden mt-2 rounded-md bg-amber-50 border border-amber-200 p-3 text-xs text-amber-900"></div>
 
@@ -251,6 +252,7 @@
     </div>
 
     @push('scripts')
+        @include('campaigns.partials.sms-segments-js')
         <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
         <script>
             document.addEventListener('DOMContentLoaded', function () {
@@ -477,19 +479,29 @@
                 // id_check_token length (Str::random(32)) exactly, so the
                 // character count below matches what actually gets sent.
                 const appUrl = "{{ config('app.url') }}";
-                const smsFooterSuffix = `\nTo stop: ${appUrl}/u/XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX/sms`;
+                const smsFooterSuffix = @json(\App\Campaigns\Sending\SmsFooter::preview());
 
                 // ── SMS CHAR COUNT (existing logic preserved, now includes the footer) ─
                 const smsCharCount = document.getElementById('smsCharCount');
                 const smsPartsHint = document.getElementById('smsPartsHint');
 
+                const smsUnicodeWarning = document.getElementById('smsUnicodeWarning');
+
                 if (smsBodyTa && smsCharCount) {
                     function updateSmsCount() {
-                        const len   = smsBodyTa.value.length + smsFooterSuffix.length;
-                        const parts = len <= 160 ? 1 : Math.ceil(len / 153);
-                        smsCharCount.textContent = len;
+                        const s = window.nrcsSmsSegments(smsBodyTa.value + smsFooterSuffix);
+                        smsCharCount.textContent = s.chars;
                         if (smsPartsHint) {
-                            smsPartsHint.textContent = `~${parts} SMS`;
+                            smsPartsHint.textContent = `~${s.segments} SMS page${s.segments === 1 ? '' : 's'}`;
+                            smsPartsHint.classList.toggle('text-green-700', s.encoding === 'GSM-7');
+                            smsPartsHint.classList.toggle('text-amber-700', s.encoding !== 'GSM-7');
+                        }
+                        if (smsUnicodeWarning) {
+                            const unicode = s.encoding !== 'GSM-7';
+                            smsUnicodeWarning.classList.toggle('hidden', !unicode);
+                            smsUnicodeWarning.textContent = unicode
+                                ? `Unicode SMS: ${s.nonGsm.slice(0, 10).join(' ')} ${s.nonGsm.length > 10 ? '…' : ''} is outside the standard SMS alphabet, so each page holds 70 characters (67 when split) instead of 160 — this roughly doubles the number of pages and the cost.`
+                                : '';
                         }
                     }
                     smsBodyTa.addEventListener('input', updateSmsCount);

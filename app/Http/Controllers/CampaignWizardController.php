@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Campaigns\Sending\SmsFooter;
+use App\Campaigns\Sms\SmsProjection;
 use App\Models\CampaignPurpose;
 use App\Models\MessagingCampaign;
 use App\Models\User;
@@ -11,6 +13,7 @@ use App\Services\PlaceholderBracketValidator;
 use App\Services\UrlDomainValidator;
 use App\Services\UserFilterService;
 use App\Support\CampaignPlaceholderRenderer;
+use App\Support\SmsSegments;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -683,12 +686,10 @@ class CampaignWizardController extends Controller
         // ✅ Personalised previews for Step 5
         // Keyed by sample user id
         // ----------------------------
-        // Opt-out footer appended to every SMS at send time (CampaignSendRunner).
-        // Placeholder token is a fixed 32 X's, matching the real id_check_token
-        // length (Str::random(32)) exactly, so preview counts match reality.
+        // Opt-out footer appended to every SMS at send time (CampaignSendRunner), with a
+        // placeholder token of the real length, so preview counts match reality.
         $hasSms = in_array($channel, ['sms', 'both', 'email_fallback_sms'], true);
-        $smsFooterPlaceholderToken = str_repeat('X', 32);
-        $smsFooterSuffix = "\nTo stop: ".config('app.url').'/u/'.$smsFooterPlaceholderToken.'/sms';
+        $smsFooterSuffix = SmsFooter::preview();
 
         $samplePreviews = [];
         foreach ($sampleUsers as $u) {
@@ -699,13 +700,26 @@ class CampaignWizardController extends Controller
                 $renderedSmsBody .= $smsFooterSuffix;
             }
 
+            $smsAnalysis = SmsSegments::analyse($renderedSmsBody);
+
             $samplePreviews[$u->id] = [
                 'label' => $label,
                 'email_subject' => CampaignPlaceholderRenderer::render($emailSubject, $u),
                 'email_body' => CampaignPlaceholderRenderer::render($emailBody, $u),
                 'sms_body' => $renderedSmsBody,
+                'sms_chars' => $smsAnalysis['chars'],
+                'sms_segments' => $smsAnalysis['segments'],
+                'sms_encoding' => $smsAnalysis['encoding'],
             ];
         }
+
+        // Unrendered template + footer too, so the estimate works without sample users.
+        $smsProjection = $hasSms && trim($smsBody) !== ''
+            ? app(SmsProjection::class)->estimate($campaign, [
+                trim($smsBody).$smsFooterSuffix,
+                ...array_column($samplePreviews, 'sms_body'),
+            ])
+            : null;
 
         $audience = [
             'total' => $matchedTotal,
@@ -754,6 +768,7 @@ class CampaignWizardController extends Controller
 
             // ✅ NEW for personalised message preview
             'samplePreviews' => $samplePreviews,
+            'smsProjection' => $smsProjection,
         ]);
     }
 

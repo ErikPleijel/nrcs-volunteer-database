@@ -38,15 +38,13 @@
         $firstSampleId = !empty($samplePreviews) ? array_key_first($samplePreviews) : null;
         $firstPreview = $firstSampleId ? ($samplePreviews[$firstSampleId] ?? null) : null;
 
-        // Opt-out footer appended to every SMS at send time (CampaignSendRunner).
-        // Placeholder token is a fixed 32 X's, matching the real id_check_token
-        // length (Str::random(32)) exactly, so preview counts match reality.
-        $smsFooterPlaceholderToken = str_repeat('X', 32);
-        $smsFooterSuffix = "\nTo stop: ".config('app.url').'/u/'.$smsFooterPlaceholderToken.'/sms';
+        // Opt-out footer appended to every SMS at send time (CampaignSendRunner), with a
+        // placeholder token of the real length, so preview counts match reality.
+        $smsFooterSuffix = \App\Campaigns\Sending\SmsFooter::preview();
         $smsBodyTrimmed = trim((string) $smsBody);
         $smsBodyWithFooter = ($hasSms && $smsBodyTrimmed !== '') ? $smsBodyTrimmed.$smsFooterSuffix : $smsBodyTrimmed;
-        $smsCharsRaw = strlen($smsBodyWithFooter);
-        $smsPartsRaw = $smsCharsRaw === 0 ? 0 : ($smsCharsRaw <= 160 ? 1 : (int) ceil($smsCharsRaw / 153));
+        $smsRaw = \App\Support\SmsSegments::analyse($smsBodyWithFooter);
+        $smsProjection = $smsProjection ?? null;
     @endphp
 
     <div class="space-y-6">
@@ -196,11 +194,12 @@
                                 </p>
                             @endif
                             <div id="smsStatsRendered" class="mt-2 text-xs text-gray-500">
-                                @if(!$firstPreview && $smsCharsRaw > 0)
-                                    {{ $smsCharsRaw }} chars · {{ $smsPartsRaw }} part(s)
+                                @if(!$firstPreview && $smsRaw['chars'] > 0)
+                                    {{ $smsRaw['chars'] }} chars · {{ $smsRaw['segments'] }} SMS page(s){{ $smsRaw['encoding'] === 'UCS-2' ? ' · Unicode' : '' }}
                                 @endif
                             </div>
                         </div>
+                        @include('campaigns.partials.sms-projection')
                     </div>
                 @endif
             </div>
@@ -346,12 +345,6 @@
             };
 
             // ── RECIPIENT SWAP ─────────────────────────────────────────
-            function smsParts(text) {
-                const t = (text || '').trim();
-                const chars = t.length;
-                if (chars === 0) return { chars: 0, parts: 0 };
-                return { chars, parts: chars <= 160 ? 1 : Math.ceil(chars / 153) };
-            }
 
             function apply(id) {
                 const p = previews[id];
@@ -371,8 +364,10 @@
 
                 if (smsBodyEl) smsBodyEl.textContent = p.sms_body || '—';
                 if (smsStatsEl) {
-                    const s = smsParts(p.sms_body || '');
-                    smsStatsEl.textContent = s.chars > 0 ? `${s.chars} chars · ${s.parts} part(s)` : '';
+                    // Counted server-side (App\Support\SmsSegments), per recipient.
+                    smsStatsEl.textContent = p.sms_chars > 0
+                        ? `${p.sms_chars} chars · ${p.sms_segments} SMS page(s)${p.sms_encoding === 'UCS-2' ? ' · Unicode' : ''}`
+                        : '';
                 }
             }
 
