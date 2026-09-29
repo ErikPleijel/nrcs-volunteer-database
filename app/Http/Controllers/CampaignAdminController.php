@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Log as AuditLog;
 use App\Models\MessagingCampaign;
 use App\Models\User;
 use App\Models\Branch;
@@ -138,8 +139,14 @@ class CampaignAdminController extends Controller
 
         $throttling = $filters['_throttling'] ?? [];
 
+        $stuckQueuedCount = MessagingRecipient::query()
+            ->where('messaging_campaign_id', $campaign->id)
+            ->stuckQueued()
+            ->count();
+
         return view('campaigns.admin.show', compact(
             'campaign',
+            'stuckQueuedCount',
             'filters',
             'throttling',
             'matchedTotal',
@@ -491,6 +498,9 @@ class CampaignAdminController extends Controller
         $affected = MessagingRecipient::query()
             ->where('messaging_campaign_id', $campaign->id)
             ->whereIn('status', $statusesToReset)
+            // Stuck rows an admin marked failed may already have been sent — never retry them.
+            ->where(fn ($w) => $w->whereNull('last_error')
+                ->orWhere('last_error', '!=', MessagingRecipient::STUCK_MARKED_FAILED_ERROR))
             ->update([
                 'status' => 'pending',
                 'last_error' => null,
@@ -536,6 +546,58 @@ class CampaignAdminController extends Controller
         $label = $includeBounced ? 'failed/bounced/undeliverable' : 'failed';
 
         return back()->with('success', "{$affected} {$label} recipients reset to pending.");
+    }
+
+    /**
+     * Mark recipients stuck in 'queued' (claimed by a runner that never recorded a result)
+     * as failed, so the campaign's numbers add up. Deliberately NOT re-queued: the message
+     * may already have gone out, and sending is at-most-once (see Decisions.md).
+     */
+    public function failStuckQueued(Request $request, MessagingCampaign $campaign)
+    {
+        $user = Auth::user();
+        abort_unless($user->can('campaign_request_approve'), 403);
+
+        $affected = MessagingRecipient::query()
+            ->where('messaging_campaign_id', $campaign->id)
+            ->stuckQueued()
+            ->update([
+                'status' => 'failed',
+                'last_error' => MessagingRecipient::STUCK_MARKED_FAILED_ERROR,
+                'updated_at' => now(),
+            ]);
+
+        if ($affected > 0) {
+            $this->refreshRecipientStats($campaign);
+
+            AuditLog::write(
+                'campaign_stuck_queued_marked_failed',
+                $campaign,
+                null,
+                null,
+                [
+                    'count' => $affected,
+                    'channel' => $campaign->channel,
+                    'threshold_minutes' => MessagingRecipient::STUCK_QUEUED_MINUTES,
+                ],
+                sprintf('%d recipient(s) stuck in queued marked failed on campaign #%d.', $affected, $campaign->id)
+            );
+        }
+
+        return redirect()
+            ->route('campaigns.admin.show', $campaign)
+            ->with('success', "{$affected} stuck recipient(s) marked failed. They will not be retried.");
+    }
+
+    private function refreshRecipientStats(MessagingCampaign $campaign): void
+    {
+        $base = MessagingRecipient::query()->where('messaging_campaign_id', $campaign->id);
+
+        $campaign->update([
+            'stats_total' => (clone $base)->count(),
+            'stats_sent' => (clone $base)->where('status', 'sent')->count(),
+            'stats_failed' => (clone $base)->whereIn('status', ['failed', 'bounced', 'undeliverable'])->count(),
+        ]);
     }
 
     public function startSending(Request $request, MessagingCampaign $campaign, CampaignSendRunner $runner)
@@ -650,8 +712,11 @@ class CampaignAdminController extends Controller
         $filters = is_array($campaign->filter_json) ? $campaign->filter_json : [];
         $throttling = $filters['_throttling'] ?? [];
 
+        $stuckQueuedCount = (clone $base)->stuckQueued()->count();
+
         return view('campaigns.admin.monitor', compact(
             'campaign',
+            'stuckQueuedCount',
             'throttling',
             'totalCount',
             'pendingCount',

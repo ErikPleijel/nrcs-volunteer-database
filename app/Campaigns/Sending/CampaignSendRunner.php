@@ -112,6 +112,7 @@ final class CampaignSendRunner
             if ($pendingLeft === 0) {
                 $campaign->status = 'sent';
                 $campaign->send_completed_at = now();
+                $this->logQueuedLeftovers($campaign);
             }
             $campaign->save();
 
@@ -311,6 +312,7 @@ final class CampaignSendRunner
                 'status' => 'sent',
                 'send_completed_at' => now(),
             ]);
+            $this->logQueuedLeftovers($campaign);
         }
 
         return [
@@ -349,6 +351,25 @@ final class CampaignSendRunner
         $r->update(['status' => 'sent', 'sent_at' => now(), 'last_error' => null]);
 
         $campaign->increment('daily_sent_count');
+    }
+
+    /**
+     * A campaign completes once nothing is pending, so it never hangs in "sending". Rows
+     * still 'queued' (a result never recorded) are flagged here and on the admin pages.
+     */
+    private function logQueuedLeftovers(MessagingCampaign $campaign): void
+    {
+        $queued = MessagingRecipient::query()
+            ->where('messaging_campaign_id', $campaign->id)
+            ->where('status', 'queued')
+            ->count();
+
+        if ($queued > 0) {
+            Log::channel('campaign_deliveries')->warning('Campaign completed with recipients still queued', [
+                'campaign_id' => $campaign->id,
+                'queued' => $queued,
+            ]);
+        }
     }
 
     private function logStop(MessagingCampaign $campaign, string $reason, array $context = []): void

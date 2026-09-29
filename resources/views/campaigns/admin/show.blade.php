@@ -34,6 +34,8 @@
             </div>
         @endif
 
+        @include('campaigns.admin.partials.stuck-queued')
+
         {{-- Message PHP block (kept outside grid for scope) --}}
         @php
             $channel = $campaign->channel ?? 'email';

@@ -601,6 +601,7 @@ Route::middleware(['auth', 'verified.or.absent'])->group(function () {
                 Route::post('/{campaign}/queue', [CampaignAdminController::class, 'queue'])->name('queue');
                 Route::post('/{campaign}/build-recipients', [CampaignAdminController::class, 'buildRecipients'])->name('buildRecipients');
                 Route::post('/{campaign}/recipients/reset-failed', [CampaignAdminController::class, 'resetFailedRecipients'])->name('recipients.resetFailed');
+                Route::post('/{campaign}/recipients/fail-stuck', [CampaignAdminController::class, 'failStuckQueued'])->name('recipients.failStuck');
                 Route::post('/{campaign}/start-sending', [CampaignAdminController::class, 'startSending'])->name('startSending');
                 Route::post('/{campaign}/stop-sending', [CampaignAdminController::class, 'stopSending'])->name('stopSending');
                 Route::get('/{campaign}/monitor', [CampaignAdminController::class, 'monitor'])->name('monitor');

@@ -33,6 +33,12 @@
         </div>
     </div>
 
+    @if ($stuckQueuedCount > 0)
+        <div class="mb-6">
+            @include('campaigns.admin.partials.stuck-queued')
+        </div>
+    @endif
+
     {{-- KPI cards --}}
     <div class="grid grid-cols-2 gap-3 md:grid-cols-4">
         <div class="rounded-xl bg-white p-4 ring-1 ring-slate-200">

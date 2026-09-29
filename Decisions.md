@@ -1085,3 +1085,19 @@ throttling, and a null cap still means unlimited. (All 3 local campaigns: no cap
 
 **Consequences:** a capped campaign now pauses (stays `sending`) once it reaches its cap
 and resumes the next day. "Start sending" still resets the counter to 0, as before.
+
+## 2026-09-29 — Stuck `queued` recipients: flagged, manually failed, never retried
+
+**Decision:** a campaign still completes (`sent`) once nothing is `pending`, even if some
+rows are `queued`, so it never hangs in `sending`. Rows `queued` for more than 15 minutes
+(`MessagingRecipient::STUCK_QUEUED_MINUTES`) are shown as a warning on the admin campaign
+page and the monitor, and the runner logs a warning when it completes a campaign with
+`queued` rows. An admin (`campaign_request_approve`) can mark them failed; that is audited
+(`campaign_stuck_queued_marked_failed`) and sets `last_error` to
+`MessagingRecipient::STUCK_MARKED_FAILED_ERROR`.
+
+**Rationale:** the at-most-once rule (see above) means a stuck row may already have been
+delivered. No automatic re-queueing.
+
+**Consequences:** "Reset failed" skips rows carrying that error, so a stuck row can never
+be sent again through the UI. Retrying one would need a deliberate DB change.
