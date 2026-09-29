@@ -1250,3 +1250,24 @@ spending on SMS.
 **Consequences:** `LogEmailChannel` (dry-run email) still logs the full address and body —
 out of this SMS-only scope; left for a separate decision.
 
+## 2026-09-29 — SMSLive247 integration: dry run by default, sends never retried
+
+**Decision:** `App\Services\SmsLive247Service` (Paystack pattern: config-driven, typed
+`SmsLive247Exception`, `Http::fake` tests) and a thin `SmsLive247Channel`. Two switches must
+both be flipped before a real SMS leaves: `CAMPAIGN_SMS_CHANNEL=smslive247` (default `log`)
+and `SMSLIVE247_DRY_RUN=false` (default `true`). A campaign run with `--dry-run` never calls
+the API regardless. **Sends are never retried automatically** — only the read calls (status,
+balance) retry, on connection errors and 5xx, never on 4xx.
+
+**Rationale:** a send that timed out or returned 5xx may still have been delivered; retrying
+would break the at-most-once rule. No credentials exist yet.
+
+**Unconfirmed until we have an account** (each isolated in one place): the auth header format
+(`Authorization: <api key>`, in `client()`), the send response's message-id field
+(`messageIdFrom()` tries several spellings; a missing id is logged, not a failure), and the
+status/balance response shapes (returned raw).
+
+**Not built yet (TODO):** delivery-status polling (`delivered`/`expired`, `delivered_at`,
+`provider_status`, `cost`) and the scheduled balance check — wait for the confirmed response
+schema.
+

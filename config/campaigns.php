@@ -2,10 +2,15 @@
 
 return [
     'delivery' => [
-        // later: swap these to SendGridChannel::class / TwilioSmsChannel::class etc.
+        // later: swap the email one to a real channel (e.g. SendGrid) as well.
         'channels' => [
             \App\Campaigns\Delivery\LogEmailChannel::class,
-            \App\Campaigns\Delivery\LogSmsChannel::class,
+
+            // CAMPAIGN_SMS_CHANNEL=log (default, log only) | smslive247 (see config/smslive247.php,
+            // which itself stays in dry run until SMSLIVE247_DRY_RUN=false).
+            env('CAMPAIGN_SMS_CHANNEL', 'log') === 'smslive247'
+                ? \App\Campaigns\Delivery\SmsLive247Channel::class
+                : \App\Campaigns\Delivery\LogSmsChannel::class,
         ],
 
         // if your campaign "both" should be considered success when:
