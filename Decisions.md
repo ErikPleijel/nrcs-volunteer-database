@@ -1040,3 +1040,35 @@ Rationale: a person's engagement with the organisation is real, confirmed activi
 Guard condition: $user->lifecycle_status === 'pending_engagement' only — active and dormant users pass through unaffected, matching the RC-unit pattern's own gating. markActive() itself was not modified; it remains a generic, caller-gated method. unlinkUser() and setPrimaryContact() are untouched — no promotion logic on detachment or primary-contact changes.
 
 Verified (rolled-back transaction, real users, nothing persisted): three users forced into pending_engagement/active/dormant respectively, each linked via the real linkUser() call — only the pending_engagement user was promoted (→ active); the other two passed through unchanged.
+
+---
+
+## 2026-09-29 — Campaign sending is at-most-once (`queued` = claimed)
+
+**Decision:** `CampaignSendRunner` no longer wraps a batch in one DB transaction. Each
+recipient is claimed with an atomic `pending → queued` UPDATE before it is sent, and its
+result is written immediately after. A recipient left in `queued` (the process died, or
+writing its result failed after the send) is **never picked up automatically**.
+
+**Rationale:** with the old batch transaction, any error after some sends rolled those
+recipients back to `pending`, so the next run sent them again — tolerable with the
+log-only channels, not with paid SMS. The claim also stops the admin "Start sending" /
+"Run once" buttons (which bypass the scheduler's `campaigns:send` lock) from sending a
+row the scheduler is already sending.
+
+**Accepted consequences:** we prefer a missed message to a duplicate. Stuck `queued`
+rows need a person to check the provider and resolve them; "Reset failed" does not
+touch them.
+
+## 2026-09-29 — `messaging_recipients.status` stays a MySQL ENUM
+
+**Decision:** the SMS-era statuses (`queued`, `delivered`, `expired`,
+`skipped_shared_number`, `skipped_invalid_number`) were added by extending the ENUM
+(raw `ALTER TABLE … MODIFY`), not by converting the column to a string.
+
+**Rationale:** the database keeps rejecting unknown values; the table is small, so the
+ALTER is cheap. Status groupings for stats live in `MessagingRecipient::SENT_STATUSES`,
+`FAILED_STATUSES` and `SKIPPED_STATUSES`.
+
+**Consequences:** every new status needs a migration. `down()` maps new values to the
+nearest old one before shrinking the ENUM.

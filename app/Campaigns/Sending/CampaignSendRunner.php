@@ -8,7 +8,6 @@ use App\Models\MessagingCampaign;
 use App\Models\MessagingRecipient;
 use App\Models\User;
 use App\Support\CampaignPlaceholderRenderer;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 final class CampaignSendRunner
@@ -130,9 +129,16 @@ final class CampaignSendRunner
         $sentThisRun = 0;
         $failedThisRun = 0;
 
-        DB::beginTransaction();
+        // No transaction around the batch: each recipient's result is written as soon as it
+        // is known, so a failure later in the batch can never roll an already-sent recipient
+        // back to pending (which the next run would send again).
         try {
             foreach ($recipients as $r) {
+                // Another runner (scheduler vs. the admin Start/Run-once buttons) took it.
+                if (! $this->claim($r)) {
+                    continue;
+                }
+
                 $email = $r->email ? trim((string) $r->email) : null;
                 $phone = $r->phone ? trim((string) $r->phone) : null;
 
@@ -244,28 +250,10 @@ final class CampaignSendRunner
                     ],
                 );
 
+                // Only the provider call is guarded here. If writing the result fails AFTER a
+                // send, that error propagates and the recipient stays 'queued' — never re-sent.
                 try {
                     $outcome = $this->delivery->deliver($campaign->channel, $r, $message);
-
-                    if ($dryRun) {
-                        $r->update(['status' => 'sent', 'sent_at' => now(), 'last_error' => null]);
-                        $sentThisRun++;
-
-                        continue;
-                    }
-
-                    $ok = in_array($campaign->channel, ['both', 'email_fallback_sms'], true)
-                        ? $outcome->okAtLeastOne()
-                        : $outcome->okAll();
-
-                    if ($ok) {
-                        $r->update(['status' => 'sent', 'sent_at' => now(), 'last_error' => null]);
-                        $sentThisRun++;
-                    } else {
-                        $fail = $outcome->firstFailure();
-                        $r->update(['status' => 'failed', 'last_error' => $fail?->errorMessage ?? 'Delivery failed']);
-                        $failedThisRun++;
-                    }
                 } catch (\Throwable $e) {
                     $r->update(['status' => 'failed', 'last_error' => $e->getMessage()]);
                     $failedThisRun++;
@@ -276,26 +264,39 @@ final class CampaignSendRunner
                         'recipient_id' => $r->id,
                         'error' => $e->getMessage(),
                     ]);
+
+                    continue;
+                }
+
+                $ok = $dryRun || (in_array($campaign->channel, ['both', 'email_fallback_sms'], true)
+                    ? $outcome->okAtLeastOne()
+                    : $outcome->okAll());
+
+                if ($ok) {
+                    $this->markSent($campaign, $r);
+                    $sentThisRun++;
+                } else {
+                    $fail = $outcome->firstFailure();
+                    $r->update(['status' => 'failed', 'last_error' => $fail?->errorMessage ?? 'Delivery failed']);
+                    $failedThisRun++;
                 }
             }
-
-            $campaign->daily_sent_count = (int) $campaign->daily_sent_count + $sentThisRun;
-            $campaign->last_send_run_at = now();
-            $campaign->save();
-
-            $this->refreshCampaignStats($campaign);
-
-            DB::commit();
         } catch (\Throwable $e) {
-            DB::rollBack();
-
+            // Recipients already processed keep their committed results; the one in flight
+            // stays 'queued' for a person to review.
             Log::channel('campaign_deliveries')->error('CampaignSendRunner failed', [
                 'campaign_id' => $campaign->id,
+                'recipient_id' => isset($r) ? $r->id : null,
                 'error' => $e->getMessage(),
             ]);
 
             throw $e;
         }
+
+        $campaign->last_send_run_at = now();
+        $campaign->save();
+
+        $this->refreshCampaignStats($campaign);
 
         // If no pending left after this run, complete campaign
         $pendingLeft = MessagingRecipient::query()
@@ -315,6 +316,37 @@ final class CampaignSendRunner
             'failed' => $failedThisRun,
             'processed' => $sentThisRun + $failedThisRun,
         ];
+    }
+
+    /**
+     * Atomically move a recipient from pending to queued. Only the runner whose UPDATE
+     * matched the row may send it; queued rows are never picked up again automatically.
+     */
+    private function claim(MessagingRecipient $r): bool
+    {
+        $claimed = MessagingRecipient::query()
+            ->whereKey($r->id)
+            ->where('status', 'pending')
+            ->update(['status' => 'queued', 'updated_at' => now()]);
+
+        if ($claimed !== 1) {
+            return false;
+        }
+
+        $r->status = 'queued';
+        $r->syncOriginalAttribute('status');
+
+        return true;
+    }
+
+    /**
+     * Record one successful send immediately, including the campaign's daily counter.
+     */
+    private function markSent(MessagingCampaign $campaign, MessagingRecipient $r): void
+    {
+        $r->update(['status' => 'sent', 'sent_at' => now(), 'last_error' => null]);
+
+        $campaign->increment('daily_sent_count');
     }
 
     private function logStop(MessagingCampaign $campaign, string $reason, array $context = []): void

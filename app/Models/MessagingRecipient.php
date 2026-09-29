@@ -12,6 +12,15 @@ class MessagingRecipient extends Model
 {
     protected $table = 'messaging_recipients';
 
+    /** Counted as sent in campaign stats. */
+    public const SENT_STATUSES = ['sent', 'delivered'];
+
+    /** Counted as failed in campaign stats. */
+    public const FAILED_STATUSES = ['failed', 'bounced', 'undeliverable', 'expired'];
+
+    /** Deliberately not sent — neither sent nor failed. */
+    public const SKIPPED_STATUSES = ['skipped_shared_number', 'skipped_invalid_number'];
+
     protected $fillable = [
         'messaging_campaign_id',
         'recipient_type',
