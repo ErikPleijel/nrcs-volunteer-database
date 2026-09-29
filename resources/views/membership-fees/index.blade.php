@@ -106,7 +106,7 @@
                         <div x-show="open === 'fee_types'" x-collapse class="px-4 py-3 bg-white">
                             <ul class="space-y-1 text-gray-700 list-disc pl-4">
                                 <li><span class="font-semibold">Type</span> shows whether a fee applies to individuals or organizations.</li>
-                                <li><span class="font-semibold">Volunteer Fee</span> marks a fee as the one used specifically for volunteers.</li>
+                                <li><span class="font-semibold">Volunteer Fee</span> marks a fee as the one used specifically for Vol. & Membeers.</li>
                             </ul>
                         </div>
                     </div>
@@ -172,7 +172,7 @@
                                 Status
                             </th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Volunteer Fee
+                                Vol. & Member Fee
                             </th>
                             <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 Actions

@@ -413,7 +413,7 @@
                 const knownPlaceholders = new Set([
                     'user.first_name', 'user.last_name', 'user.full_name',
                     'user.email', 'user.phone', 'user.branch', 'user.division',
-                    'user.red_cross_unit', 'user.db_code_short', 'user.db_code_long',
+                    'user.red_cross_unit', 'user.db_code_short',
                     'user.lifecycle', 'user.donations_summary', 'user.current_membership',
                     'user.membership_expiry', 'user.time_since_last_first_aid',
                     'app.url',

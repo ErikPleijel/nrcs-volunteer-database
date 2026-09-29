@@ -771,15 +771,13 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
-     * Get the name of the user's current, valid membership.
+     * Get the fee name of the user's latest personal membership — the current
+     * one when valid, otherwise the most recently expired one. Null only when
+     * the user has never had a personal membership payment.
      */
     public function getCurrentMembershipNameAttribute(): ?string
     {
-        if ($payment = $this->currentMembershipPayment()->personal()->first()) {
-            return optional($payment->membershipFee)->name;
-        }
-
-        return null;
+        return $this->latestPersonalMembershipPayment?->membershipFee?->name;
     }
 
     /**
@@ -832,6 +830,19 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return $this->hasOne(MembershipPayment::class)
             ->where('is_deleted', false)
+            ->latest('expiry_date');
+    }
+
+    /**
+     * Get the user's latest personal (not organisation/unit) membership payment,
+     * valid or expired. When a valid one exists it has the latest expiry, so this
+     * is the current payment if there is one and the most recently expired otherwise.
+     */
+    public function latestPersonalMembershipPayment()
+    {
+        return $this->hasOne(MembershipPayment::class)
+            ->where('is_deleted', false)
+            ->personal()
             ->latest('expiry_date');
     }
 

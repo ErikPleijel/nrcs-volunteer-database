@@ -15,6 +15,7 @@ use App\Campaigns\Sending\CampaignSendRunner;
 use App\Notifications\CampaignDecided;
 use App\Services\CampaignAudienceSummaryService;
 use App\Services\CampaignContentValidator;
+use App\Support\CampaignPlaceholderRenderer;
 
 class CampaignAdminController extends Controller
 {
@@ -128,8 +129,10 @@ class CampaignAdminController extends Controller
         $noReach = $summary['noReach'];
         $reachabilityKnown = $summary['reachability_known'];
 
+        // Same columns/relations as the send runner, so the preview renders placeholders identically.
         $sample = (clone $filteredQuery)
-            ->select(['id','first_name','last_name','email','telephone1','telephone2','lifecycle_status','branch_id','division_id','red_cross_unit_id'])
+            ->select(CampaignPlaceholderRenderer::USER_COLUMNS)
+            ->with(CampaignPlaceholderRenderer::USER_RELATIONS)
             ->limit(20)
             ->get();
 

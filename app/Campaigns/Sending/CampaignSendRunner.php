@@ -92,19 +92,11 @@ final class CampaignSendRunner
         $userRecipientIds = $recipients->where('recipient_type', User::class)->pluck('recipient_id');
         $userRows = User::whereIn('id', $userRecipientIds)
             ->select([
-                'id', 'id_check_token', 'email_opt_out', 'sms_opt_out',
-                // columns read by column-backed placeholder tokens
-                'first_name', 'middle_name', 'last_name', 'email',
-                'telephone1', 'telephone2', 'lifecycle_status', 'last_first_aid_at',
-                // foreign keys for relation-backed placeholder tokens
-                'branch_id', 'division_id', 'red_cross_unit_id',
+                'id_check_token', 'email_opt_out', 'sms_opt_out',
+                // columns and relations read by placeholder tokens (shared with the previews)
+                ...CampaignPlaceholderRenderer::USER_COLUMNS,
             ])
-            ->with([
-                'branch:id,name,code',
-                'division:id,name',
-                'redCrossUnit:id,name',
-                'currentMembershipPayment.membershipFee',
-            ])
+            ->with(CampaignPlaceholderRenderer::USER_RELATIONS)
             ->get()
             ->keyBy('id');
 

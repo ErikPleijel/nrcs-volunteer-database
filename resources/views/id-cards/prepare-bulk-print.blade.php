@@ -390,7 +390,7 @@
 
                         $hasMissingData = !$user->picture || !$user->hasSignature() || !$user->national_id_number || !$categoryDataPresent || !$user->branch || !$user->division;
 
-                        $latestIdCardPrint = $user->idCardPrints()->latest('printed_at')->first();
+                        $latestIdCardPrint = $user->idCardPrints->sortByDesc('printed_at')->first();
                         $lastPrintedDate = $latestIdCardPrint?->printed_at;
                         $idCardExpiryDate = $latestIdCardPrint?->expiry_date;
 
@@ -506,13 +506,16 @@
                                 @endcan
                             </div>
 
-                            {{-- View button aligned with signature --}}
-                            <div class="flex-shrink-0 flex items-center h-28">
-                                <a href="{{ route('users.show', $user) }}"
-                                   class="btn-view"
-                                   target="_blank">
-                                    View<i class="fa-solid fa-up-right-from-square ml-1"></i>
-                                </a>
+                            {{-- Print age on top (pt-6 clears the absolute checkbox), View button centered below --}}
+                            <div class="flex-1 min-w-0 flex flex-col items-start h-28 pt-6">
+                                <x-print-age-indicator :print="$latestIdCardPrint" compact />
+                                <div class="flex-1 flex items-center">
+                                    <a href="{{ route('users.show', $user) }}"
+                                       class="btn-view"
+                                       target="_blank">
+                                        View<i class="fa-solid fa-up-right-from-square ml-1"></i>
+                                    </a>
+                                </div>
                             </div>
 
                             {{-- Checkbox top-right --}}

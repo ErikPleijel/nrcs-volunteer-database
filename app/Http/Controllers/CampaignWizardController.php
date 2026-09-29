@@ -397,9 +397,7 @@ class CampaignWizardController extends Controller
             '{{user.current_membership}}' => 'Current membership',
             '{{user.time_since_last_first_aid}}' => 'Time since last first aid',
             '{{app.url}}' => 'Website link',
-            '{{user.db_code_long}}' => 'DB-Code (long)',
             '{{user.membership_expiry}}' => 'Membership expiry',
-
         ];
 
         return view('campaigns.wizard.step-4-message', [
@@ -472,7 +470,7 @@ class CampaignWizardController extends Controller
             $knownPlaceholders = [
                 'user.first_name', 'user.last_name', 'user.full_name',
                 'user.email', 'user.phone', 'user.branch', 'user.division',
-                'user.red_cross_unit', 'user.db_code_short', 'user.db_code_long',
+                'user.red_cross_unit', 'user.db_code_short',
                 'user.lifecycle', 'user.donations_summary', 'user.current_membership',
                 'user.membership_expiry', 'user.time_since_last_first_aid',
                 'app.url',
@@ -663,11 +661,10 @@ class CampaignWizardController extends Controller
         // ----------------------------
         // ✅ Sample recipients (INCLUDE id!)
         // ----------------------------
+        // Same columns/relations as the send runner, so the preview renders placeholders identically.
         $sampleUsers = (clone $filteredQuery)
-            ->select([
-                'id', 'first_name', 'last_name', 'email', 'telephone1', 'telephone2',
-                'lifecycle_status', 'branch_id', 'division_id', 'red_cross_unit_id',
-            ])
+            ->select(CampaignPlaceholderRenderer::USER_COLUMNS)
+            ->with(CampaignPlaceholderRenderer::USER_RELATIONS)
             ->limit(20)
             ->get();
 
