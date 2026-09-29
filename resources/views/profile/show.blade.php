@@ -1349,7 +1349,7 @@
                     <!-- Signature Section -->
                     <div class="bg-white rounded-lg shadow-lg p-6">
                         <h2 class="text-xl font-bold text-gray-900 mb-4">Signature</h2>
-                        <p class="profile-instruction-text mb-4">The signature image will be used for making your ID card.</p>
+                        <p class="text-base text-gray-600 mb-4">The signature image will be used for making your ID card.</p>
                         <div class="flex flex-col items-center justify-center border border-gray-300 bg-gray-50 p-4 rounded-lg w-48 h-24 mx-auto">
                             @if($user->hasSignature())
                                 <img src="{{ $user->getSignatureUrlAttribute() }}" alt="User Signature" class="max-w-full h-auto max-h-48 object-contain">
