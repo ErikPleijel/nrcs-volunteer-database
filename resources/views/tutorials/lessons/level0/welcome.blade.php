@@ -262,40 +262,51 @@
 
             <x-tutorial.slide audio="tutorials/audio/level0-member_volunteer.mp3">
                 <div>
-                    <h2 class="text-2xl font-bold text-gray-900 mb-6 text-center" data-reveal>Supporting member or volunteer?</h2>
-                    <div class="max-w-3xl mx-auto">
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-                            {{-- Member --}}
-                            <div class="rounded-xl bg-gray-50 border border-gray-100 p-6 text-center" data-reveal>
-                                <i class="fas fa-id-card text-4xl text-indigo-500 mb-3"></i>
-                                <p class="text-lg font-bold text-gray-900 mb-2">Supporting Member</p>
-                                <p class="text-sm text-gray-600">Pays a membership fee</p>
-                                <p class="text-sm text-gray-600">Not in a Red Cross Unit</p>
-                            </div>
+                    <h2 class="text-2xl font-bold text-gray-900 mb-6 text-center" data-reveal>Volunteer, Volunteer &amp; Member, or Supporting Member?</h2>
+                    <div class="max-w-4xl mx-auto">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
 
                             {{-- Volunteer --}}
                             <div class="rounded-xl bg-gray-50 border border-gray-100 p-6 text-center" data-reveal>
-                                <i class="fas fa-hands-helping text-4xl text-red-500 mb-3"></i>
+                                <i class="fas fa-hands-helping text-4xl text-green-600 mb-3"></i>
                                 <p class="text-lg font-bold text-gray-900 mb-2">Volunteer</p>
-                                <p class="text-sm text-gray-600">Serves in a Red Cross Unit</p>
-                                <p class="text-sm text-gray-600">Hands-on work in the field</p>
+                                <p class="text-sm text-gray-600">Give your time — no fee</p>
+                                <p class="text-sm text-gray-600">Serves in a Red Cross unit</p>
+                            </div>
+
+                            {{-- Volunteer & Member --}}
+                            <div class="rounded-xl bg-gray-50 border border-gray-100 p-6 text-center" data-reveal>
+                                <i class="fas fa-user-plus text-4xl text-red-600 mb-3"></i>
+                                <p class="text-lg font-bold text-gray-900 mb-2">Volunteer &amp; Member</p>
+                                <p class="text-sm text-gray-600">Serve, and pay a small fee</p>
+                                <p class="text-sm text-gray-600">In a unit + paying member</p>
+                            </div>
+
+                            {{-- Supporting Member --}}
+                            <div class="rounded-xl bg-gray-50 border border-gray-100 p-6 text-center" data-reveal>
+                                <i class="fas fa-id-card text-4xl text-purple-600 mb-3"></i>
+                                <p class="text-lg font-bold text-gray-900 mb-2">Supporting Member</p>
+                                <p class="text-sm text-gray-600">Support us financially</p>
+                                <p class="text-sm text-gray-600">Not in a Red Cross unit</p>
                             </div>
                         </div>
 
-                        {{-- The deciding question --}}
+                        {{-- The deciding questions --}}
                         <div class="mt-6 rounded-xl border border-gray-200 bg-white p-4 text-center" data-reveal>
                             <p class="font-semibold text-gray-800 mb-3">
                                 <i class="fas fa-circle-question text-indigo-400 mr-1"></i>
-                                In a Red Cross Unit?
+                                In a Red Cross unit? Paid a membership fee?
                             </p>
                             <div class="flex flex-col sm:flex-row justify-center gap-3 text-sm">
-                    <span class="inline-flex items-center justify-center gap-2 rounded-full bg-red-50 text-red-700 px-4 py-1.5 font-medium">
-                        Yes <i class="fas fa-arrow-right text-xs"></i> Volunteer
-                    </span>
-                                <span class="inline-flex items-center justify-center gap-2 rounded-full bg-indigo-50 text-indigo-700 px-4 py-1.5 font-medium">
-                        No + fee paid <i class="fas fa-arrow-right text-xs"></i> Supporting Member
-                    </span>
+                                <span class="inline-flex items-center justify-center gap-2 rounded-full bg-green-50 text-green-700 px-4 py-1.5 font-medium">
+                                    Unit, no fee <i class="fas fa-arrow-right text-xs"></i> Volunteer
+                                </span>
+                                <span class="inline-flex items-center justify-center gap-2 rounded-full bg-red-50 text-red-700 px-4 py-1.5 font-medium">
+                                    Unit + fee <i class="fas fa-arrow-right text-xs"></i> Volunteer &amp; Member
+                                </span>
+                                <span class="inline-flex items-center justify-center gap-2 rounded-full bg-purple-50 text-purple-700 px-4 py-1.5 font-medium">
+                                    No unit + fee <i class="fas fa-arrow-right text-xs"></i> Supporting Member
+                                </span>
                             </div>
                         </div>
                     </div>

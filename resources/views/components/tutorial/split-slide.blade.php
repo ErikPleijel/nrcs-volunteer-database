@@ -22,7 +22,16 @@
 --}}
 @props(['image', 'imageAlt' => '', 'heading' => null, 'audio' => null, 'stacked' => false])
 
-<div data-slide @if($audio) data-audio="{{ asset($audio) }}" @endif class="px-8 py-10 min-h-[380px]">
+@php
+    // Version the URL by file mtime so a regenerated MP3 isn't served stale from browser cache.
+    $audioUrl = null;
+    if ($audio) {
+        $mtime = @filemtime(public_path($audio));
+        $audioUrl = asset($audio) . ($mtime ? '?v=' . $mtime : '');
+    }
+@endphp
+
+<div data-slide @if($audioUrl) data-audio="{{ $audioUrl }}" @endif class="px-8 py-10 min-h-[380px]">
 
     <div class="{{ $stacked ? 'flex flex-col gap-8' : 'grid md:grid-cols-2 gap-8 items-start' }}">
 
