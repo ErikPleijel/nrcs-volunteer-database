@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Campaigns\Recipients\RecipientPhone;
+use App\Campaigns\Recipients\CampaignRecipientBuilder;
 use App\Models\Log as AuditLog;
 use App\Models\MessagingCampaign;
 use App\Models\User;
@@ -266,7 +266,7 @@ class CampaignAdminController extends Controller
         return back()->with('success', 'Campaign queued.');
     }
 
-    public function buildRecipients(Request $request, MessagingCampaign $campaign, UserFilterService $userFilterService)
+    public function buildRecipients(Request $request, MessagingCampaign $campaign, CampaignRecipientBuilder $builder)
     {
         $user = Auth::user();
         abort_unless($user->can('campaign_request_approve'), 403);
@@ -281,184 +281,14 @@ class CampaignAdminController extends Controller
         $fresh = !empty($data['fresh']);
         $onlyContactable = !empty($data['only_contactable']);
 
-        $filters = is_array($campaign->filter_json) ? $campaign->filter_json : [];
-
-        $baseQuery = User::query()
-            ->where('is_super_admin', false);
-
-        $filteredQuery = $userFilterService->apply(
-            $baseQuery,
-            $filters,
-            $campaign->scope_level,
-            $campaign->scope_id
-        );
-
         DB::beginTransaction();
 
         try {
-            if ($fresh) {
-                MessagingRecipient::query()
-                    ->where('messaging_campaign_id', $campaign->id)
-                    ->delete();
-            }
-
-            $created = 0;
-            $updated = 0;
-            $skipped = 0;
-            $optOutSkipped = 0;
-            $invalidNumbers = 0;
-
-            (clone $filteredQuery)
-                ->select(['id', 'email', 'telephone1', 'telephone2', 'first_name', 'last_name', 'email_opt_out', 'sms_opt_out'])
-                ->orderBy('id')
-                ->chunkById(500, function ($users) use ($campaign, $onlyContactable, &$created, &$updated, &$skipped, &$optOutSkipped, &$invalidNumbers) {
-
-                    foreach ($users as $u) {
-                        $email = trim((string)($u->email ?? '')) ?: null;
-                        $phonePick = RecipientPhone::pick($u->telephone1, $u->telephone2);
-                        $phone = $phonePick->e164; // +234…; stored user numbers are untouched
-
-                        $channel          = $campaign->channel;
-                        $channelUsesEmail = in_array($channel, ['email', 'both', 'email_fallback_sms'], true);
-                        $channelUsesSms   = in_array($channel, ['sms', 'both', 'email_fallback_sms'], true);
-
-                        $emailOptOut = (bool) ($u->email_opt_out ?? false);
-                        $smsOptOut   = (bool) ($u->sms_opt_out ?? false);
-
-                        // Mask contact info for opted-out channels so downstream logic is consistent.
-                        $effectiveEmail = ($channelUsesEmail && $emailOptOut) ? null : $email;
-                        $effectivePhone = ($channelUsesSms   && $smsOptOut)   ? null : $phone;
-
-                        // Skip entirely when every applicable channel is opted out.
-                        $skipForOptOut =
-                            ($channel === 'email' && $emailOptOut) ||
-                            ($channel === 'sms'   && $smsOptOut)   ||
-                            (in_array($channel, ['both', 'email_fallback_sms'], true) && $emailOptOut && $smsOptOut);
-
-                        if ($skipForOptOut) {
-                            $optOutSkipped++;
-                            continue;
-                        }
-
-                        // Can only be reached by SMS, has a number, but none is a valid Nigerian
-                        // mobile: keep a visible row rather than silently dropping them.
-                        $invalidNumber = $channelUsesSms && ! $smsOptOut && $phonePick->invalid
-                            && RecipientPhone::needsSms($channel, $effectiveEmail);
-                        $status = $invalidNumber ? 'skipped_invalid_number' : 'pending';
-                        $lastError = $invalidNumber ? RecipientPhone::INVALID_NUMBER_ERROR : null;
-                        $invalidNumbers += (int) $invalidNumber;
-
-                        // Contactability check (uses effective values so opt-out masking feeds in).
-                        if ($onlyContactable && ! $invalidNumber) {
-                            if ($channel === 'email' && !$effectiveEmail) { $skipped++; continue; }
-                            if ($channel === 'sms'   && !$effectivePhone) { $skipped++; continue; }
-
-                            if (in_array($channel, ['both', 'email_fallback_sms'], true) && !$effectiveEmail && !$effectivePhone) {
-                                $skipped++;
-                                continue;
-                            }
-                        }
-
-                        $payload = [
-                            'first_name' => $u->first_name,
-                            'last_name' => $u->last_name,
-                            'full_name' => trim(($u->first_name ?? '') . ' ' . ($u->last_name ?? '')),
-                        ];
-
-                        // Look for existing row first, so we don't reset status/sent_at on rebuild.
-                        $existing = MessagingRecipient::query()
-                            ->where('messaging_campaign_id', $campaign->id)
-                            ->where('recipient_type', User::class)
-                            ->where('recipient_id', $u->id)
-                            ->first();
-
-                        if ($existing) {
-                            // Update contact info + payload only (opt-out masking applied). The
-                            // status only moves between pending and skipped_invalid_number, so a
-                            // rebuild never resets a row that was already attempted.
-                            $existing->update([
-                                'email' => $effectiveEmail,
-                                'phone' => $effectivePhone,
-                                'payload_json' => $payload,
-                                ...(in_array($existing->status, ['pending', 'skipped_invalid_number'], true)
-                                    ? ['status' => $status, 'last_error' => $lastError]
-                                    : []),
-                            ]);
-                            $updated++;
-                            continue;
-                        }
-
-                        MessagingRecipient::create([
-                            'messaging_campaign_id' => $campaign->id,
-                            'recipient_type' => User::class,
-                            'recipient_id' => $u->id,
-                            'email' => $effectiveEmail,
-                            'phone' => $effectivePhone,
-                            'payload_json' => $payload,
-                            'status' => $status,
-                            'last_error' => $lastError,
-                            'sent_at' => null,
-                        ]);
-
-                        $created++;
-                    }
-                });
-
-            // Org representative emails (only when filter flag is set)
-            $orgEmailsAdded = 0;
-
-            if (data_get($filters, 'org_representatives')) {
-                $orgQuery = \App\Models\Organisation::query()
-                    ->whereNotNull('email')
-                    ->where('email', '!=', '')
-                    ->whereHas('users');
-
-                if ($campaign->scope_level === 'branch' && $campaign->scope_id) {
-                    $orgQuery->where('branch_id', $campaign->scope_id);
-                }
-
-                $orgQuery->select(['id', 'name', 'email'])
-                    ->orderBy('id')
-                    ->each(function ($org) use ($campaign, &$orgEmailsAdded) {
-                        $exists = MessagingRecipient::query()
-                            ->where('messaging_campaign_id', $campaign->id)
-                            ->where('recipient_type', \App\Models\Organisation::class)
-                            ->where('recipient_id', $org->id)
-                            ->exists();
-
-                        if ($exists) {
-                            return;
-                        }
-
-                        MessagingRecipient::create([
-                            'messaging_campaign_id' => $campaign->id,
-                            'recipient_type'        => \App\Models\Organisation::class,
-                            'recipient_id'          => $org->id,
-                            'email'                 => trim((string) $org->email),
-                            'phone'                 => null,
-                            'payload_json'          => [
-                                'full_name'  => $org->name,
-                                'first_name' => $org->name,
-                                'last_name'  => '',
-                            ],
-                            'status'                => 'pending',
-                            'last_error'            => null,
-                            'sent_at'               => null,
-                        ]);
-
-                        $orgEmailsAdded++;
-                    });
-            }
-
-            $campaign->refreshRecipientStats();
-            $statsTotal = $campaign->stats_total;
+            $counts = $builder->build($campaign, fresh: $fresh, onlyContactable: $onlyContactable);
 
             DB::commit();
 
-            return back()->with(
-                'success',
-                "Recipients built. Total: {$statsTotal}. Created: {$created}. Updated: {$updated}. Skipped: {$skipped}. Skipped (opted out): {$optOutSkipped}. No valid mobile number: {$invalidNumbers}. Org emails added: {$orgEmailsAdded}."
-            );
+            return back()->with('success', CampaignRecipientBuilder::summary($counts));
 
         } catch (\Throwable $e) {
             DB::rollBack();

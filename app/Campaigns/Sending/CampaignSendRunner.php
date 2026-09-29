@@ -4,6 +4,7 @@ namespace App\Campaigns\Sending;
 
 use App\Campaigns\Delivery\CampaignDeliveryService;
 use App\Campaigns\Delivery\DeliveryAttempt;
+use App\Campaigns\Recipients\CampaignRecipientBuilder;
 use App\Campaigns\Delivery\DeliveryMessage;
 use App\Models\MessagingCampaign;
 use App\Models\MessagingRecipient;
@@ -198,6 +199,22 @@ final class CampaignSendRunner
                     }
                 }
 
+                // Shared-number safety net: the builder already gives each number's SMS to one
+                // recipient, but an email that fails can fall back to SMS at a number another
+                // recipient of this campaign was already texted at.
+                if ($wantsSms && $phone && $this->smsAlreadySentTo($campaign, $r, $phone)) {
+                    if ($campaign->channel === 'sms' || ! $email) {
+                        $r->update([
+                            'status' => 'skipped_shared_number',
+                            'last_error' => CampaignRecipientBuilder::SHARED_NUMBER_ERROR,
+                        ]);
+
+                        continue;
+                    }
+
+                    $r->phone = $phone = null; // email only
+                }
+
                 // Personalise placeholders per recipient. Render into LOCAL copies only — the
                 // shared $campaign model is never mutated ($subject/$body are re-initialised from
                 // $campaign at the top of each iteration). Only User recipients have a model to
@@ -348,6 +365,17 @@ final class CampaignSendRunner
         $r->syncOriginalAttribute('status');
 
         return true;
+    }
+
+    private function smsAlreadySentTo(MessagingCampaign $campaign, MessagingRecipient $r, string $phone): bool
+    {
+        return MessagingRecipient::query()
+            ->where('messaging_campaign_id', $campaign->id)
+            ->where('phone', $phone)
+            ->whereKeyNot($r->id)
+            ->where('channel_used', 'sms')
+            ->whereIn('status', MessagingRecipient::SENT_STATUSES)
+            ->exists();
     }
 
     /**

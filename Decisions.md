@@ -1173,3 +1173,30 @@ super-admin before verifying the address; and the observer set the role without 
 the two could disagree. The seeder already creates these accounts and refuses if one exists.
 
 **Consequences:** to (re)create a super-admin, run `db:seed --class=SuperAdminSeeder`.
+
+## 2026-09-29 — One recipient builder; rebuilds never reset attempted rows; one SMS per number
+
+**Decision (builder):** the admin "Build" button and `campaigns:build-recipients` both use
+`App\Campaigns\Recipients\CampaignRecipientBuilder`. A rebuild only adds new recipients and
+updates rows still `pending`, `skipped_invalid_number` or `skipped_shared_number`; rows that
+are queued, sent, delivered, failed, bounced, undeliverable or expired are never touched.
+`--fresh` deletes only those rebuildable rows. Opt-outs (email and SMS) are applied on both
+paths — the CLI used to ignore them and reset every row to `pending` on rerun (so rerunning it
+on a sent campaign would have sent everything again).
+
+**Decision (shared numbers — where):** deduplication happens when recipients are built,
+with a send-time safety net. Build time, because the priority (active lifecycle → number from
+`telephone1` over `telephone2` → lowest user id) needs the whole audience at once
+(`SmsNumberPlanner`), and the Phase 6 SMS projection needs the same numbers before recipients
+exist. Send time, because `email_fallback_sms` only decides to text someone when their email
+fails: before any SMS the runner checks whether another recipient of the campaign was already
+texted at that number, and skips (`skipped_shared_number`) or sends email only.
+
+**Rules:** only recipients this campaign would text are in the pool — everyone with a valid,
+non-opted-out number for `sms`/`both`, only email-less people for `email_fallback_sms`. Losers
+get `skipped_shared_number`; on `both`, a loser with email stays `pending` with no phone
+(email only). People with email in `email_fallback_sms` keep their number for fallback.
+
+**Consequences:** the planner is an extra pass over the audience: ~25–30 s and ~20 MB for a
+national audience locally (~300k users). A national build from the web button may hit the
+PHP request time limit — use the CLI for very large builds.

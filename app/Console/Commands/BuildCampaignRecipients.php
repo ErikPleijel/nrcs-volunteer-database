@@ -2,180 +2,55 @@
 
 namespace App\Console\Commands;
 
-use App\Campaigns\Recipients\RecipientPhone;
+use App\Campaigns\Recipients\CampaignRecipientBuilder;
 use App\Models\MessagingCampaign;
-use App\Models\MessagingRecipient;
-use App\Models\User;
-use App\Services\UserFilterService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * CLI twin of the admin "Build" button — both use CampaignRecipientBuilder, so opt-outs,
+ * E.164 numbers, shared-number deduplication and the never-reset-attempted-rows rule are
+ * identical. Safe to rerun on a campaign that has already sent.
+ */
 class BuildCampaignRecipients extends Command
 {
     protected $signature = 'campaigns:build-recipients
                             {campaignId : The messaging_campaigns.id}
-                            {--fresh : Delete existing recipients for this campaign before rebuilding}
+                            {--fresh : Delete this campaign\'s pending/skipped recipients before rebuilding (attempted rows are kept)}
                             {--only-contactable : Only include recipients that have contact info for the campaign channel}
                             {--chunk=500 : Chunk size for processing users}';
 
     protected $description = 'Materialize recipients for a campaign based on filter_json, into messaging_recipients.';
 
-    public function handle(UserFilterService $userFilterService): int
+    public function handle(CampaignRecipientBuilder $builder): int
     {
         $campaignId = (int) $this->argument('campaignId');
-        $fresh = (bool) $this->option('fresh');
-        $onlyContactable = (bool) $this->option('only-contactable');
-        $chunk = (int) $this->option('chunk');
 
         /** @var MessagingCampaign|null $campaign */
         $campaign = MessagingCampaign::query()->find($campaignId);
 
-        if (!$campaign) {
+        if (! $campaign) {
             $this->error("Campaign #{$campaignId} not found.");
+
             return self::FAILURE;
         }
 
-        if (!in_array($campaign->status, ['approved', 'queued'], true)) {
+        if (! in_array($campaign->status, ['approved', 'queued'], true)) {
             $this->warn("Campaign status is '{$campaign->status}'. Typically you build recipients when approved/queued.");
         }
-
-        $filters = is_array($campaign->filter_json) ? $campaign->filter_json : [];
 
         $this->info("Building recipients for campaign #{$campaign->id} ({$campaign->title})");
         $this->line("Channel: {$campaign->channel}, Audience: {$campaign->audience_type}, Scope: {$campaign->scope_level} / {$campaign->scope_id}");
 
-        if ($fresh) {
-            $this->warn("Deleting existing recipients for campaign #{$campaign->id}...");
-            MessagingRecipient::query()
-                ->where('messaging_campaign_id', $campaign->id)
-                ->delete();
-            $this->info("✔ Existing recipients deleted.");
-        }
+        $counts = DB::transaction(fn () => $builder->build(
+            $campaign,
+            fresh: (bool) $this->option('fresh'),
+            onlyContactable: (bool) $this->option('only-contactable'),
+            chunk: max(1, (int) $this->option('chunk')),
+        ));
 
-        // Base query (same as wizard step2 base)
-        $baseQuery = User::query()
-            ->where('is_super_admin', false);
-
-        // Apply the SAME filter rules using the scope stored on the campaign
-        $filteredQuery = $userFilterService->apply(
-            $baseQuery,
-            $filters,
-            $campaign->scope_level,
-            $campaign->scope_id
-        );
-
-        $totalMatched = (clone $filteredQuery)->count();
-        $this->info("Matched users: {$totalMatched}");
-
-        $created = 0;
-        $updated = 0;
-        $skipped = 0;
-
-        $bar = $this->output->createProgressBar($totalMatched);
-        $bar->start();
-
-        (clone $filteredQuery)
-            ->select(['id', 'email', 'telephone1', 'telephone2', 'first_name', 'last_name'])
-            ->orderBy('id')
-            ->chunkById($chunk, function ($users) use ($campaign, $onlyContactable, &$created, &$updated, &$skipped, $bar) {
-
-                DB::beginTransaction();
-                try {
-                    foreach ($users as $user) {
-                        $email = $this->cleanEmail($user->email ?? null);
-                        $phonePick = RecipientPhone::pick($user->telephone1, $user->telephone2);
-                        $phone = $phonePick->e164; // +234…; stored user numbers are untouched
-
-                        // Can only be reached by SMS, has a number, but none is valid: keep a
-                        // visible skipped row (same rule as the admin "Build" button).
-                        $invalidNumber = $phonePick->invalid
-                            && in_array($campaign->channel, ['sms', 'both', 'email_fallback_sms'], true)
-                            && RecipientPhone::needsSms($campaign->channel, $email);
-
-                        // If campaign channel is email, require email.
-                        // If sms, require phone.
-                        // If both, allow either.
-                        if ($onlyContactable && ! $invalidNumber) {
-                            if ($campaign->channel === 'email' && !$email) {
-                                $skipped++;
-                                $bar->advance();
-                                continue;
-                            }
-                            if ($campaign->channel === 'sms' && !$phone) {
-                                $skipped++;
-                                $bar->advance();
-                                continue;
-                            }
-                            if ($campaign->channel === 'both' && !$email && !$phone) {
-                                $skipped++;
-                                $bar->advance();
-                                continue;
-                            }
-                        }
-
-                        $payload = [
-                            'first_name' => $user->first_name,
-                            'last_name' => $user->last_name,
-                            'full_name' => trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? '')),
-                        ];
-
-                        // Use updateOrCreate so reruns are safe
-                        $recipient = MessagingRecipient::query()->updateOrCreate(
-                            [
-                                'messaging_campaign_id' => $campaign->id,
-                                'recipient_type' => User::class,
-                                'recipient_id' => $user->id,
-                            ],
-                            [
-                                'email' => $email,
-                                'phone' => $phone,
-                                'payload_json' => $payload,
-                                'status' => $invalidNumber ? 'skipped_invalid_number' : 'pending',
-                                'last_error' => $invalidNumber ? RecipientPhone::INVALID_NUMBER_ERROR : null,
-                                'sent_at' => null,
-                            ]
-                        );
-
-                        // updateOrCreate doesn’t tell us created/updated directly,
-                        // but we can infer via wasRecentlyCreated.
-                        if ($recipient->wasRecentlyCreated) {
-                            $created++;
-                        } else {
-                            $updated++;
-                        }
-
-                        $bar->advance();
-                    }
-
-                    DB::commit();
-                } catch (\Throwable $e) {
-                    DB::rollBack();
-                    throw $e;
-                }
-            });
-
-        $bar->finish();
-        $this->newLine(2);
-
-        // Update campaign stats_total based on pending recipients count (all statuses)
-        $statsTotal = MessagingRecipient::query()
-            ->where('messaging_campaign_id', $campaign->id)
-            ->count();
-
-        $campaign->update([
-            'stats_total' => $statsTotal,
-        ]);
-
-        $this->info("Done.");
-        $this->line("Created: {$created}, Updated: {$updated}, Skipped: {$skipped}");
-        $this->line("Campaign stats_total updated to: {$statsTotal}");
+        $this->info(CampaignRecipientBuilder::summary($counts));
 
         return self::SUCCESS;
-    }
-
-    private function cleanEmail(?string $email): ?string
-    {
-        $email = trim((string) $email);
-        return $email !== '' ? $email : null;
     }
 }
