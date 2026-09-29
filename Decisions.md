@@ -1118,3 +1118,27 @@ channel ever delivers). A per-channel row would mean reshaping the whole recipie
 **Consequences:** for `both` campaigns `channel_used = 'sms'` does not mean email was not
 sent, so the daily SMS/email rate widget and the post-send audience summary keep inferring
 channels from contact details for `both` campaigns.
+
+## 2026-09-29 — Phone numbers: E.164 at send time only; form rule applies to changed values
+
+**Decision (sending):** campaign recipient rows get `PhoneNumber::toE164()` of the user's
+`telephone1`, or `telephone2` when `telephone1` is not a valid Nigerian mobile. Stored
+`users.telephone1/2` are never rewritten. A recipient who can only be reached by SMS (an
+`sms` campaign, or `both`/`email_fallback_sms` without a usable email) and has a number, but
+no valid one, gets a visible `skipped_invalid_number` row even with "only contactable".
+Valid = 10-digit national number in an NCC mobile range 070/080/081/090/091.
+
+**Decision (forms):** `App\Rules\NigerianMobileNumber` on registration, profile edit and admin
+user create/edit. On edits it only checks a value that differs from the stored one (after
+stripping formatting), so a legacy invalid number never blocks an unrelated edit.
+Formatting (spaces, dashes, dots, brackets) is stripped from the input before saving; a
+local `0…` number stays `0…` and is not converted to `+234`. Foreign and landline numbers
+are rejected (confirmed by the user).
+
+**Rationale:** ~97% of filled-in live `telephone1` values are local `0…` numbers (local DB,
+2026-09-29); rewriting 300k stored
+values was out of scope, and login/duplicate matching rely on `PhoneNumber::normalize()`,
+which is unchanged.
+
+**Consequences:** members with foreign numbers can no longer register or change to one; a
+legacy foreign number stays until someone edits it.

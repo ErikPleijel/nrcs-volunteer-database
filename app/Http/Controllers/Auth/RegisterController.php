@@ -9,6 +9,8 @@ use App\Models\RedCrossUnit;
 use App\Models\User;
 use App\Notifications\VerifyEmailNotification;
 use App\Rules\NationalIdNumberRule;
+use App\Rules\NigerianMobileNumber;
+use App\Support\PhoneNumber;
 use App\Traits\HandlesImageUploads;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
@@ -85,6 +87,8 @@ class RegisterController extends Controller
                 ->withErrors(['registration' => 'We were unable to process your registration. Please try again.'])
                 ->withInput();
         }
+
+        $request->merge(PhoneNumber::stripFormattingFields($request->all()));
 
         $validator = $this->validator($request->all());
 
@@ -171,8 +175,8 @@ class RegisterController extends Controller
             ],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
             'national_id_number' => ['nullable', new NationalIdNumberRule(explainArchived: true)],
-            'telephone1' => ['required', 'string', 'max:20'],
-            'telephone2' => ['nullable', 'string', 'max:20'],
+            'telephone1' => ['required', 'string', 'max:20', new NigerianMobileNumber],
+            'telephone2' => ['nullable', 'string', 'max:20', new NigerianMobileNumber],
             'residential_address' => ['nullable', 'string', 'max:500'],
             'workplace_address' => ['nullable', 'string', 'max:500'],
             'organisation' => ['nullable', 'string', 'max:255'],

@@ -16,6 +16,8 @@ use App\Models\TaskForce;
 use App\Models\TrainingType;
 use App\Models\User;
 use App\Rules\NationalIdNumberRule;
+use App\Rules\NigerianMobileNumber;
+use App\Support\PhoneNumber;
 use App\Services\UserFilterService;
 use App\Support\Filters\UserFilterDescriber;
 use App\Traits\HandlesImageUploads;
@@ -357,6 +359,8 @@ class UserController extends Controller
      */
     public function store(Request $request)
     {
+        $request->merge(PhoneNumber::stripFormattingFields($request->all()));
+
         $validator = Validator::make($request->all(), [
             'first_name' => 'required|string|max:255',
             'middle_name' => 'nullable|string|max:255',
@@ -372,8 +376,8 @@ class UserController extends Controller
             'occupation' => 'nullable|string|max:255',
             'residential_address' => 'nullable|string|max:500', // Added max:500
             'workplace_address' => 'nullable|string|max:500', // Added max:500
-            'telephone1' => 'required|string|max:20', // Changed to required
-            'telephone2' => 'nullable|string|max:20',
+            'telephone1' => ['required', 'string', 'max:20', new NigerianMobileNumber],
+            'telephone2' => ['nullable', 'string', 'max:20', new NigerianMobileNumber],
             'disciplin' => 'nullable|string|max:255',
             'personal_info' => 'nullable|string|max:1000', // Added max:1000
             'branch_id' => 'required|exists:branches,id',
@@ -828,6 +832,8 @@ class UserController extends Controller
     {
         $this->authorize('update', $user);
 
+        $request->merge(PhoneNumber::stripFormattingFields($request->all()));
+
         $validator = Validator::make($request->all(), [
             'first_name' => 'required|string|max:255',
             'middle_name' => 'nullable|string|max:255',
@@ -847,8 +853,8 @@ class UserController extends Controller
             'occupation' => 'nullable|string|max:255',
             'residential_address' => 'nullable|string|max:500',
             'workplace_address' => 'nullable|string|max:500',
-            'telephone1' => 'nullable|string|max:20',
-            'telephone2' => 'nullable|string|max:20',
+            'telephone1' => ['nullable', 'string', 'max:20', new NigerianMobileNumber($user->telephone1)],
+            'telephone2' => ['nullable', 'string', 'max:20', new NigerianMobileNumber($user->telephone2)],
             'disciplin' => 'nullable|string|max:255',
             'personal_info' => 'nullable|string|max:1000',
             'branch_id' => 'required|exists:branches,id',

@@ -8,6 +8,8 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Database\QueryException;
 use App\Rules\NationalIdNumberRule;
+use App\Rules\NigerianMobileNumber;
+use App\Support\PhoneNumber;
 use Illuminate\Support\Facades\Hash;
 use App\Models\User;
 use App\Models\Donation;
@@ -290,6 +292,8 @@ class ProfileController extends Controller
     {
         $user = Auth::user();
 
+        $request->merge(PhoneNumber::stripFormattingFields($request->all()));
+
         try {
             $validator = Validator::make($request->all(), [
                 // Personal information
@@ -313,8 +317,8 @@ class ProfileController extends Controller
                 'personal_info' => 'nullable|string|max:1000',
 
                 // Contact information
-                'telephone1' => 'required|string|max:20',
-                'telephone2' => 'nullable|string|max:20',
+                'telephone1' => ['required', 'string', 'max:20', new NigerianMobileNumber($user->telephone1)],
+                'telephone2' => ['nullable', 'string', 'max:20', new NigerianMobileNumber($user->telephone2)],
                 'residential_address' => 'nullable|string|max:500',
                 'workplace_address' => 'nullable|string|max:500',
 

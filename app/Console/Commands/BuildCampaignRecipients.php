@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Campaigns\Recipients\RecipientPhone;
 use App\Models\MessagingCampaign;
 use App\Models\MessagingRecipient;
 use App\Models\User;
@@ -82,12 +83,19 @@ class BuildCampaignRecipients extends Command
                 try {
                     foreach ($users as $user) {
                         $email = $this->cleanEmail($user->email ?? null);
-                        $phone = $this->pickPhone($user->telephone1 ?? null, $user->telephone2 ?? null);
+                        $phonePick = RecipientPhone::pick($user->telephone1, $user->telephone2);
+                        $phone = $phonePick->e164; // +234…; stored user numbers are untouched
+
+                        // Can only be reached by SMS, has a number, but none is valid: keep a
+                        // visible skipped row (same rule as the admin "Build" button).
+                        $invalidNumber = $phonePick->invalid
+                            && in_array($campaign->channel, ['sms', 'both', 'email_fallback_sms'], true)
+                            && RecipientPhone::needsSms($campaign->channel, $email);
 
                         // If campaign channel is email, require email.
                         // If sms, require phone.
                         // If both, allow either.
-                        if ($onlyContactable) {
+                        if ($onlyContactable && ! $invalidNumber) {
                             if ($campaign->channel === 'email' && !$email) {
                                 $skipped++;
                                 $bar->advance();
@@ -122,8 +130,8 @@ class BuildCampaignRecipients extends Command
                                 'email' => $email,
                                 'phone' => $phone,
                                 'payload_json' => $payload,
-                                'status' => 'pending',
-                                'last_error' => null,
+                                'status' => $invalidNumber ? 'skipped_invalid_number' : 'pending',
+                                'last_error' => $invalidNumber ? RecipientPhone::INVALID_NUMBER_ERROR : null,
                                 'sent_at' => null,
                             ]
                         );
@@ -169,16 +177,5 @@ class BuildCampaignRecipients extends Command
     {
         $email = trim((string) $email);
         return $email !== '' ? $email : null;
-    }
-
-    private function pickPhone(?string $t1, ?string $t2): ?string
-    {
-        $t1 = trim((string) $t1);
-        $t2 = trim((string) $t2);
-
-        if ($t1 !== '') return $t1;
-        if ($t2 !== '') return $t2;
-
-        return null;
     }
 }

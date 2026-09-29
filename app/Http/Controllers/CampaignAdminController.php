@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Campaigns\Recipients\RecipientPhone;
 use App\Models\Log as AuditLog;
 use App\Models\MessagingCampaign;
 use App\Models\User;
@@ -305,15 +306,17 @@ class CampaignAdminController extends Controller
             $updated = 0;
             $skipped = 0;
             $optOutSkipped = 0;
+            $invalidNumbers = 0;
 
             (clone $filteredQuery)
                 ->select(['id', 'email', 'telephone1', 'telephone2', 'first_name', 'last_name', 'email_opt_out', 'sms_opt_out'])
                 ->orderBy('id')
-                ->chunkById(500, function ($users) use ($campaign, $onlyContactable, &$created, &$updated, &$skipped, &$optOutSkipped) {
+                ->chunkById(500, function ($users) use ($campaign, $onlyContactable, &$created, &$updated, &$skipped, &$optOutSkipped, &$invalidNumbers) {
 
                     foreach ($users as $u) {
                         $email = trim((string)($u->email ?? '')) ?: null;
-                        $phone = $this->pickPhone($u->telephone1 ?? null, $u->telephone2 ?? null);
+                        $phonePick = RecipientPhone::pick($u->telephone1, $u->telephone2);
+                        $phone = $phonePick->e164; // +234…; stored user numbers are untouched
 
                         $channel          = $campaign->channel;
                         $channelUsesEmail = in_array($channel, ['email', 'both', 'email_fallback_sms'], true);
@@ -337,8 +340,16 @@ class CampaignAdminController extends Controller
                             continue;
                         }
 
+                        // Can only be reached by SMS, has a number, but none is a valid Nigerian
+                        // mobile: keep a visible row rather than silently dropping them.
+                        $invalidNumber = $channelUsesSms && ! $smsOptOut && $phonePick->invalid
+                            && RecipientPhone::needsSms($channel, $effectiveEmail);
+                        $status = $invalidNumber ? 'skipped_invalid_number' : 'pending';
+                        $lastError = $invalidNumber ? RecipientPhone::INVALID_NUMBER_ERROR : null;
+                        $invalidNumbers += (int) $invalidNumber;
+
                         // Contactability check (uses effective values so opt-out masking feeds in).
-                        if ($onlyContactable) {
+                        if ($onlyContactable && ! $invalidNumber) {
                             if ($channel === 'email' && !$effectiveEmail) { $skipped++; continue; }
                             if ($channel === 'sms'   && !$effectivePhone) { $skipped++; continue; }
 
@@ -362,11 +373,16 @@ class CampaignAdminController extends Controller
                             ->first();
 
                         if ($existing) {
-                            // Update contact info + payload only (opt-out masking applied).
+                            // Update contact info + payload only (opt-out masking applied). The
+                            // status only moves between pending and skipped_invalid_number, so a
+                            // rebuild never resets a row that was already attempted.
                             $existing->update([
                                 'email' => $effectiveEmail,
                                 'phone' => $effectivePhone,
                                 'payload_json' => $payload,
+                                ...(in_array($existing->status, ['pending', 'skipped_invalid_number'], true)
+                                    ? ['status' => $status, 'last_error' => $lastError]
+                                    : []),
                             ]);
                             $updated++;
                             continue;
@@ -379,8 +395,8 @@ class CampaignAdminController extends Controller
                             'email' => $effectiveEmail,
                             'phone' => $effectivePhone,
                             'payload_json' => $payload,
-                            'status' => 'pending',
-                            'last_error' => null,
+                            'status' => $status,
+                            'last_error' => $lastError,
                             'sent_at' => null,
                         ]);
 
@@ -441,7 +457,7 @@ class CampaignAdminController extends Controller
 
             return back()->with(
                 'success',
-                "Recipients built. Total: {$statsTotal}. Created: {$created}. Updated: {$updated}. Skipped: {$skipped}. Skipped (opted out): {$optOutSkipped}. Org emails added: {$orgEmailsAdded}."
+                "Recipients built. Total: {$statsTotal}. Created: {$created}. Updated: {$updated}. Skipped: {$skipped}. Skipped (opted out): {$optOutSkipped}. No valid mobile number: {$invalidNumbers}. Org emails added: {$orgEmailsAdded}."
             );
 
         } catch (\Throwable $e) {
@@ -450,15 +466,6 @@ class CampaignAdminController extends Controller
 
             return back()->with('error', 'Failed to build recipients: ' . $e->getMessage());
         }
-    }
-
-    private function pickPhone(?string $t1, ?string $t2): ?string
-    {
-        $t1 = trim((string)$t1);
-        $t2 = trim((string)$t2);
-        if ($t1 !== '') return $t1;
-        if ($t2 !== '') return $t2;
-        return null;
     }
 
     public function resetFailedRecipients(Request $request, MessagingCampaign $campaign)
