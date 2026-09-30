@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Models\User;
 use Illuminate\Support\Facades\RateLimiter;
 
 /**
@@ -41,6 +42,21 @@ class LoginThrottle
     public static function clear(string $key): void
     {
         RateLimiter::clear($key);
+    }
+
+    /**
+     * Clear every identifier this user can sign in with: their email, and
+     * telephone1 (the only number phone login matches on).
+     */
+    public static function clearFor(User $user): void
+    {
+        if ($user->email) {
+            self::clear(self::emailKey($user->email));
+        }
+
+        if ($user->telephone1) {
+            self::clear(self::phoneKey(PhoneNumber::normalize($user->telephone1)));
+        }
     }
 
     public static function lockoutMessage(string $key): string

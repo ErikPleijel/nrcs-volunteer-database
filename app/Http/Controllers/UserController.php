@@ -949,8 +949,12 @@ class UserController extends Controller
         $newSmsOptOut = $request->boolean('sms_opt_out');
         unset($validated['email_opt_out'], $validated['sms_opt_out']);
 
-        // Reset email verification if email or password changed
-        if ($request->email !== $user->email || $request->filled('password')) {
+        // Reset email verification only when the address itself changes. A
+        // password change says nothing about the email, and clearing it there
+        // stranded users on servers with no email provider. An address changed
+        // to empty ends up null/null, which EnsureEmailIsVerifiedOrAbsent lets through.
+        $emailChanged = array_key_exists('email', $validated) && $validated['email'] !== $user->email;
+        if ($emailChanged) {
             $validated['email_verified_at'] = null;
         }
 
@@ -1128,6 +1132,20 @@ class UserController extends Controller
         // 👉 Touch admin activity separately
         if ($admin = Auth::user()) {
             $admin->touchLastAdminActivity();
+        }
+
+        // Send a fresh verification email to the new address, as
+        // ProfileController does. Sent last, and a mail failure (e.g. a server
+        // with no mail provider) is only logged — the update is already saved.
+        if ($emailChanged && $user->email) {
+            try {
+                $user->sendEmailVerificationNotification();
+            } catch (\Throwable $e) {
+                Log::warning('UserController@update: verification email failed', [
+                    'user_id' => $user->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
         }
 
         return redirect()

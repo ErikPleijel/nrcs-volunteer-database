@@ -31,11 +31,9 @@ ADAPT procedure accordingly. This might need changes:
 
 
 - [ ] Check that superadmin accounts were created.
+- [ ] Set training validity years 1->3 years
+- [ ] Clarify which fee categories are for volunteers (maybe bronze, silver, gold for influencers?)
 
-- [ ] **`division_id` NULL count** — expect 0. In rehearsal, 373 users had
-  NULL `division_id` after `migrate:users`; a built-in restore pass
-  inside `migrate:users` recovered all of them, so 0 is expected on a
-  clean production run.
 ```sql
       SELECT COUNT(*) FROM users
       WHERE division_id IS NULL
@@ -87,7 +85,7 @@ ADAPT procedure accordingly. This might need changes:
 FROM users;"
 Expected result: both columns show 0.
 
-
+  07060683265 (DB-273857)
 For DB-273857: since it holds a finance role and would be the one archived, don't run it through the automated tool. Have someone who knows this person look at both accounts directly — compare the winner and DB-273857 by hand (name, branch, activity) to confirm they really are the same person, then decide whether to manually merge (moving DB-273857's finance role onto the winner, if needed) or leave both as separate legitimate accounts. Not worth automating for one case
 
 
