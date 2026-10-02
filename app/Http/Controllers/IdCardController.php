@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\Branch;
 use App\Models\Division;
 use App\Models\IdCardPrint;
-use App\Models\Log as AuditLog;
 use App\Models\RedCrossUnit;
 use App\Models\Setting;
 use App\Models\User;
@@ -409,15 +408,6 @@ class IdCardController extends Controller
         $user->signature_rejected_by_id = Auth::id();
         $user->save();
 
-        AuditLog::write(
-            'signature_rejected',
-            $user,
-            ['branch_id' => $user->branch_id, 'division_id' => $user->division_id],
-            null,
-            ['signature_rejected_at' => $user->signature_rejected_at->toDateTimeString()],
-            'Signature rejected — user asked to re-upload.'
-        );
-
         return response()->json([
             'rejected' => true,
             'rejected_at' => $user->signature_rejected_at->format('d M Y'),
@@ -432,20 +422,9 @@ class IdCardController extends Controller
     {
         $this->authorizeWithinScope($user);
 
-        $previous = $user->signature_rejected_at?->toDateTimeString();
-
         $user->signature_rejected_at = null;
         $user->signature_rejected_by_id = null;
         $user->save();
-
-        AuditLog::write(
-            'signature_reupload_undone',
-            $user,
-            ['branch_id' => $user->branch_id, 'division_id' => $user->division_id],
-            ['signature_rejected_at' => $previous],
-            ['signature_rejected_at' => null],
-            'Signature rejection undone.'
-        );
 
         return response()->json(['rejected' => false]);
     }

@@ -3,8 +3,9 @@
 /**
  * Feature tests for the warn-only "signature needs re-upload" flag:
  * - IdCardController::rejectSignature() / restoreSignature() set/clear
- *   users.signature_rejected_at + signature_rejected_by_id, write audit
- *   entries, return JSON, and 403 outside the admin's branch/division
+ *   users.signature_rejected_at + signature_rejected_by_id, write no audit
+ *   entry (routine ID-card workflow), return JSON, and 403 outside the
+ *   admin's branch/division
  * - User::booted() clears the flag whenever a new signature is saved, on
  *   both upload paths (own profile, admin users/edit)
  * - a rejected signature does NOT make the card non-printable (checkbox and
@@ -87,7 +88,7 @@ function markSignatureRejected(User $user, User $by): User
 |--------------------------------------------------------------------------
 */
 
-test('rejecting a signature sets both fields, writes an audit entry and returns JSON', function () {
+test('rejecting a signature sets both fields, writes no audit entry and returns JSON', function () {
     $this->freezeTime();
     $member = makeSignedMember($this->branch, $this->division);
 
@@ -106,10 +107,10 @@ test('rejecting a signature sets both fields, writes an audit entry and returns 
         ->and($member->needsSignatureReupload())->toBeTrue()
         ->and($member->signature)->toBe('sig.jpg'); // the image itself is untouched
 
-    expect(AuditLog::where('action', 'signature_rejected')->where('subject_id', $member->id)->exists())->toBeTrue();
+    expect(AuditLog::where('action', 'signature_rejected')->exists())->toBeFalse();
 });
 
-test('restoring clears both fields, writes its own audit entry and returns JSON', function () {
+test('restoring clears both fields, writes no audit entry and returns JSON', function () {
     $member = markSignatureRejected(makeSignedMember($this->branch, $this->division), $this->admin);
 
     $this->actingAs($this->admin)
@@ -121,7 +122,7 @@ test('restoring clears both fields, writes its own audit entry and returns JSON'
     expect($member->signature_rejected_at)->toBeNull()
         ->and($member->signature_rejected_by_id)->toBeNull();
 
-    expect(AuditLog::where('action', 'signature_reupload_undone')->where('subject_id', $member->id)->exists())->toBeTrue();
+    expect(AuditLog::where('action', 'signature_reupload_undone')->exists())->toBeFalse();
 });
 
 test('a branch admin gets 403 on reject and restore for a user in another branch', function () {

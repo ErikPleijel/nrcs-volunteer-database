@@ -1287,3 +1287,14 @@ mislabel the row. The ENUM gained one value (migration `2026_09_29_170000`).
 representative rows are unaffected. Opted-out users still in the filter keep their pending
 row — the runner's opt-out re-check stops them, as before.
 
+
+## 2026-10-02 — Signature rejection and undo are no longer written to the Audit Log
+
+**Decision:** `IdCardController::rejectSignature()` and `restoreSignature()` no longer write
+`signature_rejected` / `signature_reupload_undone` entries to `logs`. Rejecting a member's
+signature (or undoing a mis-click) is routine ID-card review workflow, not an audit-worthy
+event, and the entries crowded out the administrative changes the log exists for.
+
+**Consequences:** the flag itself is unchanged — `signature_rejected_at` and
+`signature_rejected_by_id` on the user still record who flagged it and when, until a new
+signature clears them. Existing rows with these actions were left in place.
