@@ -30,8 +30,8 @@
                         </button>
                         <div x-show="open === 'intro'" x-collapse class="px-4 py-3 bg-white">
                             <ul class="space-y-1 text-gray-700 list-disc pl-4">
-                                <li>This log focuses on <span class="font-semibold">deletions</span> and <span class="font-semibold">administrative changes</span> — not on ordinary day-to-day activity.</li>
-                                <li>Every deletion is kept — nothing disappears silently.</li>
+                                <li>This log records <span class="font-semibold">selected administrative changes</span>, such as role changes, payments, fees, campaign sending, settings and signatures — not ordinary day-to-day activity.</li>
+                                <li>See <span class="font-semibold">What the log records</span> below for the full list.</li>
                                 <li>It records <span class="font-semibold">admin-initiated</span> branch/division moves — when an administrator moves someone. Self-service moves a person makes to their own profile are not logged here.</li>
                                 <li>It records <span class="font-semibold">role and special permission changes</span> — who was assigned or removed from a role, and which special permissions were granted or revoked.</li>
                                 <li>It records <span class="font-semibold">National Settings changes</span> — including settings values, signatures, membership fees, training types, campaign purposes, and task force types.</li>
@@ -52,7 +52,7 @@
                         <div x-show="open === 'filter'" x-collapse class="px-4 py-3 bg-white">
                             <ul class="space-y-1 text-gray-700 list-disc pl-4">
                                 <li><span class="font-semibold">Search</span> matches description, action, or subject type/ID — and if you type a number, it also searches for that <span class="font-semibold">User ID</span> as the actor, submitter, or entered-by person.</li>
-                                <li>Use <span class="font-semibold">Action</span> to isolate a specific type of event, e.g. <span class="font-mono text-xs">payment_deleted</span>, <span class="font-mono text-xs">member_branch_division_changed</span>, <span class="font-mono text-xs">user_roles_updated</span>, or <span class="font-mono text-xs">setting_changed</span>.</li>
+                                <li>Use <span class="font-semibold">Action</span> to isolate a specific type of event, e.g. <span class="font-mono text-xs">membership_payment_deleted</span>, <span class="font-mono text-xs">member_branch_division_changed</span>, <span class="font-mono text-xs">user_roles_updated</span>, or <span class="font-mono text-xs">setting_changed</span>.</li>
                                 <li>Narrow down by <span class="font-semibold">Branch</span> and/or <span class="font-semibold">Division</span> — national admins see both, branch admins see Division only (scoped to their own branch).</li>
                                 <li>Use <span class="font-semibold">From date</span> / <span class="font-semibold">To date</span> to bound the results to a specific period.</li>
                             </ul>
