@@ -116,6 +116,78 @@
                         </div>
                     </div>
 
+                    {{-- What the log records --}}
+                    <div class="rounded-md border border-gray-200 overflow-hidden">
+                        <button type="button"
+                                @click="open = open === 'records' ? null : 'records'"
+                                class="w-full flex items-center justify-between px-3 py-2 bg-gray-50 hover:bg-gray-100 text-left font-semibold text-gray-700 text-sm">
+                            <span><i class="fas fa-list-check mr-2 text-emerald-400"></i>What the log records</span>
+                            <i class="fas fa-chevron-down text-xs text-gray-400 transition-transform"
+                               :class="open === 'records' ? 'rotate-180' : ''"></i>
+                        </button>
+                        <div x-show="open === 'records'" x-collapse class="px-4 py-3 bg-white space-y-3 text-gray-700">
+                            <p>The Audit Log records only these actions:</p>
+
+                            <div>
+                                <p class="font-semibold text-gray-800">People and access</p>
+                                <ul class="space-y-1 text-gray-700 list-disc pl-4">
+                                    <li>Role and permission changes (including appointing National DB Administrators and branch/division assistants)</li>
+                                    <li>Super-admin rights being automatically removed</li>
+                                    <li>Changes to a member's NIN, personal info, photo, picture or signature (which fields changed; the values themselves are hidden)</li>
+                                    <li>An admin moving a member to another branch or division</li>
+                                    <li>A member archiving their own account</li>
+                                    <li>Password resets done from the server command line</li>
+                                </ul>
+                            </div>
+
+                            <div>
+                                <p class="font-semibold text-gray-800">Payments and fees</p>
+                                <ul class="space-y-1 text-gray-700 list-disc pl-4">
+                                    <li>Membership payment added or deleted</li>
+                                    <li>Membership fee created, updated, replaced or deleted</li>
+                                </ul>
+                            </div>
+
+                            <div>
+                                <p class="font-semibold text-gray-800">Campaigns</p>
+                                <ul class="space-y-1 text-gray-700 list-disc pl-4">
+                                    <li>Campaign approved, sending started, stopped, or run once</li>
+                                    <li>Stuck messages marked as failed</li>
+                                </ul>
+                            </div>
+
+                            <div>
+                                <p class="font-semibold text-gray-800">ID cards and signatures</p>
+                                <ul class="space-y-1 text-gray-700 list-disc pl-4">
+                                    <li>Signature image added or removed</li>
+                                    <li>ID card signature replaced</li>
+                                    <li>Signature titles created, changed or deleted</li>
+                                </ul>
+                            </div>
+
+                            <div>
+                                <p class="font-semibold text-gray-800">Settings and lists</p>
+                                <ul class="space-y-1 text-gray-700 list-disc pl-4">
+                                    <li>System settings changed</li>
+                                    <li>Training types created, changed or deleted</li>
+                                    <li>Task force types created, changed or deleted</li>
+                                    <li>Campaign purposes changed</li>
+                                </ul>
+                            </div>
+
+                            <div>
+                                <p class="font-semibold text-gray-800">Data cleanup</p>
+                                <ul class="space-y-1 text-gray-700 list-disc pl-4">
+                                    <li>Duplicate phone numbers merged or archived</li>
+                                </ul>
+                            </div>
+
+                            <p>Each entry shows who did it (if done by a logged-in user), when, and a short description.</p>
+
+                            <p><span class="font-semibold">Not recorded:</span> logins, approvals and rejections, donations, trainings, activities, report downloads, consent, and most deletions.</p>
+                        </div>
+                    </div>
+
                 </div>{{-- end accordion --}}
             </div>{{-- end max-w-3xl --}}
 
