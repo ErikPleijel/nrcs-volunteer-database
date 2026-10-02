@@ -28,6 +28,22 @@ class Log extends Model
         'new_values' => 'array',
     ];
 
+    /**
+     * Keys whose values are never stored in old_values / new_values, at any
+     * depth (e.g. a member nested inside a payment snapshot). write() and the
+     * audit-log:redact-sensitive command replace them with REDACTED.
+     */
+    public const REDACTED_KEYS = [
+        'national_id_number',
+        'national_id_number_hash',
+        'personal_info',
+        'password',
+        'remember_token',
+        'legacy_password_hash',
+    ];
+
+    public const REDACTED = '[redacted]';
+
     /*
     |--------------------------------------------------------------------------
     | Relationships
@@ -163,8 +179,32 @@ class Log extends Model
             'branch_id'    => $context['branch_id']   ?? null,
             'division_id'  => $context['division_id'] ?? null,
             'description'  => $description,
-            'old_values'   => $old,
-            'new_values'   => $new,
+            'old_values'   => static::redactSensitive($old),
+            'new_values'   => static::redactSensitive($new),
         ]);
+    }
+
+    /**
+     * Recursively replace the value of every REDACTED_KEYS key with REDACTED.
+     * Null values are left as null (nothing to hide), so already-redacted or
+     * empty snapshots come back unchanged.
+     */
+    public static function redactSensitive(?array $values): ?array
+    {
+        if ($values === null) {
+            return null;
+        }
+
+        foreach ($values as $key => $value) {
+            if (is_string($key) && in_array(strtolower($key), self::REDACTED_KEYS, true)) {
+                if ($value !== null) {
+                    $values[$key] = self::REDACTED;
+                }
+            } elseif (is_array($value)) {
+                $values[$key] = static::redactSensitive($value);
+            }
+        }
+
+        return $values;
     }
 }

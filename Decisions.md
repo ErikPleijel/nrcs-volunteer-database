@@ -1298,3 +1298,29 @@ event, and the entries crowded out the administrative changes the log exists for
 **Consequences:** the flag itself is unchanged — `signature_rejected_at` and
 `signature_rejected_by_id` on the user still record who flagged it and when, until a new
 signature clears them. Existing rows with these actions were left in place.
+
+## 2026-10-02 — Audit Log snapshots: explicit whitelists plus a redaction safety net
+
+**Problem:** `MembershipPaymentController::destroy()` loaded the member and then stored
+`$payment->toArray()` as `old_values`. `toArray()` serialises loaded relations, and the
+`encrypted` casts decrypt on serialisation, so the row held the member's plaintext NIN,
+phone, email and address.
+
+**Decision — two layers:**
+1. **Whitelist at the write site.** The payment-deletion entry now stores
+   `MembershipPayment::auditSnapshot()`: the payment's own columns from `AUDIT_FIELDS`,
+   with no relations and no `gateway_response` (the raw Paystack payload). New write
+   sites should snapshot an explicit field list, not `toArray()`.
+2. **Safety net in `Log::write()`.** `old_values` / `new_values` are walked recursively,
+   and any key in `Log::REDACTED_KEYS` (NIN, its hash, personal_info, password,
+   remember_token, legacy_password_hash) is stored as `[redacted]`, at any depth. Null
+   values stay null. This catches a future `toArray()` that slips through, but it is not a
+   substitute for the whitelist: phone, email and address are deliberately **not**
+   redacted globally (several entries record a phone on purpose, e.g. phone-dedup).
+
+**Existing rows:** `php artisan audit-log:redact-sensitive` applies the same redaction to
+stored rows; dry run by default, `--force` to write.
+
+**Not changed:** `User::$hidden` still does not include `national_id_number` /
+`personal_info`; whether to hide them is a separate decision, since some code may rely on
+them being serialised.
