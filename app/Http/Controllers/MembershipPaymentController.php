@@ -754,7 +754,9 @@ class MembershipPaymentController extends Controller
         }
 
         // Soft delete: set is_deleted to true and record who deleted it and when
-        $attributes = $membershipPayment->toArray();
+        // Whitelisted payment columns only — 'user' is loaded above, and
+        // toArray() would copy the member's decrypted NIN into the log.
+        $attributes = $membershipPayment->auditSnapshot();
 
         $membershipPayment->update([
             'is_deleted' => true,

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\Approvable;
 use Carbon\Carbon;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -83,6 +84,47 @@ class MembershipPayment extends Model
         'updated_at',
         'removed_date',
     ];
+
+    /**
+     * Payment columns copied into Audit Log snapshots. An explicit whitelist on
+     * purpose: toArray() also serialises loaded relations (the member, with a
+     * decrypted NIN) and gateway_response (the raw Paystack payload).
+     */
+    public const AUDIT_FIELDS = [
+        'id',
+        'approval_status',
+        'decided_by_user_id',
+        'decided_at',
+        'user_id',
+        'organisation_id',
+        'red_cross_unit_id',
+        'payment_date',
+        'expiry_date',
+        'membership_fee_id',
+        'is_deleted',
+        'removed_date',
+        'removed_by_user_id',
+        'submitted_at',
+        'submission_name',
+        'reference',
+        'payment_channel',
+        'gateway_reference',
+        'submitted_by_user_id',
+        'branch_id',
+        'division_id',
+        'id_card_included',
+        'created_at',
+        'updated_at',
+    ];
+
+    /**
+     * This payment's own columns (AUDIT_FIELDS only, no relations), cast and
+     * formatted as toArray() would, for Audit Log old/new values.
+     */
+    public function auditSnapshot(): array
+    {
+        return Arr::only($this->attributesToArray(), self::AUDIT_FIELDS);
+    }
 
     /**
      * Get the user who made this payment.
