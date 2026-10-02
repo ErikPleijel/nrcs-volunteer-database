@@ -145,3 +145,51 @@ test('creating a payment still logs membership_payment_created with the payment 
         ->and($log->new_values)->toHaveKeys(['payment_date', 'expiry_date'])
         ->and(str_contains(DB::table('logs')->where('id', $log->id)->value('new_values'), '73918264051'))->toBeFalse();
 });
+
+/*
+|--------------------------------------------------------------------------
+| audit-log:redact-sensitive — cleanup of rows written before redaction
+|--------------------------------------------------------------------------
+*/
+
+function insertLegacyLeakyLog(): int
+{
+    return DB::table('logs')->insertGetId([
+        'action' => 'membership_payment_deleted',
+        'description' => 'Membership payment #9 deleted.',
+        'old_values' => json_encode(['id' => 9, 'user' => ['id' => 3, 'national_id_number' => '73918264051', 'first_name' => 'Ada']]),
+        'new_values' => null,
+        'created_at' => '2026-01-02 03:04:05',
+        'updated_at' => '2026-01-02 03:04:05',
+    ]);
+}
+
+test('audit-log:redact-sensitive is a dry run by default', function () {
+    $id = insertLegacyLeakyLog();
+    $before = (array) DB::table('logs')->find($id);
+
+    $this->artisan('audit-log:redact-sensitive')
+        ->expectsOutputToContain('Dry run: 1 row(s) would change')
+        ->assertSuccessful();
+
+    expect((array) DB::table('logs')->find($id))->toBe($before);
+});
+
+test('audit-log:redact-sensitive --force redacts old/new values and changes nothing else', function () {
+    $id = insertLegacyLeakyLog();
+    $before = (array) DB::table('logs')->find($id);
+
+    $this->artisan('audit-log:redact-sensitive', ['--force' => true])
+        ->expectsOutputToContain('Redacted 1 row(s)')
+        ->assertSuccessful();
+
+    $after = (array) DB::table('logs')->find($id);
+
+    expect(json_decode($after['old_values'], true))
+        ->toBe(['id' => 9, 'user' => ['id' => 3, 'national_id_number' => '[redacted]', 'first_name' => 'Ada']])
+        ->and(collect($after)->except('old_values')->all())->toBe(collect($before)->except('old_values')->all());
+
+    $this->artisan('audit-log:redact-sensitive')
+        ->expectsOutputToContain('No Audit Log rows need redacting.')
+        ->assertSuccessful();
+});
