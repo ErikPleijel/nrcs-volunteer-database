@@ -394,7 +394,9 @@
             const donationItemInput = document.getElementById('donation_item');
 
             // The user object if pre-selected via URL parameter
-            const preselectedUser = @json($user ?? null);
+            {{-- Only the fields selectUser() reads; the full model would put the decrypted NIN in the page source. --}}
+            @php($preselectedUser = isset($user) ? \Illuminate\Support\Arr::only($user->toArray(), ['id', 'first_name', 'middle_name', 'last_name', 'branch_id', 'division_id', 'branch', 'division', 'red_cross_unit']) : null)
+            const preselectedUser = @json($preselectedUser);
 
 
             // --- Functions ---

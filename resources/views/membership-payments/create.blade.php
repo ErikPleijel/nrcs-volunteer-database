@@ -466,7 +466,9 @@
             const totalAmount = document.getElementById('total-amount');
 
             // The user object if pre-selected via URL parameter
-            const preselectedUser = @json($user);
+            {{-- Only the fields selectUser() reads; the full model would put the decrypted NIN in the page source. --}}
+            @php($preselectedUser = isset($user) ? \Illuminate\Support\Arr::only($user->toArray(), ['id', 'first_name', 'middle_name', 'last_name', 'branch_id', 'division_id', 'branch', 'division', 'red_cross_unit_id', 'rcu_name', 'can_contribute_volunteering']) : null)
+            const preselectedUser = @json($preselectedUser);
 
             // Update payment summary
             function updatePaymentSummary() {

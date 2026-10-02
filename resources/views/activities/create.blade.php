@@ -465,7 +465,9 @@
             const selectedBranchId = document.getElementById('selected-branch-id');
             const selectedDivisionId = document.getElementById('selected-division-id');
             const changeUserBtn = document.getElementById('change-user-btn');
-            const preselectedUser = @json($user ?? null);
+            {{-- Only the fields selectUser() reads; the full model would put the decrypted NIN in the page source. --}}
+            @php($preselectedUser = isset($user) ? \Illuminate\Support\Arr::only($user->toArray(), ['id', 'first_name', 'middle_name', 'last_name', 'branch_id', 'division_id', 'branch', 'division', 'red_cross_unit', 'task_forces']) : null)
+            const preselectedUser = @json($preselectedUser);
 
 
             // Red Cross Unit related elements
