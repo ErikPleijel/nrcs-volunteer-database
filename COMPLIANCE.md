@@ -51,7 +51,7 @@ unnoticed.
 - Formal policy on consent status for members/volunteers transferred from
   the previous system.
 - Data Protection Officer designation, NDPC registration, and other
-  organisational (non-technical) compliance requirements — see below.
+  organisational (non-technical) compliance requirements.
 
 ---
 
