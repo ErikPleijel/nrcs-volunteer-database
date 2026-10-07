@@ -26,6 +26,7 @@ use App\Models\IdCardPrint;
 use App\Models\Organisation;
 use App\Models\RedCrossUnit;
 use App\Models\Log as AuditLog;
+use App\Services\OnlinePaymentEligibility;
 
 
 class ProfileController extends Controller
@@ -50,7 +51,7 @@ class ProfileController extends Controller
         // Initialize variables
         $membershipPayments = collect();
         $currentMembership = null;
-        $hasEverHadPersonalPayment = false;
+        $membershipEligibility = null;
         $showingLimitMessage = false;
         $donations = collect();
         $donationsLimitMessage = false;
@@ -98,26 +99,20 @@ class ProfileController extends Controller
             // Take ALL payments (including organisation-linked) for display
             $membershipPayments = $processedPayments;
 
+            // Online-payment eligibility (button, sub-case, reason) — shared
+            // with PaystackPaymentController so the two can't disagree.
+            $membershipEligibility = OnlinePaymentEligibility::for($user);
+
             // Current membership STATUS badge is personal-only: an
             // organisation's payment isn't this person's own membership.
-            $personalCurrentPayment = $user->activeMembershipPayments()
-                ->personal()
-                ->with('membershipFee')
-                ->get()
-                ->first(fn ($payment) => $payment->isValid());
+            $personalCurrentPayment = $membershipEligibility->currentPayment;
 
             $currentMembership = $personalCurrentPayment ? [
                 'membership_type' => $personalCurrentPayment->membershipFee->name ?? 'N/A',
                 'formatted_amount' => '₦' . number_format($personalCurrentPayment->membershipFee->amount ?? 0, 2),
                 'expiry_date' => $personalCurrentPayment->expiry_date?->format('M d, Y'),
-                'expiring_soon' => $personalCurrentPayment?->expiresSoon(28) ?? false,
                 'days_until_expiry' => $personalCurrentPayment?->days_until_expiry,
             ] : null;
-
-            // Distinguishes "never paid" from "paid once, now lapsed" for the
-            // member CTA on profile/show.blade.php — $currentMembership alone
-            // can't tell those apart, since both resolve to null.
-            $hasEverHadPersonalPayment = $user->membershipPayments()->personal()->exists();
 
             // Process Donations. Same rule as membership payments above:
             // organisation-linked donations stay visible, labeled.
@@ -231,11 +226,14 @@ class ProfileController extends Controller
             });
         }
 
+        $paymentsAvailable = OnlinePaymentEligibility::isAvailable();
+
         return view('profile.show', compact(
             'user',
             'membershipPayments',
             'currentMembership',
-            'hasEverHadPersonalPayment',
+            'membershipEligibility',
+            'paymentsAvailable',
             'showingLimitMessage',
             'donations',
             'donationsLimitMessage',
@@ -576,6 +574,7 @@ class ProfileController extends Controller
         // organisation's — matches the blank() convention used throughout
         // this controller / profile/show.blade.php.
         $canPayOnline = ! blank($authUser->email);
+        $paymentsAvailable = OnlinePaymentEligibility::isAvailable();
 
         $allDonations = $organisation->donations()
             ->orderBy('date_donation', 'desc')
@@ -622,7 +621,8 @@ class ProfileController extends Controller
             'certificatePrints',
             'certificatePrintsLimitMessage',
             'hasEverHadOrgPayment',
-            'canPayOnline'
+            'canPayOnline',
+            'paymentsAvailable'
         ));
     }
 
@@ -685,6 +685,7 @@ class ProfileController extends Controller
         // Paystack charges the logged-in leader's own email, as for
         // organisation contacts.
         $canPayOnline = ! blank($authUser->email);
+        $paymentsAvailable = OnlinePaymentEligibility::isAvailable();
 
         $allCertificatePrints = $redCrossUnit->certificatePrints()
             ->with('printedBy')
@@ -708,6 +709,7 @@ class ProfileController extends Controller
             'showingLimitMessage',
             'hasEverHadRcuPayment',
             'canPayOnline',
+            'paymentsAvailable',
             'certificatePrints',
             'certificatePrintsLimitMessage'
         ));

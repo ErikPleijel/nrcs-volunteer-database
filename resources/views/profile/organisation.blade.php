@@ -165,7 +165,9 @@
                     }
                 @endphp
 
-                @if($membershipCtaSubcase === 'new')
+                @if(! $paymentsAvailable && $membershipCtaSubcase !== 'valid')
+                    <p class="text-gray-600 text-sm mb-6">{{ \App\Services\OnlinePaymentEligibility::NOT_AVAILABLE_MESSAGE }}</p>
+                @elseif($membershipCtaSubcase === 'new')
                     @if($canPayOnline)
                         <p class="text-gray-600 text-sm mb-2">Pay the organisation's membership fee online to activate its membership.</p>
                         <div class="mb-6 flex justify-start">
@@ -257,7 +259,9 @@
                     <h2 class="text-xl font-bold text-gray-900">YOUR DONATIONS</h2>
                 </div>
 
-                @if($canPayOnline)
+                @if(! $paymentsAvailable)
+                    <p class="text-gray-600 text-sm mb-4">{{ \App\Services\OnlinePaymentEligibility::NOT_AVAILABLE_MESSAGE }}</p>
+                @elseif($canPayOnline)
                     <div class="mb-4 flex justify-start">
                         <a href="{{ route('make-payment.show', ['payment_type' => 'donation', 'organisation_id' => $organisation->id]) }}" class="btn-primary">
                             <i class="fas fa-hand-holding-heart mr-1"></i>Make a Donation

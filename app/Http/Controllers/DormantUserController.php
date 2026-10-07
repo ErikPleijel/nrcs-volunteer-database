@@ -67,7 +67,7 @@ class DormantUserController extends Controller
             ->whereDoesntHave('roles', fn ($q) => $q->whereIn('name', $allAdminRoles))
             ->whereDoesntHave('membershipPayments', fn ($q) => $q
                 ->where('is_deleted', false)
-                ->where('expiry_date', '>=', now())
+                ->where('expiry_date', '>=', now()->toDateString())
             )
             ->orderBy($type === 'pending' ? 'created_at' : 'last_activity_at', 'asc');
 

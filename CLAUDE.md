@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 The organizational structure flows: `Organisation` → `Branch` → `Division` → `RedCrossUnit`. Users (`User`) belong to this hierarchy and are either volunteers (`can_contribute_volunteering`) or members (`can_contribute_member`), or both.
 
-User lifecycle states: `awaiting_engagement` → `active` → `dormant` → `archived`. The `MarkDormantUsersFromActivity` command transitions users based on activity.
+User lifecycle states: `pending_engagement` → `active` → `dormant` → `archived`. The `MarkDormantUsersFromActivity` command transitions users based on activity.
 
 ### Authorization
 

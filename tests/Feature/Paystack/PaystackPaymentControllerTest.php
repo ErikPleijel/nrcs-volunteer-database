@@ -22,7 +22,7 @@ uses(TestCase::class, RefreshDatabase::class);
 
 beforeEach(function () {
     $this->withoutVite();
-    config(['paystack.secret_key' => 'sk_test_secret']);
+    config(['paystack.enabled' => true, 'paystack.public_key' => 'pk_test_public', 'paystack.secret_key' => 'sk_test_secret']);
 });
 
 /**

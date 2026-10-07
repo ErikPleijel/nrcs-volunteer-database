@@ -103,7 +103,7 @@ class Organisation extends Model
         return $this->hasOne(MembershipPayment::class, 'organisation_id')
             ->where('membership_payments.approval_status', MembershipPayment::APPROVED)
             ->where('is_deleted', false)
-            ->where('expiry_date', '>=', now())
+            ->where('expiry_date', '>=', now()->toDateString())
             ->latest('expiry_date');
     }
 

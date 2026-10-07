@@ -74,26 +74,26 @@ class OrganisationController extends Controller
             switch ($membership) {
                 case 'members':
                     $query->whereHas('membershipPayments', function ($q) {
-                        $q->where('is_deleted', false)->where('expiry_date', '>=', now());
+                        $q->where('is_deleted', false)->where('expiry_date', '>=', now()->toDateString());
                     });
                     break;
                 case 'expiring_14':
                     $query->whereHas('membershipPayments', function ($q) {
                         $q->where('is_deleted', false)
-                          ->where('expiry_date', '>=', now())
-                          ->where('expiry_date', '<=', now()->addDays(14));
+                          ->where('expiry_date', '>=', now()->toDateString())
+                          ->where('expiry_date', '<=', now()->addDays(14)->toDateString());
                     });
                     break;
                 case 'expiring_28':
                     $query->whereHas('membershipPayments', function ($q) {
                         $q->where('is_deleted', false)
-                          ->where('expiry_date', '>=', now())
-                          ->where('expiry_date', '<=', now()->addDays(28));
+                          ->where('expiry_date', '>=', now()->toDateString())
+                          ->where('expiry_date', '<=', now()->addDays(28)->toDateString());
                     });
                     break;
                 case 'non_members':
                     $query->whereDoesntHave('membershipPayments', function ($q) {
-                        $q->where('is_deleted', false)->where('expiry_date', '>=', now());
+                        $q->where('is_deleted', false)->where('expiry_date', '>=', now()->toDateString());
                     });
                     break;
             }

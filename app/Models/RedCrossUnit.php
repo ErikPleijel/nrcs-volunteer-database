@@ -154,7 +154,7 @@ class RedCrossUnit extends Model
     {
         return $this->hasOne(MembershipPayment::class, 'red_cross_unit_id')
             ->where('is_deleted', false)
-            ->where('expiry_date', '>=', now())
+            ->where('expiry_date', '>=', now()->toDateString())
             ->latest('expiry_date');
     }
 

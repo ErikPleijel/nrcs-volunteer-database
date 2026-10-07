@@ -22,6 +22,21 @@
             </div>
         @endif
 
+        {{-- e.g. sent back from the payment page with the reason online
+             payment isn't possible (OnlinePaymentEligibility::message()). --}}
+        @if (session('error'))
+            <div class="mb-6 flex justify-center">
+                <div class="w-full max-w-md rounded-lg border border-yellow-300 bg-yellow-50 px-6 py-3 text-yellow-900 shadow-sm">
+                    <div class="flex items-center justify-center gap-3">
+                        <i class="fas fa-triangle-exclamation text-yellow-600"></i>
+                        <div class="text-sm font-medium">
+                            {{ session('error') }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @endif
+
     @endauth
 
     <div class="py-8">
@@ -157,55 +172,9 @@
                             </div>
                         @endif
 
-                        @php
-                            // Shared source of truth for Member-vs-Volunteer wording throughout
-                            // this whole page (the unassigned-unit explainer directly below, and
-                            // the Membership section further down — its status box, intro
-                            // paragraph, and a/a2/b/c conditional texts) — computed once, here, so
-                            // nothing downstream recomputes or duplicates this logic. Hoisted up
-                            // from the Membership section so this page-top explainer can share it.
-                            //
-                            // Matches the "email missing" banner check at the top of this file
-                            // (blank(auth()->user()->email)) — archived still takes precedence
-                            // over this below, since it's checked first in $membershipCtaPath.
-                            $canPayOnline = ! blank($user->email);
-
-                            // Path precedence: archived overrides everything; pending_engagement
-                            // decides member-vs-volunteer purely from contribution preference (no
-                            // RC Unit yet to check); active/dormant decides from RC Unit assignment
-                            // instead. Any other lifecycle_status is deliberately left unhandled —
-                            // render nothing rather than guess.
-                            $membershipCtaPath = null;
-
-                            if ($user->lifecycle_status === 'archived') {
-                                $membershipCtaPath = 'archived';
-                            } elseif ($user->lifecycle_status === 'pending_engagement') {
-                                if ($user->can_contribute_volunteering) {
-                                    $membershipCtaPath = 'volunteer';
-                                } elseif ($user->can_contribute_member) {
-                                    $membershipCtaPath = 'member';
-                                } else {
-                                    // Neither preference set — the top mission-statement banner
-                                    // already prompts for this; don't duplicate it here.
-                                    $membershipCtaPath = 'none';
-                                }
-                            } elseif (in_array($user->lifecycle_status, ['active', 'dormant'], true)) {
-                                $membershipCtaPath = $user->redCrossUnit ? 'volunteer' : 'member';
-                            } else {
-                                $membershipCtaPath = 'unknown';
-                            }
-
-                            $membershipCtaSubcase = null;
-                            if (in_array($membershipCtaPath, ['member', 'volunteer'], true)) {
-                                if (! $currentMembership) {
-                                    $membershipCtaSubcase = $hasEverHadPersonalPayment ? 'lapsed' : 'new';
-                                } elseif ($currentMembership['expiring_soon'] ?? false) {
-                                    $membershipCtaSubcase = 'expiring_soon';
-                                } else {
-                                    $membershipCtaSubcase = 'valid';
-                                }
-                            }
-                        @endphp
+                        {{-- Membership payment state ($membershipEligibility: canPay, reason,
+                             subcase) comes from App\Services\OnlinePaymentEligibility via
+                             ProfileController::show() — no payment rules are decided in this view. --}}
 
                         {{-- Previously-assigned-but-now-unassigned explainer (isUnassignedGhost()):
                              plain, non-alarming language for the affected person themselves — the
@@ -228,13 +197,17 @@
                                                 contact your new branch so they can assign you to a unit there.
                                             </li>
                                             <li>
-                                                @if($membershipCtaSubcase === 'valid')
+                                                @if($membershipEligibility->subcase === 'valid')
                                                     Or, become a paying member instead — when your current membership
                                                     fee expires, you can renew as a regular member rather than waiting
                                                     for reassignment.
-                                                @else
+                                                @elseif($membershipEligibility->canPay)
                                                     Or, become a paying member instead — pay your membership fee to
                                                     activate a regular membership without needing a unit assignment.
+                                                @else
+                                                    Or, become a paying member instead — contact your branch to pay
+                                                    your membership fee and activate a regular membership without
+                                                    needing a unit assignment.
                                                 @endif
                                             </li>
                                             <li>
@@ -447,11 +420,6 @@
                             <h2 class="text-xl font-bold text-gray-900">YOUR MEMBERSHIP</h2>
                         </div>
 
-                        {{-- $canPayOnline / $membershipCtaPath / $membershipCtaSubcase are computed
-                             once, near the top of this page (right after the seven-principles
-                             block), so the unassigned-unit explainer up there can share the same
-                             values — see the PHP block there for the full computation. --}}
-
                         <!-- Current Valid Membership Status -->
                         <div class="mb-6 p-4 border-2 border-dashed border-gray-200 rounded-lg bg-gray-50">
 
@@ -476,13 +444,6 @@
                                         </span>
                                     </div>
                                 </div>
-                            @elseif($membershipCtaPath === 'volunteer')
-                                <div class="flex items-center justify-center py-4">
-                                    <div class="text-center">
-                                        <i class="fas fa-exclamation-triangle text-orange-500 text-2xl mb-2"></i>
-                                        <p class="text-orange-700 font-medium">No Active Fee Payment</p>
-                                    </div>
-                                </div>
                             @else
                                 <div class="flex items-center justify-center py-4">
                                     <div class="text-center">
@@ -493,66 +454,55 @@
                             @endif
                         </div>
 
-                        @if($membershipCtaPath === 'archived')
-                            <p class="profile-instruction-text mb-6">
-                                Your account is archived. Please contact your branch or Red Cross Unit directly to renew your membership.
-                            </p>
-                        @elseif($membershipCtaPath === 'member')
-                            @if(! $canPayOnline)
-                                {{-- No email on file: the online-payment button is never shown
-                                     here, regardless of path or sub-case — wording instead points
-                                     to adding an email or paying at the branch. --}}
-                                @if($membershipCtaSubcase === 'new')
-                                    <p class="profile-instruction-text mb-6">Pay your membership fee directly at your branch.</p>
-                                @elseif($membershipCtaSubcase === 'lapsed')
-                                    <p class="profile-instruction-text mb-6">Your membership has expired. Add an email address to your profile to renew online, or renew directly at your branch.</p>
-                                @elseif($membershipCtaSubcase === 'expiring_soon')
-                                    <p class="profile-instruction-text mb-6">Your membership expires in {{ floor($currentMembership['days_until_expiry']) }} days. Add an email address to your profile to renew online, or renew at your branch.</p>
-                                @else
-                                    <p class="text-xl font-bold text-center text-gray-700 mb-6">
-                                        {{ floor($currentMembership['days_until_expiry']) }} days to renewal
-                                    </p>
-                                @endif
-                            @else
-                                @if($membershipCtaSubcase === 'new')
-                                    <p class="profile-instruction-text mb-2">Pay your membership fee online to activate your membership.</p>
-                                    <div class="mb-6 flex justify-start">
-                                        <a href="{{ route('make-payment.show', ['payment_type' => 'membership']) }}" class="btn-primary">
-                                            <i class="fas fa-credit-card mr-1"></i>Make a Payment
-                                        </a>
-                                    </div>
-                                @elseif($membershipCtaSubcase === 'lapsed')
-                                    <p class="profile-instruction-text mb-2">Your membership has expired. Renew online to remain an active member.</p>
-                                    <div class="mb-6 flex justify-start">
-                                        <a href="{{ route('make-payment.show', ['payment_type' => 'membership']) }}" class="btn-primary">
-                                            <i class="fas fa-credit-card mr-1"></i>Renew Membership
-                                        </a>
-                                    </div>
-                                @elseif($membershipCtaSubcase === 'expiring_soon')
-                                    <p class="profile-instruction-text mb-2">Your membership expires in {{ floor($currentMembership['days_until_expiry']) }} days. Renew now to avoid a lapse in your membership.</p>
-                                    <div class="mb-6 flex justify-start">
-                                        <a href="{{ route('make-payment.show', ['payment_type' => 'membership']) }}" class="btn-primary">
-                                            <i class="fas fa-credit-card mr-1"></i>Renew Early
-                                        </a>
-                                    </div>
-                                @else
-                                    <p class="text-xl font-bold text-center text-gray-700 mb-6">
-                                        {{ floor($currentMembership['days_until_expiry']) }} days to renewal
-                                    </p>
-                                @endif
-                            @endif
-                        @elseif($membershipCtaPath === 'volunteer')
-                            @if($membershipCtaSubcase === 'new')
-                                <p class="profile-instruction-text mb-6">Your membership fee hasn't been paid yet.</p>
-                            @elseif($membershipCtaSubcase === 'lapsed')
-                                <p class="profile-instruction-text mb-6">Your membership has expired. Please renew at your branch.</p>
-                            @elseif($membershipCtaSubcase === 'expiring_soon')
-                                <p class="profile-instruction-text mb-6">Your membership will expire in {{ floor($currentMembership['days_until_expiry']) }} days. Please renew at your branch soon.</p>
+                        {{-- Rendering only: which text/button to show for the reason and
+                             sub-case decided by OnlinePaymentEligibility. --}}
+                        @php
+                            $membershipPaymentUrl = route('make-payment.show', ['payment_type' => 'membership']);
+                        @endphp
+
+                        @if($membershipEligibility->reason === 'archived')
+                            <p class="profile-instruction-text mb-6">{{ $membershipEligibility->message() }}</p>
+                        @elseif($membershipEligibility->reason === 'no_email')
+                            @if($membershipEligibility->subcase === 'new')
+                                <p class="profile-instruction-text mb-6">Pay your membership fee directly at your branch.</p>
+                            @elseif($membershipEligibility->subcase === 'lapsed')
+                                <p class="profile-instruction-text mb-6">Your membership has expired. Add an email address to your profile to renew online, or renew directly at your branch.</p>
+                            @elseif($membershipEligibility->subcase === 'expiring_soon')
+                                <p class="profile-instruction-text mb-6">Your membership expires in {{ $currentMembership['days_until_expiry'] }} days. Add an email address to your profile to renew online, or renew at your branch.</p>
                             @else
                                 <p class="text-xl font-bold text-center text-gray-700 mb-6">
-                                    {{ floor($currentMembership['days_until_expiry']) }} days to renewal
+                                    {{ $currentMembership['days_until_expiry'] }} days to renewal
                                 </p>
                             @endif
+                        @elseif(in_array($membershipEligibility->reason, ['volunteer_contact_branch', 'pending_approval'], true))
+                            <p class="profile-instruction-text mb-6">{{ $membershipEligibility->message() }}</p>
+                        @elseif($membershipEligibility->subcase === 'valid')
+                            <p class="text-xl font-bold text-center text-gray-700 mb-6">
+                                {{ $currentMembership['days_until_expiry'] }} days to renewal
+                            </p>
+                        @elseif($membershipEligibility->reason === 'payments_disabled')
+                            <p class="profile-instruction-text mb-6">{{ $membershipEligibility->message() }}</p>
+                        @elseif($membershipEligibility->subcase === 'new')
+                            <p class="profile-instruction-text mb-2">Pay your membership fee online to activate your membership.</p>
+                            <div class="mb-6 flex justify-start">
+                                <a href="{{ $membershipPaymentUrl }}" class="btn-primary">
+                                    <i class="fas fa-credit-card mr-1"></i>Make a Payment
+                                </a>
+                            </div>
+                        @elseif($membershipEligibility->subcase === 'lapsed')
+                            <p class="profile-instruction-text mb-2">Your membership has expired. Renew online to remain an active member.</p>
+                            <div class="mb-6 flex justify-start">
+                                <a href="{{ $membershipPaymentUrl }}" class="btn-primary">
+                                    <i class="fas fa-credit-card mr-1"></i>Renew Membership
+                                </a>
+                            </div>
+                        @else
+                            <p class="profile-instruction-text mb-2">Your membership expires in {{ $currentMembership['days_until_expiry'] }} days. Renew now to avoid a lapse in your membership.</p>
+                            <div class="mb-6 flex justify-start">
+                                <a href="{{ $membershipPaymentUrl }}" class="btn-primary">
+                                    <i class="fas fa-credit-card mr-1"></i>Renew Early
+                                </a>
+                            </div>
                         @endif
 
 
@@ -652,7 +602,9 @@
                             You can donate money, food, clothes, hygiene materials etc. Contact your branch for more information.
                         </p>
 
-                        @if($canPayOnline)
+                        @if(! $paymentsAvailable)
+                            <p class="profile-instruction-text mb-4">{{ \App\Services\OnlinePaymentEligibility::NOT_AVAILABLE_MESSAGE }}</p>
+                        @elseif(filled($user->email))
                             <div class="mb-4 flex justify-start">
                                 <a href="{{ route('make-payment.show', ['payment_type' => 'donation']) }}" class="btn-primary">
                                     <i class="fas fa-hand-holding-heart mr-1"></i>Make a Donation

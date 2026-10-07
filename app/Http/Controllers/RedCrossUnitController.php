@@ -556,11 +556,11 @@ class RedCrossUnitController extends Controller
 
         if ($status !== 'archived') {
             match ($fee) {
-                'paid' => $query->whereHas('membershipPayments', fn ($q) => $q->where('is_deleted', false)->where('expiry_date', '>=', now())),
+                'paid' => $query->whereHas('membershipPayments', fn ($q) => $q->where('is_deleted', false)->where('expiry_date', '>=', now()->toDateString())),
                 'expiring_28' => $query->whereHas('membershipPayments', fn ($q) => $q->where('is_deleted', false)
-                    ->where('expiry_date', '>=', now())
-                    ->where('expiry_date', '<=', now()->addDays(28))),
-                'unpaid' => $query->whereDoesntHave('membershipPayments', fn ($q) => $q->where('is_deleted', false)->where('expiry_date', '>=', now())),
+                    ->where('expiry_date', '>=', now()->toDateString())
+                    ->where('expiry_date', '<=', now()->addDays(28)->toDateString())),
+                'unpaid' => $query->whereDoesntHave('membershipPayments', fn ($q) => $q->where('is_deleted', false)->where('expiry_date', '>=', now()->toDateString())),
                 default => null,
             };
         }

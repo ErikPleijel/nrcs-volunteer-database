@@ -9,6 +9,10 @@
  * Paystack docs (see PaystackService's implementation report for the source).
  */
 return [
+    // Master switch for every online-payment flow (personal, organisation,
+    // Red Cross Unit, donations). Payments are only offered when this is on
+    // AND both keys below are set — see OnlinePaymentEligibility::isAvailable().
+    'enabled' => env('PAYSTACK_ENABLED', false),
     'secret_key' => env('PAYSTACK_SECRET_KEY'),
     'public_key' => env('PAYSTACK_PUBLIC_KEY'),
     'base_url' => 'https://api.paystack.co',

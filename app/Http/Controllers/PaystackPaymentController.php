@@ -8,6 +8,7 @@ use App\Models\MembershipFee;
 use App\Models\MembershipPayment;
 use App\Models\PaymentTransaction;
 use App\Models\RedCrossUnit;
+use App\Services\OnlinePaymentEligibility;
 use App\Services\PaystackService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -15,6 +16,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Member/org-contact self-service Paystack payments (donations and personal
@@ -33,6 +35,10 @@ class PaystackPaymentController extends Controller
      */
     public function show(Request $request)
     {
+        if (! OnlinePaymentEligibility::isAvailable()) {
+            return redirect()->route('profile.show')->with('error', OnlinePaymentEligibility::NOT_AVAILABLE_MESSAGE);
+        }
+
         $user = Auth::user();
 
         $organisations = $user->organisations;
@@ -92,12 +98,22 @@ class PaystackPaymentController extends Controller
             }
         }
 
+        // Personal membership: who may pay and which fees they may pick come
+        // from OnlinePaymentEligibility (shared with the profile button and
+        // initiate()). Arriving locked to a personal membership payment while
+        // not eligible sends the payer back with the reason. On the unlocked
+        // page the donation option stays usable; the personal fee list is
+        // just empty, with the reason shown in its place.
+        $eligibility = OnlinePaymentEligibility::for($user);
+        if ($lockedPaymentType === 'membership' && ! $lockedOrganisation && ! $lockedRedCrossUnit && ! $eligibility->canPay) {
+            return redirect()->route('profile.show')->with('error', $eligibility->message());
+        }
+        $personalMembershipFees = $eligibility->allowedFees;
+        $personalMembershipBlockedReason = $eligibility->message();
+
         // for_organizations, for_red_cross_units and is_volunteer_fee are all plain NOT NULL
         // booleans (default false) — no nullable/legacy-null case to account
         // for, so a straight true/false split is exact, not an approximation.
-        // Volunteer fees are excluded here: volunteers pay their branch
-        // directly, not through this self-service online flow.
-        $personalMembershipFees = MembershipFee::active()->forPersons()->where('is_volunteer_fee', false)->orderBy('validity_years')->orderBy('amount')->get();
         $organisationMembershipFees = MembershipFee::active()->where('for_organizations', true)->where('is_volunteer_fee', false)->orderBy('validity_years')->orderBy('amount')->get();
         $rcuMembershipFees = MembershipFee::active()->forRedCrossUnits()->orderBy('validity_years')->orderBy('amount')->get();
 
@@ -105,6 +121,7 @@ class PaystackPaymentController extends Controller
             'user' => $user,
             'organisations' => $organisations,
             'personalMembershipFees' => $personalMembershipFees,
+            'personalMembershipBlockedReason' => $personalMembershipBlockedReason,
             'organisationMembershipFees' => $organisationMembershipFees,
             'rcuMembershipFees' => $rcuMembershipFees,
             'lockedPaymentType' => $lockedPaymentType,
@@ -120,6 +137,10 @@ class PaystackPaymentController extends Controller
      */
     public function initiate(Request $request)
     {
+        if (! OnlinePaymentEligibility::isAvailable()) {
+            return redirect()->route('profile.show')->with('error', OnlinePaymentEligibility::NOT_AVAILABLE_MESSAGE);
+        }
+
         $user = Auth::user();
 
         $validated = $request->validate([
@@ -192,6 +213,24 @@ class PaystackPaymentController extends Controller
         // unit, not the payer's own membership standing).
         if ($validated['payment_type'] === 'membership' && ! $isOrgPayment && ! $isRcuPayment && $user->lifecycle_status === 'archived') {
             return back()->with('error', 'Your account is archived. Please contact your branch or Red Cross Unit directly to renew your membership.');
+        }
+
+        // Personal membership: re-check the shared eligibility rules and only
+        // accept a fee from the payer's allowed set (rejects inactive,
+        // organisation and wrongly-applied volunteer fees). Donations, org
+        // and RCU payments never reach this.
+        if ($validated['payment_type'] === 'membership' && ! $isOrgPayment && ! $isRcuPayment) {
+            $eligibility = OnlinePaymentEligibility::for($user);
+
+            if (! $eligibility->canPay) {
+                return back()->with('error', $eligibility->message());
+            }
+
+            if (! $eligibility->allowsFee($validated['membership_fee_id'])) {
+                throw ValidationException::withMessages([
+                    'membership_fee_id' => 'That membership fee is not available to you.',
+                ]);
+            }
         }
 
         if ($validated['payment_type'] === 'membership') {

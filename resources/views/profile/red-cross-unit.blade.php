@@ -114,6 +114,8 @@
 
                 @if(! $redCrossUnit->is_active)
                     <p class="text-gray-600 text-sm mb-6">This Red Cross Unit is archived, so its annual fee can no longer be paid. Please contact your branch if you think this is a mistake.</p>
+                @elseif(! $paymentsAvailable && $membershipCtaSubcase !== 'valid')
+                    <p class="text-gray-600 text-sm mb-6">{{ \App\Services\OnlinePaymentEligibility::NOT_AVAILABLE_MESSAGE }}</p>
                 @elseif($membershipCtaSubcase === 'new')
                     @if($canPayOnline)
                         <p class="text-gray-600 text-sm mb-2">Pay the unit's annual fee online.</p>

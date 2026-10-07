@@ -472,7 +472,9 @@ class MembershipPayment extends Model
     }
 
     /**
-     * Check if this membership payment is currently valid.
+     * Check if this membership payment is currently valid. A membership is
+     * valid through its expiry date — same rule as scopeValid() and
+     * User::currentMembershipPayment() (expiry_date >= today).
      *
      * @return bool
      */
@@ -480,7 +482,7 @@ class MembershipPayment extends Model
     {
         return ! $this->is_deleted &&
                $this->expiry_date &&
-               $this->expiry_date->isFuture();
+               $this->expiry_date->gte(today());
     }
 
     /**
@@ -490,7 +492,7 @@ class MembershipPayment extends Model
      */
     public function isExpired()
     {
-        return $this->expiry_date && $this->expiry_date->isPast();
+        return $this->expiry_date && $this->expiry_date->lt(today());
     }
 
     /**
@@ -504,7 +506,8 @@ class MembershipPayment extends Model
             return null;
         }
 
-        return now()->diffInDays($this->expiry_date, false);
+        // Whole days, date to date: 0 on the expiry date itself.
+        return (int) today()->diffInDays($this->expiry_date, false);
     }
 
     /**
@@ -519,6 +522,6 @@ class MembershipPayment extends Model
             return false;
         }
 
-        return $this->expiry_date->isBetween(now(), now()->addDays($days));
+        return $this->expiry_date->between(today(), today()->addDays($days));
     }
 }

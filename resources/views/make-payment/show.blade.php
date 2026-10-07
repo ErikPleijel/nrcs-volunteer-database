@@ -84,7 +84,7 @@
                                         <input type="radio" name="payment_type" value="membership" id="type_membership"
                                                {{ old('payment_type', 'membership') === 'membership' ? 'checked' : '' }}
                                                class="text-blue-600 focus:ring-blue-500">
-                                        <span class="text-sm font-medium text-gray-700">Membership Renewal</span>
+                                        <span class="text-sm font-medium text-gray-700">Membership fee</span>
                                     </label>
                                     <label class="flex items-center gap-2">
                                         <input type="radio" name="payment_type" value="donation" id="type_donation"
@@ -137,7 +137,7 @@
                         @endif
 
                         @if(!$lockedPaymentType || $lockedPaymentType === 'membership')
-                            <!-- Membership Renewal section -->
+                            <!-- Membership fee section -->
                             <div id="membership_fields" class="entry-card">
                                 <h4 class="entry-card-title">Membership Details</h4>
 
@@ -187,6 +187,11 @@
                                 @else
                                     {{-- Personal fee list — visible when "Paying as: Myself" (or no linked orgs at all). --}}
                                     <div id="personal_fee_wrapper">
+                                        @if($personalMembershipBlockedReason)
+                                            {{-- Not eligible to pay a personal membership fee online: the
+                                                 list below is empty, so the form can't be submitted for it. --}}
+                                            <p class="text-sm text-gray-600 mb-2">{{ $personalMembershipBlockedReason }}</p>
+                                        @endif
                                         <label for="personal_membership_fee_id" class="block text-sm font-medium text-gray-700 mb-2">
                                             Membership Fee <span class="text-red-500">*</span>
                                         </label>
@@ -313,7 +318,7 @@
             }
 
             // Keeps the personal/org fee selects in sync with both the
-            // payment-type toggle (only relevant while "Membership Renewal" is
+            // payment-type toggle (only relevant while "Membership fee" is
             // selected) and the "Paying as" toggle (which of the two selects
             // is the active one). Disabling the inactive select is what stops
             // its value from being submitted alongside the active one.

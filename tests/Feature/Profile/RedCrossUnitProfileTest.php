@@ -20,6 +20,7 @@ uses(TestCase::class, RefreshDatabase::class);
 
 beforeEach(function () {
     $this->withoutVite();
+    config(['paystack.enabled' => true, 'paystack.public_key' => 'pk_test_public', 'paystack.secret_key' => 'sk_test_secret']);
 
     $branch = Branch::create(['name' => 'Alpha Branch', 'code' => 'ALP']);
     $this->division = Division::create(['name' => 'Alpha Division', 'branch_id' => $branch->id]);

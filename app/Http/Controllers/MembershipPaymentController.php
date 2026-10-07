@@ -126,14 +126,14 @@ class MembershipPaymentController extends Controller
         if ($request->filled('validity_status')) {
             switch ($request->validity_status) {
                 case 'valid':
-                    $query->where('expiry_date', '>=', now());
+                    $query->where('expiry_date', '>=', now()->toDateString());
                     break;
                 case 'expired':
-                    $query->where('expiry_date', '<', now());
+                    $query->where('expiry_date', '<', now()->toDateString());
                     break;
                 case 'expiring_soon':
-                    $query->where('expiry_date', '>=', now())
-                        ->where('expiry_date', '<=', now()->addDays(30));
+                    $query->where('expiry_date', '>=', now()->toDateString())
+                        ->where('expiry_date', '<=', now()->addDays(30)->toDateString());
                     break;
             }
         }
