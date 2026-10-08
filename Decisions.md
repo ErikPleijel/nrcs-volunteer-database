@@ -1349,9 +1349,9 @@ page every unit member can open.
 - The controller still loads full user rows (`users.*`) for `/my-unit`; only the view changed.
 - `red-cross-units/show` (the admin unit page) still shows team leader and member phone
   numbers. Out of scope here, pending a decision.
-- The narration MP3 `level2-database_cleanup-log.mp3` still says "The Log" until it is
-  regenerated. The lesson-complete narration (`level2-database_cleanup-complete.txt`) also
-  still says "the Log".
+- The narration MP3s `level2-database_cleanup-log.mp3` and `level2-database_cleanup-complete.mp3`
+  still say "the Log" until they are regenerated. Both narration scripts
+  (`level2-database_cleanup-log.txt`, `level2-database_cleanup-complete.txt`) now say "the Audit Log".
 
 ## 2026-10-08 — Consent and Code of Conduct confirmation for all users
 
