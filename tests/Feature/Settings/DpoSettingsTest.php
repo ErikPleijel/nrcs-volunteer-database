@@ -7,10 +7,12 @@
  * by the National DB administrator. Not a role — see Decisions.md 2026-10-08.
  */
 
+use App\Models\Branch;
 use App\Models\Log as AuditLog;
 use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Cache;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -24,8 +26,14 @@ const DPO_KEYS = ['dpo.name', 'dpo.address', 'dpo.email', 'dpo.phone'];
 beforeEach(function () {
     Cache::flush();
 
-    Permission::findOrCreate('change_settings', 'web');
-    Role::findOrCreate('national_db_administrator', 'web')->syncPermissions(['change_settings']);
+    foreach (['change_settings', 'manage-admin-panel', 'manage_roles_and_permissions'] as $permission) {
+        Permission::findOrCreate($permission, 'web');
+    }
+    Role::findOrCreate('national_db_administrator', 'web')
+        ->syncPermissions(['change_settings', 'manage-admin-panel', 'manage_roles_and_permissions']);
+    // Can open edit-roles, but not Settings (matches PermissionsTableSeeder).
+    Role::findOrCreate('branch_db_administrator', 'web')
+        ->syncPermissions(['manage-admin-panel', 'manage_roles_and_permissions']);
     app(PermissionRegistrar::class)->forgetCachedPermissions();
 
     $this->national = User::factory()->create();
@@ -116,4 +124,79 @@ test('an empty DPO email is accepted', function () {
         ->assertRedirect(route('admin.settings.index'));
 
     expect(Setting::where('key', 'dpo.email')->value('value'))->toBe('');
+});
+
+/*
+|--------------------------------------------------------------------------
+| The DPO box on users/edit-roles (<x-dpo-contact />)
+|--------------------------------------------------------------------------
+*/
+
+function editRolesPage(User $viewer)
+{
+    test()->withoutVite();
+
+    return test()->actingAs($viewer)
+        ->withSession(['auth.password_confirmed_at' => time()])
+        ->get(route('users.roles.edit'))
+        ->assertOk();
+}
+
+test('edit-roles shows the DPO contact details when they are set', function () {
+    foreach ([
+        'dpo.name' => 'Ada Officer',
+        'dpo.address' => "PO Box 764\nGarki, Abuja",
+        'dpo.email' => 'dpo@redcrossnigeria.org',
+        'dpo.phone' => '+234 803 000 0000',
+    ] as $key => $value) {
+        Setting::where('key', $key)->first()->update(['value' => $value]);
+    }
+
+    editRolesPage($this->national)
+        ->assertSee('Data Protection Officer (DPO)')
+        ->assertSee('Ada Officer')
+        ->assertSee('PO Box 764<br />', false)
+        ->assertSee('href="mailto:dpo@redcrossnigeria.org"', false)
+        ->assertSee('href="tel:+2348030000000"', false)
+        ->assertSee('+234 803 000 0000')
+        ->assertDontSee('No Data Protection Officer is registered.');
+});
+
+test('lines with empty values are left out', function () {
+    Setting::where('key', 'dpo.name')->first()->update(['value' => 'Ada Officer']);
+
+    editRolesPage($this->national)
+        ->assertSee('Ada Officer')
+        ->assertDontSee('mailto:', false)
+        ->assertDontSee('href="tel:', false);
+});
+
+test('edit-roles warns a National DB admin, with a Settings link, when no DPO name is set', function () {
+    // The sidebar links to Settings too, so match the box's own link.
+    editRolesPage($this->national)
+        ->assertSee('No Data Protection Officer is registered.')
+        ->assertSee('Go to <a href="'.route('admin.settings.index').'"', false)
+        ->assertSee("and enter the DPO's name and contact details.", false)
+        ->assertDontSee('Please inform the National DB Administrator.');
+});
+
+test('a branch-level user on edit-roles sees the warning without the Settings link', function () {
+    $branchAdmin = User::factory()->create([
+        'branch_id' => Branch::create(['name' => 'Alpha Branch', 'code' => 'ALP'])->id,
+    ]);
+    $branchAdmin->assignRole('branch_db_administrator');
+
+    // Their Users-by-Role table is empty, which used to crash the page.
+    editRolesPage($branchAdmin)
+        ->assertSee('No users with roles found within your scope.')
+        ->assertSee('No Data Protection Officer is registered.')
+        ->assertSee('Please inform the National DB Administrator.')
+        ->assertDontSee('Go to <a href="'.route('admin.settings.index').'"', false);
+});
+
+test('the public variant shows a neutral note instead of the warning', function () {
+    $html = Blade::render('<x-dpo-contact :public="true" />');
+
+    expect($html)->toContain('Contact details for the Data Protection Officer will be published here soon.')
+        ->not->toContain('No Data Protection Officer is registered.');
 });

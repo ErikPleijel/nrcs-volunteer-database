@@ -20,6 +20,11 @@
         </div>
     </div>
 
+    {{-- Data Protection Officer (dpo.* settings — not a role) --}}
+    <div class="mb-4 flex justify-center">
+        <x-dpo-contact class="w-full max-w-2xl" />
+    </div>
+
 
     <div class="flex justify-center mb-4">
         <x-help-popup trigger-class="help-btn">
@@ -355,13 +360,11 @@
                                 @endif
                             </tr>
                         @empty
-                            @if($usersWithDirectPermissions->isEmpty())
-                                <tr>
-                                    <td colspan="4" class="border text-center py-10 text-gray-500">
-                                        No users with roles found within your scope.
-                                    </td>
-                                </tr>
-                            @endif
+                            <tr>
+                                <td colspan="4" class="border text-center py-10 text-gray-500">
+                                    No users with roles found within your scope.
+                                </td>
+                            </tr>
                         @endforelse
                         </tbody>
                     </table>

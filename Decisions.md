@@ -1394,3 +1394,32 @@ staff-registered users have staff-attested `consent_*` but no CoC timestamp.
 - Staff-registered users are asked again at their first login, even though staff attested
   consent at registration; the attestation stays visible in the audit entry's old values.
 - `UserFactory` defaults to a consented user; use `notConsented()` to exercise the gate.
+
+## 2026-10-08 — DPO stored as institutional settings, not a role
+
+**Decision:** the Data Protection Officer is four settings in the "Data protection" group:
+`dpo.name`, `dpo.address` (textarea), `dpo.email` (must be a valid address or empty) and
+`dpo.phone`. They are seeded empty by `2026_10_08_120000_add_dpo_settings.php` and edited by the
+National DB administrator on the existing Settings page (`change_settings` + `password.confirm`).
+Like every setting, changes are audited as `setting_changed`. `<x-dpo-contact />`
+(`App\View\Components\DpoContact`) shows them. When `dpo.name` is empty it shows a warning
+instead: with a Settings link for users who can `change_settings`, otherwise "Please inform the
+National DB Administrator."
+
+**Rationale:**
+- Survives a change of DPO person: no account or role has to be moved.
+- The published contact can be an office with an institutional email and phone, keeping personal
+  phone numbers off public pages.
+- No change to the role model or permissions.
+
+**Consequences:**
+- Shown on users/edit-roles, under the "System governance" note.
+- Group 4 reuses the component on the public privacy policy page with `:public="true"`. There an
+  empty name shows "Contact details for the Data Protection Officer will be published here
+  soon." instead of the admin warning.
+- Two fixes found on the way:
+  - `SettingController::update` audited every empty setting as changed on every save. An empty
+    field arrives as `null` but is stored as `''`; it is now normalised first.
+  - users/edit-roles crashed (undefined `$usersWithDirectPermissions`, never set since the
+    initial commit) whenever the viewer's "Users by Role" table was empty, e.g. a branch admin
+    with no assignable role holders in their branch. The dead condition is removed.
