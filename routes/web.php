@@ -13,6 +13,7 @@ use App\Http\Controllers\BranchController;
 use App\Http\Controllers\CampaignAdminController;
 use App\Http\Controllers\CampaignWizardController;
 use App\Http\Controllers\CertificateController;
+use App\Http\Controllers\ConsentConfirmationController;
 use App\Http\Controllers\DivisionController;
 use App\Http\Controllers\DonationController;
 use App\Http\Controllers\DormantUserController;
@@ -121,6 +122,14 @@ Route::group([], function () {
     Route::post('forgot-password', [NewPasswordController::class, 'store'])->name('password.email');
     Route::get('reset-password/{token}', [NewPasswordController::class, 'edit'])->name('password.reset');
     Route::post('reset-password', [NewPasswordController::class, 'update'])->name('password.update');
+});
+
+// One-time Code of Conduct + consent confirmation (EnsureConsentConfirmed
+// sends unconsented users here). Deliberately NOT behind verified.or.absent,
+// so users with an unverified email can reach it.
+Route::middleware('auth')->group(function () {
+    Route::get('/consent/confirm', [ConsentConfirmationController::class, 'show'])->name('consent.confirm');
+    Route::post('/consent/confirm', [ConsentConfirmationController::class, 'store'])->name('consent.confirm.store');
 });
 
 // Password confirmation (re-auth gate for sensitive areas, e.g. Settings)

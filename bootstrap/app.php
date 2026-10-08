@@ -12,6 +12,8 @@ $app = Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->appendToGroup('web', \App\Http\Middleware\TouchAdminActivity::class);
+        // Order matters: Code of Conduct + consent first, then the staff policy.
+        $middleware->appendToGroup('web', \App\Http\Middleware\EnsureConsentConfirmed::class);
         $middleware->appendToGroup('web', \App\Http\Middleware\RequiresPolicyAcceptance::class);
 
         $middleware->alias([
