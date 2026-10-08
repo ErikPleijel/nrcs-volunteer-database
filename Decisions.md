@@ -1672,9 +1672,10 @@ updated after the 2026-10 legal review. Tick items here when they are done.
 - [ ] Final Privacy Policy text from NRCS Legal: replace
       `resources/views/policies/privacy-policy-text.blade.php`, then set `$isDraft = false`
       (removes the draft banner) and update "Last updated".
-- [ ] Decide on the "Under review" registration fields: marital status, residential address,
-      workplace address, organisation (free text) and "personal information". Keep (with a
-      purpose) or stop collecting and remove existing values.
+- [ ] Marital status: probably unnecessary, NRCS to decide whether to stop collecting it.
+- [ ] Signature image: NRCS considering handwritten signature on the card instead of a stored
+      image.
+- [ ] Organisation (free text): no decision yet.
 - [ ] Consent for the ~27,000 imported records with no email and no phone (counted on a local
       copy, 2026-10). They can never log in, so they are never asked to confirm. Decide how
       consent is obtained, e.g. on paper at the next branch contact, recorded by staff.
@@ -1710,7 +1711,9 @@ everywhere); DPO designation mechanism (now settings, 2026-10-08); historical co
 migrated members (now confirmed at first login, 2026-10-08, except those who cannot log in;
 see above); the Audit Log page's guide (now lists consent confirmation, archiving, restoring
 and anonymizing, 2026-10-08); full addresses and message bodies in the dry-run email log (now a
-masked address, the subject and the body length only, 2026-10-08).
+masked address, the subject and the body length only, 2026-10-08). Residential address,
+workplace address and personal information: justified by NRCS on 8 Oct 2026 (emergency
+contact; vetting).
 
 **Decided by NRCS's consultant on 8 Oct 2026:** the NIN stays printed on the ID card, which is
 the main reason it is collected; and staff keep seeing phone numbers on the staff unit page

@@ -47,13 +47,13 @@ so.
 | Type of involvement (member or volunteer) | Required | Decides whether the person is managed as a member (membership fees) or as a volunteer (Red Cross unit and volunteering activities). |
 | Password | Required | To protect the account. It is stored in a form that cannot be read back. |
 | Photo | Optional; on the public form only, otherwise added after registration | Printed on the ID card so the holder can be recognised. |
-| Signature | Optional, added after registration | Printed on the ID card. Not used for anything else. |
+| Signature | Optional, added after registration | Under review. Printed on the ID card. Not used for anything else. NRCS is considering stopping the collection of signature images and instead having the holder sign the ID card by hand with a pen when receiving it. That would be simpler and would mean no signature images are stored. |
 | Consent and Code of Conduct confirmation | Required | Proof that the person agreed to the Code of Conduct and to the processing of their data, as the law requires. See section 4. |
-| Marital status | Optional | Under review. No current use beyond display; NRCS will decide whether to keep collecting it. |
-| Residential address | Optional | Under review. Could help locate the nearest unit for mobilisation, but it is not currently used for that; NRCS will decide whether it is needed. |
-| Workplace address | Optional | Under review. No current use; NRCS will decide whether to keep collecting it. |
+| Marital status | Optional | Under review. No current use. NRCS considers it probably unnecessary and will review whether to stop collecting it. |
+| Residential address | Optional | To reach volunteers in person when other contact fails, for example during emergencies, and to know which volunteers live near an affected area. At present it is shown on the person's record; the system cannot yet search by address. |
+| Workplace address | Optional | To reach volunteers during working hours when other contact fails, for example during emergencies. |
 | Organisation (free text) | Optional | Under review. No current use; NRCS will decide whether to keep collecting it. |
-| "Personal information" (free text) | Optional | Under review. Lets the person describe skills or other relevant facts. It is stored encrypted. |
+| "Personal information" (free text) | Optional | Used in the vetting of volunteers, so the branch can judge whether a person is suitable for their role. It is stored encrypted. |
 
 ### Data recorded by the system
 
