@@ -1,190 +1,178 @@
-# NDPA Compliance — Current State Summary
+# Data Protection and Compliance — NRCS Membership and Volunteer Database
 
-This section summarizes, in plain terms, the current data-protection
-posture of the volunteer and membership database. The detailed technical
-record follows below.
+Last updated: 8 October 2026
 
-## Data protection measures in place
+## 1. Purpose of this document
 
-**National ID numbers** are encrypted in the database at all times. Only
-staff with an appropriate role and permission can view a person's ID
-number, and only for people within their own area of responsibility
-(branch or division). No other part of the system — including reports,
-exports, or messaging tools — can access or expose this information.
+The Nigerian Red Cross Society (NRCS) uses this database to register and manage its members and
+volunteers: their branch and unit, trainings, activities, membership fees and donations. NRCS
+decides why and how this personal data is used, so NRCS is the data controller and is responsible
+for it. This document describes, in plain language, how the database meets the requirements of the
+Nigeria Data Protection Act 2023 (NDPA). It is written for the NRCS Legal department, management and
+the Data Protection Officer.
 
-**Photographs** (profile, passport, signature) are stored privately, not
-publicly accessible. Every request to view a photo is checked against the
-requester's actual permissions at that moment — access cannot be gained
-by guessing a web address or link.
+## 2. Data Protection Officer
 
-**Financial records** (donations and membership payments) correctly
-distinguish between personal and organisational contributions throughout
-the system, including in reports, so totals and attributions are accurate.
+NRCS appoints a Data Protection Officer (DPO). The DPO's name, postal address, email address and
+phone number are entered in the database settings by the National Database Administrator. They are
+not tied to a user account, so a change of DPO needs only an update to the settings.
 
-**Staff access** is role-based and scoped by area of responsibility
-(national, branch, or division). Staff cannot grant themselves or others
-more access than they are authorized to grant, and cannot modify their
-own role or permissions. A staff member cannot approve their own
-submissions — every donation, payment, training record, and volunteering
-activity requires review by a different, authorized person before it
-takes effect, and any later edit to an approved record requires a fresh
-review.
+The DPO's details are shown on the public Privacy Policy page, on the Authorizations page used by
+administrators, and next to the anonymization option described in section 6. If no DPO has been
+entered yet, the Authorizations page shows a clear warning and the Privacy Policy page says that the
+DPO's contact details will be published soon.
 
-**Staff data-handling policy acknowledgement** is required of every staff
-member with system access before they can use it, with no exceptions —
-including anyone brought into the system from historical records.
+## 3. What data we collect and why
 
-**Member/volunteer consent** is recorded at the time of registration for
-everyone entering the system going forward. Historical consent status for
-members transferred from the previous system has not yet been formally
-addressed and is pending further guidance from NRCS.
+We only collect data that we need for our humanitarian work. The table below lists every item
+collected at registration, whether it is required, and why we need it.
 
-## Automated verification
+People register in one of two ways: on the public registration form, or through staff, who use a
+separate staff form for people without an email address. Where the two forms differ, the table says
+so.
 
-The system has 109 automated tests that check the above protections every
-time the software is changed, so that any future modification which would
-weaken one of these protections is caught immediately rather than going
-unnoticed.
+| Data | Required? | Why we need it |
+|---|---|---|
+| First, middle and last name | First and last name required; middle name optional | To identify the member or volunteer, print the ID card and certificates, and address them correctly in messages. |
+| Title (Mr, Mrs, Dr…) | Optional, staff form only | To address people respectfully in letters and messages. |
+| Gender | Required | Humanitarian standards require data separated by sex, so we can plan programmes and make sure response teams include women and men (for example when female beneficiaries need female volunteers). Also used for statistics. |
+| Year of birth | Required | To plan age-appropriate activities and youth programmes, and for age statistics. It also helps identify the right account when several people share one phone number. We collect only the year, not the full date, to collect as little as possible. |
+| National Identification Number (NIN) | Optional | Printed on the Red Cross ID card, linking the card to the holder's national identity. This makes the card trustworthy at checkpoints and during emergency deployments. The system refuses a NIN that is already registered to another account, which helps prevent duplicate or false registrations. It is optional because not all Nigerians have a NIN. It is stored encrypted. |
+| Education / field of study, and occupation | Optional | To know which members and volunteers have useful skills (for example health workers, engineers, drivers or logisticians), so they can be called on in an emergency. At present these are shown on the person's record; the system cannot yet search by skill. |
+| Telephone number | Required | The main way to contact members and volunteers, especially by SMS, since many do not have email. Used to mobilise volunteers in emergencies, and as the login name for people without email. |
+| Second telephone number | Optional | A backup contact when the main number cannot be reached, which matters in emergencies. |
+| Email address | Required for self-registration; optional when staff register someone | For logging in, for messages, and for online payments (the payment provider requires an email address). |
+| Branch and division | Required | To place the person in the Society's structure, so the right branch can manage the record. Apart from national staff, only staff of that branch or division can see it. |
+| Red Cross unit | Not asked on the public form; on the staff form, required for volunteers and not used for members | Volunteers work through a Red Cross unit. The unit is how volunteers are organised, and other members of the same unit can see each other's names. |
+| Type of involvement (member or volunteer) | Required | Decides whether the person is managed as a member (membership fees) or as a volunteer (Red Cross unit and volunteering activities). |
+| Password | Required | To protect the account. It is stored in a form that cannot be read back. |
+| Photo | Optional; on the public form only, otherwise added after registration | Printed on the ID card so the holder can be recognised. |
+| Signature | Optional, added after registration | Printed on the ID card. Not used for anything else. |
+| Consent and Code of Conduct confirmation | Required | Proof that the person agreed to the Code of Conduct and to the processing of their data, as the law requires. See section 4. |
+| Marital status | Optional | Under review. No current use beyond display; NRCS will decide whether to keep collecting it. |
+| Residential address | Optional | Under review. Could help locate the nearest unit for mobilisation, but it is not currently used for that; NRCS will decide whether it is needed. |
+| Workplace address | Optional | Under review. No current use; NRCS will decide whether to keep collecting it. |
+| Organisation (free text) | Optional | Under review. No current use; NRCS will decide whether to keep collecting it. |
+| "Personal information" (free text) | Optional | Under review. Lets the person describe skills or other relevant facts. It is stored encrypted. |
 
-## Open items requiring NRCS input
+### Data recorded by the system
 
-- Formal policy on consent status for members/volunteers transferred from
-  the previous system.
-- Data Protection Officer designation, NDPC registration, and other
-  organisational (non-technical) compliance requirements.
+Besides what people enter, the system records:
 
----
+- the dates of each person's last login and last activity, for security and to find inactive
+  accounts;
+- their trainings, volunteering activities, membership payments and donations;
+- the dates when consent was given, when an account was archived and when it was anonymized, and
+  who did it;
+- an Audit Log of important administrative actions (see section 5).
 
-# NDPA Compliance — NRCS db - techncical history
+While someone is logged in, their login session records the internet (IP) address and browser they
+use, as is normal for any website. When someone pays online, the confirmation received from the
+payment provider is kept with the payment record; it can include the payer's email and the internet
+address used for the payment.
 
----
+## 4. Consent
 
-## 1. COMPLETED — Technical fixes applied
+- **New registrations.** The person reads the Code of Conduct and ticks four confirmations, the
+  fourth being consent to the processing of their personal data under the NDPA. They cannot register
+  without all four. The date is recorded.
+- **Registration by staff** (for people without email). The staff member confirms that the person
+  was told about the Code of Conduct and gave consent, and that the form of consent has been
+  recorded (spoken, a signed paper form, or another documented way). They can note which form was
+  used. The staff member and the date are recorded. When the person later logs in, they are also
+  asked to confirm the Code of Conduct and consent themselves.
+- **Existing members from the old database.** The first time they log in to the new system, they
+  must read the Code of Conduct and confirm it, together with consent, before they can continue. The
+  date is shown on their record.
+- **Members who cannot log in.** About 27,000 imported records (counted on a copy of the database in
+  October 2026) have neither an email address nor a phone number, so these people cannot log in.
+  Their consent therefore cannot be confirmed online. NRCS must decide how consent is handled for
+  them, for example on paper at their next contact with their branch.
 
-### Biometric file storage (FAIL → FIXED)
-- app/Traits/HandlesImageUploads.php: all public_path() calls replaced with
-  Storage::disk('local') — photos write to storage/app/photos/, not the webroot
-- app/Models/User.php: all four photo URL accessors now return authenticated
-  route('photos.show', ...) URLs, never direct public paths
-- app/Http/Controllers/PhotoController.php: new controller serving photos via
-  response()->file() behind auth + UserPolicy authorize() check
-- routes/web.php: GET /photos/{user}/{type} route inside auth middleware group
-- Note: backward-compat fallback to public/ in PhotoController is dead code
-  after production migration — remove it post-deployment
+## 5. Who can see the data
 
-### Encryption at rest (FAIL → FIXED)
-- app/Models/User.php: encrypted cast added for national_id_number and
-  personal_info
-- database/migrations/: column widened from VARCHAR(255) to TEXT to accommodate
-  ciphertext length
-- app/Console/Commands/EncryptExistingNationalIds.php: one-off Artisan command
-  (php artisan ndpa:encrypt-national-ids) to re-save existing rows through the
-  encrypted cast — must be run once on production before go-live
-  ⚠️  APP_KEY must never be rotated after this command has run without first
-  decrypting and re-encrypting all national_id_number rows. Back up APP_KEY
-  separately from the .env file.
+- **Access by role.** Staff can see only the records their role allows. National roles see
+  members across the country; branch roles see their own branch; division roles see their own
+  division.
+- **Members and volunteers** see their own record. Volunteers can also see the names of the other
+  members of their own Red Cross unit (and their photos, if they choose to load them), and members
+  of a task force can see their teammates.
+- **Staff commitment.** Before they can use the system, every staff member with an administrative
+  role must accept a data handling commitment: to access only what their role needs, not to share
+  data outside NRCS channels, and to handle it under the NDPA.
+- **Encryption.** The NIN and the "personal information" text are stored encrypted. The NIN is
+  printed on the ID card.
+- **Photos and signatures** are kept in a protected area. Only logged-in users who are allowed to
+  see that person can view them, and the system never places them on a public web page.
+- **Public ID card check.** Anyone who scans the QR code on an ID card can see the holder's name,
+  branch, division, unit or membership type, membership expiry, trainings and volunteering hours,
+  but not their photo. Whether this is the right amount of information is still to be decided.
+- **Re-entering the password.** Changing settings, managing roles, managing membership fees and
+  training types, and anonymizing an account all require the staff member to enter their password
+  again.
+- **Two-person approval ("four eyes").** Donations, membership payments, trainings and volunteering
+  hours entered by staff only count once a different authorised person has approved them; nobody
+  can approve their own entry. Online payments confirmed by the payment provider are approved
+  automatically.
+- **Audit Log.** Important administrative actions are recorded with who did them and when. These
+  include role and permission changes, moving a person to another branch or division, changes to a
+  person's NIN, personal information, photo or signature (which items changed, not the values),
+  archiving, restoring and anonymizing accounts, consent confirmations, settings changes, changes to
+  membership fees, membership payments added or deleted, and message campaigns being approved and
+  sent. Not every change is recorded, and looking at a record or photo is not recorded.
 
-### Unauthenticated photo access (FAIL → FIXED)
-- Resolved by the storage and PhotoController changes above
-- /idcheck/{token} public verification page: profile photo removed from
-  response — biometric images must not be served unauthenticated. Name, branch,
-  division, and membership status remain visible, sufficient for ID verification.
-  Decision logged in DECISIONS.md.
+## 6. How long we keep data — archiving and anonymization
 
-### Legacy MD5 → bcrypt upgrade gap for organisation-originated users (PASS with gap → FIXED)
-- app/Console/Commands/MigrateOrganisations.php line 308: during the old-database
-  import, organisation-originated users had their password column set to a random
-  bcrypt string instead of an empty string. This prevented LoginController from
-  ever reaching the MD5 legacy upgrade branch, meaning those users could not log
-  in at all. Fixed by setting password to empty string, matching the pattern used
-  for volunteer-originated users in MigrateUsers. The upgrade to bcrypt now fires
-  correctly on their first successful login.
+- **Archiving.** Accounts that are no longer needed can be archived by staff, by the person
+  themselves, or when duplicate accounts are merged. An archived person cannot log in. The system
+  records when the account was archived and by whom. Until it is anonymized, an archived account
+  can be restored by staff.
+- **Automatic anonymization after seven years.** A job scheduled to run every night anonymizes
+  accounts that have been archived for seven years. Name, contact details, NIN, addresses, photo,
+  signature and similar details are permanently removed, including copies in message records,
+  payment records and the Audit Log. Only gender, branch, division, unit and age group (the decade
+  of birth, for example 1980–1989) are kept, for statistics. Training, activity and payment records
+  are kept without a name, for statistics and accounting.
+- **Earlier anonymization on request.** The National Database Administrator can anonymize an
+  archived account earlier, on request. Before doing so they must confirm that they have consulted
+  the DPO, and enter their password again. The anonymization is recorded in the Audit Log without
+  the person's name. It cannot be undone.
+- **Administrative roles.** An account with an administrative role must have the role removed
+  before it can be archived or anonymized.
+- **Limits.** Backups keep earlier data until they expire (backup period: to be confirmed). Copies
+  of photos on the old database server are not affected and should be deleted when the old system
+  is shut down.
 
-### Sensitive field audit logging (FAIL → FIXED)
-- app/Models/User.php: Eloquent updating observer logs changes to
-  national_id_number, personal_info, passport_photo, signature, picture —
-  field names only, values stored as '[redacted]'
-- app/Http/Controllers/PhotoController.php: photo access is gated by
-  authentication and a UserPolicy authorize() check, but individual view
-  events are not logged (decision recorded in DECISIONS.md on 2026-07-05)
+## 7. Rights of members and volunteers
 
-### Volunteer consent — public self-registration
-- resources/views/auth/register.blade.php: fourth NDPA consent checkbox added
-  to the existing Code of Conduct flow (same scroll-enforcement, Alpine x-model,
-  server-side 'accepted' validation)
-- Registration controller: on successful submission, records
-  consent_obtained_at, consent_obtained_by_id (self), and consent_notes on
-  the user record
+- **To see their data.** Most of it is shown on their profile page after logging in.
+- **To correct it.** They can update most of their own details on their profile page; other
+  corrections are made by their branch.
+- **To withdraw consent.** They can contact their branch or the DPO. They can also stop email and
+  SMS messages at any time on their profile page or with the unsubscribe link in each message.
+- **To archive their own account,** from their profile page, if they hold no administrative role.
+- **To ask for anonymization,** through their branch or the DPO. It is carried out by the National
+  Database Administrator after consulting the DPO.
+- **To complain** to the Nigeria Data Protection Commission (NDPC).
 
-### Volunteer consent — admin registration of users without email
-- resources/views/users/create.blade.php: "Data Protection Attestation" section
-  added with two required checkboxes — staff attests consent was explained and
-  that the form of consent is documented
-- Optional consent_notes text input for recording the form of consent
-- users.store controller: validated as 'accepted', records consent_obtained_at,
-  consent_obtained_by_id (the admin), and consent_notes on the user record
+## 8. Privacy Policy
 
-### Staff data handling policy acknowledgement
-- database/migrations/: policy_accepted_at (timestamp, nullable) added to users
-- app/Models/User.php: policy_accepted_at in $fillable, cast as datetime,
-  hasAcceptedPolicy() helper method
-- app/Http/Middleware/RequiresPolicyAcceptance.php: redirects staff/admin users
-  (any Spatie role) to /policy/accept if policy_accepted_at is null. Uses
-  getRoleNames()->isEmpty() consistent with codebase pattern.
-- app/Http/Controllers/PolicyAcceptanceController.php: show() and store()
-- resources/views/policy/accept.blade.php: four-point data handling commitment,
-  single required checkbox, timestamps acceptance on submit
-- routes/web.php: GET/POST /policy/accept inside auth middleware group
--
-- 
-## Reports
-- Report controllers scoped by access level: PendingApprovalsReportController,
-  DatabaseTeamReportController, DatabaseAccessReportController now enforce
-  branch_id locking for non-national users — request params cannot be used
-  to access other branches' data.
+A public Privacy Policy page exists. It is linked from the registration form, the consent
+confirmation page and the profile page, and anyone can open it without logging in. The current text
+is a draft and is marked as such on the page. The NRCS Legal department will provide the final text.
 
----
+## 9. Changes made after the Legal review (October 2026)
 
-## 2. OPEN — Organisational/policy tasks for NRCS leadership
+- Every registration field now has a stated purpose (section 3), and fields without a clear purpose
+  are marked "Under review".
+- The DPO's contact details are kept in the database settings and shown to members and staff.
+- A public Privacy Policy page was added.
+- Existing members confirm the Code of Conduct and consent when they first log in. The date of
+  registration consent is now recorded correctly.
+- The date of archiving, and who archived the account, are now recorded.
+- Archived accounts are anonymized after seven years, or earlier on request after consulting the
+  DPO.
+- Phone numbers were removed from the "My unit" page, which every member of a unit can open.
+- The signature page now explains why the signature is needed and how it is protected.
 
-These are legal obligations, not code tasks. They require action by NRCS
-management before or shortly after go-live.
-
-- [ ] Designate a Data Protection Officer (DPO) with expert knowledge of the
-      NDPA. Required for data controllers of major importance processing personal
-      data of more than 2,000 data subjects. NRCS qualifies.
-- [ ] Register with the Nigeria Data Protection Commission at ndpc.gov.ng
-- [ ] Document the VPS server location. If hosted outside Nigeria, confirm the
-      legal basis for cross-border transfer (adequacy decision or explicit
-      informed consent from each data subject).
-- [ ] Write a 72-hour breach notification procedure naming the responsible
-      person who identifies breaches and files with the NDPC.
-- [ ] Decide whether NIN collection is legally required or optional for
-      volunteers. If optional, consider making the field non-mandatory.
-      Document the decision.
-- [ ] File an annual Compliance Audit Return (CAR) with the NDPC by 31 March
-      each year.
-- [ ] Brief NRCS branch and division administrators on the data handling policy
-      they will be asked to accept on first login, and on the consent attestation
-      they must complete when registering users without email.
-
----
-
-## 3. OPEN — Deployment prerequisites (code)
-
-These must be executed in order during production deployment:
-
-1. Run all pending migrations (includes TEXT column widen and policy_accepted_at)
-2. php artisan ndpa:encrypt-national-ids --dry-run  (verify count)
-3. php artisan ndpa:encrypt-national-ids            (encrypt existing NIDs)
-4. Continue with normal migration sequence (migrate:old-db, lifecycle:reconcile)
-
----
-
-## 4. OPEN — One architectural decision still needed
-
-- /idcheck/{token} route: confirm with NRCS whether the data exposed on the
-  public verification page (name, branch, division, membership status, training
-  history) is appropriate for an unauthenticated public-facing page, or whether
-  the entire route should require authentication. Document the decision in
-  DECISIONS.md.
+Technical details and open items are recorded in Decisions.md.
