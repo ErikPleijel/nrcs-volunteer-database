@@ -230,7 +230,9 @@ trait Approvable
 
             // Archived guard happens BEFORE the approval is committed, so throwing
             // here rolls the whole transaction back.
-            if ($member && $member->lifecycle_status === 'archived') {
+            // An anonymized member is never reactivated: the record is approved
+            // and the account stays archived (Decisions.md 2026-10-08).
+            if ($member && $member->lifecycle_status === 'archived' && $member->anonymized_at === null) {
                 if (! $allowArchivedReactivation) {
                     throw new ArchivedReactivationRequiresConfirmation($member, $this);
                 }
