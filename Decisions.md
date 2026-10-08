@@ -1481,3 +1481,79 @@ recovered. The 7-year anonymization rule needs it.
 - The migration logs (and prints) how many rows got each kind of date.
 
 **Consequence:** the 7-year anonymization clock (Group 5b) starts from `archived_at`.
+
+## 2026-10-08 — Anonymization of archived accounts
+
+**Decision:** `App\Services\UserAnonymizer::anonymize(User, ?User $actor, string $trigger)`
+permanently de-identifies an account. It is used by the daily job and by the manual action. It
+refuses accounts that are not archived, are already anonymized, or hold a role (or
+`is_super_admin`).
+
+**Kept:**
+- `id`, `gender`, `branch_id` / `division_id` / `red_cross_unit_id`, contribution flags,
+  `lifecycle_status` (stays `archived`)
+- `created_at` and `archived_at` / `archived_by_id`
+- non-identifying dates and flags: last login/activity/first-aid, RCU assignment, ID-card
+  validity, consent and policy timestamps, opt-out flags
+- all membership, training, activity, donation and payment rows, still linked by `user_id`, for
+  statistics and accounting
+
+**`birth_year`** becomes its decade (1984 → 1980). The "age group" statistics keep working without
+storing a value that, together with gender and unit, can point to one person.
+
+**Removed:**
+- **Name:** becomes "Anonymized Member"; middle name and title are cleared.
+- **Contact and login:** email (and its verification), phones (`telephone1` is nullable, so
+  null), `user_code`, password (`''`) and legacy hash, remember token.
+- **Identity:** NIN and its hash, `red_cross_id_number`, `id_check_token` (null, so old ID-card
+  QR codes stop verifying).
+- **Personal details:** marital status, occupation, discipline, personal info, free-text
+  organisation, addresses, public-contact flag and position.
+- **Images:** picture and signature, their confirmation and rejection flags, image upload
+  fields.
+- **Other:** `consent_notes`, `form_reg_id`, `legacy_role`, `organisation_id`.
+- **Roles and permissions:** detached.
+- **Pointers:** branch public-contact slots (person and position), RCU and task-force leader
+  columns, `organisation_user` rows.
+- **Sessions, reset tokens, notifications:** deleted (reset tokens are found by the old email).
+- **Campaign recipient copies:** `messaging_recipients` email, phone and `payload_json`.
+- **Payment payloads:** personal keys removed at any depth from `gateway_response`
+  (`membership_payments` and `donations`) and from `payment_transactions.meta` / `raw_payload`.
+  The keys are `UserAnonymizer::PAYMENT_PERSONAL_KEYS`, including Paystack's `customer`, card
+  `last4` / `bin` and `account_name`. Amounts, references, status and dates stay.
+  `donations.submission_name` is cleared.
+- **Files:** photo and signature, all variants, deleted after the transaction commits. A missing
+  file is not an error.
+
+**Audit-log scrubbing rule:**
+- Rows whose subject is the user lose `UserAnonymizer::AUDIT_PERSONAL_KEYS` from old/new values.
+  The person's name is replaced by "DB-{id}" in the description.
+- Other rows change only where the name sits next to that DB number ("{name} (DB-{id})" or
+  "{name} DB-{id}"), so a different person with the same name is never touched.
+- Rows where the user was the actor are left as they are.
+- The anonymization itself is logged as `user_anonymized` ("DB-{id} anonymized ({trigger})",
+  new values `{trigger}`), with no personal data.
+
+**Scheduled:** `users:anonymize-expired --apply` runs daily at 03:30, for accounts archived more
+than `config('data_protection.anonymize_after_years')` (7) years ago. It is a dry run without
+`--apply`, skips and reports role holders, and logs to the `scheduler` channel.
+
+**Manual:** on users/edit, a red box below "Archive user". It shows only for archived, not
+anonymized, role-free accounts, and only to holders of the new `anonymize_user` permission
+(`national_db_administrator` only; seeder plus data migration).
+- **DPO first:** the admin must consult the Data Protection Officer. The box shows
+  `<x-dpo-contact />` and requires both "Anonymize this account" and "I have consulted the Data
+  Protection Officer about this".
+- **Password:** the admin re-enters their password, checked with the `current_password` rule.
+  There is no separate route, so `password.confirm` could not be used.
+- **Nothing else saved:** it submits the edit form with `action=anonymize`, and nothing else in
+  that request is saved.
+- **After anonymizing:** users/edit shows "This account was anonymized on {date}." with no form,
+  and updates are refused. users/show shows the same line.
+- **Approvals:** approving a record for an anonymized member no longer reactivates the account.
+
+**Outside this code** (to be stated in COMPLIANCE.md):
+- Database and file backups still hold the original data until they expire.
+- `PhotoController`'s development fallback can still fetch a legacy image from nrcsvdb.org by
+  its old path. The anonymized row no longer has that path, but the copy on the old server is
+  not deleted.

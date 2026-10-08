@@ -88,6 +88,7 @@ class PermissionsTableSeeder extends Seeder
                     'manage-admin-panel',
                     'change_settings',
                     'use_archive_tool',
+                    'anonymize_user', // permanent; national DB admin only
 
                     // special
 

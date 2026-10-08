@@ -18,6 +18,7 @@ use App\Models\User;
 use App\Rules\NationalIdNumberRule;
 use App\Rules\NigerianMobileNumber;
 use App\Support\PhoneNumber;
+use App\Services\UserAnonymizer;
 use App\Services\UserFilterService;
 use App\Support\Filters\UserFilterDescriber;
 use App\Traits\HandlesImageUploads;
@@ -831,6 +832,17 @@ class UserController extends Controller
     {
         $this->authorize('update', $user);
 
+        // An anonymized account is permanent: no edits, no restore.
+        if ($user->anonymized_at !== null) {
+            return redirect()->route('users.show', $user);
+        }
+
+        // The "Anonymize" button submits the whole edit form; nothing else in
+        // it is saved in that request.
+        if ($request->input('action') === 'anonymize') {
+            return $this->anonymizeFromEdit($request, $user);
+        }
+
         $request->merge(PhoneNumber::stripFormattingFields($request->all()));
 
         $validator = Validator::make($request->all(), [
@@ -1175,11 +1187,55 @@ class UserController extends Controller
     }
 
     /**
+     * Manual anonymization from users/edit (National DB admin, anonymize_user).
+     * Requires both confirmation boxes and the admin's current password, as
+     * a re-authentication: routes/web.php has no separate route for this, so
+     * the password.confirm middleware cannot be used.
+     */
+    private function anonymizeFromEdit(Request $request, User $user)
+    {
+        abort_unless($request->user()->can('anonymize_user'), 403);
+
+        $validator = Validator::make($request->all(), [
+            'anonymize_confirm' => 'accepted',
+            'anonymize_dpo_consulted' => 'accepted',
+            'anonymize_password' => ['required', 'current_password'],
+        ], [
+            'anonymize_confirm.accepted' => 'Tick "Anonymize this account" to confirm.',
+            'anonymize_dpo_consulted.accepted' => 'Confirm that you have consulted the Data Protection Officer.',
+            'anonymize_password.required' => 'Enter your password to confirm.',
+            'anonymize_password.current_password' => 'The password is incorrect.',
+        ]);
+
+        if ($validator->fails()) {
+            return redirect()->back()
+                ->withErrors($validator)
+                ->withInput($request->except('anonymize_password'));
+        }
+
+        try {
+            app(UserAnonymizer::class)->anonymize($user, $request->user(), 'manual');
+        } catch (\DomainException $e) {
+            return redirect()->back()->withErrors(['anonymize' => $e->getMessage()]);
+        }
+
+        $request->user()->touchLastAdminActivity();
+
+        return redirect()
+            ->route('users.show', $user)
+            ->with('success', "DB-{$user->id} has been anonymized.");
+    }
+
+    /**
      * Update the user's profile picture.
      * This method is specifically for updating *only* the profile picture.
      */
     public function updateProfilePicture(Request $request, User $user)
     {
+        if ($user->anonymized_at !== null) {
+            return redirect()->route('users.show', $user);
+        }
+
         $request->validate([
             'picture' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif', 'max:2048'],
             'captured_photo' => ['nullable', 'string'], // For base64 captured photos
@@ -1211,6 +1267,10 @@ class UserController extends Controller
      */
     public function updateSignature(Request $request, User $user)
     {
+        if ($user->anonymized_at !== null) {
+            return redirect()->route('users.show', $user);
+        }
+
         $request->validate([
             'signature_file' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif', 'max:1024'],
             'captured_signature' => ['nullable', 'string'], // For base64 captured signatures

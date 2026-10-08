@@ -33,6 +33,15 @@
         </div>
     @endif
 
+    {{-- An anonymized account is permanent: no editing, no restore. --}}
+    @if($user->anonymized_at !== null)
+        <div class="max-w-4xl mx-auto mb-6">
+            <div class="rounded-lg border border-gray-300 bg-gray-50 px-6 py-4 text-center text-gray-700">
+                This account was anonymized on {{ \Illuminate\Support\Carbon::parse($user->anonymized_at)->format('M d, Y') }}.
+                It can no longer be edited or restored.
+            </div>
+        </div>
+    @else
 
     <div class="container mx-auto px-4 py-6">
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -805,6 +814,65 @@
                                     <p class="mt-3 text-sm text-gray-600">Status: Active</p>
                                 @endif
                             </div>
+
+                            {{-- Permanent anonymization (UserAnonymizer). Archived, not yet
+                                 anonymized, no role, and only for anonymize_user holders. --}}
+                            @if($user->isArchived() && $user->anonymized_at === null
+                                && $user->getRoleNames()->isEmpty() && ! $user->is_super_admin
+                                && auth()->user()->can('anonymize_user'))
+                                <div id="anonymize-box" class="mt-4 p-4 border-2 border-red-400 rounded-lg bg-red-50"
+                                     x-data="{ confirmed: {{ old('anonymize_confirm') ? 'true' : 'false' }}, consulted: {{ old('anonymize_dpo_consulted') ? 'true' : 'false' }} }">
+                                    <h4 class="text-base font-bold text-red-800">
+                                        <i class="fas fa-user-secret mr-1"></i>Anonymize this account (permanent)
+                                    </h4>
+                                    <p class="mt-2 text-sm text-red-900">
+                                        Anonymizing permanently removes this person's name, contact details, NIN, address,
+                                        photo and signature. Only gender, branch/division/unit and age group are kept, for
+                                        statistics. This cannot be undone. Before you anonymize an account, you must consult
+                                        the Data Protection Officer (DPO).
+                                    </p>
+
+                                    <x-dpo-contact class="mt-3" />
+
+                                    @if($errors->hasAny(['anonymize', 'anonymize_confirm', 'anonymize_dpo_consulted', 'anonymize_password']))
+                                        <div class="mt-3 rounded-md bg-red-100 border border-red-300 px-3 py-2 text-sm text-red-800">
+                                            @foreach(['anonymize', 'anonymize_confirm', 'anonymize_dpo_consulted', 'anonymize_password'] as $field)
+                                                @error($field)<p>{{ $message }}</p>@enderror
+                                            @endforeach
+                                        </div>
+                                    @endif
+
+                                    <div class="mt-3 space-y-2">
+                                        <label class="flex items-start gap-2 text-sm text-gray-800">
+                                            <input type="checkbox" name="anonymize_confirm" value="1" x-model="confirmed"
+                                                   class="mt-0.5 h-4 w-4 text-red-600 border-gray-300 rounded focus:ring-red-500">
+                                            <span>Anonymize this account</span>
+                                        </label>
+                                        <label class="flex items-start gap-2 text-sm text-gray-800">
+                                            <input type="checkbox" name="anonymize_dpo_consulted" value="1" x-model="consulted"
+                                                   class="mt-0.5 h-4 w-4 text-red-600 border-gray-300 rounded focus:ring-red-500">
+                                            <span>I have consulted the Data Protection Officer about this</span>
+                                        </label>
+                                    </div>
+
+                                    <div class="mt-3">
+                                        <label for="anonymize_password" class="block text-sm font-medium text-gray-700">
+                                            Your password, to confirm
+                                        </label>
+                                        <input type="password" id="anonymize_password" name="anonymize_password" autocomplete="current-password"
+                                               class="mt-1 w-full max-w-xs px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500">
+                                    </div>
+
+                                    <p class="mt-3 text-xs text-gray-600">
+                                        This button only anonymizes; other changes on this page are not saved.
+                                    </p>
+                                    <button type="submit" name="action" value="anonymize" formnovalidate
+                                            class="mt-2 inline-flex items-center px-4 py-2 rounded-md text-sm font-medium bg-red-700 text-white hover:bg-red-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                                            :disabled="!(confirmed && consulted)">
+                                        <i class="fas fa-user-secret mr-2"></i>Anonymize permanently
+                                    </button>
+                                </div>
+                            @endif
                         </div>
 
                         <!-- Communication Preferences Section -->
@@ -1301,4 +1369,5 @@
             });
         </script>
     @endpush
+    @endif {{-- anonymized --}}
 </x-layouts.admin>

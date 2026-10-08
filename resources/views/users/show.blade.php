@@ -491,6 +491,11 @@
                                     Archived on {{ $user->archived_at->format('M d, Y') }} by {{ $user->archivedByLabel() }}
                                 </div>
                             @endif
+                            @if($user->anonymized_at !== null)
+                                <div class="text-sm font-medium text-gray-700 mt-0.5">
+                                    This account was anonymized on {{ \Illuminate\Support\Carbon::parse($user->anonymized_at)->format('M d, Y') }}.
+                                </div>
+                            @endif
                         </td>
                     </tr>
 
