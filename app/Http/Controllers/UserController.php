@@ -932,6 +932,14 @@ class UserController extends Controller
                     ->withErrors(['is_inactive' => 'You cannot archive your own account.']);
             }
 
+            // Same rule as self-archive (ProfileController::selfArchive): the
+            // role must be removed first.
+            if ($wantsArchived && $user->getRoleNames()->isNotEmpty()) {
+                return redirect()->back()
+                    ->withInput()
+                    ->withErrors(['is_inactive' => 'This person holds an administrative role. Ask another administrator to remove it before archiving this account.']);
+            }
+
             if ($wantsArchived) {
                 $user->markArchived(Auth::user());
             }

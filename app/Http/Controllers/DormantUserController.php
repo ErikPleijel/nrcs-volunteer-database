@@ -117,11 +117,18 @@ class DormantUserController extends Controller
             $validQuery->where('division_id', $scopedId);
         }
 
-        $validIds = $validQuery->pluck('id')->toArray();
+        // Role holders are never archived here (same rule as users/edit and
+        // self-archive: remove the role first); counted so the admin is told.
+        $skippedRoleHolders = (clone $validQuery)->whereHas('roles')->count();
+        $validIds = $validQuery->whereDoesntHave('roles')->pluck('id')->toArray();
+
+        $skippedNote = $skippedRoleHolders === 0 ? '' : " {$skippedRoleHolders} "
+            .($skippedRoleHolders === 1 ? 'user was' : 'users were')
+            .' skipped because they hold an administrative role; remove the role first.';
 
         if (empty($validIds)) {
             return redirect()->route('dormant-users.index')
-                ->with('error', 'No users were archived. You may not have permission to archive the selected users.');
+                ->with('error', 'No users were archived. You may not have permission to archive the selected users.'.$skippedNote);
         }
 
         // Per user (not one query-builder update) so each gets archived_at /
@@ -146,6 +153,6 @@ class DormantUserController extends Controller
         $count = count($validIds);
 
         return redirect()->route('dormant-users.index')
-            ->with('success', "{$count} " . ($count === 1 ? 'user has' : 'users have') . " been archived. This can be reversed individually from their profile.");
+            ->with('success', "{$count} " . ($count === 1 ? 'user has' : 'users have') . " been archived. This can be reversed individually from their profile.".$skippedNote);
     }
 }

@@ -191,3 +191,52 @@ test('any Eloquent restore (e.g. approving a record for an archived member) clea
         ->and($user->fresh()->archived_by_id)->toBeNull()
         ->and(AuditLog::where('action', 'user_unarchived')->where('subject_id', $user->id)->exists())->toBeTrue();
 });
+
+/*
+|--------------------------------------------------------------------------
+| Role holders are not archived
+|--------------------------------------------------------------------------
+*/
+
+test('users/edit refuses to archive someone who holds a role', function () {
+    $user = archiveTarget(['lifecycle_status' => 'active']);
+    $user->assignRole('branch_db_assistant');
+
+    $this->actingAs($this->admin)
+        ->from(route('users.edit', $user))
+        ->put(route('users.update', $user), archiveUpdatePayload(true))
+        ->assertRedirect(route('users.edit', $user))
+        ->assertSessionHasErrors(['is_inactive' => 'This person holds an administrative role. Ask another administrator to remove it before archiving this account.']);
+
+    $user->refresh();
+    expect($user->lifecycle_status)->toBe('active')
+        ->and($user->archived_at)->toBeNull()
+        ->and(AuditLog::where('action', 'user_archived')->exists())->toBeFalse();
+});
+
+test('the Archive Tool skips role holders and says how many it skipped', function () {
+    $plain = archiveTarget(['lifecycle_status' => 'dormant']);
+    $staff = archiveTarget(['lifecycle_status' => 'dormant']);
+    $staff->assignRole('branch_db_assistant');
+
+    $this->actingAs($this->admin)
+        ->post(route('dormant-users.archive'), ['user_ids' => [$plain->id, $staff->id]])
+        ->assertSessionHas('success', '1 user has been archived. This can be reversed individually from their profile. '
+            .'1 user was skipped because they hold an administrative role; remove the role first.');
+
+    expect($plain->fresh()->lifecycle_status)->toBe('archived')
+        ->and($staff->fresh()->lifecycle_status)->toBe('dormant')
+        ->and($staff->fresh()->archived_at)->toBeNull();
+});
+
+test('the Archive Tool reports the skip when every selected user holds a role', function () {
+    $staff = archiveTarget(['lifecycle_status' => 'dormant']);
+    $staff->assignRole('branch_db_assistant');
+
+    $this->actingAs($this->admin)
+        ->post(route('dormant-users.archive'), ['user_ids' => [$staff->id]])
+        ->assertSessionHas('error', 'No users were archived. You may not have permission to archive the selected users. '
+            .'1 user was skipped because they hold an administrative role; remove the role first.');
+
+    expect($staff->fresh()->lifecycle_status)->toBe('dormant');
+});
