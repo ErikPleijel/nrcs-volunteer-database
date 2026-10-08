@@ -94,6 +94,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'code_of_conduct_accepted_at' => 'datetime',
         'consent_obtained_at' => 'datetime',
         'policy_accepted_at' => 'datetime',
+        'archived_at' => 'datetime',
     ];
 
     /**
@@ -174,6 +175,61 @@ class User extends Authenticatable implements MustVerifyEmail
                 'Sensitive fields changed: '.implode(', ', $changed)
             );
         });
+
+        // Leaving 'archived' (admin reactivation on users/edit, or approving a
+        // record for an archived member in Approvable) clears the archive date
+        // and is audited here, so every restore path is covered. Query-builder
+        // updates bypass this.
+        static::updating(function (User $user) {
+            if (! $user->isDirty('lifecycle_status')
+                || $user->getOriginal('lifecycle_status') !== 'archived'
+                || $user->lifecycle_status === 'archived') {
+                return;
+            }
+
+            $old = [
+                'lifecycle_status' => 'archived',
+                'archived_at' => $user->getOriginal('archived_at')?->format('Y-m-d H:i:s'),
+                'archived_by_id' => $user->getOriginal('archived_by_id'),
+            ];
+
+            $user->archived_at = null;
+            $user->archived_by_id = null;
+
+            AuditLog::write(
+                'user_unarchived',
+                $user,
+                ['branch_id' => $user->branch_id, 'division_id' => $user->division_id],
+                $old,
+                ['lifecycle_status' => $user->lifecycle_status, 'archived_at' => null, 'archived_by_id' => null],
+                "DB-{$user->id} restored from archive."
+            );
+        });
+    }
+
+    /**
+     * Archive this account and record when and by whom: every archive path
+     * goes through here. Sets the attributes only; the caller saves and
+     * writes its own audit entry. $by null = the system (e.g. a command).
+     * An account that is already archived keeps its original date.
+     */
+    public function markArchived(?User $by): static
+    {
+        if ($this->lifecycle_status === 'archived' && $this->archived_at !== null) {
+            return $this;
+        }
+
+        $this->lifecycle_status = 'archived';
+        $this->archived_at = now();
+        $this->archived_by_id = $by?->id;
+
+        return $this;
+    }
+
+    /** Who archived this account (null when the system did, or it is not archived). */
+    public function archivedBy()
+    {
+        return $this->belongsTo(User::class, 'archived_by_id');
     }
 
     public function organisation()

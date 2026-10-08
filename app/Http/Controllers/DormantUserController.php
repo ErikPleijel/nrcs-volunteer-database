@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\Branch;
+use App\Models\Log as AuditLog;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class DormantUserController extends Controller
 {
@@ -122,7 +124,25 @@ class DormantUserController extends Controller
                 ->with('error', 'No users were archived. You may not have permission to archive the selected users.');
         }
 
-        User::whereIn('id', $validIds)->update(['lifecycle_status' => 'archived']);
+        // Per user (not one query-builder update) so each gets archived_at /
+        // archived_by_id via markArchived() and its own audit entry.
+        DB::transaction(function () use ($validIds, $authUser) {
+            User::whereIn('id', $validIds)->chunkById(200, function ($users) use ($authUser) {
+                foreach ($users as $user) {
+                    $lifecycleBefore = $user->lifecycle_status;
+                    $user->markArchived($authUser)->save();
+
+                    AuditLog::write(
+                        'user_archived',
+                        $user,
+                        ['branch_id' => $user->branch_id, 'division_id' => $user->division_id],
+                        ['lifecycle_status' => $lifecycleBefore],
+                        ['lifecycle_status' => 'archived', 'archived_by_id' => $authUser->id],
+                        "DB-{$user->id} archived with the archive tool by DB-{$authUser->id}."
+                    );
+                }
+            });
+        });
         $count = count($validIds);
 
         return redirect()->route('dormant-users.index')

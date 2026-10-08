@@ -115,14 +115,14 @@ class PhoneDuplicateMerger
     }
 
     /**
-     * Archive the same way the admin edit and self-archive paths do:
-     * lifecycle_status only (no legacy is_inactive/deactivated_* writes),
-     * plus an audit log entry.
+     * Archive the same way the other archive paths do: User::markArchived()
+     * (no legacy is_inactive/deactivated_* writes), plus an audit log entry.
+     * Run from a command, so archived_by_id is the logged-in user if any,
+     * otherwise null (the system).
      */
     protected function archiveLoser(User $loser, User $winner, array $entry, string $phone): void
     {
-        $loser->lifecycle_status = 'archived';
-        $loser->save();
+        $loser->markArchived(auth()->user())->save();
 
         AuditLog::write(
             'user_phone_duplicate_archived',

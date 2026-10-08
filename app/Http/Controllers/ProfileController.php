@@ -767,17 +767,17 @@ class ProfileController extends Controller
         }
 
         $user = auth()->user();
+        $lifecycleBefore = $user->lifecycle_status;
 
-        $user->lifecycle_status = 'archived';
-        $user->save();
+        $user->markArchived($user)->save();
 
         AuditLog::write(
             'user_self_archived',
             $user,
-            null,
-            null,
-            null,
-            "{$user->full_name} (DB-{$user->id}) archived their own account."
+            ['branch_id' => $user->branch_id, 'division_id' => $user->division_id],
+            ['lifecycle_status' => $lifecycleBefore],
+            ['lifecycle_status' => 'archived', 'archived_by_id' => $user->id],
+            "DB-{$user->id} archived their own account."
         );
 
         $branchId = $user->branch_id;

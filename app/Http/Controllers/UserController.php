@@ -918,7 +918,8 @@ class UserController extends Controller
         // Source of truth: lifecycle_status
         // Note: we DO NOT write legacy fields (is_inactive/deactivated_*)
         // ---------------------------------------------------------
-        $wasArchived = ($user->lifecycle_status === 'archived');
+        $lifecycleBefore = $user->lifecycle_status;
+        $wasArchived = ($lifecycleBefore === 'archived');
         $wantsArchived = $request->boolean('is_inactive'); // checkbox = "Archived"
         $lifecycleChanging = ($wantsArchived !== $wasArchived);
 
@@ -932,7 +933,7 @@ class UserController extends Controller
             }
 
             if ($wantsArchived) {
-                $user->lifecycle_status = 'archived';
+                $user->markArchived(Auth::user());
             }
             // Reactivation target is decided below, once $newUnitId (this
             // request's RCU assignment) is known — see "Red Cross Unit
@@ -1110,6 +1111,18 @@ class UserController extends Controller
             $user->sms_opt_out_at = null;
         }
         $user->save();
+
+        // Restores are audited by User's updating hook (user_unarchived).
+        if ($lifecycleChanging && $wantsArchived) {
+            AuditLog::write(
+                'user_archived',
+                $user,
+                ['branch_id' => $user->branch_id, 'division_id' => $user->division_id],
+                ['lifecycle_status' => $lifecycleBefore],
+                ['lifecycle_status' => 'archived', 'archived_by_id' => $user->archived_by_id],
+                "DB-{$user->id} archived on users/edit by DB-".Auth::id().'.'
+            );
+        }
 
         // Reactivated straight to 'active' above? Re-check staleness now
         // (activity recency / membership validity) instead of leaving a
