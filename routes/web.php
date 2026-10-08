@@ -86,6 +86,10 @@ Route::get('/corporate-membership', function () {
         'isAuthenticated' => auth()->check(),
     ]);
 })->name('corporate.journey');
+// Public privacy policy; exempt from the consent and staff-policy gates.
+Route::get('/privacy-policy', function () {
+    return view('pages.privacy-policy');
+})->name('privacy-policy');
 
 // Archived account notice (public — no auth)
 Route::get('/account-deactivated', [ArchivedAccountController::class, 'show'])->name('archived-account.show');
