@@ -60,6 +60,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'email_opt_out_at',
         'sms_opt_out',
         'sms_opt_out_at',
+        'code_of_conduct_accepted_at',
         'consent_obtained_at',
         'consent_obtained_by_id',
         'consent_notes',
@@ -90,6 +91,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'email_opt_out_at' => 'datetime',
         'sms_opt_out' => 'boolean',
         'sms_opt_out_at' => 'datetime',
+        'code_of_conduct_accepted_at' => 'datetime',
         'consent_obtained_at' => 'datetime',
         'policy_accepted_at' => 'datetime',
     ];

@@ -10,8 +10,9 @@ use Illuminate\Support\Str;
 /**
  * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\User>
  *
- * Defaults produce an ACTIVE, policy-accepted user so role-holding test users
- * are not redirected by the RequiresPolicyAcceptance middleware. The model's
+ * Defaults produce an ACTIVE, policy-accepted, consented user so test users
+ * are not redirected by the RequiresPolicyAcceptance or consent middleware
+ * (use policyNotAccepted() / notConsented() to exercise them). The model's
  * creating hook generates id_check_token; the 'hashed' cast hashes the
  * password — neither is set here. The encrypted attributes
  * (national_id_number, personal_info) are only set via withNationalId().
@@ -35,6 +36,8 @@ class UserFactory extends Factory
             // Schema default is 'pending_engagement'; most tests need an active user.
             'lifecycle_status' => 'active',
             'policy_accepted_at' => now(),
+            'code_of_conduct_accepted_at' => now(),
+            'consent_obtained_at' => now(),
         ];
     }
 
@@ -67,6 +70,18 @@ class UserFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'policy_accepted_at' => null,
+        ]);
+    }
+
+    /**
+     * A legacy-style user with no recorded Code of Conduct acceptance or
+     * consent, as imported by MigrateUsers.
+     */
+    public function notConsented(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'code_of_conduct_accepted_at' => null,
+            'consent_obtained_at' => null,
         ]);
     }
 
