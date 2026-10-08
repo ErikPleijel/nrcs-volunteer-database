@@ -1557,3 +1557,160 @@ anonymized, role-free accounts, and only to holders of the new `anonymize_user` 
 - `PhotoController`'s development fallback can still fetch a legacy image from nrcsvdb.org by
   its old path. The anonymized row no longer has that path, but the copy on the old server is
   not deleted.
+
+## 2026-10-08 — Compliance technical history (moved from COMPLIANCE.md)
+
+COMPLIANCE.md is now a plain-language document for NRCS Legal, management and the DPO. The
+technical record that used to follow its summary is kept here. Corrections made on the move
+are marked **(corrected 2026-10-08)**. Later work has its own entries above (consent
+confirmation, DPO settings, privacy policy page, archive dates, anonymization).
+
+**Biometric file storage (FAIL → FIXED)**
+- `HandlesImageUploads`: every `public_path()` call replaced with `Storage::disk('local')`.
+  Photos are written to `storage/app/private/photos/`, not the webroot.
+- `User`: all four photo URL accessors return authenticated `route('photos.show', ...)` URLs,
+  never public paths.
+- `PhotoController` serves photos with `response()->file()`, behind auth and a
+  `UserPolicy::view()` check. The route `GET /photos/{user}/{type}` is in the auth group.
+- The backward-compat fallback to `public/` in `PhotoController` is dead code after the
+  production image migration; remove it after deployment. The development fallback that
+  fetches from nrcsvdb.org is still in place.
+
+**Encryption at rest (FAIL → FIXED)**
+- `User`: `encrypted` cast on `national_id_number` and `personal_info`. The NIN column was
+  widened to TEXT for the ciphertext, and uniqueness now uses the keyed
+  `national_id_number_hash` (`NIN_HASH_KEY`).
+- `php artisan ndpa:encrypt-national-ids` re-saves existing rows through the cast. It must be
+  run once on production before go-live.
+- ⚠️ `APP_KEY` must never be rotated without first decrypting and re-encrypting every
+  `national_id_number` and `personal_info` value. Back up `APP_KEY` separately from `.env`.
+
+**Unauthenticated photo access (FAIL → FIXED)**
+- Resolved by the storage and `PhotoController` changes above.
+- The public `/idcheck/{token}` verification page no longer shows the profile photo (see
+  "/idcheck public verification page — profile photo removed"). It still shows name, DB
+  reference, branch, division, unit or membership type, membership expiry, trainings and
+  volunteering hours.
+
+**Legacy MD5 → bcrypt upgrade gap for organisation-originated users (PASS with gap → FIXED)**
+- Originally `MigrateOrganisations` set organisation-originated users' password to a random
+  bcrypt string, so `LoginController` never reached the MD5 upgrade branch. Fixed by using an
+  empty string, as `MigrateUsers` does.
+- **(corrected 2026-10-08)** `MigrateOrganisations` no longer creates users at all. Its only
+  user-related code is an optional clean-up that deletes organisation-linked users when
+  re-running.
+
+**Sensitive field audit logging (FAIL → FIXED)**
+- `User` updating hook logs changes to `national_id_number`, `personal_info`, `signature` and
+  `picture` as `sensitive_fields_updated`, field names only, with values stored as
+  `[redacted]`. The list also names `passport_photo`, which has no column.
+- Photo views are gated by auth plus `UserPolicy`, but individual views are not logged (see
+  "2026-07-05 — Photo view logging removed").
+- `Log::write()` redacts `REDACTED_KEYS` at any depth (see "2026-10-02 — Audit Log snapshots").
+
+**Volunteer consent — public self-registration**
+- `auth/register.blade.php`: a fourth NDPA consent checkbox in the Code of Conduct flow
+  (scroll-to-enable, Alpine x-model, server-side `accepted`). The checkboxes are now the shared
+  partial `policies/code-of-conduct-commitments.blade.php`.
+- `RegisterController` records `consent_obtained_at`, `consent_obtained_by_id` (self) and
+  `consent_notes`. **(corrected 2026-10-08)** `code_of_conduct_accepted_at` was silently dropped
+  (not in `$fillable`) until 2026-10-08; see "Consent and Code of Conduct confirmation for all
+  users".
+
+**Volunteer consent — admin registration of users without email**
+- `users/create.blade.php`: a "Data Protection Attestation" section with two required
+  checkboxes. Staff confirm the person was informed and consented, and that the form of consent
+  (verbal, signed paper form or other) is documented. There is an optional free-text
+  `consent_notes`.
+- `UserController::store()` records `consent_obtained_at`, `consent_obtained_by_id` (the admin)
+  and `consent_notes`. These users are also asked to confirm the Code of Conduct and consent
+  themselves at first login.
+
+**Staff data handling policy acknowledgement**
+- `users.policy_accepted_at`. `RequiresPolicyAcceptance` (web group) sends every role holder to
+  `/policy/accept` until accepted (four-point commitment, one checkbox).
+- Since 2026-10-08 it runs after `EnsureConsentConfirmed`, and it exempts the email
+  verification routes (redirect-loop fix) and the consent and privacy policy routes.
+
+**National ID number (corrected 2026-10-08)**
+- The NIN is optional on every form: public registration, staff registration, profile edit and
+  users/edit (`nullable` plus `NationalIdNumberRule`).
+- It is printed in plain text on the ID card, and the bulk-print "printable only" filter
+  requires one. The earlier statement that no part of the system other than authorised staff
+  views exposes the NIN was therefore not accurate.
+
+**Reports**
+- `PendingApprovalsReportController`, `DatabaseTeamReportController` and
+  `DatabaseAccessReportController` enforce branch locking for non-national users; request
+  parameters cannot be used to reach other branches' data.
+
+**Automated tests (corrected 2026-10-08)**
+- The old "109 automated tests" figure is out of date. On 2026-10-08 the MySQL suite
+  (`php bin/test-mysql.php`) runs 827 tests, with 8 known pre-existing failures (approval
+  "withdraw" view and financial overview report), none in the data-protection areas.
+
+## 2026-10-08 — Open compliance items
+
+Everything still to do for NDPA compliance, moved from COMPLIANCE.md (sections 2–4) and
+updated after the 2026-10 legal review. Tick items here when they are done.
+
+**Organisational (NRCS management, Legal, DPO)**
+- [ ] Register with the Nigeria Data Protection Commission (ndpc.gov.ng).
+- [ ] File the annual Compliance Audit Return (CAR) with the NDPC by 31 March each year.
+- [ ] Write a 72-hour breach notification procedure naming who identifies breaches and who files
+      with the NDPC.
+- [ ] Document the VPS server location. If it is outside Nigeria, confirm the legal basis for
+      cross-border transfer (adequacy decision or explicit informed consent).
+- [ ] Brief branch and division administrators on the data handling commitment they accept at
+      first login, the consent attestation for registering people without email, and the DPO
+      consultation required before anonymizing.
+- [ ] Enter the DPO's name and contact details in Settings → Data protection. Until then the
+      Authorizations page shows a warning and the Privacy Policy page says details will follow.
+- [ ] Final Privacy Policy text from NRCS Legal: replace
+      `resources/views/policies/privacy-policy-text.blade.php`, then set `$isDraft = false`
+      (removes the draft banner) and update "Last updated".
+- [ ] Decide on the "Under review" registration fields: marital status, residential address,
+      workplace address, organisation (free text) and "personal information". Keep (with a
+      purpose) or stop collecting and remove existing values.
+- [ ] Consent for the ~27,000 imported records with no email and no phone (counted on a local
+      copy, 2026-10). They can never log in, so they are never asked to confirm. Decide how
+      consent is obtained, e.g. on paper at the next branch contact, recorded by staff.
+- [ ] Confirm the backup retention period. Backups keep pre-anonymization data until they
+      expire; state the period in COMPLIANCE.md.
+- [ ] Decide on the public `/idcheck/{token}` (and certificate verify) page: is showing name, DB
+      reference, branch, division, unit or membership type, membership expiry, trainings and
+      volunteering hours to anyone with the QR code appropriate, or should it show less or
+      require login? Record the decision here.
+- [ ] Decide whether `red-cross-units/show` (the staff unit page) should stop showing team
+      leader and member phone numbers, as `/my-unit` now does.
+- [ ] Decide whether a minimum age applies. Year of birth is required but nothing checks it.
+- [ ] Decide whether the NIN should keep being printed on the ID card.
+
+**Technical / deployment**
+- [ ] Production deployment, in order:
+      1. Run all pending migrations (including the 2026-10-08 ones: DPO settings, archive date
+         columns and backfill, anonymization columns, `anonymize_user` permission).
+      2. `php artisan ndpa:encrypt-national-ids --dry-run` (check the count), then without
+         `--dry-run`.
+      3. Continue with the normal migration sequence (`migrate:old-db`, `lifecycle:reconcile`).
+      4. Make sure the scheduler cron runs (`schedule:run` every minute), otherwise the 03:30
+         anonymization job never runs. See "2026-06-10 — Activating the scheduler cron is a
+         deployment event".
+      5. Run `users:anonymize-expired` (dry run) once and check the count before relying on the
+         schedule.
+- [ ] Add a Privacy Policy link to the footer: Settings → `site.footer_quick_links_html`
+      (no code change).
+- [ ] Delete the old nrcsvdb.org server's copies of photos and signatures when it is shut down,
+      and remove `PhotoController`'s development fallback that fetches from it.
+- [ ] Delete the phone-duplicate CSV reports in `storage/app/reports/` (names, gender, phone,
+      branch). They are gitignored but sit on disk.
+- [ ] Update the Audit Log page's guide ("The Audit Log records only these actions"). It does
+      not yet list the 2026-10-08 actions: `consent_confirmed`, `user_archived`,
+      `user_unarchived`, `user_anonymized`.
+- [ ] `LogEmailChannel` (dry-run email) still logs full addresses and bodies (see "2026-09-29 —
+      Campaign delivery logs").
+
+**Done and removed from the old list:** "consider making NIN non-mandatory" (it is optional
+everywhere); DPO designation mechanism (now settings, 2026-10-08); historical consent for
+migrated members (now confirmed at first login, 2026-10-08, except those who cannot log in;
+see above).
