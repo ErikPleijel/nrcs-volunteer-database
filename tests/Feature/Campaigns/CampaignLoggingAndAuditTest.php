@@ -61,14 +61,15 @@ test('the SMS log channel and the delivery service log no full number, email or 
         ->and($all)->toContain('a***@example.org');
 });
 
-test('the dry-run email log channel logs a masked address, never the full one', function () {
+test('the dry-run email log channel logs a masked address, the subject and the body length only', function () {
     $logger = Mockery::spy();
     Log::shouldReceive('channel')->with('campaign_deliveries')->andReturn($logger);
 
     $recipient = new MessagingRecipient(['messaging_campaign_id' => 1, 'email' => 'ada.obi@example.org']);
     $recipient->id = 8;
+    $secret = 'Dear Ada, your membership 12345 expires on 1 Oct.';
 
-    (new LogEmailChannel)->deliver($recipient, new DeliveryMessage(subject: 'Hello', body: 'Hi'));
+    (new LogEmailChannel)->deliver($recipient, new DeliveryMessage(subject: 'Membership reminder', body: 'plain', emailBody: $secret));
 
     $logged = [];
     $logger->shouldHaveReceived('info')->withArgs(function ($msg, $context = []) use (&$logged) {
@@ -79,7 +80,10 @@ test('the dry-run email log channel logs a masked address, never the full one', 
 
     $all = implode("\n", $logged);
     expect($all)->not->toContain('ada.obi@example.org')
-        ->and($all)->toContain('a***@example.org');
+        ->and($all)->not->toContain($secret)
+        ->and($all)->toContain('a***@example.org')
+        ->and($all)->toContain('Membership reminder')
+        ->and($all)->toContain('"body_length":'.mb_strlen($secret));
 });
 
 test('the unused SmsService is gone', function () {

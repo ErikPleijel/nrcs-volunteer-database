@@ -35,12 +35,11 @@ final class LogEmailChannel implements DeliveryChannel
             'recipient_id' => $recipient->id,
             'user_id' => $recipient->user_id ?? null,
 
-            // destination — NDPA: masked, as in LogSmsChannel:
+            // NDPA, as in LogSmsChannel: masked address, and no message body
+            // (it holds personal details) — only its length.
             'to' => PhoneNumber::maskEmail($recipient->email),
-
-            // message:
             'subject' => $message->subject,
-            'body' => $message->emailBody ?? $message->body,
+            'body_length' => mb_strlen($message->emailBody ?? $message->body),
 
             // any extra:
             'meta' => $message->meta,
