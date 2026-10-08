@@ -289,7 +289,7 @@ test('the submitter sees withdraw (not approve/reject) on the review page, and w
         ->from(route('membership-payments.review', $payment->id))
         ->post(route('membership-payments.withdraw', $payment->id));
 
-    $response->assertSessionHas('success');
+    $response->assertOk()->assertViewIs('approvals.withdrawn')->assertSee('withdrawn.');
 
     // MembershipPayment does NOT use SoftDeletes (unlike Donation), so withdraw's
     // guarded delete() is a genuine hard delete — the row must be gone entirely,

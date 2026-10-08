@@ -296,7 +296,7 @@ test('the submitter sees withdraw (not approve/reject) on the review page, and w
         ->from(route('activities.review', $activity->id))
         ->post(route('activities.withdraw', $activity->id));
 
-    $response->assertSessionHas('success');
+    $response->assertOk()->assertViewIs('approvals.withdrawn')->assertSee('withdrawn.');
 
     // Activity does NOT use SoftDeletes (unlike Donation), so withdraw's guarded
     // delete() is a genuine hard delete — the row must be gone entirely, not

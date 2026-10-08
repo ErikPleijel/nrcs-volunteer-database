@@ -289,7 +289,7 @@ test('the submitter sees withdraw (not approve/reject) on the review page, and w
         ->from(route('donations.review', $donation->id))
         ->post(route('donations.withdraw', $donation->id));
 
-    $response->assertSessionHas('success');
+    $response->assertOk()->assertViewIs('approvals.withdrawn')->assertSee('withdrawn.');
 
     // Donation uses SoftDeletes (removed_date), so the guarded delete either
     // removes the row or trashes it — either way it must no longer be pending.
