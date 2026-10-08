@@ -1721,3 +1721,29 @@ contact; vetting).
 **Decided by NRCS's consultant on 8 Oct 2026:** the NIN stays printed on the ID card, which is
 the main reason it is collected; and staff keep seeing phone numbers on the staff unit page
 (`red-cross-units/show`), while only the members' "My unit" page hides them.
+
+## 2026-10-08 — npm audit fixes
+
+**Problem:** the VPS deploy reported "7 vulnerabilities (2 moderate, 5 high)". Locally, against
+the committed lockfile, `npm audit` found 23.
+
+**Fixed:** `npm audit fix` (without `--force`) moved packages to fixed versions within their
+current major versions. Among them: vite 7.1.3 → 7.3.7, rollup 4.48 → 4.64, postcss 8.5.6 →
+8.5.29, tailwindcss 3.4.17 → 3.4.19, shell-quote → 1.12.0, lodash → 4.18.1, plus glob,
+minimatch, brace-expansion, picomatch, yaml, browserslist, nanoid, source-map-js and
+@babel/core. All of these are build-time or local-dev tools; none of their code ships in
+`public/build`.
+
+**axios removed:** it was the only vulnerable package in the browser bundle. Only
+`resources/js/bootstrap.js` mentioned it (setting `window.axios` and its `X-Requested-With`
+header); nothing made requests with it. The bundle went from 245 KB to 209 KB.
+
+**Postponed — Tailwind 4:** the 7 remaining findings (braces, chokidar, micromatch, fast-glob,
+postcss-nested, postcss-selector-parser, tailwindcss) are Tailwind 3's dependency chain. npm's
+only fix is Tailwind 4, a major upgrade (new config format, some class changes). The advisories
+are DoS from malicious glob patterns or selectors at build time, and the only input is our own
+config and CSS, so it is not worth the migration now. Do it as separate work.
+
+**Deploy:** use `npm ci && npm run build` instead of `npm install`, so the server installs exactly
+what the lockfile says. devDependencies must be installed (vite, tailwind and postcss are needed
+to build); only `public/build` is served. Never run `npm run dev` on the VPS.
