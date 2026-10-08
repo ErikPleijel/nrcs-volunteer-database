@@ -48,6 +48,7 @@
                                     <li><span class="font-semibold">Months of inactivity before dormant</span> — controls how long a user must be inactive before becoming Dormant.</li>
                                     <li><span class="font-semibold">Site Motto</span> — displayed in the footer and on public pages.</li>
                                     <li><span class="font-semibold">Social Share Snippet</span> — HTML snippet used for social sharing meta tags.</li>
+                                    <li><span class="font-semibold">Data protection</span> — the Data Protection Officer's contact details: <span class="font-semibold">DPO name</span> (a person or the office), <span class="font-semibold">DPO postal address</span>, <span class="font-semibold">DPO email</span> (preferably an institutional address) and <span class="font-semibold">DPO phone</span>. Shown on the Authorizations page; leave the name empty until a DPO is appointed.</li>
                                 </ul>
                             </div>
                         </div>

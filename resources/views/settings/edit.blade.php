@@ -25,6 +25,15 @@
             </div>
         @endif
 
+        @if ($errors->any())
+            <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6" role="alert">
+                <p class="font-bold">Settings not saved</p>
+                @foreach ($errors->all() as $error)
+                    <p>{{ $error }}</p>
+                @endforeach
+            </div>
+        @endif
+
         <form action="{{ route('admin.settings.update') }}" method="POST">
             @csrf
             <div class="space-y-12">
@@ -76,7 +85,7 @@
                                                         Anything else (other tags, class, style, scripts) is removed when you save.
                                                     </p>
                                                 </div>
-                                            @elseif($setting->type === 'string' && in_array($setting->key, ['social.share_description', 'site.hq_address']))
+                                            @elseif($setting->type === 'string' && in_array($setting->key, ['social.share_description', 'site.hq_address', 'dpo.address']))
                                                 <textarea name="settings[{{ $setting->key }}]" id="setting-{{ $setting->key }}" rows="3" class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full max-w-lg sm:text-sm border-2 border-gray-300 rounded-md">{{ $setting->value }}</textarea>
                                             @elseif($setting->type === 'string')
                                                 <input type="text" name="settings[{{ $setting->key }}]" id="setting-{{ $setting->key }}" class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full max-w-lg sm:text-sm border-2 border-gray-300 rounded-md" value="{{ $setting->value }}">

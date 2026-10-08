@@ -25,11 +25,23 @@ class SettingController extends Controller
 
     public function update(Request $request, SettingHtmlSanitizer $sanitizer)
     {
+        // Setting keys contain dots, so they are escaped in the rule keys.
+        $request->validate(
+            ['settings.dpo\.email' => ['nullable', 'email']],
+            [],
+            ['settings.dpo\.email' => 'DPO email']
+        );
+
         $settings = $request->input('settings', []);
 
         foreach ($settings as $key => $value) {
             $setting = Setting::where('key', $key)->first();
             if ($setting) {
+                // An empty field arrives as null (ConvertEmptyStringsToNull)
+                // but is stored as ''; normalise it so an unchanged empty
+                // setting is not audited as changed on every save.
+                $value = $value ?? '';
+
                 // HTML settings render unescaped on every page: only the
                 // allowlisted markup is ever stored (the footer re-sanitizes).
                 if ($setting->type === 'html') {
