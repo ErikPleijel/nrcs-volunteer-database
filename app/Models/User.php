@@ -2164,6 +2164,12 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->belongsTo(User::class, 'form_reg_id');
     }
 
+    /** Who recorded the consent: the user themselves, or the attesting staff member. */
+    public function consentObtainedBy()
+    {
+        return $this->belongsTo(User::class, 'consent_obtained_by_id');
+    }
+
     public function campaignRecipients()
     {
         return $this->morphMany(\App\Models\MessagingRecipient::class, 'recipient');

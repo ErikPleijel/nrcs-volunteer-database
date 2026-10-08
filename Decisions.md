@@ -855,6 +855,9 @@ after the fact so it's not mistaken for an unexplained regression.
 
 ## 2026-07-18 — Consent vs. policy-acceptance gating: migrated users
 
+> **Superseded** by "2026-10-08 — Consent and Code of Conduct confirmation for all users":
+> consent IS now enforced for migrated users.
+
 Two related-but-distinct NDPA fields on `users`, deliberately treated
 differently:
 
@@ -1349,3 +1352,45 @@ page every unit member can open.
 - The narration MP3 `level2-database_cleanup-log.mp3` still says "The Log" until it is
   regenerated. The lesson-complete narration (`level2-database_cleanup-complete.txt`) also
   still says "the Log".
+
+## 2026-10-08 — Consent and Code of Conduct confirmation for all users
+
+Supersedes "2026-07-18 — Consent vs. policy-acceptance gating: migrated users".
+
+**Problem:** `RegisterController::create()` set `code_of_conduct_accepted_at`, but the column was
+missing from `User::$fillable`, so `User::create()` silently dropped it. No self-registered user
+has it. Legacy-imported users (`MigrateUsers`) have neither the CoC timestamp nor `consent_*`, and
+staff-registered users have staff-attested `consent_*` but no CoC timestamp.
+
+**Decision:**
+- `code_of_conduct_accepted_at` is now in `$fillable` with a datetime cast, so registration saves it.
+- Following the NRCS Legal expert's NDPA review, every user without a recorded acceptance
+  (`code_of_conduct_accepted_at IS NULL`) is asked once to confirm. `EnsureConsentConfirmed`
+  sends them to `/consent/confirm` (`ConsentConfirmationController`), which shows the Code of
+  Conduct and the same four commitments as registration. Both forms include
+  `policies/code-of-conduct-commitments.blade.php`, so the wording cannot drift. Confirming sets
+  `code_of_conduct_accepted_at` and `consent_obtained_at` to now, `consent_obtained_by_id` to the
+  user and `consent_notes` to "Confirmed by user at login". It also writes a `consent_confirmed`
+  audit entry whose old values keep the previous `consent_*` (e.g. a staff attestation).
+- **Gate order:** `EnsureConsentConfirmed` is appended to the `web` group before
+  `RequiresPolicyAcceptance`, so a role holder confirms consent first and then accepts the staff
+  data-handling policy. The policy gate exempts the consent routes, otherwise the two would
+  redirect into each other.
+- The consent routes require `auth` but not `verified.or.absent`, so users with an unverified email
+  can reach them. Exempt from the consent gate: logout, the consent routes, the three email
+  verification routes, password confirmation, `photos.show`, `archived-account.show`. JSON/AJAX
+  requests get a 403 with a short message instead of a redirect.
+- **Redirect-loop fix:** `RequiresPolicyAcceptance` now also exempts `verification.required`,
+  `verification.resend` and `verification.verify`. Previously a role holder with an unverified
+  email bounced endlessly between `/policy/accept` (behind `verified.or.absent`) and
+  `/email/verify-required` (not exempt from the policy gate).
+- users/show (SYSTEM & REGISTRATION, Registration row) shows the acceptance date or "Not yet
+  accepted", and who obtained the consent when it was a staff member.
+
+**Consequences:**
+- Users who cannot log in are never asked. Locally that is about 27k accounts with no email and no
+  phone, plus archived accounts. Their consent stays unrecorded, and COMPLIANCE.md needs a
+  statement covering them.
+- Staff-registered users are asked again at their first login, even though staff attested
+  consent at registration; the attestation stays visible in the audit entry's old values.
+- `UserFactory` defaults to a consented user; use `notConsented()` to exercise the gate.

@@ -555,6 +555,20 @@
                                 </div>
                             @endif
 
+                            @if($user->code_of_conduct_accepted_at)
+                                <div class="text-sm text-gray-500 mt-0.5">
+                                    Code of Conduct &amp; consent accepted: {{ $user->code_of_conduct_accepted_at->format('M d, Y') }}
+                                </div>
+                            @else
+                                <div class="text-sm text-gray-400 mt-0.5">Code of Conduct &amp; consent: Not yet accepted</div>
+                            @endif
+
+                            @if($user->consent_obtained_by_id && $user->consent_obtained_by_id !== $user->id && $user->consentObtainedBy)
+                                <div class="text-sm text-gray-400 mt-0.5">
+                                    Consent obtained by: {{ $user->consentObtainedBy->full_name }} DB-{{ $user->consentObtainedBy->id }}
+                                </div>
+                            @endif
+
                             @if($user->consent_notes)
                                 <div class="text-sm text-gray-500 mt-0.5">Consent notes: {{ $user->consent_notes }}</div>
                             @endif
