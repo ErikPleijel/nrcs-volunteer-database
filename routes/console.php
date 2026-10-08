@@ -13,6 +13,11 @@ Schedule::command('lifecycle:reconcile --apply')
     ->dailyAt('03:00')
     ->withoutOverlapping();
 
+// NDPA: anonymize accounts archived more than data_protection.anonymize_after_years (7) ago.
+Schedule::command('users:anonymize-expired --apply')
+    ->dailyAt('03:30')
+    ->withoutOverlapping();
+
 // Enabled 2026-07-17: campaigns:send now runs automatically via the scheduler.
 Schedule::command('campaigns:send --batch=50')
     ->everyMinute()
