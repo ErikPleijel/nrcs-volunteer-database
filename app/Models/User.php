@@ -232,6 +232,22 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->belongsTo(User::class, 'archived_by_id');
     }
 
+    /** "self", "system", or the archiving admin's name and DB number. */
+    public function archivedByLabel(): string
+    {
+        if ($this->archived_by_id === null) {
+            return 'system';
+        }
+
+        if ($this->archived_by_id === $this->id) {
+            return 'self';
+        }
+
+        return $this->archivedBy
+            ? "{$this->archivedBy->full_name} DB-{$this->archivedBy->id}"
+            : "DB-{$this->archived_by_id}";
+    }
+
     public function organisation()
     {
         return $this->belongsTo(Organisation::class);

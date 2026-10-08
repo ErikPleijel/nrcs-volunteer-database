@@ -484,7 +484,14 @@
                     {{-- Status --}}
                     <tr>
                         <td>Status</td>
-                        <td><x-user-lifecycle-status-badge :user="$user"/></td>
+                        <td>
+                            <x-user-lifecycle-status-badge :user="$user"/>
+                            @if($user->lifecycle_status === 'archived' && $user->archived_at)
+                                <div class="text-sm text-gray-500 mt-0.5">
+                                    Archived on {{ $user->archived_at->format('M d, Y') }} by {{ $user->archivedByLabel() }}
+                                </div>
+                            @endif
+                        </td>
                     </tr>
 
                     {{-- Last Activity --}}

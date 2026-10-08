@@ -794,6 +794,9 @@
                                 @if($user->lifecycle_status === 'archived')
                                     <p class="mt-3 text-sm text-gray-600">
                                         Status: Archived.
+                                        @if($user->archived_at)
+                                            Archived on {{ $user->archived_at->format('M d, Y') }} by {{ $user->archivedByLabel() }}
+                                        @endif
                                     </p>
                                     <p class="inline-block mt-3 text-sm text-gray-600 bg-yellow-100 p-2 rounded">
                                         Uncheck to reactivate.

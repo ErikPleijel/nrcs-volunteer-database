@@ -1446,3 +1446,38 @@ is a public page, open to guests.
 
 **Footer link:** no code change. The National DB admin can add it to the
 `site.footer_quick_links_html` setting on the Settings page.
+
+## 2026-10-08 — Archive date recorded (archived_at)
+
+**Problem:** archiving was only `lifecycle_status = 'archived'`, with no date. Two of the four
+archive paths (users/edit, the Archive Tool) wrote no audit entry, so the date could not be
+recovered. The 7-year anonymization rule needs it.
+
+**Decision:**
+- **Columns:** `users.archived_at` (timestamp, indexed) and `users.archived_by_id` (no FK, like
+  the other `*_by_id` columns; null means the system).
+- **Archive paths:** all four go through `User::markArchived(?User $by)` and each writes an audit
+  entry with a "DB-{id}" description (no names):
+  - users/edit and the Archive Tool: `user_archived`, one entry per user
+  - self-archive: `user_self_archived`
+  - the phone-duplicate merge: `user_phone_duplicate_archived`
+  An account that is already archived keeps its original date.
+- **Restores:** leaving `archived` by any Eloquent save clears both columns and writes
+  `user_unarchived`. That covers users/edit reactivation and also `Approvable::approve()`
+  reactivating an archived member. It sits in `User`'s `updating` hook, so query-builder
+  updates bypass it.
+- **Role holders:** never archived by users/edit (validation error) or the Archive Tool (skipped
+  and counted in the message), matching self-archive.
+- **Display:** users/show and users/edit show "Archived on {date} by {name DB-id | self | system}".
+
+**Backfill rule** (`2026_10_08_140000_backfill_archived_at_on_users`), for archived users with
+`archived_at IS NULL`:
+- `archived_at` is the `created_at` of the latest audit row for that user (subject = the user)
+  with action `user_self_archived`, `user_phone_duplicate_archived` or `user_archived`.
+  `archived_by_id` is that row's `user_id`.
+- With no such row, `archived_at` is the moment the migration runs and `archived_by_id` is null.
+  This is deliberately conservative: the 7-year period can only start later than the real
+  archive date, never earlier.
+- The migration logs (and prints) how many rows got each kind of date.
+
+**Consequence:** the 7-year anonymization clock (Group 5b) starts from `archived_at`.
