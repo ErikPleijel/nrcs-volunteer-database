@@ -3,6 +3,7 @@
 namespace App\Campaigns\Delivery;
 
 use App\Models\MessagingRecipient;
+use App\Support\PhoneNumber;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
@@ -34,8 +35,8 @@ final class LogEmailChannel implements DeliveryChannel
             'recipient_id' => $recipient->id,
             'user_id' => $recipient->user_id ?? null,
 
-            // destination:
-            'to' => $recipient->email,
+            // destination — NDPA: masked, as in LogSmsChannel:
+            'to' => PhoneNumber::maskEmail($recipient->email),
 
             // message:
             'subject' => $message->subject,

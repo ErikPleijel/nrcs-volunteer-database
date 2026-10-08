@@ -7,6 +7,7 @@
 
 use App\Campaigns\Delivery\CampaignDeliveryService;
 use App\Campaigns\Delivery\DeliveryMessage;
+use App\Campaigns\Delivery\LogEmailChannel;
 use App\Campaigns\Delivery\LogSmsChannel;
 use App\Models\Log as AuditLog;
 use App\Models\MessagingCampaign;
@@ -57,6 +58,27 @@ test('the SMS log channel and the delivery service log no full number, email or 
         ->and($all)->not->toContain('ada.obi@example.org')
         ->and($all)->not->toContain($secret)
         ->and($all)->toContain('+234803****567')
+        ->and($all)->toContain('a***@example.org');
+});
+
+test('the dry-run email log channel logs a masked address, never the full one', function () {
+    $logger = Mockery::spy();
+    Log::shouldReceive('channel')->with('campaign_deliveries')->andReturn($logger);
+
+    $recipient = new MessagingRecipient(['messaging_campaign_id' => 1, 'email' => 'ada.obi@example.org']);
+    $recipient->id = 8;
+
+    (new LogEmailChannel)->deliver($recipient, new DeliveryMessage(subject: 'Hello', body: 'Hi'));
+
+    $logged = [];
+    $logger->shouldHaveReceived('info')->withArgs(function ($msg, $context = []) use (&$logged) {
+        $logged[] = json_encode([$msg, $context], JSON_UNESCAPED_UNICODE);
+
+        return true;
+    });
+
+    $all = implode("\n", $logged);
+    expect($all)->not->toContain('ada.obi@example.org')
         ->and($all)->toContain('a***@example.org');
 });
 
