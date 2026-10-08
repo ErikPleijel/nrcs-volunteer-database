@@ -1251,7 +1251,9 @@ membership data) and the log is a plain file. The audit entries record who autho
 spending on SMS.
 
 **Consequences:** `LogEmailChannel` (dry-run email) still logs the full address and body —
-out of this SMS-only scope; left for a separate decision.
+out of this SMS-only scope; left for a separate decision. *(2026-10-08: the address is now
+masked with `PhoneNumber::maskEmail()`; the body is still logged — see "Open compliance
+items".)*
 
 ## 2026-09-29 — SMSLive247 integration: dry run by default, sends never retried
 
@@ -1348,7 +1350,8 @@ page every unit member can open.
 **Consequences / not changed:**
 - The controller still loads full user rows (`users.*`) for `/my-unit`; only the view changed.
 - `red-cross-units/show` (the admin unit page) still shows team leader and member phone
-  numbers. Out of scope here, pending a decision.
+  numbers. Decided on 8 Oct 2026 by NRCS's consultant: staff keep seeing them; only the
+  members' "My unit" page hides them.
 - The narration MP3s `level2-database_cleanup-log.mp3` and `level2-database_cleanup-complete.mp3`
   still say "the Log" until they are regenerated. Both narration scripts
   (`level2-database_cleanup-log.txt`, `level2-database_cleanup-complete.txt`) now say "the Audit Log".
@@ -1681,10 +1684,7 @@ updated after the 2026-10 legal review. Tick items here when they are done.
       reference, branch, division, unit or membership type, membership expiry, trainings and
       volunteering hours to anyone with the QR code appropriate, or should it show less or
       require login? Record the decision here.
-- [ ] Decide whether `red-cross-units/show` (the staff unit page) should stop showing team
-      leader and member phone numbers, as `/my-unit` now does.
 - [ ] Decide whether a minimum age applies. Year of birth is required but nothing checks it.
-- [ ] Decide whether the NIN should keep being printed on the ID card.
 
 **Technical / deployment**
 - [ ] Production deployment, in order:
@@ -1704,13 +1704,16 @@ updated after the 2026-10 legal review. Tick items here when they are done.
       and remove `PhotoController`'s development fallback that fetches from it.
 - [ ] Delete the phone-duplicate CSV reports in `storage/app/reports/` (names, gender, phone,
       branch). They are gitignored but sit on disk.
-- [ ] Update the Audit Log page's guide ("The Audit Log records only these actions"). It does
-      not yet list the 2026-10-08 actions: `consent_confirmed`, `user_archived`,
-      `user_unarchived`, `user_anonymized`.
-- [ ] `LogEmailChannel` (dry-run email) still logs full addresses and bodies (see "2026-09-29 —
-      Campaign delivery logs").
+- [ ] `LogEmailChannel` (dry-run email) still logs message bodies. Addresses are masked since
+      2026-10-08. Drop the body (log its length, as `LogSmsChannel` does) if the email dry run is
+      used with real data.
 
 **Done and removed from the old list:** "consider making NIN non-mandatory" (it is optional
 everywhere); DPO designation mechanism (now settings, 2026-10-08); historical consent for
 migrated members (now confirmed at first login, 2026-10-08, except those who cannot log in;
-see above).
+see above); the Audit Log page's guide (now lists consent confirmation, archiving, restoring
+and anonymizing, 2026-10-08); full addresses in the dry-run email log (now masked, 2026-10-08).
+
+**Decided by NRCS's consultant on 8 Oct 2026:** the NIN stays printed on the ID card, which is
+the main reason it is collected; and staff keep seeing phone numbers on the staff unit page
+(`red-cross-units/show`), while only the members' "My unit" page hides them.
