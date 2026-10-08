@@ -275,12 +275,12 @@
 
 
 
-                    {{-- Log --}}
+                    {{-- Audit Log --}}
                     @can('view_log')
                         <li>
                             <a href="{{ route('logs.index') }}"
                                class="flex items-center px-6 py-3 text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors {{ request()->routeIs('logs.*') ? 'bg-red-50 text-red-600 border-r-4 border-red-600' : '' }}">
-                                <i class="fa-solid fa-clipboard-list mr-3"></i>Log
+                                <i class="fa-solid fa-clipboard-list mr-3"></i>Audit Log
                             </a>
                         </li>
                     @endcan

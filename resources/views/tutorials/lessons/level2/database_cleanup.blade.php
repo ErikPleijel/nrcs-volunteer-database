@@ -44,10 +44,10 @@
                 </div>
             </x-tutorial.slide>
 
-            {{-- Slide — The Log --}}
+            {{-- Slide — The Audit Log --}}
             <x-tutorial.slide audio="tutorials/audio/level2-database_cleanup-log.mp3">
                 <div class="max-w-3xl mx-auto text-center">
-                    <h2 class="text-2xl font-bold text-gray-900 mb-3" data-reveal>The Log</h2>
+                    <h2 class="text-2xl font-bold text-gray-900 mb-3" data-reveal>The Audit Log</h2>
                     <p class="text-gray-600 mb-8" data-reveal>
                         <i class="fas fa-clipboard-list mr-1"></i> A history of administrative changes — who did what, and when.
                     </p>
@@ -110,7 +110,7 @@
                         <i class="fas fa-box-archive text-green-500"></i> Bulk archive
                     </span>
                                             <span class="inline-flex items-center gap-2 rounded-full bg-gray-50 border border-gray-100 px-4 py-2 text-sm text-gray-700">
-                        <i class="fas fa-clipboard-list text-green-500"></i> The Log
+                        <i class="fas fa-clipboard-list text-green-500"></i> The Audit Log
                     </span>
                     </div>
 

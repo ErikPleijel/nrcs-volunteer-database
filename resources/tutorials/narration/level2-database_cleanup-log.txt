@@ -1,4 +1,4 @@
-The Log gives you a history of administrative changes.
+The Audit Log gives you a history of administrative changes.
 <break time="0.6s" />
 It records things like moving a person between branches or divisions, changes to roles and permissions, membership fee changes, and app-wide setting changes.
 <break time="0.6s" />
