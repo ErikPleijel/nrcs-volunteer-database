@@ -10,10 +10,15 @@
  * whereNull('organisation_id'); org_amount was already correctly scoped via
  * whereNotNull('organisation_id').
  *
+ * Since 2026-08-05 the Payments tab is a full-year view (param 'year') with
+ * per-quarter columns q1..q4 × member/volunteer/org/rcu and year_total; the
+ * same personal-only scoping applies to member/volunteer, and org and RCU
+ * payments each count only in their own column.
+ *
  * All tests use the 'national' scope (the controller's default), where rows
- * are branches and each row is scoped by branch_id only — so no Division
- * needs to be created. All payments are dated within a fixed quarter
- * (2024-Q2) chosen to be safely in the past regardless of when tests run.
+ * are branches and each row is scoped by branch_id only. All payments are
+ * dated 2024-05-15 (Q2 of 2024), safely in the past regardless of when tests
+ * run.
  *
  * MembershipFee does NOT use HasFactory in its class body (see
  * MembershipFeeFactory's own docblock), so MembershipFee::factory() does not
@@ -21,9 +26,11 @@
  */
 
 use App\Models\Branch;
+use App\Models\Division;
 use App\Models\MembershipFee;
 use App\Models\MembershipPayment;
 use App\Models\Organisation;
+use App\Models\RedCrossUnit;
 use App\Models\User;
 use Database\Factories\MembershipFeeFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -63,9 +70,8 @@ beforeEach(function () {
 
     $this->branch = Branch::create(['name' => 'Alpha Branch', 'code' => 'ALP']);
 
-    // Fixed quarter/date, safely in the past regardless of when tests run.
+    // Fixed date in Q2 2024, safely in the past regardless of when tests run.
     $this->paymentDate = '2024-05-15';
-    $this->quarter = '2024-Q2';
 });
 
 function hitFinancialReport()
@@ -73,7 +79,7 @@ function hitFinancialReport()
     return test()->actingAs(test()->viewer)->get(route('reports.financial.index', [
         'tab' => 'payments',
         'scope' => 'national',
-        'quarter' => test()->quarter,
+        'year' => 2024,
     ]));
 }
 
@@ -106,10 +112,10 @@ test('an organisational payment on a non-volunteer fee counts only in org_amount
     $row = paymentsRowFor($response->viewData('paymentsData'), $this->branch->name);
     expect($row)->not->toBeNull();
 
-    expect((float) $row['member_amount'])->toBe(0.0)
-        ->and((float) $row['volunteer_amount'])->toBe(0.0)
-        ->and((float) $row['org_amount'])->toBe(5000.0)
-        ->and((float) $row['total'])->toBe(5000.0);
+    expect((float) $row['q2_member'])->toBe(0.0)
+        ->and((float) $row['q2_volunteer'])->toBe(0.0)
+        ->and((float) $row['q2_org'])->toBe(5000.0)
+        ->and((float) $row['year_total'])->toBe(5000.0);
 });
 
 /*
@@ -141,10 +147,10 @@ test('an organisational payment on a volunteer fee counts only in org_amount, no
     $row = paymentsRowFor($response->viewData('paymentsData'), $this->branch->name);
     expect($row)->not->toBeNull();
 
-    expect((float) $row['member_amount'])->toBe(0.0)
-        ->and((float) $row['volunteer_amount'])->toBe(0.0)
-        ->and((float) $row['org_amount'])->toBe(3000.0)
-        ->and((float) $row['total'])->toBe(3000.0);
+    expect((float) $row['q2_member'])->toBe(0.0)
+        ->and((float) $row['q2_volunteer'])->toBe(0.0)
+        ->and((float) $row['q2_org'])->toBe(3000.0)
+        ->and((float) $row['year_total'])->toBe(3000.0);
 });
 
 /*
@@ -192,10 +198,10 @@ test('a mixed personal + organisational scenario keeps each amount separate and 
     $row = paymentsRowFor($response->viewData('paymentsData'), $this->branch->name);
     expect($row)->not->toBeNull();
 
-    expect((float) $row['member_amount'])->toBe(1000.0)
-        ->and((float) $row['volunteer_amount'])->toBe(0.0)
-        ->and((float) $row['org_amount'])->toBe(5000.0)
-        ->and((float) $row['total'])->toBe(6000.0);
+    expect((float) $row['q2_member'])->toBe(1000.0)
+        ->and((float) $row['q2_volunteer'])->toBe(0.0)
+        ->and((float) $row['q2_org'])->toBe(5000.0)
+        ->and((float) $row['year_total'])->toBe(6000.0);
 });
 
 /*
@@ -239,8 +245,54 @@ test('a pure personal scenario with no organisational payments is unaffected by 
     $row = paymentsRowFor($response->viewData('paymentsData'), $this->branch->name);
     expect($row)->not->toBeNull();
 
-    expect((float) $row['member_amount'])->toBe(1500.0)
-        ->and((float) $row['volunteer_amount'])->toBe(750.0)
-        ->and((float) $row['org_amount'])->toBe(0.0)
-        ->and((float) $row['total'])->toBe(2250.0);
+    expect((float) $row['q2_member'])->toBe(1500.0)
+        ->and((float) $row['q2_volunteer'])->toBe(750.0)
+        ->and((float) $row['q2_org'])->toBe(0.0)
+        ->and((float) $row['year_total'])->toBe(2250.0);
+});
+
+/*
+|--------------------------------------------------------------------------
+| 5 — Red Cross unit payment alongside personal and organisational ones
+|--------------------------------------------------------------------------
+*/
+
+test('a Red Cross unit payment counts only in q2_rcu, next to personal and organisational payments', function () {
+    $division = Division::create(['name' => 'Alpha One', 'branch_id' => $this->branch->id]);
+    $unit = RedCrossUnit::create(['name' => 'Unit A', 'division_id' => $division->id, 'is_active' => true]);
+    $organisation = Organisation::create(['name' => 'Org Five']);
+
+    // Distinct amounts so any leak between columns is unambiguous.
+    $memberFee = MembershipFeeFactory::new()->create(['is_volunteer_fee' => false, 'amount' => 1000]);
+    $volunteerFee = MembershipFeeFactory::new()->create(['is_volunteer_fee' => true, 'amount' => 300]);
+    $orgFee = MembershipFeeFactory::new()->create(['is_volunteer_fee' => false, 'amount' => 5000]);
+    $rcuFee = MembershipFeeFactory::new()->create(['is_volunteer_fee' => true, 'amount' => 20000]);
+
+    $pay = fn (array $attributes) => MembershipPayment::factory()->approved()->create([
+        'user_id' => User::factory()->create()->id,
+        'organisation_id' => null,
+        'red_cross_unit_id' => null,
+        'branch_id' => $this->branch->id,
+        'payment_date' => $this->paymentDate,
+        ...$attributes,
+    ]);
+
+    $pay(['membership_fee_id' => $memberFee->id]);
+    $pay(['membership_fee_id' => $volunteerFee->id]);
+    $pay(['membership_fee_id' => $orgFee->id, 'organisation_id' => $organisation->id]);
+    // An RCU annual fee on a volunteer-flavoured fee must not also count as volunteer_amount.
+    $pay(['membership_fee_id' => $rcuFee->id, 'red_cross_unit_id' => $unit->id]);
+
+    $response = hitFinancialReport();
+    $response->assertOk();
+
+    $row = paymentsRowFor($response->viewData('paymentsData'), $this->branch->name);
+    expect($row)->not->toBeNull();
+
+    expect((float) $row['q2_member'])->toBe(1000.0)
+        ->and((float) $row['q2_volunteer'])->toBe(300.0)
+        ->and((float) $row['q2_org'])->toBe(5000.0)
+        ->and((float) $row['q2_rcu'])->toBe(20000.0)
+        ->and((float) $row['q1_rcu'])->toBe(0.0)
+        ->and((float) $row['year_total'])->toBe(26300.0);
 });

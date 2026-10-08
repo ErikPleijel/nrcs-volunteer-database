@@ -1649,8 +1649,11 @@ confirmation, DPO settings, privacy policy page, archive dates, anonymization).
 
 **Automated tests (corrected 2026-10-08)**
 - The old "109 automated tests" figure is out of date. On 2026-10-08 the MySQL suite
-  (`php bin/test-mysql.php`) runs 827 tests, with 8 known pre-existing failures (approval
-  "withdraw" view and financial overview report), none in the data-protection areas.
+  (`php bin/test-mysql.php`) runs 829 tests and is green: 0 failures.
+- The 8 long-standing failures were outdated tests, not bugs, and were fixed on 2026-10-08:
+  - the 4 approval "withdraw" tests now expect the confirmation page (since 2026-07-31);
+  - the 4 financial overview report tests now use the full-year Payments tab (since
+    2026-08-05), with a fifth test covering the Red Cross unit column.
 
 ## 2026-10-08 — Open compliance items
 
