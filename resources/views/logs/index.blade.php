@@ -135,7 +135,10 @@
                                     <li>Super-admin rights being automatically removed</li>
                                     <li>Changes to a member's NIN, personal info, photo, picture or signature (which fields changed; the values themselves are hidden)</li>
                                     <li>An admin moving a member to another branch or division</li>
-                                    <li>A member archiving their own account</li>
+                                    <li>An account being archived — by an admin, with the Archive Tool, or by the member themselves</li>
+                                    <li>An archived account being restored</li>
+                                    <li>An archived account being anonymized — automatically after 7 years, or by a National DB Administrator (the entry never contains the person's name)</li>
+                                    <li>A member confirming the Code of Conduct and their consent when they first log in</li>
                                     <li>Password resets done from the server command line</li>
                                 </ul>
                             </div>
@@ -168,7 +171,7 @@
                             <div>
                                 <p class="font-semibold text-gray-800">Settings and lists</p>
                                 <ul class="space-y-1 text-gray-700 list-disc pl-4">
-                                    <li>System settings changed</li>
+                                    <li>System settings changed (including the Data Protection Officer's details)</li>
                                     <li>Training types created, changed or deleted</li>
                                     <li>Task force types created, changed or deleted</li>
                                     <li>Campaign purposes changed</li>
@@ -184,7 +187,7 @@
 
                             <p>Each entry shows who did it (if done by a logged-in user), when, and a short description.</p>
 
-                            <p><span class="font-semibold">Not recorded:</span> logins, approvals and rejections, donations, trainings, activities, report downloads, consent, and most deletions.</p>
+                            <p><span class="font-semibold">Not recorded:</span> logins, approvals and rejections, donations, trainings, activities, report downloads, consent given at registration, and most deletions.</p>
                         </div>
                     </div>
 

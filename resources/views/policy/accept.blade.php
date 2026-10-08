@@ -26,7 +26,7 @@
                             </li>
                             <li class="flex items-start gap-2">
                                 <span class="mt-0.5 text-gray-500 shrink-0">•</span>
-                                <span>I understand that all access to sensitive data is logged and may be audited.</span>
+                                <span>I understand that important administrative actions, including changes to sensitive data, are logged and may be audited.</span>
                             </li>
                             <li class="flex items-start gap-2">
                                 <span class="mt-0.5 text-gray-500 shrink-0">•</span>
