@@ -1324,3 +1324,28 @@ stored rows; dry run by default, `--force` to write.
 **Not changed:** `User::$hidden` still does not include `national_id_number` /
 `personal_info`; whether to hide them is a separate decision, since some code may rely on
 them being serialised.
+
+## 2026-10-08 — NDPA review: small UI fixes
+
+**Decision:** three changes requested by the NRCS Legal expert's NDPA 2023 review:
+1. The admin sidebar item "Log" is now "Audit Log", matching the page title. The level 2
+   tutorial slide, its recap pill and the narration script (`level2-database_cleanup-log.txt`)
+   say "the Audit Log" too.
+2. `/my-unit` (`red-cross-units/my-unit.blade.php`) no longer shows telephone numbers on the
+   team leader, assistant team leader or member cards, and the copy-phone buttons and their
+   script are gone. Any unit member can open this page, so phone numbers there were visible to
+   every unit member. Covered by `MyUnitNoPhoneNumbersTest`.
+3. `profile/edit-signature` now opens with "Why do we need your signature?" (printed on the ID
+   card only) and "How is it kept safe?", followed by the photo guidance, the current
+   signature and the upload form.
+
+**Rationale:** transparency about why personal data is collected, and data minimisation on a
+page every unit member can open.
+
+**Consequences / not changed:**
+- The controller still loads full user rows (`users.*`) for `/my-unit`; only the view changed.
+- `red-cross-units/show` (the admin unit page) still shows team leader and member phone
+  numbers. Out of scope here, pending a decision.
+- The narration MP3 `level2-database_cleanup-log.mp3` still says "The Log" until it is
+  regenerated. The lesson-complete narration (`level2-database_cleanup-complete.txt`) also
+  still says "the Log".

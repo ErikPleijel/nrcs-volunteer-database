@@ -24,24 +24,28 @@
             <div class="bg-white shadow rounded-lg overflow-hidden">
 
                 <div class="p-6">
-                    <!-- Current Signature Display -->
-                    <div class="flex flex-col items-center mb-6">
-                        @if(auth()->user()->hasSignature())
-                            <div class="w-48 h-24 overflow-hidden flex items-center justify-center border-2 border-gray-300 bg-white shadow-sm">
-                                <img src="{{ auth()->user()->getSignatureUrlAttribute() }}" alt="User Signature" class="w-full h-full object-contain">
-                            </div>
-                        @else
-                            <div class="w-48 h-24 flex items-center justify-center border-2 border-gray-300 bg-gray-50 text-gray-400 text-xs text-center p-2">
-                                No signature uploaded
-                            </div>
-                        @endif
-                        <p class="text-sm text-gray-600 mt-4">Current Signature</p>
-                        @if(auth()->user()->hasSignature())
-                            <a href="{{ route('profile.show') }}"
-                               class="mt-3 inline-flex items-center gap-1 text-sm text-green-700 font-medium border border-green-400 bg-green-50 hover:bg-green-100 px-4 py-1.5 rounded-full transition">
-                                <i class="fas fa-check-circle text-green-500"></i> Signature looks good — back to profile
-                            </a>
-                        @endif
+                    <!-- Why and how the signature is kept -->
+                    <div class="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900 space-y-3">
+                        <div>
+                            <p class="font-bold mb-1">
+                                <i class="fas fa-circle-question mr-1"></i> Why do we need your signature?
+                            </p>
+                            <p>
+                                Your signature is printed on your Nigerian Red Cross ID card, the same way a signature
+                                appears on a passport or bank card. It is not used for anything else.
+                            </p>
+                        </div>
+                        <div>
+                            <p class="font-bold mb-1">
+                                <i class="fas fa-shield-halved mr-1"></i> How is it kept safe?
+                            </p>
+                            <p>
+                                Your signature is stored in a protected part of the database and is never placed on a
+                                public web page. Only you and authorised Red Cross staff who manage your membership record
+                                can see it. It is never shared outside the Nigerian Red Cross Society, and it is
+                                permanently deleted if your account is anonymized.
+                            </p>
+                        </div>
                     </div>
 
                     <!-- Signature Guidance -->
@@ -65,6 +69,26 @@
                                 <li class="pt-1 mt-1 border-t border-indigo-200 text-indigo-800"><i class="fas fa-circle-exclamation mr-1"></i> If your signature doesn't meet these guidelines, we'll ask you to upload a new one.</li>
                             </ul>
                         </div>
+                    </div>
+
+                    <!-- Current Signature Display -->
+                    <div class="flex flex-col items-center mb-6">
+                        @if(auth()->user()->hasSignature())
+                            <div class="w-48 h-24 overflow-hidden flex items-center justify-center border-2 border-gray-300 bg-white shadow-sm">
+                                <img src="{{ auth()->user()->getSignatureUrlAttribute() }}" alt="User Signature" class="w-full h-full object-contain">
+                            </div>
+                        @else
+                            <div class="w-48 h-24 flex items-center justify-center border-2 border-gray-300 bg-gray-50 text-gray-400 text-xs text-center p-2">
+                                No signature uploaded
+                            </div>
+                        @endif
+                        <p class="text-sm text-gray-600 mt-4">Current Signature</p>
+                        @if(auth()->user()->hasSignature())
+                            <a href="{{ route('profile.show') }}"
+                               class="mt-3 inline-flex items-center gap-1 text-sm text-green-700 font-medium border border-green-400 bg-green-50 hover:bg-green-100 px-4 py-1.5 rounded-full transition">
+                                <i class="fas fa-check-circle text-green-500"></i> Signature looks good — back to profile
+                            </a>
+                        @endif
                     </div>
 
                     @if ($errors->has('signature_file') || $errors->has('captured_signature'))
