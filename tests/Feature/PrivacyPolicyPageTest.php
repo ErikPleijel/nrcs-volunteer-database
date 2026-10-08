@@ -76,3 +76,32 @@ test('a role holder who has not accepted the staff policy can open the page too'
 
     $this->actingAs($user)->get(route('privacy-policy'))->assertOk();
 });
+
+/*
+|--------------------------------------------------------------------------
+| Links to the privacy policy
+|--------------------------------------------------------------------------
+*/
+
+test('profile/show links to the privacy policy', function () {
+    $this->actingAs(User::factory()->create())
+        ->get(route('profile.show'))
+        ->assertOk()
+        ->assertSee('Your privacy')
+        ->assertSee('href="'.route('privacy-policy').'"', false);
+});
+
+test('the register page links to the privacy policy from the consent checkbox, in a new tab', function () {
+    $this->get(route('register'))
+        ->assertOk()
+        ->assertSee('<a href="'.route('privacy-policy').'" target="_blank" rel="noopener"', false)
+        ->assertSee('Data Protection Officer</a>.', false);
+});
+
+test('the consent page links to the privacy policy', function () {
+    $this->actingAs(User::factory()->notConsented()->create())
+        ->get(route('consent.confirm'))
+        ->assertOk()
+        ->assertSee('Read our Privacy Policy')
+        ->assertSee('href="'.route('privacy-policy').'" target="_blank" rel="noopener"', false);
+});

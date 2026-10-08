@@ -1423,3 +1423,26 @@ National DB Administrator."
   - users/edit-roles crashed (undefined `$usersWithDirectPermissions`, never set since the
     initial commit) whenever the viewer's "Users by Role" table was empty, e.g. a branch admin
     with no assignable role holders in their branch. The dead condition is removed.
+
+## 2026-10-08 — Privacy policy page
+
+**Decision:** `GET /privacy-policy` (route `privacy-policy`, view `pages/privacy-policy.blade.php`)
+is a public page, open to guests.
+- **One file to replace:** all wording is in `policies/privacy-policy-text.blade.php`, so the NRCS
+  Legal department's final text replaces that one file.
+- **Draft banner:** the partial also holds `$isDraft` (and "Last updated"). While it is `true`, an
+  amber "Draft — the final text will be provided by the NRCS Legal department." banner shows. It
+  sits in the partial rather than the page because a variable set inside an `@include` is not
+  visible to the including page.
+- **DPO box:** the page ends with `<x-dpo-contact :public="true" />`. It never shows the admin
+  "Go to Settings" prompt; with no DPO it says contact details will be published soon.
+- **Gates:** the page is exempt from both `EnsureConsentConfirmed` and
+  `RequiresPolicyAcceptance`, so someone being asked to confirm consent can read it first.
+- **Linked from:**
+  - profile/show ("Your privacy" card, below Archive My Account)
+  - the fourth consent checkbox ("Data Protection Officer", new tab), shared by registration and
+    /consent/confirm
+  - a "Read our Privacy Policy" line on /consent/confirm (new tab)
+
+**Footer link:** no code change. The National DB admin can add it to the
+`site.footer_quick_links_html` setting on the Settings page.

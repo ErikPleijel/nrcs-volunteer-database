@@ -40,6 +40,12 @@
 
                         @include('policies.code-of-conduct-commitments')
 
+                        <p class="mt-4 text-sm">
+                            <a href="{{ route('privacy-policy') }}" target="_blank" rel="noopener" class="text-blue-700 underline hover:text-blue-900">
+                                Read our Privacy Policy
+                            </a>
+                        </p>
+
                         <div class="flex justify-end pt-6 mt-6 border-t border-gray-200">
                             <button type="submit"
                                     class="px-6 py-2.5 text-white font-medium rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-200

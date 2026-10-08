@@ -92,7 +92,7 @@
         </div>
         <div class="ml-3 text-sm">
             <label for="coc_commitment_4" class="font-medium text-gray-700 cursor-pointer">
-                I consent to the Nigerian Red Cross Society collecting, storing, and processing my personal data (including identification details and photo) for membership and volunteer management purposes, in accordance with the Nigeria Data Protection Act 2023. I understand I may request access to or deletion of my data by contacting the NRCS Data Protection Officer.
+                I consent to the Nigerian Red Cross Society collecting, storing, and processing my personal data (including identification details and photo) for membership and volunteer management purposes, in accordance with the Nigeria Data Protection Act 2023. I understand I may request access to or deletion of my data by contacting the NRCS <a href="{{ route('privacy-policy') }}" target="_blank" rel="noopener" class="text-blue-700 underline hover:text-blue-900">Data Protection Officer</a>.
                 <span class="text-red-500">*</span>
             </label>
             @error('coc_commitment_4')

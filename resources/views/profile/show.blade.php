@@ -1434,6 +1434,20 @@
                         @endif
                     </div>
 
+                    <!-- Your privacy -->
+                    <div class="bg-white rounded-lg shadow-lg p-6">
+                        <h2 class="text-lg font-bold text-gray-900 mb-2">
+                            <i class="fas fa-user-shield mr-2 text-gray-500"></i>Your privacy
+                        </h2>
+                        <p class="text-sm text-gray-600 mb-4">
+                            Read how the Nigerian Red Cross Society handles your personal data and how to contact our
+                            Data Protection Officer.
+                        </p>
+                        <a href="{{ route('privacy-policy') }}" class="btn-primary">
+                            <i class="fas fa-file-shield mr-1"></i>Privacy Policy
+                        </a>
+                    </div>
+
                 </div>
             </div>
         </div>
