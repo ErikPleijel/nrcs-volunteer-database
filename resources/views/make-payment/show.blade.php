@@ -196,20 +196,18 @@
                                             Membership Fee <span class="text-red-500">*</span>
                                         </label>
                                         <select name="membership_fee_id" id="personal_membership_fee_id"
+                                                data-in-active-unit="{{ $inActiveRedCrossUnit ? '1' : '0' }}"
                                                 class="entry-field @error('membership_fee_id') border-red-500 @enderror">
                                             <option value="">Select a membership fee</option>
-                                            @foreach($personalMembershipFees as $fee)
-                                                <option value="{{ $fee->id }}"
-                                                        data-amount="{{ $fee->amount }}"
-                                                        data-id-card-fee="{{ $fee->id_card_fee }}"
-                                                        {{ (string) old('membership_fee_id') === (string) $fee->id ? 'selected' : '' }}>
-                                                    {{ $fee->name }} — ₦{{ number_format($fee->amount, 2) }} ({{ $fee->validity_years }} years)
-                                                </option>
-                                            @endforeach
+                                            <x-payments.personal-fee-options :groups="$personalFeeGroups" :selected="old('membership_fee_id')" />
                                         </select>
                                         @error('membership_fee_id')
                                             <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
                                         @enderror
+
+                                        @if($personalMembershipFees->isNotEmpty())
+                                            <x-payments.personal-fee-advice id="personal_fee_advice" audience="self" :left-unit="$leftRedCrossUnit" />
+                                        @endif
 
                                         @if($idCard)
                                             {{-- Optional ID card on a personal fee (see User::canOrderIdCardWithPayment()).
@@ -445,6 +443,23 @@
                 summaryTotalAmount.textContent = formatNaira(amount + (ticked ? idCardFee : 0));
             }
 
+            // Amber advice when a volunteer fee is chosen by someone not in an
+            // active Red Cross Unit (every fee can still be chosen).
+            const feeAdvice = document.getElementById('personal_fee_advice');
+
+            function updateFeeAdvice() {
+                if (!feeAdvice || !personalFeeSelect) {
+                    return;
+                }
+
+                const selected = personalFeeSelect.options[personalFeeSelect.selectedIndex];
+                const isVolunteerFee = !!(personalFeeSelect.value && selected && selected.dataset.volunteerFee === '1');
+                const inActiveUnit = personalFeeSelect.dataset.inActiveUnit === '1';
+
+                feeAdvice.querySelector('[data-fee-advice="volunteer-fee-no-unit"]')
+                    .classList.toggle('hidden', !(isVolunteerFee && !inActiveUnit));
+            }
+
             function isPayingForOrganisation() {
                 const checked = document.querySelector('input[name="organisation_id"]:checked');
                 return !!(checked && checked.value !== '');
@@ -520,6 +535,11 @@
             if (idCardCheckbox) {
                 personalFeeSelect.addEventListener('change', updateIdCard);
                 idCardCheckbox.addEventListener('change', updateIdCard);
+            }
+
+            if (feeAdvice) {
+                personalFeeSelect.addEventListener('change', updateFeeAdvice);
+                updateFeeAdvice();
             }
 
             // --- Initialisation ---

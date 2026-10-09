@@ -59,7 +59,7 @@ function preselectedUserPayload(string $html): ?array
 dataset('create pages', [
     'activities' => ['activities.create', ['id', 'first_name', 'middle_name', 'last_name', 'branch_id', 'division_id', 'branch', 'division', 'red_cross_unit', 'task_forces']],
     'donations' => ['donations.create', ['id', 'first_name', 'middle_name', 'last_name', 'branch_id', 'division_id', 'branch', 'division']],
-    'membership payments' => ['membership-payments.create', ['id', 'first_name', 'middle_name', 'last_name', 'branch_id', 'division_id', 'branch', 'division', 'red_cross_unit_id', 'rcu_name', 'can_contribute_volunteering']],
+    'membership payments' => ['membership-payments.create', ['id', 'first_name', 'middle_name', 'last_name', 'branch_id', 'division_id', 'branch', 'division', 'red_cross_unit_id', 'rcu_name', 'in_active_unit', 'left_unit']],
     'trainings' => ['trainings.create', ['id', 'first_name', 'middle_name', 'last_name', 'branch_id', 'division_id', 'branch', 'division', 'red_cross_unit']],
 ]);
 

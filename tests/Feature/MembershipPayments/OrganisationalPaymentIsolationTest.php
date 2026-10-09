@@ -12,9 +12,9 @@
  *       false for organisation-linked payments only.
  *  7-8. OrganisationController::linkUser()'s pending_engagement -> active
  *       promotion guard, mirroring RC-unit assignment.
- *  9-10. The fee/RCU validation closure in
- *        MembershipPaymentController::store(), exempting organisational
- *        payments while leaving the personal-payment check intact.
+ *  9-10. MembershipPaymentController::store() no longer checks the fee type
+ *        against the person's unit, for personal or organisational
+ *        payments (Decisions.md 2026-10-09).
  */
 
 use App\Models\MembershipPayment;
@@ -236,12 +236,13 @@ test('linking an already-active or dormant user to an organisation does not chan
 
 /*
 |--------------------------------------------------------------------------
-| 9-10 — store()'s fee/RCU validation: personal still blocked, org exempted
+| 9-10 — store()'s fee/RCU validation: no fee-type vs unit check for
+| personal or organisational payments (Decisions.md 2026-10-09)
 |--------------------------------------------------------------------------
 */
 
-test('a fee/RCU mismatch on a personal payment is still rejected by validation', function () {
-    $unit = RedCrossUnit::create(['name' => 'Unit A']);
+test('a member fee for an RCU member on a personal payment is accepted', function () {
+    $unit = RedCrossUnit::create(['name' => 'Unit A', 'is_active' => true]);
     $member = User::factory()->create(['red_cross_unit_id' => $unit->id]);
     $fee = MembershipFeeFactory::new()->create(['is_volunteer_fee' => false]);
 
@@ -251,8 +252,8 @@ test('a fee/RCU mismatch on a personal payment is still rejected by validation',
         'payment_date' => now()->toDateString(),
     ]);
 
-    $response->assertSessionHasErrors('membership_fee_id');
-    expect(MembershipPayment::withAnyApprovalStatus()->where('user_id', $member->id)->count())->toBe(0);
+    $response->assertSessionDoesntHaveErrors('membership_fee_id');
+    expect(MembershipPayment::withAnyApprovalStatus()->where('user_id', $member->id)->count())->toBe(1);
 });
 
 test('the same fee/RCU mismatch on an organisational payment is NOT rejected', function () {

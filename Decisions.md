@@ -1747,3 +1747,55 @@ config and CSS, so it is not worth the migration now. Do it as separate work.
 **Deploy:** use `npm ci && npm run build` instead of `npm install`, so the server installs exactly
 what the lockfile says. devDependencies must be installed (vite, tailwind and postcss are needed
 to build); only `public/build` is served. Never run `npm run dev` on the VPS.
+
+## 2026-10-09 — One personal fee list on both payment pages, with explainers instead of blocks
+
+**Replaces**, for personal payments, the fee-vs-unit rule of 2026-07-20 ("Closed two runtime
+gaps…", the `is_volunteer_fee` check in `MembershipPaymentController::store()`). Organisation
+and Red Cross Unit payments are unchanged.
+
+**Problem:** the two pages offered different fees to the same person. Online
+(`/make-payment`), a unit member saw all 20 personal fees and everyone else only the member
+fees. On the staff form (`/membership-payments/create`), a unit member saw only volunteer fees
+and everyone else only member fees, and `store()` rejected anything else. So a unit member who
+wanted to pay Gold could do it online, but staff could not record it. And 4,940 people in a
+unit have a member fee as their latest payment (1,134 still valid; local DB, 9 Oct 2026), so
+they could not renew it at their branch.
+
+**Decision:**
+- Both pages offer every active personal fee (`is_active`, not `for_organizations`, not
+  `for_red_cross_units`) to every individual, whatever their unit or contribution preference.
+  The list comes from one place, `MembershipFee::offeredToPersons()`, and the groups from
+  `MembershipFee::personalFeeGroups()`. Both pages render them with the
+  `x-payments.personal-fee-options` component.
+- The dropdown has two groups: "Member fees" (`is_volunteer_fee = false`) and "Volunteer fees"
+  (`is_volunteer_fee = true`). Fees are sorted by amount within a group, with the 1-year and
+  3-year versions next to each other. Volunteer fees come first for someone in an active Red
+  Cross Unit, member fees first otherwise.
+- Explainers below the list (`x-payments.personal-fee-advice`, same wording on both pages, "this
+  person" on the staff form) guide the choice. There is a general note that is always shown.
+  Amber advice appears when a volunteer fee is chosen for someone not in an active unit, and
+  straight away for someone who left their unit (`User::isUnassignedGhost()`). Nothing is
+  blocked.
+- Server side: `OnlinePaymentEligibility::allowedFeesFor()` returns the full list. Its other
+  rules stay: archived, no email, pending volunteering-only, pending approval, 28-day window.
+  `store()` no longer checks fee type against the unit. It still refuses an RCU fee on a
+  personal payment. No check was added to `update()`.
+- `MembershipPayment::contributionMismatchNote()` stays on the approvals page, so approvers
+  still see when the fee type does not match the person's preference.
+
+**Why:** for a unit member the fee type changes very little. They remain a volunteer (Volunteer
+& Member), and their ID card and welcome box show the unit, not the fee. Blocking a member fee
+only stopped people who wanted to give more. Advising instead of blocking keeps both pages the
+same and leaves the final choice to the payer or the staff member, with the mismatch note as
+the check at approval.
+
+**Side effects to know:**
+- A volunteer fee paid by someone not in a unit makes them a Supporting Member with a
+  "MEMBERSHIP IDENTITY CARD" showing the volunteer fee's name. If they left a unit, they stay
+  "Volunteer/Limbo", because only a member fee counts there.
+- Financial reports still split member and volunteer amounts by the fee's own
+  `is_volunteer_fee` flag.
+- `Approvable` promotes a pending person on any approved personal payment, as before. The
+  2026-07-20 reason for the server check ("don't hand Approvable invalid data") no longer
+  applies, because every personal fee is now a valid choice.

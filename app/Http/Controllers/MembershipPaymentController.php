@@ -394,22 +394,25 @@ class MembershipPaymentController extends Controller
     public function create(?User $user = null)
     {
         if ($user) {
-            $user->load(['branch:id,name,code', 'division:id,name', 'redCrossUnit:id,name']);
+            $user->load(['branch:id,name,code', 'division:id,name', 'redCrossUnit:id,name,is_active']);
 
             $this->authorize('view', $user);
 
-            // Append rcu_name so the blade @json output matches the search API format
+            // Append the search API's extra fields so the blade @json output
+            // matches it (rcu_name, and the facts the fee explainers use).
             $user->rcu_name = $user->redCrossUnit?->name;
+            $user->in_active_unit = $user->inActiveRedCrossUnit();
+            $user->left_unit = $user->isUnassignedGhost();
         }
 
-        // Personal payment form: organisation and Red Cross Unit fees have
-        // their own entry flows.
-        $membershipFees = MembershipFee::select('id', 'name', 'amount', 'id_card_fee', 'validity_years', 'is_volunteer_fee')
-            ->where('is_active', true)
-            ->forPersons()
-            ->orderBy('name')
-            ->orderBy('validity_years', 'asc')
-            ->get();
+        // Personal payment form: every active personal fee, in the same
+        // groups as the online page (organisation and Red Cross Unit fees
+        // have their own entry flows). selectUser() reorders the groups for
+        // the chosen person.
+        $membershipFeeGroups = MembershipFee::personalFeeGroups(
+            MembershipFee::offeredToPersons(),
+            (bool) $user?->in_active_unit,
+        );
 
         $branches = Branch::select('id', 'name')
             ->orderBy('name')
@@ -419,7 +422,7 @@ class MembershipPaymentController extends Controller
             ->orderBy('name')
             ->get();
 
-        return view('membership-payments.create', compact('membershipFees', 'branches', 'divisions', 'user'));
+        return view('membership-payments.create', compact('membershipFeeGroups', 'branches', 'divisions', 'user'));
     }
 
     /**
@@ -499,16 +502,13 @@ class MembershipPaymentController extends Controller
         }
 
         $users = $usersQuery->select('id', 'first_name', 'middle_name', 'last_name', 'email', 'telephone1', 'branch_id', 'division_id', 'red_cross_unit_id', 'lifecycle_status', 'can_contribute_volunteering')
-            ->with(['branch:id,name,code', 'division:id,name'])
+            ->with(['branch:id,name,code', 'division:id,name', 'redCrossUnit:id,name,is_active'])
+            ->addSelect('assigned_rcu_date')
+            ->withUnassignedGhostFacts()
             ->limit(50)
             ->get();
 
-        // Collect RC unit IDs and fetch names in one query
-        $rcuIds = $users->pluck('red_cross_unit_id')->filter()->unique()->values();
-        $rcuNames = \App\Models\RedCrossUnit::whereIn('id', $rcuIds)
-            ->pluck('name', 'id');
-
-        $result = $users->map(function ($user) use ($rcuNames) {
+        $result = $users->map(function ($user) {
             return [
                 'id' => $user->id,
                 'first_name' => $user->first_name,
@@ -521,7 +521,10 @@ class MembershipPaymentController extends Controller
                 'red_cross_unit_id' => $user->red_cross_unit_id,
                 'lifecycle_status' => $user->lifecycle_status,
                 'can_contribute_volunteering' => (bool) $user->can_contribute_volunteering,
-                'rcu_name' => $user->red_cross_unit_id ? ($rcuNames[$user->red_cross_unit_id] ?? null) : null,
+                'rcu_name' => $user->redCrossUnit?->name,
+                // Used by the fee explainers (see personal-fee-advice).
+                'in_active_unit' => $user->inActiveRedCrossUnit(),
+                'left_unit' => $user->isUnassignedGhost(),
                 'branch' => $user->branch ? ['id' => $user->branch->id, 'name' => $user->branch->name, 'code' => $user->branch->code] : null,
                 'division' => $user->division ? ['id' => $user->division->id, 'name' => $user->division->name] : null,
             ];
@@ -566,11 +569,10 @@ class MembershipPaymentController extends Controller
             'membership_fee_id' => [
                 'required',
                 'exists:membership_fees,id',
-                function ($attribute, $value, $fail) use ($request, $isOrgPayment, $isRcuPayment) {
+                function ($attribute, $value, $fail) use ($isRcuPayment) {
                     $fee = MembershipFee::find($value);
-                    $targetUser = User::find($request->user_id);
 
-                    if (! $fee || ! $targetUser) {
+                    if (! $fee) {
                         return; // let the other rules handle missing records
                     }
 
@@ -581,23 +583,12 @@ class MembershipPaymentController extends Controller
                         $fail($isRcuPayment
                             ? 'Only a Red Cross Unit fee can be registered for a Red Cross Unit.'
                             : 'A Red Cross Unit fee can only be registered for a Red Cross Unit.');
-
-                        return;
                     }
 
-                    if ($isOrgPayment || $isRcuPayment) {
-                        return; // fee/RCU matching only applies to personal payments
-                    }
-
-                    $hasActiveRcu = $targetUser->red_cross_unit_id !== null
-                        && $targetUser->redCrossUnit?->is_active === true;
-
-                    if ($fee->is_volunteer_fee && ! $hasActiveRcu) {
-                        $fail('This fee type requires the member to be assigned to an active Red Cross Unit.');
-                    }
-                    if (! $fee->is_volunteer_fee && $hasActiveRcu) {
-                        $fail('This fee type is not applicable to members assigned to a Red Cross Unit.');
-                    }
+                    // No member-fee vs volunteer-fee check against the
+                    // person's unit: any personal fee may be recorded for any
+                    // individual (Decisions.md 2026-10-09). The form advises
+                    // instead, and approvers see contributionMismatchNote().
                 },
             ],
             'payment_date' => 'required|date',

@@ -234,23 +234,28 @@ test('a pending organisation-attributed payment does not block the personal butt
 
 // The organisation fee list is always rendered (hidden) next to the personal
 // one, so assert on the personal list itself rather than the whole page.
-test('an RCU member sees volunteer fees in the dropdown', function () {
+// Every individual sees every active personal fee, member and volunteer
+// fees alike (Decisions.md 2026-10-09); only the group order differs.
+test('an RCU member sees member and volunteer fees, volunteer fees first', function () {
     $user = eligibilityUser(['red_cross_unit_id' => $this->unit->id]);
 
     $this->actingAs($user)->get(route('make-payment.show', ['payment_type' => 'membership']))
         ->assertOk()
         ->assertSee('Volunteer Detachment')
-        ->assertViewHas('personalMembershipFees', fn ($fees) => $fees->pluck('name')->sort()->values()->all() === ['Supporting Silver', 'Volunteer Detachment']);
+        ->assertSee('Supporting Silver')
+        ->assertViewHas('personalMembershipFees', fn ($fees) => $fees->pluck('name')->sort()->values()->all() === ['Supporting Silver', 'Volunteer Detachment'])
+        ->assertViewHas('personalFeeGroups', fn ($groups) => array_column($groups, 'label') === ['Volunteer fees', 'Member fees']);
 });
 
-test('a user without a Red Cross Unit does not see volunteer fees', function () {
+test('a user without a Red Cross Unit also sees volunteer fees, member fees first', function () {
     $user = eligibilityUser();
 
     $this->actingAs($user)->get(route('make-payment.show', ['payment_type' => 'membership']))
         ->assertOk()
         ->assertSee('Supporting Silver')
-        ->assertDontSee('Volunteer Detachment')
-        ->assertViewHas('personalMembershipFees', fn ($fees) => $fees->pluck('name')->all() === ['Supporting Silver']);
+        ->assertSee('Volunteer Detachment')
+        ->assertViewHas('personalMembershipFees', fn ($fees) => $fees->pluck('name')->sort()->values()->all() === ['Supporting Silver', 'Volunteer Detachment'])
+        ->assertViewHas('personalFeeGroups', fn ($groups) => array_column($groups, 'label') === ['Member fees', 'Volunteer fees']);
 });
 
 test('the payment type radio is labelled Membership fee', function () {
@@ -278,21 +283,26 @@ test('initiate rejects a fee outside the payer\'s allowed set with a validation 
     expect(PaymentTransaction::count())->toBe(0);
     Http::assertNothingSent();
 })->with([
-    'volunteer fee, no unit' => ['volunteerFee', false],
+    'inactive fee, no unit' => ['inactiveFee', false],
     'inactive fee' => ['inactiveFee', true],
     'organisation fee as a personal payment' => ['orgFee', true],
 ]);
 
-test('initiate accepts a volunteer fee from an RCU member', function () {
-    $user = eligibilityUser(['red_cross_unit_id' => $this->unit->id]);
+test('initiate accepts member and volunteer fees whatever the payer\'s unit', function (string $feeProperty, bool $inUnit) {
+    $user = eligibilityUser(['red_cross_unit_id' => $inUnit ? test()->unit->id : null]);
     eligibilityFakePaystack();
 
     $this->actingAs($user)
-        ->post(route('make-payment.initiate'), ['payment_type' => 'membership', 'membership_fee_id' => $this->volunteerFee->id])
+        ->post(route('make-payment.initiate'), ['payment_type' => 'membership', 'membership_fee_id' => test()->{$feeProperty}->id])
         ->assertRedirect('https://checkout.paystack.com/xyz');
 
-    expect(PaymentTransaction::sole()->meta['membership_fee_id'])->toBe($this->volunteerFee->id);
-});
+    expect(PaymentTransaction::sole()->meta['membership_fee_id'])->toBe(test()->{$feeProperty}->id);
+})->with([
+    'volunteer fee, RCU member' => ['volunteerFee', true],
+    'volunteer fee, no unit' => ['volunteerFee', false],
+    'member fee, RCU member' => ['supportingFee', true],
+    'member fee, no unit' => ['supportingFee', false],
+]);
 
 test('initiate refuses a personal membership payment from a volunteering-only pending user', function () {
     $user = eligibilityUser([

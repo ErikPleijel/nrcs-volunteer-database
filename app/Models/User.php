@@ -1271,6 +1271,17 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
+     * Whether the user is assigned to a Red Cross Unit that is still active.
+     * The payment pages use it to order the fee groups and to advise on
+     * volunteer fees.
+     */
+    public function inActiveRedCrossUnit(): bool
+    {
+        return $this->red_cross_unit_id !== null
+            && $this->redCrossUnit?->is_active === true;
+    }
+
+    /**
      * Whether an ID card may be ordered together with this user's own
      * membership payment (staff entry and online). Every individual may —
      * volunteer, member or both; the card's wording follows isVolunteer() at
@@ -2010,6 +2021,16 @@ class User extends Authenticatable implements MustVerifyEmail
                 ->whereHas('membershipFee', fn ($q2) => $q2->where('is_volunteer_fee', false)));
     }
 
+    /**
+     * Load has_current_member_fee (a current personal payment on a
+     * non-volunteer fee) in the same query, for isUnassignedGhost().
+     */
+    public function scopeWithUnassignedGhostFacts(\Illuminate\Database\Eloquent\Builder $query): \Illuminate\Database\Eloquent\Builder
+    {
+        return $query->withExists(['currentMembershipPayment as has_current_member_fee' => fn ($q) => $q->personal()
+            ->whereHas('membershipFee', fn ($q2) => $q2->where('is_volunteer_fee', false))]);
+    }
+
     public function scopeSelectableForEntry($query)
     {
         return $query->where(function ($q) {
@@ -2187,11 +2208,17 @@ class User extends Authenticatable implements MustVerifyEmail
     /**
      * Instance-level mirror of scopeUnassignedGhost(), for single-record checks
      * (e.g. badges) where building a scoped query isn't otherwise needed.
+     * Uses has_current_member_fee from scopeWithUnassignedGhostFacts() when
+     * loaded, so a list costs no extra queries.
      */
     public function isUnassignedGhost(): bool
     {
         if (is_null($this->assigned_rcu_date) || ! is_null($this->red_cross_unit_id)) {
             return false;
+        }
+
+        if (array_key_exists('has_current_member_fee', $this->attributes)) {
+            return ! $this->attributes['has_current_member_fee'];
         }
 
         return ! $this->currentMembershipPayment()

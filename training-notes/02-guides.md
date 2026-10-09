@@ -709,8 +709,8 @@ Trigger: grey **?** icon. Only shown in extended mode, after **Show more statist
 > **▸ Register a payment**
 >
 > - Click **Add Payments**, then find the person using **Search → Select**.
-> - Volunteers (assigned to a Red Cross Unit) see **volunteer fees only**.
-> - Others (NOT assigned to a Red Cross Unit) see **member fees only.**.
+> - Choose any fee: the list shows **Member fees** and **Volunteer fees** for everyone. Volunteer fees come first for people in a Red Cross Unit.
+> - Read the advice below the list. It warns you when a volunteer fee is chosen for someone not in a unit, or when the person has left their unit.
 > - Fill in **Payment Date** and **Reference**, then click **Register Payment**.
 > - 🔶 New payments go through the approval workflow before they count as active — see "Understand payment status" below.
 >

@@ -111,6 +111,12 @@ class PaystackPaymentController extends Controller
         $personalMembershipFees = $eligibility->allowedFees;
         $personalMembershipBlockedReason = $eligibility->message();
 
+        // Member / Volunteer fee groups (volunteer fees first for someone in
+        // an active unit) and the facts the explainers below the list use.
+        $inActiveRedCrossUnit = $user->inActiveRedCrossUnit();
+        $personalFeeGroups = MembershipFee::personalFeeGroups($personalMembershipFees, $inActiveRedCrossUnit);
+        $leftRedCrossUnit = $user->isUnassignedGhost();
+
         // The optional ID card on a personal membership payment (offered to
         // everyone initiate() accepts it from — see canOrderIdCardWithPayment()),
         // with the notes shown when the box is ticked worked out here from the
@@ -135,6 +141,9 @@ class PaystackPaymentController extends Controller
             'user' => $user,
             'organisations' => $organisations,
             'personalMembershipFees' => $personalMembershipFees,
+            'personalFeeGroups' => $personalFeeGroups,
+            'inActiveRedCrossUnit' => $inActiveRedCrossUnit,
+            'leftRedCrossUnit' => $leftRedCrossUnit,
             'personalMembershipBlockedReason' => $personalMembershipBlockedReason,
             'idCard' => $idCard,
             'organisationMembershipFees' => $organisationMembershipFees,
@@ -242,8 +251,9 @@ class PaystackPaymentController extends Controller
         }
 
         // Personal membership: re-check the shared eligibility rules and only
-        // accept a fee from the payer's allowed set (rejects inactive,
-        // organisation and wrongly-applied volunteer fees). Donations, org
+        // accept a fee from the payer's allowed set (rejects inactive and
+        // organisation fees; member and volunteer fees are both allowed,
+        // whatever the payer's unit). Donations, org
         // and RCU payments never reach this.
         if ($validated['payment_type'] === 'membership' && ! $isOrgPayment && ! $isRcuPayment) {
             $eligibility = OnlinePaymentEligibility::for($user);

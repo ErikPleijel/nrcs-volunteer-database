@@ -238,13 +238,15 @@ These are decisions made to keep this piece of work scoped, not oversights:
   hasn't fired yet when the payer lands back on `/make-payment/callback`,
   they see a "still being confirmed" message and must manually reload —
   there's no polling or websocket push.
-- **Membership fee filtering now differs between the two forms.** The new
-  self-service form (`make-payment/show.blade.php`) correctly splits fees
-  by `for_organizations`. The pre-existing staff-facing
-  `MembershipPaymentController::create()` form was **not touched** and
-  still shows every active fee unfiltered, regardless of
-  `for_organizations`. Out of scope for this work, but worth knowing the
-  two forms now behave differently.
+- **Both forms offer the same personal fees** (since 2026-10-09, see
+  Decisions.md). The self-service form (`make-payment/show.blade.php`) and
+  the staff form (`MembershipPaymentController::create()`) both list every
+  active personal fee (not `for_organizations`, not `for_red_cross_units`)
+  from `MembershipFee::offeredToPersons()`, in "Member fees" and "Volunteer
+  fees" groups, whatever the person's unit or preference. Explainers below
+  the list advise on the choice, and neither `initiate()` nor `store()`
+  rejects a fee because of the person's unit. Organisation and RCU fee
+  lists are separate and unchanged.
 - **Pre-existing `submission_name` bug found, not fixed.**
   `MembershipPaymentController::store()` sets
   `'submission_name' => auth()->user()->name` — `User` has no `name`

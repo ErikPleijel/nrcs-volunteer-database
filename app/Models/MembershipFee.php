@@ -99,6 +99,53 @@ class MembershipFee extends Model
     }
 
     /**
+     * The personal fees an individual may choose, on the online payment page
+     * and the staff payment form alike: every active personal fee, whatever
+     * the person's unit or contribution preference (see Decisions.md,
+     * 2026-10-09). Sorted by amount, with the 1-year and 3-year versions of
+     * a fee next to each other.
+     *
+     * @return \Illuminate\Database\Eloquent\Collection<int, self>
+     */
+    public static function offeredToPersons(): \Illuminate\Database\Eloquent\Collection
+    {
+        $fees = self::query()->active()->forPersons()->get();
+
+        // Each name sorts by its cheapest version, so "Gold 1 yr" and
+        // "Gold 3 yr" stay together.
+        $nameAmount = $fees->groupBy('name')->map(fn ($group) => (float) $group->min('amount'));
+
+        return $fees->sortBy([
+            fn ($a, $b) => $nameAmount[$a->name] <=> $nameAmount[$b->name],
+            fn ($a, $b) => strcmp($a->name, $b->name),
+            fn ($a, $b) => $a->validity_years <=> $b->validity_years,
+            fn ($a, $b) => (float) $a->amount <=> (float) $b->amount,
+        ])->values();
+    }
+
+    /**
+     * Split personal fees into the "Member fees" and "Volunteer fees"
+     * dropdown groups, volunteer fees first when $volunteerFirst (a person in
+     * an active Red Cross Unit). Empty groups are left out.
+     *
+     * @param  \Illuminate\Support\Collection<int, self>  $fees
+     * @return array<int, array{key: string, label: string, fees: \Illuminate\Support\Collection<int, self>}>
+     */
+    public static function personalFeeGroups(\Illuminate\Support\Collection $fees, bool $volunteerFirst = false): array
+    {
+        $groups = [
+            ['key' => 'member', 'label' => 'Member fees', 'fees' => $fees->where('is_volunteer_fee', false)->values()],
+            ['key' => 'volunteer', 'label' => 'Volunteer fees', 'fees' => $fees->where('is_volunteer_fee', true)->values()],
+        ];
+
+        if ($volunteerFirst) {
+            $groups = array_reverse($groups);
+        }
+
+        return array_values(array_filter($groups, fn ($group) => $group['fees']->isNotEmpty()));
+    }
+
+    /**
      * Get the total fee including ID card fee.
      *
      * @return float

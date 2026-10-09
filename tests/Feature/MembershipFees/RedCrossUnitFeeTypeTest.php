@@ -176,7 +176,9 @@ test('the personal payment create form excludes RCU and organisation fees', func
 
     $response = $this->actingAs($this->admin)->get(route('membership-payments.create'))->assertOk();
 
-    expect($response->viewData('membershipFees')->pluck('name'))
+    $feeNames = collect($response->viewData('membershipFeeGroups'))->flatMap(fn ($group) => $group['fees'])->pluck('name');
+
+    expect($feeNames)
         ->toContain('Personal Fee')
         ->not->toContain('RCU annual fee')
         ->not->toContain('Corporate Fee');

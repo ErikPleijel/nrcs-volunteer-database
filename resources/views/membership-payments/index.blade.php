@@ -63,8 +63,8 @@
                         <div x-show="open === 'register'" x-collapse class="px-4 py-3 bg-white">
                             <ul class="space-y-1 text-gray-700 list-disc pl-4">
                                 <li>Click <span class="font-semibold">Add Payments</span>, then find the person using <span class="font-semibold">Search → Select</span>.</li>
-                                <li>Volunteers (assigned to a Red Cross Unit) see <span class="font-semibold">volunteer fees only</span>. </li>
-                                <li>Others (NOT assigned to a Red Cross Unit) see <span class="font-semibold">member fees only.</span>. </li>
+                                <li>Choose any fee: the list shows <span class="font-semibold">Member fees</span> and <span class="font-semibold">Volunteer fees</span> for everyone. Volunteer fees come first for people in a Red Cross Unit.</li>
+                                <li>Read the advice below the list. It warns you when a volunteer fee is chosen for someone not in a unit, or when the person has left their unit.</li>
                                 <li>Fill in <span class="font-semibold">Payment Date</span> and <span class="font-semibold">Reference</span>, then click <span class="font-semibold">Register Payment</span>.</li>
                                 <li>🔶 New payments go through the approval workflow before they count as active — see "Understand payment status" below.</li>
                             </ul>

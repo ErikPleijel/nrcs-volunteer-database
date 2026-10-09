@@ -97,17 +97,15 @@ final class OnlinePaymentEligibility
     }
 
     /**
-     * Personal fees this user may choose: every active personal fee for a
-     * Red Cross Unit member, otherwise only the non-volunteer fees.
+     * Personal fees this user may choose: every active personal fee, member
+     * and volunteer fees alike, whatever their unit or preference — the same
+     * list as the staff payment form (MembershipFee::offeredToPersons(), see
+     * Decisions.md 2026-10-09). The page guides the choice with explainers
+     * instead of hiding fees.
      */
     public static function allowedFeesFor(User $user): Collection
     {
-        return MembershipFee::active()
-            ->forPersons()
-            ->when($user->red_cross_unit_id === null, fn ($q) => $q->where('is_volunteer_fee', false))
-            ->orderBy('validity_years')
-            ->orderBy('amount')
-            ->get();
+        return MembershipFee::offeredToPersons();
     }
 
     public function allowsFee(int|string|null $feeId): bool

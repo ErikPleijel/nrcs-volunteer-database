@@ -94,11 +94,6 @@
                                     </button>
                                 </div>
 
-                                <div id="volunteer-interest-warning" class="hidden mb-4 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-                                    <i class="fas fa-triangle-exclamation mr-1"></i>
-                                    <span id="volunteer-interest-warning-text"></span>
-                                </div>
-
                                 {{-- Current membership info panel (shown after user selected) --}}
                                 <div id="current-membership-panel" class="hidden mb-6 rounded-lg border p-4 text-sm">
                                     <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Current Payment</p>
@@ -123,20 +118,14 @@
                                                 <label for="membership_fee_id" id="fee-label" class="block text-sm font-medium text-gray-700">Fee</label>
                                                 <select name="membership_fee_id" id="membership_fee_id" class="entry-field" required>
                                                     <option value="">Select a fee</option>
-                                                    @foreach($membershipFees as $fee)
-                                                        <option value="{{ $fee->id }}"
-                                                                data-validity="{{ $fee->validity_years }}"
-                                                                data-amount="{{ $fee->amount }}"
-                                                                data-id-card-fee="{{ $fee->id_card_fee }}"
-                                                                data-volunteer-fee="{{ $fee->is_volunteer_fee ? '1' : '0' }}"
-                                                                >
-                                                            {{ $fee->name }} - ₦{{ number_format($fee->amount, 2) }} ({{ $fee->validity_years }} years)
-                                                        </option>
-                                                    @endforeach
+                                                    <x-payments.personal-fee-options :groups="$membershipFeeGroups" :selected="old('membership_fee_id')" />
                                                 </select>
                                                 @error('membership_fee_id')
                                                     <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
                                                 @enderror
+
+                                                <x-payments.personal-fee-advice id="fee-advice" audience="staff" :left-unit="(bool) ($user?->left_unit ?? false)" />
+
                                             </div>
 
                                             <!-- ID Card Included -->
@@ -466,7 +455,7 @@
 
             // The user object if pre-selected via URL parameter
             {{-- Only the fields selectUser() reads; the full model would put the decrypted NIN in the page source. --}}
-            @php($preselectedUser = isset($user) ? \Illuminate\Support\Arr::only($user->toArray(), ['id', 'first_name', 'middle_name', 'last_name', 'branch_id', 'division_id', 'branch', 'division', 'red_cross_unit_id', 'rcu_name', 'can_contribute_volunteering']) : null)
+            @php($preselectedUser = isset($user) ? \Illuminate\Support\Arr::only($user->toArray(), ['id', 'first_name', 'middle_name', 'last_name', 'branch_id', 'division_id', 'branch', 'division', 'red_cross_unit_id', 'rcu_name', 'in_active_unit', 'left_unit']) : null)
             const preselectedUser = @json($preselectedUser);
 
             // Update payment summary
@@ -633,25 +622,36 @@
             }
         }
 
-        // Filter fee dropdown based on whether user is a volunteer
-        function filterFeesByUserType(isVolunteer) {
-            const feeSelect = document.getElementById('membership_fee_id');
-            const currentVal = feeSelect.value;
+        // Facts about the selected person that the fee explainers use
+        // (in_active_unit / left_unit from the search API); null when none.
+        let selectedFeeFacts = null;
+        const feeAdvice = document.getElementById('fee-advice');
 
-            Array.from(feeSelect.options).forEach(option => {
-                if (!option.value) return; // keep the placeholder
-                const isVolFee = option.dataset.volunteerFee === '1';
-                const show = isVolunteer ? isVolFee : !isVolFee;
-                option.hidden = !show;
-                option.disabled = !show;
-            });
+        // Every personal fee stays selectable (Decisions.md 2026-10-09):
+        // only the group order follows the person — volunteer fees first
+        // for someone in an active Red Cross Unit, member fees first otherwise.
+        function arrangeFeeGroups(inActiveUnit) {
+            const memberGroup = membershipFeeSelect.querySelector('optgroup[data-fee-group="member"]');
+            const volunteerGroup = membershipFeeSelect.querySelector('optgroup[data-fee-group="volunteer"]');
+            if (!memberGroup || !volunteerGroup) return;
 
-            // Reset selection if current selection is now hidden
-            const currentOption = feeSelect.options[feeSelect.selectedIndex];
-            if (currentOption && currentOption.hidden) {
-                feeSelect.value = '';
-                updatePaymentSummary();
-            }
+            const [first, second] = inActiveUnit ? [volunteerGroup, memberGroup] : [memberGroup, volunteerGroup];
+            membershipFeeSelect.appendChild(first);
+            membershipFeeSelect.appendChild(second);
+        }
+
+        // Amber advice: the person left their unit (shown as soon as they are
+        // selected), or a volunteer fee is chosen for someone not in an
+        // active unit.
+        function updateFeeAdvice() {
+            const selectedOption = membershipFeeSelect.options[membershipFeeSelect.selectedIndex];
+            const isVolunteerFee = !!(membershipFeeSelect.value && selectedOption && selectedOption.dataset.volunteerFee === '1');
+            const inActiveUnit = !!(selectedFeeFacts && selectedFeeFacts.in_active_unit);
+            const leftUnit = !!(selectedFeeFacts && selectedFeeFacts.left_unit);
+
+            feeAdvice.querySelector('[data-fee-advice="left-unit"]').classList.toggle('hidden', !leftUnit);
+            feeAdvice.querySelector('[data-fee-advice="volunteer-fee-no-unit"]')
+                .classList.toggle('hidden', !(selectedFeeFacts && isVolunteerFee && !inActiveUnit));
         }
 
         // Select user function
@@ -677,38 +677,22 @@
                 locationLine.classList.add('hidden');
                 divisionLine.classList.add('hidden');
                 rcuNameEl.textContent = user.rcu_name || `Unit #${user.red_cross_unit_id}`;
-
-                document.getElementById('fee-label').innerHTML = 'Fee <span class="font-normal text-gray-500 text-xs">(showing volunteer fee options)</span>';
             } else {
                 rcuLine.classList.add('hidden');
                 locationLine.classList.remove('hidden');
                 divisionLine.classList.remove('hidden');
                 selectedUserBranch.textContent = user.branch ? user.branch.name : 'No branch assigned';
                 selectedUserDivision.textContent = user.division ? user.division.name : 'No division assigned';
-
-                document.getElementById('fee-label').innerHTML = 'Fee <span class="font-normal text-gray-500 text-xs">(showing member fee options)</span>';
-            }
-
-            const volunteerWarning = document.getElementById('volunteer-interest-warning');
-            const volunteerWarningText = document.getElementById('volunteer-interest-warning-text');
-
-            if (!isVolunteer && user.can_contribute_volunteering) {
-                volunteerWarningText.innerHTML =
-                    `<strong>${fullName}</strong> expressed interest in <strong>volunteering</strong> at registration. ` +
-                    `Only <strong>membership-type fees</strong> are shown, since they aren't assigned to a unit yet. ` +
-                    `If they still want to volunteer, <strong>assign them to a Red Cross Unit</strong> first. ` +
-                    `If they've changed their mind, you can proceed with a membership payment.`;
-                volunteerWarning.classList.remove('hidden');
-            } else {
-                volunteerWarning.classList.add('hidden');
             }
 
             // Set hidden branch and division IDs
             selectedBranchId.value = user.branch_id || '';
             selectedDivisionId.value = user.division_id || '';
 
-            // Filter fees by user type
-            filterFeesByUserType(isVolunteer);
+            // Order the fee groups for this person and refresh the explainers
+            selectedFeeFacts = { in_active_unit: !!user.in_active_unit, left_unit: !!user.left_unit };
+            arrangeFeeGroups(selectedFeeFacts.in_active_unit);
+            updateFeeAdvice();
 
             // Show payment form, hide search
             userSearchSection.classList.add('hidden');
@@ -731,7 +715,8 @@
 
             // Reset membership panel and payment date
             currentMembershipPanel.classList.add('hidden');
-            document.getElementById('volunteer-interest-warning').classList.add('hidden');
+            selectedFeeFacts = null;
+            updateFeeAdvice();
             overlapNote.classList.add('hidden');
             paymentDateInput.value = new Date().toISOString().split('T')[0];
         }
@@ -768,6 +753,7 @@
 
         // Payment summary event listeners
         membershipFeeSelect.addEventListener('change', updatePaymentSummary);
+        membershipFeeSelect.addEventListener('change', updateFeeAdvice);
         idCardCheckbox.addEventListener('change', updatePaymentSummary);
 
         // If a user was pre-selected, populate the form right away
