@@ -47,7 +47,7 @@
             /* ---------- Popup: content styles ---------- */
             .custom-popup .leaflet-popup-content-wrapper {
                 width: auto !important;
-                max-width: 378px;
+                max-width: min(378px, calc(100vw - 48px));
                 border-radius: 8px;
             }
 
@@ -114,19 +114,41 @@
                 }
             }
 
-            /* ---------- Division markers on zoom-in ---------- */
-            .division-popup h4 {
-                font-size: 13px;
-                font-weight: 600;
+            /* ---------- Popup contact lines and links (branch + division) ---------- */
+            .leaflet-popup-content a.map-popup-link {
+                color: #dc2626;
+                text-decoration: none;
+            }
+
+            .leaflet-popup-content a.map-popup-link:hover {
+                text-decoration: underline;
+            }
+
+            .map-popup-contact {
+                line-height: 1.4;
+            }
+
+            .map-popup-contact-line {
+                display: flex;
+                align-items: flex-start;
+                gap: 6px;
                 margin-bottom: 2px;
+                overflow-wrap: anywhere;
             }
 
-            .division-popup p {
-                font-size: 11px;
-                margin: 0;
-                color: #4b5563;
+            .map-popup-contact-line i {
+                width: 12px;
+                margin-top: 2px;
+                flex-shrink: 0;
+                text-align: center;
+                color: #6b7280;
             }
 
+            .map-popup-email {
+                word-break: break-all;
+            }
+
+            /* ---------- Division markers on zoom-in ---------- */
             /* Division marker container (for divIcon) */
             .leaflet-div-icon.division-div-icon {
                 background: transparent;
@@ -715,6 +737,43 @@
                 let divisionMarkers   = {}; // branchId => [markers]
                 const branchZoomLevel = 12;
 
+                // Staff-entered values go into popup HTML, so always escape them.
+                function escapeHtml(value) {
+                    if (value === null || value === undefined) return '';
+                    return String(value).replace(/[&<>"']/g, ch => ({
+                        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+                    })[ch]);
+                }
+
+                function hasValue(value) {
+                    return value !== null && value !== undefined && String(value).trim() !== '';
+                }
+
+                function telLink(telephone) {
+                    const href = String(telephone).replace(/\s+/g, '');
+                    return `<a href="tel:${escapeHtml(href)}" class="map-popup-link">${escapeHtml(telephone)}</a>`;
+                }
+
+                function mailtoLink(email) {
+                    return `<a href="mailto:${escapeHtml(String(email).trim())}" class="map-popup-link map-popup-email">${escapeHtml(email)}</a>`;
+                }
+
+                // Contact lines for a division popup; '' when every field is empty.
+                function divisionContactHtml(division) {
+                    const line = (icon, content) =>
+                        `<div class="map-popup-contact-line"><i class="fas ${icon}"></i><span>${content}</span></div>`;
+
+                    const lines = [];
+                    if (hasValue(division.physical_address)) lines.push(line('fa-map-marker-alt', escapeHtml(division.physical_address)));
+                    if (hasValue(division.postal_address))   lines.push(line('fa-envelope-open-text', `Postal: ${escapeHtml(division.postal_address)}`));
+                    if (hasValue(division.telephone))        lines.push(line('fa-phone', telLink(division.telephone)));
+                    if (hasValue(division.email))            lines.push(line('fa-envelope', mailtoLink(division.email)));
+
+                    return lines.length
+                        ? `<div class="map-popup-contact text-xs text-gray-600 mb-2">${lines.join('')}</div>`
+                        : '';
+                }
+
                 const nrcsLogoIcon = L.divIcon({
                     html: `
                 <div class="nrcs-logo-marker">
@@ -767,11 +826,17 @@
                  * Uses /divisions/{division}/units (web.php route) and expects JSON:
                  * { id, name, physical_address, units: [{id, name, members_count}, ...] }
                  */
-                async function loadDivisionUnitsIntoPopup(divisionId, popupElement) {
-                    const container = popupElement.querySelector('[data-role="units-container"]');
-                    if (!container) return;
+                async function loadDivisionUnitsIntoPopup(divisionId, popup) {
+                    const popupElement = popup.getElement();
+                    const container = popupElement
+                        ? popupElement.querySelector('[data-role="units-container"]')
+                        : null;
+                    if (!container) {
+                        console.error('Units container not found in popup for division', divisionId);
+                        return;
+                    }
 
-                    // Avoid re-loading if we already populated it
+                    // Avoid re-loading if we already populated it (the popup content node is kept between opens)
                     if (container.dataset.loaded === 'true') {
                         return;
                     }
@@ -802,10 +867,10 @@
                         container.innerHTML = units.map(unit => `
                     <div class="division-popup-unit-row" style="display:flex;justify-content:space-between;font-size:11px;padding:2px 0;border-bottom:1px solid #e5e7eb;">
                         <div class="division-popup-unit-name" style="font-weight:500;color:#111827;">
-                            ${unit.name}
+                            ${escapeHtml(unit.name)}
                         </div>
                         <div class="division-popup-unit-members" style="color:#4b5563;white-space:nowrap;">
-                            ${(unit.members_count ?? 0)} volunteers
+                            ${escapeHtml(unit.members_count ?? 0)} volunteers
                         </div>
                     </div>
                 `).join('');
@@ -816,6 +881,13 @@
                     } catch (err) {
                         console.error('Error loading units for division', divisionId, err);
                         container.innerHTML = '<div class="text-xs text-red-500">Error loading units.</div>';
+                    }
+
+                    // The popup is auto-width (custom-popup), so re-measure it now the list is in.
+                    // Safe because the content is a DOM node: update() re-attaches it rather
+                    // than resetting it to the original "Loading..." HTML string.
+                    if (popup.isOpen()) {
+                        popup.update();
                     }
                 }
 
@@ -840,7 +912,7 @@
                             <div class="division-marker-icon">
                                 <span class="division-marker-cross">+</span>
                             </div>
-                            <span class="division-marker-label">${division.name || 'Division'}</span>
+                            <span class="division-marker-label">${escapeHtml(division.name || 'Division')}</span>
                         </div>
                     `,
                             iconSize: [1, 1],           // Size is driven by content
@@ -853,25 +925,37 @@
                             { icon: divisionIcon }
                         ).addTo(map);
 
-                        // Division popup skeleton with units container
-                        marker.bindPopup(`
-                    <div class="division-popup" data-division-id="${division.id}">
-                        <div class="division-popup-header">
-                            <h4>${division.name || 'Division'}</h4>
-                            ${division.physical_address ? `<p>${division.physical_address}</p>` : ''}
+                        // Division popup: header, contact lines (only when filled in), units list.
+                        // Bound as a DOM node, not an HTML string: Leaflet's popup.update() re-sets
+                        // string content via innerHTML, which would wipe the loaded units list.
+                        const popupNode = document.createElement('div');
+                        popupNode.innerHTML = `
+                    <div class="division-popup p-2" data-division-id="${escapeHtml(division.id)}">
+                        <div class="mb-2">
+                            <div class="text-xs font-semibold text-gray-500">Division details</div>
+                            <div class="font-semibold text-base text-red-600">${escapeHtml(division.name || 'Division')}</div>
                         </div>
 
-                        <div class="division-popup-units" data-role="units-container">
-                            <div class="text-xs text-gray-500">Loading Red Cross Units...</div>
+                        ${divisionContactHtml(division)}
+
+                        <div class="border-t border-gray-200 pt-2">
+                            <div class="mb-1">
+                                <i class="fas fa-users text-red-600 mr-1"></i>
+                                <span class="text-gray-600 font-semibold text-xs">Red Cross Units</span>
+                            </div>
+                            <div class="division-popup-units" data-role="units-container">
+                                <div class="text-xs text-gray-500">Loading Red Cross Units...</div>
+                            </div>
                         </div>
                     </div>
-                `);
+                `.trim();
+                        marker.bindPopup(popupNode.firstElementChild, {
+                            className: 'custom-popup'
+                        });
 
                         // When popup opens, load units (once)
                         marker.on('popupopen', (e) => {
-                            const popupEl = e.popup.getElement();
-                            if (!popupEl) return;
-                            loadDivisionUnitsIntoPopup(division.id, popupEl);
+                            loadDivisionUnitsIntoPopup(division.id, e.popup);
                         });
 
                         divisionMarkers[branch.id].push(marker);
@@ -892,7 +976,7 @@
 
                     // Floating text label above marker
                     const textLabel = L.divIcon({
-                        html: `<div class="branch-name-label">${branch.name}</div>`,
+                        html: `<div class="branch-name-label">${escapeHtml(branch.name)}</div>`,
                         iconSize: [1, 1],
                         iconAnchor: [0, 35],
                         className: 'branch-text-label'
@@ -919,7 +1003,7 @@
 
                     if (branch.divisions && branch.divisions.length > 0) {
                         divisionsCount = branch.divisions.length;
-                        divisionsText  = branch.divisions.map(division => division.name).join(', ');
+                        divisionsText  = branch.divisions.map(division => escapeHtml(division.name)).join(', ');
                         divisionsLabel = `${divisionsCount} ${divisionsCount === 1 ? 'Division' : 'Divisions'}`;
                     } else {
                         divisionsText  = 'No divisions available';
@@ -930,7 +1014,7 @@
                 <div class="p-2 min-w-32">
                     <div class="border-b border-gray-200 pb-1 mb-2">
                         <h3 class="font-semibold text-lg text-gray-800 mb-1">Branch details</h3>
-                        <div class="font-semibold text-base text-red-600">${branch.name}</div>
+                        <div class="font-semibold text-base text-red-600">${escapeHtml(branch.name)}</div>
                     </div>
 
                     <div class="space-y-1 mb-2 text-xs">
@@ -962,7 +1046,7 @@
                                 type="button"
                                 class="text-xs px-2 py-1 rounded bg-red-600 text-white hover:bg-red-700 transition"
                                 data-action="zoom-branch"
-                                data-branch-id="${branch.id}"
+                                data-branch-id="${escapeHtml(branch.id)}"
                             >
                                 Zoom to divisions
                             </button>
@@ -972,10 +1056,10 @@
                         </div>
                     </div>
 
-                    ${branch.telephone || branch.email ? `
+                    ${hasValue(branch.telephone) || hasValue(branch.email) ? `
                     <div class="text-xs text-gray-500 border-t border-gray-200 pt-1">
-                        ${branch.telephone ? `<div><i class="fas fa-phone mr-1"></i>${branch.telephone}</div>` : ''}
-                        ${branch.email ? `<div><i class="fas fa-envelope mr-1"></i>${branch.email}</div>` : ''}
+                        ${hasValue(branch.telephone) ? `<div><i class="fas fa-phone mr-1"></i>${telLink(branch.telephone)}</div>` : ''}
+                        ${hasValue(branch.email) ? `<div><i class="fas fa-envelope mr-1"></i>${mailtoLink(branch.email)}</div>` : ''}
                     </div>
                     ` : ''}
                 </div>

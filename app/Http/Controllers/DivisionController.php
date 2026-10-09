@@ -212,9 +212,9 @@ class DivisionController extends Controller
      */
     public function getDivisionsForBranch(Branch $branch)
     {
-        // Eager-load minimal fields (you can add more as needed)
+        // Public endpoint (home page map): only office contact fields, nothing else.
         $divisions = $branch->divisions()
-            ->select('id', 'name', 'branch_id', 'physical_address', 'latitude', 'longitude')
+            ->select('id', 'name', 'branch_id', 'physical_address', 'postal_address', 'telephone', 'email', 'latitude', 'longitude')
             ->get();
 
         return response()->json([

@@ -34,6 +34,9 @@
 
                 <div class="px-6 py-4 bg-gray-50 border-b">
                     <h2 class="text-xl font-semibold text-gray-800">Branch Information</h2>
+                    <p class="mt-1 text-sm text-gray-600">
+                        These details are shown publicly on the home page map. Use the branch office's contact details, not personal phone numbers or email addresses.
+                    </p>
                 </div>
 
                 <div class="p-6">
