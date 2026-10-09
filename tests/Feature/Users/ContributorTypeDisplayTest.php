@@ -47,6 +47,7 @@ test('the profile badge shows the user\'s own contributor type', function (strin
         'volunteer' => User::factory()->create(['red_cross_unit_id' => $this->unit->id]),
         'volunteer_member' => tap(User::factory()->create(['red_cross_unit_id' => $this->unit->id]), fn ($u) => displayFee($u, 'Detachment', ['volunteer_fee' => true])),
         'member' => tap(User::factory()->create(), fn ($u) => displayFee($u, 'Ordinary')),
+        'left_unit' => leftUnitWithVolunteerFee(),
         'neither' => User::factory()->create(),
     };
 
@@ -59,7 +60,33 @@ test('the profile badge shows the user\'s own contributor type', function (strin
     ['volunteer', 'Volunteer'],
     ['volunteer_member', 'Volunteer & Member'],
     ['member', 'Supporting Member'],
+    ['left_unit', 'Volunteer (no unit)'],
     ['neither', null],
+]);
+
+/** Left their Red Cross unit, with only a current volunteer-type fee ("Volunteer/Limbo" on users/index). */
+function leftUnitWithVolunteerFee(): User
+{
+    $user = User::factory()->create(['red_cross_unit_id' => null, 'assigned_rcu_date' => now()->subYear()->toDateString()]);
+    displayFee($user, 'Detachment', ['volunteer_fee' => true]);
+
+    return $user;
+}
+
+test('the profile badge takes its colour from the users-index status badge', function (string $case, string $classes) {
+    $user = match ($case) {
+        'volunteer' => User::factory()->create(['red_cross_unit_id' => $this->unit->id]),
+        'member' => tap(User::factory()->create(), fn ($u) => displayFee($u, 'Ordinary')),
+        'left_unit' => leftUnitWithVolunteerFee(),
+    };
+
+    preg_match('/<span class="([^"]*)" data-contributor-badge>/', $this->actingAs($user)->get(route('profile.show'))->getContent(), $badge);
+
+    expect($badge[1] ?? '')->toContain($classes);
+})->with([
+    ['volunteer', 'bg-green-100 text-green-800'],
+    ['member', 'bg-blue-100 text-blue-800'],
+    ['left_unit', 'bg-yellow-100 text-yellow-800'],
 ]);
 
 /*

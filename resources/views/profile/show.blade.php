@@ -73,10 +73,20 @@
                             <h1 class="text-3xl font-bold text-gray-900">Welcome {{ $user->full_name ?? '---' }}!</h1>
                             <p class="text-xl font-bold">{{ $user->getUserIdReferenceShortAttribute() }}</p>
 
-                            {{-- Volunteer / Volunteer & Member / Member (User::contributor_type); none when unclassified --}}
+                            {{-- Volunteer / Volunteer & Member / Member (User::contributor_type); none when unclassified.
+                                 Colours come from the users-index status badge, so the two always match.
+                                 Someone who left their unit with only a volunteer-type fee ("Volunteer/Limbo"
+                                 on users/index) is shown as "Volunteer (no unit)" rather than as a member. --}}
                             @if($contributorLabel = $user->contributor_type_label)
+                                @php
+                                    $contributorBadge = new \App\View\Components\UserMembershipStatusBadge($user);
+                                    $contributorStyles = $contributorBadge->styles;
+                                    if ($contributorBadge->type === 'unassigned') {
+                                        $contributorLabel = 'Volunteer (no unit)';
+                                    }
+                                @endphp
                                 <p class="mt-1">
-                                    <span class="inline-block bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-xs font-semibold" data-contributor-badge>
+                                    <span class="inline-block {{ $contributorStyles }} px-2 py-0.5 rounded-full text-xs font-semibold" data-contributor-badge>
                                         {{ $contributorLabel }}
                                     </span>
                                 </p>
