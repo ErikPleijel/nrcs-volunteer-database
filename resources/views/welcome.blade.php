@@ -518,16 +518,26 @@
                             </div>
 
                             {{-- Option 2: recorded donation via the profile --}}
-                            <div class="rounded-lg border border-gray-200 bg-gray-50 p-5 flex flex-col">
+                            <div class="rounded-lg border border-gray-200 bg-gray-50 p-5">
+                                <img src="{{ asset('images/CertificateAppreciation.png') }}"
+                                     alt="Example of a Certificate of Appreciation"
+                                     loading="lazy"
+                                     class="float-right ml-4 mb-2 w-32 sm:w-40 rounded border border-gray-200 bg-white p-1 shadow-sm">
+
                                 <h5 class="text-lg font-semibold text-gray-900 mb-2">Want your donations recorded, and to get more involved?</h5>
-                                <ol class="text-sm text-gray-600 list-decimal list-inside space-y-1 flex-1">
+
+                                <ol class="text-sm text-gray-600 list-decimal list-inside space-y-1">
                                     <li>Become a member first (see the cards above).</li>
                                     <li>Sign in and go to your profile page.</li>
                                     <li>Click <span class="font-semibold">Donate</span>.</li>
                                 </ol>
+
                                 <p class="mt-3 text-sm text-gray-600">
                                     Your donations are then saved in your record, and you can request a donation certificate.
+                                    Each certificate has a QR code, so anyone can scan it to check that it is genuine.
                                 </p>
+
+                                <div class="clear-both"></div>
                             </div>
                         </div>
 
