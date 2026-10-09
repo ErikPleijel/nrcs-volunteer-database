@@ -1907,6 +1907,8 @@ class User extends Authenticatable implements MustVerifyEmail
         // Get the latest membership payment where 'id_card_included' is true
         $latestIdCardPayment = $this->membershipPayments()
             ->where('id_card_included', true)
+            ->where('is_deleted', false)
+            ->personal()
             ->latest('payment_date')
             ->first();
 
