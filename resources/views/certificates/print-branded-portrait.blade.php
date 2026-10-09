@@ -7,6 +7,12 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Roboto:wght@400;500&display=swap');
 
+        /* One certificate per A4 sheet, no browser margins (the frame has its own inset). */
+        @page {
+            size: A4 portrait;
+            margin: 0;
+        }
+
         body {
             font-family: 'Roboto', sans-serif;
             margin: 0;
@@ -24,6 +30,8 @@
             background-color: white;
             position: relative;
             page-break-after: always;
+            break-inside: avoid;
+            overflow: hidden; /* never spill onto the next sheet */
             display: block;
         }
 
@@ -91,7 +99,8 @@
             flex-direction: column;
             justify-content: flex-start;
             flex-grow: 1; /* let main content take available vertical space */
-            padding: 10mm 15mm 0 15mm; /* slightly narrower column */
+            /* Bottom padding reserves the space of the pinned footer below. */
+            padding: 10mm 15mm 42mm 15mm; /* slightly narrower column */
         }
 
         .certify-text {
@@ -152,18 +161,27 @@
         .items-table td.description {
             text-align: left;
         }
+        /* Long lists: tighter rows so the table stays clear of the footer. */
+        .items-table.items-table--compact th,
+        .items-table.items-table--compact td {
+            padding: 3px 8px;
+        }
         .items-table tfoot .total-row td {
             border-top: 2px solid #333;
             font-weight: bold;
         }
 
-        /* Footer pinned to bottom */
+        /* Footer pinned to the bottom of the content box, so a long name or
+           item list can never push the signatures and QR code past the frame. */
         .footer {
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
             display: flex;
             justify-content: space-between;
             align-items: flex-end;
             padding-top: 0;
-            margin-top: auto;
             gap: 20px;
         }
 
@@ -225,7 +243,7 @@
         .footer-right {
             flex: 0 0 auto;
             padding-right: 10mm;          /* keep off the red frame */
-            transform: translateY(-6mm);  /* lift slightly above inner frame */
+            transform: translateY(-8.5mm); /* lift ~5mm clear of the inner frame */
             text-align: right;
         }
 
@@ -263,17 +281,41 @@
                 margin: 0;
                 border: none;
                 box-shadow: none;
-                width: 100%;
-                height: 100vh;
+                width: 210mm;
+                height: 297mm;
             }
         }
     </style>
 </head>
 <body>
 
+@php
+    // Recipient name font size by character count, so long names stay on one
+    // line where possible: [max length => px], checked in order; longer names
+    // get the minimum size (names over ~45 characters may still wrap).
+    $nameFontSizes   = [22 => 44, 30 => 36, 40 => 30];
+    $nameMinFontSize = 26;
+
+    // More body rows than this (items + summary + total) gets tighter rows.
+    $compactTableAfterRows = 8;
+@endphp
+
 @if(isset($certificates) && count($certificates) > 0)
     @foreach($certificates as $certificate)
         @php
+            $recipientName = $certificate['recipientName'] ?? 'Recipient Name';
+            $nameLength    = mb_strlen(trim($recipientName));
+            $nameFontSize  = $nameMinFontSize;
+            foreach ($nameFontSizes as $maxLength => $fontSize) {
+                if ($nameLength <= $maxLength) {
+                    $nameFontSize = $fontSize;
+                    break;
+                }
+            }
+
+            $tableBodyRows = count($certificate['items'] ?? []) + (isset($certificate['totalRow']) ? 1 : 0);
+            $compactTable  = $tableBodyRows > $compactTableAfterRows;
+
             $user     = $certificate['user']     ?? null;
             $training = $certificate['training'] ?? null;
 
@@ -370,8 +412,8 @@
                 <main class="main-content">
                     <p class="certify-text">{{ $certificate['primaryCertifyText'] ?? 'This is to certify that' }}</p>
 
-                    <h2 class="recipient-name">
-                        {{ $certificate['recipientName'] ?? 'Recipient Name' }}
+                    <h2 class="recipient-name" style="font-size: {{ $nameFontSize }}px;">
+                        {{ $recipientName }}
                     </h2>
 
                     <p class="course-title-text">
@@ -390,7 +432,7 @@
 
                     {{-- List of items for donation/volunteering certificates --}}
                     @if (!empty($certificate['items']) && !empty($certificate['itemHeaders']))
-                        <table class="items-table">
+                        <table class="items-table{{ $compactTable ? ' items-table--compact' : '' }}">
                             <thead>
                             <tr>
                                 @foreach ($certificate['itemHeaders'] as $header)
