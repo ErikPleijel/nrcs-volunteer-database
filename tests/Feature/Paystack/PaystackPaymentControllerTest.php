@@ -851,15 +851,44 @@ test('initiate keeps the amount but records the ID card when its fee is zero', f
         ->and($transaction->meta['id_card_included'])->toBeTrue();
 });
 
-test('initiate refuses an ID card from a non-volunteer', function () {
-    $user = User::factory()->create();
-    $fee = MembershipFee::factory()->create(['amount' => 5000, 'id_card_fee' => 1500]);
+test('a supporting member can order an ID card online, and the webhook saves it', function () {
+    $user = User::factory()->create(); // no Red Cross Unit
+    $fee = MembershipFee::factory()->create(['amount' => 5000, 'id_card_fee' => 2000, 'is_volunteer_fee' => false]);
 
-    $this->actingAs($user)
+    Http::fake([
+        'api.paystack.co/transaction/initialize' => Http::response([
+            'status' => true,
+            'data' => ['authorization_url' => 'https://checkout.paystack.com/member-card'],
+        ], 200),
+        'api.paystack.co/transaction/verify/*' => Http::response([
+            'status' => true,
+            'data' => ['status' => 'success', 'amount' => 700000],
+        ], 200),
+    ]);
+
+    $this->actingAs($user)->post(route('make-payment.initiate'), [
+        'payment_type' => 'membership',
+        'membership_fee_id' => $fee->id,
+        'id_card_included' => '1',
+    ])->assertRedirect('https://checkout.paystack.com/member-card');
+
+    $transaction = PaymentTransaction::sole();
+    expect($transaction->amount)->toBe(700000)
+        ->and($transaction->meta['id_card_included'])->toBeTrue();
+
+    $payload = ['event' => 'charge.success', 'data' => ['reference' => $transaction->reference]];
+    $this->postJson('/webhooks/paystack', $payload, paystackWebhookHeaders($payload))
+        ->assertJson(['status' => 'processed']);
+
+    expect(MembershipPayment::withAnyApprovalStatus()->sole()->id_card_included)->toBeTrue();
+});
+
+test('initiate refuses an ID card on a donation', function () {
+    $this->actingAs(User::factory()->create())
         ->from(route('make-payment.show'))
         ->post(route('make-payment.initiate'), [
-            'payment_type' => 'membership',
-            'membership_fee_id' => $fee->id,
+            'payment_type' => 'donation',
+            'amount' => 1000,
             'id_card_included' => '1',
         ])
         ->assertSessionHasErrors('id_card_included');
@@ -933,7 +962,7 @@ test('webhook saves the ID card choice from the transaction meta', function (arr
     'meta without the key' => [[], false],
 ]);
 
-test('show offers the ID card to a volunteer but not to a non-volunteer', function () {
+test('show offers the ID card to volunteers and members alike', function () {
     MembershipFee::factory()->create(['name' => 'Personal Annual Fee', 'id_card_fee' => 1500]);
 
     $this->actingAs(paystackVolunteer())
@@ -947,8 +976,9 @@ test('show offers the ID card to a volunteer but not to a non-volunteer', functi
         ->get(route('make-payment.show', ['payment_type' => 'membership']))
         ->assertOk()
         ->assertSee('Personal Annual Fee')
-        ->assertDontSee('id="id_card_included"', false)
-        ->assertDontSee('About your ID card');
+        ->assertSee('id="id_card_included"', false)
+        ->assertSee('About your ID card')
+        ->assertSee('id="summary_total_amount"', false);
 });
 
 test('show never offers the ID card on an organisation payment', function () {

@@ -137,3 +137,33 @@ test('an approved, current, personal ID card payment with no print queues the ca
         ->and($volunteer->needsIdCardPrinted())->toBeTrue()
         ->and(inIdCardQueue($this, $this->admin, $this->volunteer))->toBeTrue();
 });
+
+test('a supporting member\'s approved ID card payment queues a printable membership card', function () {
+    $member = User::factory()->withNationalId()->create([
+        'branch_id' => $this->branch->id,
+        'division_id' => $this->division->id,
+        'picture' => 'pic.jpg',
+        'signature' => 'sig.jpg',
+    ]);
+    makeIdCardPayment($member, [
+        'membership_fee_id' => MembershipFeeFactory::new()->create(['name' => 'Silver', 'is_volunteer_fee' => false])->id,
+    ]);
+
+    $member = $member->fresh();
+
+    expect($member->needsIdCardPrinted())->toBeTrue()
+        ->and(inIdCardQueue($this, $this->admin, $member))->toBeTrue();
+
+    // Complete for printing (photo, signature, NIN, branch, division, current
+    // fee as the card category), so it can be selected...
+    $this->actingAs($this->admin)
+        ->get(route('id-cards.prepare-bulk-print', ['needs_id_card_printed' => 1, 'printable_only' => 1]))
+        ->assertSee('id="user-'.$member->id.'"', false);
+
+    // ...and prints as a membership card.
+    $this->actingAs($this->admin)
+        ->get(route('id-card.print', $member))
+        ->assertOk()
+        ->assertSee('MEMBERSHIP IDENTITY CARD')
+        ->assertSee('SILVER'); // the card prints the category in capitals
+});

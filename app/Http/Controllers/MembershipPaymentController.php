@@ -615,7 +615,7 @@ class MembershipPaymentController extends Controller
                     $targetUser = User::find($request->user_id);
 
                     if ($isOrgPayment || $isRcuPayment || ($targetUser && ! $targetUser->canOrderIdCardWithPayment())) {
-                        $fail('An ID card can only be included in a volunteer\'s own membership payment.');
+                        $fail('An ID card can only be included in a person\'s own membership payment, not an organisation or Red Cross Unit payment.');
                     }
                 },
             ],

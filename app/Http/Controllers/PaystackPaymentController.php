@@ -111,9 +111,10 @@ class PaystackPaymentController extends Controller
         $personalMembershipFees = $eligibility->allowedFees;
         $personalMembershipBlockedReason = $eligibility->message();
 
-        // The optional ID card on a personal membership payment: only offered
-        // to those initiate() accepts it from, with the notes shown when the
-        // box is ticked worked out here from the payer's own record.
+        // The optional ID card on a personal membership payment (offered to
+        // everyone initiate() accepts it from — see canOrderIdCardWithPayment()),
+        // with the notes shown when the box is ticked worked out here from the
+        // payer's own record.
         $idCard = null;
         if (! $lockedOrganisation && ! $lockedRedCrossUnit && $personalMembershipFees->isNotEmpty() && $user->canOrderIdCardWithPayment()) {
             $idCard = [
@@ -174,12 +175,12 @@ class PaystackPaymentController extends Controller
         $isRcuPayment = $redCrossUnitId !== null;
         $idCardIncluded = $request->boolean('id_card_included');
 
-        // An ID card goes with the payer's own membership fee only, and only
-        // for those the staff form allows it for. Refused rather than
+        // An ID card goes with the payer's own membership fee only (never a
+        // donation, organisation or RCU payment). Refused rather than
         // silently dropped, so the payer never pays a total they didn't see.
         if ($idCardIncluded && ($validated['payment_type'] !== 'membership' || $isOrgPayment || $isRcuPayment || ! $user->canOrderIdCardWithPayment())) {
             throw ValidationException::withMessages([
-                'id_card_included' => 'An ID card can only be ordered with your own membership fee, as a volunteer.',
+                'id_card_included' => 'An ID card can only be ordered with your own membership fee.',
             ]);
         }
 

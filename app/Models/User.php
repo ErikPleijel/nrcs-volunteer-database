@@ -1271,12 +1271,14 @@ class User extends Authenticatable implements MustVerifyEmail
 
     /**
      * Whether an ID card may be ordered together with this user's own
-     * membership payment (staff entry and online). Volunteers only, matching
-     * the staff form's checkbox.
+     * membership payment (staff entry and online). Every individual may —
+     * volunteer, member or both; the card's wording follows isVolunteer() at
+     * print time. Organisation and Red Cross Unit payments never carry an ID
+     * card, but that is checked on the payment, not here.
      */
     public function canOrderIdCardWithPayment(): bool
     {
-        return $this->isVolunteer();
+        return true;
     }
 
     /**

@@ -150,7 +150,6 @@
                                                         ID Card Included
                                                     </label>
                                                 </div>
-                                                <p id="id-card-member-hint" class="hidden mt-1 text-xs text-gray-400">ID cards apply to volunteers</p>
                                                 @error('id_card_included')
                                                     <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
                                                 @enderror
@@ -679,10 +678,6 @@
                 divisionLine.classList.add('hidden');
                 rcuNameEl.textContent = user.rcu_name || `Unit #${user.red_cross_unit_id}`;
 
-                // Enable ID card checkbox for volunteers
-                idCardCheckbox.disabled = false;
-                idCardCheckbox.classList.remove('opacity-50', 'cursor-not-allowed');
-                document.getElementById('id-card-member-hint').classList.add('hidden');
                 document.getElementById('fee-label').innerHTML = 'Fee <span class="font-normal text-gray-500 text-xs">(showing volunteer fee options)</span>';
             } else {
                 rcuLine.classList.add('hidden');
@@ -691,11 +686,6 @@
                 selectedUserBranch.textContent = user.branch ? user.branch.name : 'No branch assigned';
                 selectedUserDivision.textContent = user.division ? user.division.name : 'No division assigned';
 
-                // Disable ID card checkbox for members
-                idCardCheckbox.disabled = true;
-                idCardCheckbox.checked = false;
-                idCardCheckbox.classList.add('opacity-50', 'cursor-not-allowed');
-                document.getElementById('id-card-member-hint').classList.remove('hidden');
                 document.getElementById('fee-label').innerHTML = 'Fee <span class="font-normal text-gray-500 text-xs">(showing member fee options)</span>';
             }
 

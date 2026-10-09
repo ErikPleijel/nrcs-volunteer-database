@@ -212,7 +212,7 @@
                                         @enderror
 
                                         @if($idCard)
-                                            {{-- Optional ID card (volunteers only — see User::canOrderIdCardWithPayment()).
+                                            {{-- Optional ID card on a personal fee (see User::canOrderIdCardWithPayment()).
                                                  Its fee is added server side in initiate(); the label and summary
                                                  below are kept in step by the JS at the bottom of this page. --}}
                                             <div class="mt-4">
