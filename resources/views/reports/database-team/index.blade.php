@@ -76,7 +76,6 @@
                                         <div class="flex flex-col justify-center gap-1 text-sm">
                                             <div class="font-semibold text-gray-900">{{ $person->first_name }} {{ $person->last_name }}</div>
                                             <div class="text-xs text-gray-400">{!! $person->user_id_reference_link !!}</div>
-                                            <div class="text-gray-500">{{ ucfirst($person->gender ?? '—') }}{{ $person->birth_year ? ', age ' . (now()->year - $person->birth_year) : '' }}</div>
                                             <div class="text-gray-700">{{ $person->email ?? '—' }}</div>
                                             <div class="text-gray-700">{{ $person->telephone1 ?? '—' }}</div>
                                             @php $directPerms = $person->getDirectPermissions(); @endphp
@@ -189,7 +188,6 @@
                                             <div class="flex flex-col justify-center gap-1 text-sm">
                                                 <div class="font-semibold text-gray-900">{{ $person->first_name }} {{ $person->last_name }}</div>
                                                 <div class="text-xs text-gray-400">{!! $person->user_id_reference_link !!}</div>
-                                                <div class="text-gray-500">{{ ucfirst($person->gender ?? '—') }}{{ $person->birth_year ? ', age ' . (now()->year - $person->birth_year) : '' }}</div>
                                                 <div class="text-gray-700">{{ $person->email ?? '—' }}</div>
                                                 <div class="text-gray-700">{{ $person->telephone1 ?? '—' }}</div>
                                             </div>
@@ -232,7 +230,6 @@
                                                     <div class="flex flex-col justify-center gap-1 text-sm">
                                                         <div class="font-semibold text-gray-900">{{ $person->first_name }} {{ $person->last_name }}</div>
                                                         <div class="text-xs text-gray-400">{!! $person->user_id_reference_link !!}</div>
-                                                        <div class="text-gray-500">{{ ucfirst($person->gender ?? '—') }}{{ $person->birth_year ? ', age ' . (now()->year - $person->birth_year) : '' }}</div>
                                                         <div class="text-gray-700">{{ $person->email ?? '—' }}</div>
                                                         <div class="text-gray-700">{{ $person->telephone1 ?? '—' }}</div>
                                                     </div>
