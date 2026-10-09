@@ -248,6 +248,54 @@
                         </div>
                     </div>
 
+                    {{-- Anonymizing an account --}}
+                    <div class="rounded-md border border-gray-200 overflow-hidden">
+                        <button type="button"
+                                @click="open = open === 'anonymize' ? null : 'anonymize'"
+                                class="w-full flex items-center justify-between px-3 py-2 bg-gray-50 hover:bg-gray-100 text-left font-semibold text-gray-700 text-sm">
+                            <span><i class="fas fa-user-slash mr-2 text-gray-400"></i>Anonymizing an account</span>
+                            <i class="fas fa-chevron-down text-xs text-gray-400 transition-transform"
+                               :class="open === 'anonymize' ? 'rotate-180' : ''"></i>
+                        </button>
+                        <div x-show="open === 'anonymize'" x-collapse class="px-4 py-3 bg-white">
+                            <ul class="space-y-1 text-gray-700 list-disc pl-4">
+                                <li><span class="font-semibold">What is anonymization?</span>
+                                    <ul class="list-circle pl-4 mt-1 space-y-0.5">
+                                        <li>Anonymizing an account permanently removes everything that identifies the person: name, contact details, NIN, addresses, photo and signature.</li>
+                                        <li>Only gender, branch/division/unit and age group (decade of birth) are kept, so that statistics stay correct.</li>
+                                        <li>Training and payment records are kept without a name.</li>
+                                        <li>Anonymization cannot be undone.</li>
+                                    </ul>
+                                </li>
+
+                                <li><span class="font-semibold">Automatic anonymization:</span>
+                                    <ul class="list-circle pl-4 mt-1 space-y-0.5">
+                                        <li>The system anonymizes an account automatically 7 years after it was archived. Nobody needs to do anything for this.</li>
+                                    </ul>
+                                </li>
+
+                                <li><span class="font-semibold">Anonymization on request:</span>
+                                    <ul class="list-circle pl-4 mt-1 space-y-0.5">
+                                        <li>A person can ask for their account to be anonymized earlier.</li>
+                                        <li>Only a National DB Administrator can do this, and only after consulting the Data Protection Officer (DPO).</li>
+                                        <li>The DPO's contact details are shown on the anonymization form and on the Privacy Policy page.</li>
+                                    </ul>
+                                </li>
+
+                                <li><span class="font-semibold">How to do it (National DB Administrators):</span>
+                                    <ol class="list-decimal pl-4 mt-1 space-y-0.5">
+                                        <li>Make sure the account is archived and that the person holds no administrative role. Remove any role first.</li>
+                                        <li>Find the person in this list and click <span class="font-semibold">Edit</span>.</li>
+                                        <li>Below the <span class="font-semibold">Archive user</span> checkbox you will find the box <span class="font-semibold">Anonymize this account (permanent)</span>. Follow the instructions there: tick both checkboxes (including the one confirming you have consulted the DPO) and confirm with your password.</li>
+                                        <li>The anonymization is recorded in the Audit Log, without the person's name.</li>
+                                    </ol>
+                                </li>
+
+                                <li>If you are not a National DB Administrator and someone asks for their account to be anonymized, pass the request on to your National DB Administrator.</li>
+                            </ul>
+                        </div>
+                    </div>
+
 
 
                 </div>{{-- end accordion --}}
