@@ -464,6 +464,64 @@
                         </div>
                     @endforeach
                 </div>
+
+                {{-- Donation card --}}
+                <div class="mt-8 bg-white rounded-xl shadow-lg overflow-hidden text-left">
+                    <div class="h-1.5 bg-red-600"></div>
+                    <div class="p-6 md:p-8">
+                        <div class="flex items-center gap-4 mb-6">
+                            <div class="w-14 h-14 flex-shrink-0 rounded-full flex items-center justify-center bg-red-100 text-red-700">
+                                <i class="fas fa-hand-holding-heart text-2xl"></i>
+                            </div>
+                            <div>
+                                <h4 class="text-xl font-bold text-gray-900">Make a Donation</h4>
+                                <p class="text-xs font-semibold uppercase tracking-wide text-red-600">Support our humanitarian work</p>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {{-- Option 1: quick donation on the NRCS website --}}
+                            <div class="rounded-lg border border-gray-200 bg-gray-50 p-5 flex flex-col">
+                                <h5 class="text-lg font-semibold text-gray-900 mb-2">Quick and simple</h5>
+                                <p class="text-sm text-gray-600 flex-1">
+                                    Donate directly on the Nigerian Red Cross Society website.
+                                    Fill in the form and choose a payment method. No account needed.
+                                </p>
+                                <a href="https://www.redcrossnigeria.org/donate"
+                                   target="_blank" rel="noopener"
+                                   class="mt-5 inline-flex items-center justify-center gap-2 text-white font-semibold px-4 py-3 rounded-lg shadow transition duration-300 bg-red-600 hover:bg-red-700">
+                                    Donate on redcrossnigeria.org
+                                    <i class="fas fa-external-link-alt text-sm"></i>
+                                </a>
+                            </div>
+
+                            {{-- Option 2: recorded donation via the profile --}}
+                            <div class="rounded-lg border border-gray-200 bg-gray-50 p-5 flex flex-col">
+                                <h5 class="text-lg font-semibold text-gray-900 mb-2">Want your donations recorded, and to get more involved?</h5>
+                                <ol class="text-sm text-gray-600 list-decimal list-inside space-y-1 flex-1">
+                                    <li>Become a member first (see the cards above).</li>
+                                    <li>Sign in and go to your profile page.</li>
+                                    <li>Click <span class="font-semibold">Donate</span>.</li>
+                                </ol>
+                                <p class="mt-3 text-sm text-gray-600">
+                                    Your donations are then saved in your record, and you can request a donation certificate.
+                                </p>
+                            </div>
+                        </div>
+
+                        {{-- In-kind donations --}}
+                        <div class="mt-6 flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 px-5 py-4">
+                            <i class="fas fa-box-open text-blue-600 text-xl mt-0.5"></i>
+                            <p class="text-sm text-gray-700">
+                                <span class="font-semibold text-gray-900">Donating goods or services?</span>
+                                In-kind donations, for example food, clothing, medical supplies or equipment, are also welcome.
+                                Contact your nearest branch. You can find it on the
+                                <a href="#branchesMap" class="text-blue-700 font-semibold underline hover:text-blue-800">map above</a>.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </div>
     </section>
