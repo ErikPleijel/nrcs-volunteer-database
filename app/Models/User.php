@@ -34,6 +34,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'birth_year',
         'marital_status',
         'national_id_number',
+        'red_cross_id_number',
         'organisation',
         'occupation',
         'residential_address',

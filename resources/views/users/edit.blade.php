@@ -607,6 +607,23 @@
                                     <p class="form-error">{{ $message }}</p>
                                     @enderror
                                 </div>
+
+                                <!-- Membership form number -->
+                                <div>
+                                    <label for="red_cross_id_number" class="form-label">
+                                        Membership form number
+                                    </label>
+                                    <input type="text"
+                                           id="red_cross_id_number"
+                                           name="red_cross_id_number"
+                                           maxlength="50"
+                                           value="{{ old('red_cross_id_number', $user->red_cross_id_number) }}"
+                                           class="form-input @error('red_cross_id_number') form-input-error @enderror">
+                                    <p class="text-gray-500 text-xs mt-1">Serial number from the paper membership form, with the branch code in front (e.g. KAN0456).</p>
+                                    @error('red_cross_id_number')
+                                    <p class="form-error">{{ $message }}</p>
+                                    @enderror
+                                </div>
                             </div>
 
                             <!-- Personal Info -->

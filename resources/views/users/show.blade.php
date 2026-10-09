@@ -228,6 +228,12 @@
                         <td>{{ $user->national_id_number ?? 'Not provided' }}</td>
                     </tr>
 
+                    {{-- Membership form number --}}
+                    <tr>
+                        <td>Membership form number</td>
+                        <td>{{ $user->red_cross_id_number ?? 'Not provided' }}</td>
+                    </tr>
+
                     {{-- Signature --}}
                     <tr>
                         <td>Signature</td>

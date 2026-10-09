@@ -372,6 +372,7 @@ class UserController extends Controller
             'birth_year' => 'required|integer|min:1900|max:'.date('Y'),
             'marital_status' => 'nullable|in:single,married,other', // Changed allowed values
             'national_id_number' => ['nullable', new NationalIdNumberRule],
+            'red_cross_id_number' => 'nullable|string|max:50',
             'organisation' => 'nullable|string|max:255',
             'occupation' => 'nullable|string|max:255',
             'residential_address' => 'nullable|string|max:500', // Added max:500
@@ -860,6 +861,7 @@ class UserController extends Controller
             'birth_year' => 'required|integer|min:1900|max:'.date('Y'),
             'marital_status' => 'nullable|in:single,married,other',
             'national_id_number' => ['nullable', new NationalIdNumberRule($user->id)],
+            'red_cross_id_number' => 'nullable|string|max:50',
             'organisation' => 'nullable|string|max:255',
             'occupation' => 'nullable|string|max:255',
             'residential_address' => 'nullable|string|max:500',

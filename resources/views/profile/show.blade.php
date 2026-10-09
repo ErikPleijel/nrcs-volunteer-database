@@ -1270,6 +1270,11 @@
                             </div>
 
                             <div class="grid grid-cols-3 gap-2">
+                                <span class="text-gray-600">Membership form number:</span>
+                                <span class="col-span-2 text-gray-900">{{ $user->red_cross_id_number ?? 'Not provided' }}</span>
+                            </div>
+
+                            <div class="grid grid-cols-3 gap-2">
                                 <span class="text-gray-600">Personal info:</span>
                                 <span class="col-span-2 text-gray-900">
             @if($user->personal_info)

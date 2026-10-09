@@ -357,6 +357,20 @@
                             </div>
                         </div>
 
+                        <!-- Membership form number -->
+                        <div class="mb-4">
+                            <label for="red_cross_id_number" class="block text-sm font-medium text-gray-700 mb-1">
+                                Membership form number
+                            </label>
+                            <input type="text" id="red_cross_id_number" name="red_cross_id_number"
+                                   class="w-full md:w-1/2 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 @error('red_cross_id_number') border-red-500 @enderror"
+                                   value="{{ old('red_cross_id_number') }}" maxlength="50" autocomplete="off">
+                            <p class="text-gray-500 text-xs mt-1">Serial number from the paper membership form, with the branch code in front (e.g. KAN0456).</p>
+                            @error('red_cross_id_number')
+                            <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
+                            @enderror
+                        </div>
+
                         <!-- Contribution Options -->
                         <div class="mb-4">
                             <label class="block text-sm font-medium text-gray-700 mb-2">
