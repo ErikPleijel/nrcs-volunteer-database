@@ -768,3 +768,267 @@ test('an RCU payment flows end to end: initiate -> webhook -> MembershipPayment 
         ->assertOk()
         ->assertSee('Payment received');
 });
+
+/*
+|--------------------------------------------------------------------------
+| Optional ID card on a personal membership payment
+|--------------------------------------------------------------------------
+*/
+
+/**
+ * A volunteer (assigned to an active Red Cross Unit) in the Kano branch.
+ */
+function paystackVolunteer(array $overrides = []): User
+{
+    // firstOrCreate: some tests build two volunteers in the same branch.
+    $branch = \App\Models\Branch::firstOrCreate(['code' => 'KAN'], ['name' => 'Kano']);
+    $division = \App\Models\Division::firstOrCreate(['name' => 'Kano Division', 'branch_id' => $branch->id]);
+    $unit = \App\Models\RedCrossUnit::firstOrCreate(['name' => 'Kano Unit', 'division_id' => $division->id], ['is_active' => true]);
+
+    return User::factory()->create(array_merge([
+        'branch_id' => $branch->id,
+        'division_id' => $division->id,
+        'red_cross_unit_id' => $unit->id,
+    ], $overrides));
+}
+
+function fakePaystackInitialize(): void
+{
+    Http::fake([
+        'api.paystack.co/*' => Http::response([
+            'status' => true,
+            'data' => ['authorization_url' => 'https://checkout.paystack.com/idcard'],
+        ], 200),
+    ]);
+}
+
+test('initiate adds the ID card fee for a volunteer who ticks the ID card', function () {
+    $user = paystackVolunteer();
+    $fee = MembershipFee::factory()->create(['amount' => 5000, 'id_card_fee' => 1500]);
+    fakePaystackInitialize();
+
+    $this->actingAs($user)->post(route('make-payment.initiate'), [
+        'payment_type' => 'membership',
+        'membership_fee_id' => $fee->id,
+        'id_card_included' => '1',
+    ])->assertRedirect('https://checkout.paystack.com/idcard');
+
+    $transaction = PaymentTransaction::sole();
+    expect($transaction->amount)->toBe(650000)
+        ->and($transaction->meta['id_card_included'])->toBeTrue();
+
+    Http::assertSent(fn ($request) => $request['amount'] === 650000 && $request['metadata']['id_card_included'] === true);
+});
+
+test('initiate charges the fee only when a volunteer leaves the ID card unticked', function () {
+    $user = paystackVolunteer();
+    $fee = MembershipFee::factory()->create(['amount' => 5000, 'id_card_fee' => 1500]);
+    fakePaystackInitialize();
+
+    $this->actingAs($user)->post(route('make-payment.initiate'), [
+        'payment_type' => 'membership',
+        'membership_fee_id' => $fee->id,
+    ]);
+
+    $transaction = PaymentTransaction::sole();
+    expect($transaction->amount)->toBe(500000)
+        ->and($transaction->meta['id_card_included'])->toBeFalse();
+});
+
+test('initiate keeps the amount but records the ID card when its fee is zero', function () {
+    $user = paystackVolunteer();
+    $fee = MembershipFee::factory()->create(['amount' => 5000, 'id_card_fee' => 0]);
+    fakePaystackInitialize();
+
+    $this->actingAs($user)->post(route('make-payment.initiate'), [
+        'payment_type' => 'membership',
+        'membership_fee_id' => $fee->id,
+        'id_card_included' => '1',
+    ]);
+
+    $transaction = PaymentTransaction::sole();
+    expect($transaction->amount)->toBe(500000)
+        ->and($transaction->meta['id_card_included'])->toBeTrue();
+});
+
+test('initiate refuses an ID card from a non-volunteer', function () {
+    $user = User::factory()->create();
+    $fee = MembershipFee::factory()->create(['amount' => 5000, 'id_card_fee' => 1500]);
+
+    $this->actingAs($user)
+        ->from(route('make-payment.show'))
+        ->post(route('make-payment.initiate'), [
+            'payment_type' => 'membership',
+            'membership_fee_id' => $fee->id,
+            'id_card_included' => '1',
+        ])
+        ->assertSessionHasErrors('id_card_included');
+
+    expect(PaymentTransaction::count())->toBe(0);
+});
+
+test('initiate refuses an ID card on an organisation payment', function () {
+    $user = paystackVolunteer();
+    $organisation = Organisation::create(['name' => 'Sponsor Org']);
+    $organisation->users()->attach($user->id, ['is_primary_contact' => true, 'linked_at' => now()]);
+    $fee = MembershipFee::factory()->create(['for_organizations' => true, 'id_card_fee' => 1500]);
+
+    $this->actingAs($user)
+        ->from(route('make-payment.show'))
+        ->post(route('make-payment.initiate'), [
+            'payment_type' => 'membership',
+            'membership_fee_id' => $fee->id,
+            'organisation_id' => $organisation->id,
+            'id_card_included' => '1',
+        ])
+        ->assertSessionHasErrors('id_card_included');
+
+    expect(PaymentTransaction::count())->toBe(0);
+});
+
+test('initiate refuses an ID card on an RCU payment', function () {
+    $leader = paystackVolunteer();
+    [$unit, $fee] = paystackRcuSetup($leader);
+
+    $this->actingAs($leader)
+        ->from(route('make-payment.show'))
+        ->post(route('make-payment.initiate'), [
+            'payment_type' => 'membership',
+            'membership_fee_id' => $fee->id,
+            'red_cross_unit_id' => $unit->id,
+            'id_card_included' => '1',
+        ])
+        ->assertSessionHasErrors('id_card_included');
+
+    expect(PaymentTransaction::count())->toBe(0);
+});
+
+test('webhook saves the ID card choice from the transaction meta', function (array $meta, bool $expected) {
+    $user = User::factory()->create();
+    $fee = MembershipFee::factory()->create(['amount' => 5000]);
+    PaymentTransaction::create([
+        'user_id' => $user->id,
+        'payable_type' => 'membership_payment',
+        'reference' => 'PSK-id-card',
+        'amount' => 500000,
+        'status' => 'initiated',
+        'meta' => array_merge(['payment_type' => 'membership', 'membership_fee_id' => $fee->id], $meta),
+    ]);
+
+    Http::fake([
+        'api.paystack.co/transaction/verify/*' => Http::response([
+            'status' => true,
+            'data' => ['status' => 'success', 'amount' => 500000, 'reference' => 'PSK-id-card'],
+        ], 200),
+    ]);
+
+    $payload = ['event' => 'charge.success', 'data' => ['reference' => 'PSK-id-card']];
+    $this->postJson('/webhooks/paystack', $payload, paystackWebhookHeaders($payload))
+        ->assertJson(['status' => 'processed']);
+
+    expect(MembershipPayment::withAnyApprovalStatus()->sole()->id_card_included)->toBe($expected);
+})->with([
+    'ticked' => [['id_card_included' => true], true],
+    'unticked' => [['id_card_included' => false], false],
+    'meta without the key' => [[], false],
+]);
+
+test('show offers the ID card to a volunteer but not to a non-volunteer', function () {
+    MembershipFee::factory()->create(['name' => 'Personal Annual Fee', 'id_card_fee' => 1500]);
+
+    $this->actingAs(paystackVolunteer())
+        ->get(route('make-payment.show', ['payment_type' => 'membership']))
+        ->assertOk()
+        ->assertSee('id="id_card_included"', false)
+        ->assertSee('data-id-card-fee="1500.00"', false)
+        ->assertSee('About your ID card');
+
+    $this->actingAs(User::factory()->create())
+        ->get(route('make-payment.show', ['payment_type' => 'membership']))
+        ->assertOk()
+        ->assertSee('Personal Annual Fee')
+        ->assertDontSee('id="id_card_included"', false)
+        ->assertDontSee('About your ID card');
+});
+
+test('show never offers the ID card on an organisation payment', function () {
+    $user = paystackVolunteer();
+    $organisation = Organisation::create(['name' => 'Sponsor Org']);
+    $organisation->users()->attach($user->id, ['is_primary_contact' => true, 'linked_at' => now()]);
+    MembershipFee::factory()->create(['for_organizations' => true]);
+
+    $this->actingAs($user)
+        ->get(route('make-payment.show', ['payment_type' => 'membership', 'organisation_id' => $organisation->id]))
+        ->assertOk()
+        ->assertDontSee('id="id_card_included"', false);
+});
+
+test('show names the branch, or falls back when the volunteer has none', function () {
+    MembershipFee::factory()->create();
+
+    $this->actingAs(paystackVolunteer())
+        ->get(route('make-payment.show', ['payment_type' => 'membership']))
+        ->assertSee('You will collect it at the Kano branch office.');
+
+    $noBranch = paystackVolunteer();
+    \Illuminate\Support\Facades\DB::table('users')->where('id', $noBranch->id)->update(['branch_id' => null, 'division_id' => null]);
+
+    $this->actingAs($noBranch->fresh())
+        ->get(route('make-payment.show', ['payment_type' => 'membership']))
+        ->assertSee('You will collect it at your branch office.');
+});
+
+test('show switches the photo note on whether a profile photo is on file', function () {
+    MembershipFee::factory()->create();
+
+    $this->actingAs(paystackVolunteer())
+        ->get(route('make-payment.show', ['payment_type' => 'membership']))
+        ->assertSee('You need to upload a passport-style photo of yourself.')
+        ->assertSee('Upload photo')
+        ->assertDontSee('We will use the photo in your profile.');
+
+    $this->actingAs(paystackVolunteer(['picture' => 'photos/me.jpg']))
+        ->get(route('make-payment.show', ['payment_type' => 'membership']))
+        ->assertSee('We will use the photo in your profile.')
+        ->assertSee('Check your photo')
+        ->assertDontSee('You need to upload a passport-style photo of yourself.');
+});
+
+test('show warns about a missing NIN only when none is on file', function () {
+    MembershipFee::factory()->create();
+    $warning = 'Your card cannot be printed without your National Identification Number (NIN).';
+
+    $this->actingAs(paystackVolunteer())
+        ->get(route('make-payment.show', ['payment_type' => 'membership']))
+        ->assertSee($warning)
+        ->assertSee(route('profile.edit').'#national_id_number', false);
+
+    $withNin = paystackVolunteer(['national_id_number' => '12345678901']);
+    expect($withNin->national_id_number_hash)->not->toBeNull();
+
+    $this->actingAs($withNin)
+        ->get(route('make-payment.show', ['payment_type' => 'membership']))
+        ->assertDontSee($warning);
+});
+
+test('show warns when the volunteer already holds a valid ID card', function () {
+    MembershipFee::factory()->create();
+    $user = paystackVolunteer();
+
+    $this->actingAs($user)
+        ->get(route('make-payment.show', ['payment_type' => 'membership']))
+        ->assertDontSee('You already have a valid ID card');
+
+    \App\Models\IdCardPrint::create([
+        'user_id' => $user->id,
+        'printed_by_user_id' => $user->id,
+        'printed_at' => now()->subMonth(),
+        'status' => 'printed',
+        'validity_months' => 12,
+        'expiry_date' => now()->addMonths(11)->startOfDay(),
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('make-payment.show', ['payment_type' => 'membership']))
+        ->assertSee('You already have a valid ID card until '.now()->addMonths(11)->format('d M Y').'. Only tick this box if you need a replacement.');
+});

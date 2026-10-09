@@ -199,7 +199,10 @@
                                                 class="entry-field @error('membership_fee_id') border-red-500 @enderror">
                                             <option value="">Select a membership fee</option>
                                             @foreach($personalMembershipFees as $fee)
-                                                <option value="{{ $fee->id }}" {{ (string) old('membership_fee_id') === (string) $fee->id ? 'selected' : '' }}>
+                                                <option value="{{ $fee->id }}"
+                                                        data-amount="{{ $fee->amount }}"
+                                                        data-id-card-fee="{{ $fee->id_card_fee }}"
+                                                        {{ (string) old('membership_fee_id') === (string) $fee->id ? 'selected' : '' }}>
                                                     {{ $fee->name }} — ₦{{ number_format($fee->amount, 2) }} ({{ $fee->validity_years }} years)
                                                 </option>
                                             @endforeach
@@ -207,6 +210,94 @@
                                         @error('membership_fee_id')
                                             <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
                                         @enderror
+
+                                        @if($idCard)
+                                            {{-- Optional ID card (volunteers only — see User::canOrderIdCardWithPayment()).
+                                                 Its fee is added server side in initiate(); the label and summary
+                                                 below are kept in step by the JS at the bottom of this page. --}}
+                                            <div class="mt-4">
+                                                <label class="flex items-center gap-2">
+                                                    <input type="checkbox" name="id_card_included" id="id_card_included" value="1"
+                                                           {{ old('id_card_included') ? 'checked' : '' }}
+                                                           class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
+                                                    <span id="id_card_label" class="text-sm font-medium text-gray-700">Include ID card</span>
+                                                </label>
+                                                @error('id_card_included')
+                                                    <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+                                                @enderror
+                                            </div>
+
+                                            <div id="id_card_info" class="{{ old('id_card_included') ? '' : 'hidden' }} mt-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+                                                <div class="font-semibold mb-2">
+                                                    <i class="fas fa-id-card mr-1"></i> About your ID card
+                                                </div>
+                                                <ul class="list-disc list-inside space-y-2">
+                                                    <li>
+                                                        @if($idCard['branchName'])
+                                                            Your ID card will not be posted. You will collect it at the {{ $idCard['branchName'] }} branch office.
+                                                        @else
+                                                            Your ID card will not be posted. You will collect it at your branch office.
+                                                        @endif
+                                                    </li>
+                                                    <li>
+                                                        @if($idCard['hasPhoto'])
+                                                            We will use the photo in your profile. If it is not clear, staff may ask you to upload a new one.
+                                                            <a href="{{ route('profile.edit-photo') }}" class="font-medium underline hover:text-blue-700">Check your photo</a>
+                                                        @else
+                                                            You need to upload a passport-style photo of yourself.
+                                                            <a href="{{ route('profile.edit-photo') }}" class="font-medium underline hover:text-blue-700">Upload photo</a>
+                                                        @endif
+                                                    </li>
+                                                </ul>
+
+                                                @unless($idCard['hasNin'])
+                                                    <div class="mt-3 flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-amber-900">
+                                                        <i class="fas fa-triangle-exclamation mt-0.5 text-amber-600"></i>
+                                                        <div>
+                                                            Your card cannot be printed without your National Identification Number (NIN). Please add it to your profile.
+                                                            <a href="{{ route('profile.edit') }}#national_id_number" class="font-medium underline hover:text-amber-700">Add NIN</a>
+                                                        </div>
+                                                    </div>
+                                                @endunless
+
+                                                @if($idCard['validUntil'])
+                                                    <div class="mt-3 flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-amber-900">
+                                                        <i class="fas fa-triangle-exclamation mt-0.5 text-amber-600"></i>
+                                                        <div>
+                                                            You already have a valid ID card until {{ $idCard['validUntil']->format('d M Y') }}. Only tick this box if you need a replacement.
+                                                        </div>
+                                                    </div>
+                                                @endif
+
+                                                @if(! $idCard['hasPhoto'] || ! $idCard['hasNin'])
+                                                    <p class="mt-3 text-xs text-blue-800">
+                                                        You can pay now and add these to your profile afterwards, or add them first and come back to this page to pay.
+                                                    </p>
+                                                @endif
+                                            </div>
+
+                                            <div class="entry-summary">
+                                                <h4 class="text-md font-medium text-gray-900 mb-3">Payment Summary</h4>
+                                                <div class="max-w-md bg-white border border-gray-300 rounded-md overflow-hidden">
+                                                    <table class="w-full">
+                                                        <tbody>
+                                                            <tr class="border-b border-gray-200">
+                                                                <td class="px-3 py-2 text-sm text-gray-900">Membership fee</td>
+                                                                <td class="px-3 py-2 text-sm text-gray-900" id="summary_fee_amount">₦0.00</td>
+                                                            </tr>
+                                                            <tr id="summary_id_card_row" class="hidden border-b border-gray-200">
+                                                                <td class="px-3 py-2 text-sm text-gray-900">ID card fee</td>
+                                                                <td class="px-3 py-2 text-sm text-gray-900" id="summary_id_card_amount">₦0.00</td>
+                                                            </tr>
+                                                            <tr class="bg-gray-50 font-medium">
+                                                                <td class="px-3 py-2 text-sm text-gray-900">Total</td>
+                                                                <td class="px-3 py-2 text-sm text-gray-900" id="summary_total_amount">₦0.00</td>
+                                                            </tr>
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        @endif
                                     </div>
 
                                     {{-- Organisation fee list — visible when "Paying as: On behalf of ..." is selected.
@@ -312,6 +403,48 @@
             const personalFeeSelect = document.getElementById('personal_membership_fee_id');
             const organisationFeeSelect = document.getElementById('organisation_membership_fee_id');
 
+            // Only rendered for a payer who may order an ID card (personal fees).
+            const idCardCheckbox = document.getElementById('id_card_included');
+            const idCardLabel = document.getElementById('id_card_label');
+            const idCardInfo = document.getElementById('id_card_info');
+            const summaryFeeAmount = document.getElementById('summary_fee_amount');
+            const summaryIdCardRow = document.getElementById('summary_id_card_row');
+            const summaryIdCardAmount = document.getElementById('summary_id_card_amount');
+            const summaryTotalAmount = document.getElementById('summary_total_amount');
+
+            function formatNaira(value) {
+                return `₦${value.toLocaleString('en-NG', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            }
+
+            // Keeps the ID card label, info panel and payment summary in step
+            // with the chosen personal fee and the checkbox.
+            function updateIdCard() {
+                if (!idCardCheckbox) {
+                    return;
+                }
+
+                const selected = personalFeeSelect.options[personalFeeSelect.selectedIndex];
+                const hasFee = !!(personalFeeSelect.value && selected);
+                const amount = hasFee ? (parseFloat(selected.dataset.amount) || 0) : 0;
+                const idCardFee = hasFee ? (parseFloat(selected.dataset.idCardFee) || 0) : 0;
+                const ticked = idCardCheckbox.checked && !idCardCheckbox.disabled;
+
+                if (!hasFee) {
+                    idCardLabel.textContent = 'Include ID card';
+                } else if (idCardFee > 0) {
+                    idCardLabel.textContent = `Include ID card (${formatNaira(idCardFee)})`;
+                } else {
+                    idCardLabel.textContent = 'Include ID card (Free)';
+                }
+
+                idCardInfo.classList.toggle('hidden', !ticked);
+                summaryIdCardRow.classList.toggle('hidden', !ticked);
+
+                summaryFeeAmount.textContent = formatNaira(amount);
+                summaryIdCardAmount.textContent = formatNaira(idCardFee);
+                summaryTotalAmount.textContent = formatNaira(amount + (ticked ? idCardFee : 0));
+            }
+
             function isPayingForOrganisation() {
                 const checked = document.querySelector('input[name="organisation_id"]:checked');
                 return !!(checked && checked.value !== '');
@@ -357,6 +490,13 @@
                     if (isMembership) personalFeeSelect.setAttribute('required', 'required');
                     else personalFeeSelect.removeAttribute('required');
                 }
+
+                // The ID card goes with a personal membership fee only — never
+                // submit it with a donation or an organisation payment.
+                if (idCardCheckbox) {
+                    idCardCheckbox.disabled = isOrgPayment || !isMembership;
+                    updateIdCard();
+                }
             }
 
             function togglePaymentType() {
@@ -376,6 +516,11 @@
             payingAsRadios.forEach(function (radio) {
                 radio.addEventListener('change', updateMembershipFeeSelects);
             });
+
+            if (idCardCheckbox) {
+                personalFeeSelect.addEventListener('change', updateIdCard);
+                idCardCheckbox.addEventListener('change', updateIdCard);
+            }
 
             // --- Initialisation ---
             if (typeMembership && typeDonation) {

@@ -604,7 +604,21 @@ class MembershipPaymentController extends Controller
             'reference' => 'nullable|string|max:255',
             'branch_id' => 'nullable|exists:branches,id',
             'division_id' => 'nullable|exists:divisions,id',
-            'id_card_included' => 'nullable|boolean',
+            'id_card_included' => [
+                'nullable',
+                'boolean',
+                function ($attribute, $value, $fail) use ($request, $isOrgPayment, $isRcuPayment) {
+                    if (! filter_var($value, FILTER_VALIDATE_BOOLEAN)) {
+                        return;
+                    }
+
+                    $targetUser = User::find($request->user_id);
+
+                    if ($isOrgPayment || $isRcuPayment || ($targetUser && ! $targetUser->canOrderIdCardWithPayment())) {
+                        $fail('An ID card can only be included in a volunteer\'s own membership payment.');
+                    }
+                },
+            ],
         ]);
 
         $membershipFee = MembershipFee::findOrFail($request->membership_fee_id);

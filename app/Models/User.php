@@ -1270,6 +1270,27 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
+     * Whether an ID card may be ordered together with this user's own
+     * membership payment (staff entry and online). Volunteers only, matching
+     * the staff form's checkbox.
+     */
+    public function canOrderIdCardWithPayment(): bool
+    {
+        return $this->isVolunteer();
+    }
+
+    /**
+     * Whether a National ID number is on file, read from the uniqueness hash
+     * so the encrypted NIN is not decrypted. The User saving hook keeps the
+     * two in step; the raw-SQL writers (MigrateUsers, the null-empty
+     * migration, UserAnonymizer) only ever write both as null.
+     */
+    public function hasNationalIdNumber(): bool
+    {
+        return filled($this->national_id_number_hash);
+    }
+
+    /**
      * Whether the user holds a currently valid (non-expired, approved,
      * non-deleted) personal membership payment, of any fee type. Uses the
      * has_current_fee value from scopeWithContributorFacts() when loaded.

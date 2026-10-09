@@ -111,6 +111,19 @@ class PaystackPaymentController extends Controller
         $personalMembershipFees = $eligibility->allowedFees;
         $personalMembershipBlockedReason = $eligibility->message();
 
+        // The optional ID card on a personal membership payment: only offered
+        // to those initiate() accepts it from, with the notes shown when the
+        // box is ticked worked out here from the payer's own record.
+        $idCard = null;
+        if (! $lockedOrganisation && ! $lockedRedCrossUnit && $personalMembershipFees->isNotEmpty() && $user->canOrderIdCardWithPayment()) {
+            $idCard = [
+                'branchName' => $user->branch?->name,
+                'hasPhoto' => $user->hasProfilePhoto(),
+                'hasNin' => $user->hasNationalIdNumber(),
+                'validUntil' => $user->hasValidIdCardPrinted() ? $user->latest_id_card_expiry_date : null,
+            ];
+        }
+
         // for_organizations, for_red_cross_units and is_volunteer_fee are all plain NOT NULL
         // booleans (default false) — no nullable/legacy-null case to account
         // for, so a straight true/false split is exact, not an approximation.
@@ -122,6 +135,7 @@ class PaystackPaymentController extends Controller
             'organisations' => $organisations,
             'personalMembershipFees' => $personalMembershipFees,
             'personalMembershipBlockedReason' => $personalMembershipBlockedReason,
+            'idCard' => $idCard,
             'organisationMembershipFees' => $organisationMembershipFees,
             'rcuMembershipFees' => $rcuMembershipFees,
             'lockedPaymentType' => $lockedPaymentType,
@@ -149,6 +163,7 @@ class PaystackPaymentController extends Controller
             'organisation_id' => ['nullable', 'exists:organisations,id'],
             'red_cross_unit_id' => ['nullable', 'exists:red_cross_units,id', 'prohibits:organisation_id'],
             'membership_fee_id' => ['nullable', 'required_if:payment_type,membership', 'exists:membership_fees,id'],
+            'id_card_included' => ['nullable', 'boolean'],
         ], [
             'red_cross_unit_id.prohibits' => 'A payment can be for an organisation or a Red Cross Unit, not both.',
         ]);
@@ -157,6 +172,16 @@ class PaystackPaymentController extends Controller
         $isOrgPayment = $organisationId !== null;
         $redCrossUnitId = $validated['red_cross_unit_id'] ?? null;
         $isRcuPayment = $redCrossUnitId !== null;
+        $idCardIncluded = $request->boolean('id_card_included');
+
+        // An ID card goes with the payer's own membership fee only, and only
+        // for those the staff form allows it for. Refused rather than
+        // silently dropped, so the payer never pays a total they didn't see.
+        if ($idCardIncluded && ($validated['payment_type'] !== 'membership' || $isOrgPayment || $isRcuPayment || ! $user->canOrderIdCardWithPayment())) {
+            throw ValidationException::withMessages([
+                'id_card_included' => 'An ID card can only be ordered with your own membership fee, as a volunteer.',
+            ]);
+        }
 
         // Guards for an RCU annual fee payment, re-checked here rather than
         // trusted from show() — the form's hidden red_cross_unit_id can be
@@ -235,7 +260,7 @@ class PaystackPaymentController extends Controller
 
         if ($validated['payment_type'] === 'membership') {
             $fee = MembershipFee::findOrFail($validated['membership_fee_id']);
-            $amountNaira = (float) $fee->amount;
+            $amountNaira = (float) $fee->amount + ($idCardIncluded ? (float) $fee->id_card_fee : 0);
         } else {
             $amountNaira = (float) $validated['amount'];
         }
@@ -251,6 +276,7 @@ class PaystackPaymentController extends Controller
             'anonymous' => $validated['payment_type'] === 'donation' ? $request->boolean('anonymous') : null,
             'organisation_id' => $organisationId,
             'red_cross_unit_id' => $redCrossUnitId,
+            'id_card_included' => $idCardIncluded,
         ];
 
         $transaction = PaymentTransaction::create([
@@ -414,6 +440,7 @@ class PaystackPaymentController extends Controller
                             'submitted_at' => now(),
                             'branch_id' => $branchId,
                             'division_id' => $divisionId,
+                            'id_card_included' => (bool) ($meta['id_card_included'] ?? false),
                             'is_deleted' => false,
                             'payment_channel' => 'paystack',
                             'gateway_reference' => $transaction->reference,
