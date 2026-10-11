@@ -4,8 +4,10 @@ namespace App\Console\Commands\OldDbMigration;
 
 use App\Models\Branch;
 use App\Models\User;
+use App\Support\Divisions\DivisionMerges;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -221,18 +223,7 @@ class MigrateOrganisations extends Command
                             if ($orgExists) {
                                 $skippedCount++;
                             } else {
-                                $newOrganisation = [
-                                    'id'          => $org->PersonID, // Preserve original PersonID as id
-                                    'name'        => $this->cleanString($org->Organisation),
-                                    'description' => $this->cleanString($org->Personal_info ?? null),
-                                    'address'     => $this->cleanString($org->Workplace_address ?? null),
-                                    'email'       => $this->cleanEmail($org->Email ?? null),
-                                    'branch_id'   => $this->getBranchId($org),
-                                    'created_at'  => now(),
-                                    'updated_at'  => now(),
-                                ];
-
-                                $organisationData[] = $newOrganisation;
+                                $organisationData[] = $this->buildOrganisationRow($org);
                                 $migratedCount++;
                             }
                         } catch (\Exception $e) {
@@ -287,6 +278,65 @@ class MigrateOrganisations extends Command
         }
 
         return Command::SUCCESS;
+    }
+
+    /**
+     * The organisations row for one legacy persons row. The division is the
+     * legacy DivisionID (merged divisions mapped, DivisionMerges) when that
+     * division exists and belongs to the organisation's branch; otherwise
+     * null, with a warning — never a guess. organisations:fill-divisions
+     * applies the same checks to a database imported before this.
+     */
+    public function buildOrganisationRow(object $org): array
+    {
+        $branchId = $this->getBranchId($org);
+        $branchId = $branchId === null ? null : (int) $branchId;
+
+        return [
+            'id'          => $org->PersonID, // Preserve original PersonID as id
+            'name'        => $this->cleanString($org->Organisation),
+            'description' => $this->cleanString($org->Personal_info ?? null),
+            'address'     => $this->cleanString($org->Workplace_address ?? null),
+            'email'       => $this->cleanEmail($org->Email ?? null),
+            'branch_id'   => $branchId,
+            'division_id' => $this->getDivisionId($org, $branchId),
+            'created_at'  => now(),
+            'updated_at'  => now(),
+        ];
+    }
+
+    private function getDivisionId(object $org, ?int $branchId): ?int
+    {
+        $legacyId = $org->DivisionID ?? null;
+        if (! is_numeric($legacyId) || (int) $legacyId <= 0) {
+            $this->warnDivision($org, 'has no division in the legacy data');
+
+            return null;
+        }
+
+        $divisionId = (int) DivisionMerges::target((int) $legacyId);
+        $division = DB::table('divisions')->where('id', $divisionId)->first(['id', 'branch_id']);
+
+        if ($division === null) {
+            $this->warnDivision($org, "division {$divisionId} was not imported");
+
+            return null;
+        }
+
+        if ($branchId === null || (int) $division->branch_id !== $branchId) {
+            $this->warnDivision($org, "division {$divisionId} (branch ".($division->branch_id ?? 'none').') is not in its branch '.($branchId ?? 'none'));
+
+            return null;
+        }
+
+        return $divisionId;
+    }
+
+    private function warnDivision(object $org, string $reason): void
+    {
+        $message = "MigrateOrganisations: organisation {$org->PersonID} {$reason}; division_id left empty.";
+        $this->output?->writeln("  {$message}");
+        Log::warning($message);
     }
 
     private function cleanString($value)
@@ -356,6 +406,7 @@ class MigrateOrganisations extends Command
         $this->line("  - Total organisations: {$totalOrganisations}");
         $this->line("  - With email: {$withEmail}");
         $this->line("  - With address: {$withAddress}");
+        $this->line('  - With division: '.DB::table('organisations')->whereNotNull('division_id')->count());
 
         if ($byBranch->isNotEmpty()) {
             $this->line("  - Organisations by branch:");

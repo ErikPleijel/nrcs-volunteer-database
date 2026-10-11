@@ -187,6 +187,15 @@ For DB-273857: since it holds a finance role and would be the one archived, don'
   migration machine
 - [ ] Spot-check row counts (users, activities, trainings, membership_payments)
 
+### Server imported before organisations had a division (sandbox only)
+Skip after a fresh import. Details: docs/migration.md, section C.
+- [ ] Locally: `php artisan organisations:fill-divisions --export=storage/app/organisation-divisions.csv`
+- [ ] Copy it to the server's `storage/app/` (e.g. `scp storage/app/organisation-divisions.csv <user>@<vps>:/var/www/[actual-path]/storage/app/`)
+- [ ] On the server, after deploying the code: `php artisan migrate --force`
+- [ ] `php artisan organisations:fill-divisions --file=storage/app/organisation-divisions.csv --dry-run` → review the report
+- [ ] `php artisan organisations:fill-divisions --file=storage/app/organisation-divisions.csv` → listed ids (if any): set their division by hand
+- [ ] `rm storage/app/organisation-divisions.csv`
+
 ### Other
   [ ] Set cron jobs (as www-data user):
   `* * * * * cd /var/www/[actual-path] && /usr/bin/php artisan schedule:run >> /var/log/laravel-scheduler.log 2>&1`

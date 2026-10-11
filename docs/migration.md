@@ -114,6 +114,31 @@ Follow DEPLOYMENT_CHECKLIST.md ("Upload DB to VPS", "Deploy files", "Set
        On go-live day: set MANUAL_GO_LIVE_DATE=YYYY-MM-DD (that day), then
        php artisan config:cache. Never change it afterwards.
 
+### C. A server imported BEFORE organisations had a division (the sandbox)
+
+Not needed after a fresh import (the import sets organisations.division_id
+itself). On a database imported earlier, the division is filled from the
+legacy persons.DivisionID without re-importing. The server usually cannot
+reach the legacy database, so the data travels as a file.
+
+1. On the migration machine (needs the legacy database):
+   --> php artisan organisations:fill-divisions --export=storage/app/organisation-divisions.csv
+       → "Wrote 1003 legacy organisations …" (storage/app is git-ignored)
+2. Copy the file into the server's storage/app/, e.g.
+   --> scp storage/app/organisation-divisions.csv <user>@<vps>:/var/www/[actual-path]/storage/app/
+3. On the server, in the app folder, after deploying the new code:
+   --> php artisan migrate --force                  (adds organisations.division_id)
+   --> php artisan organisations:fill-divisions --file=storage/app/organisation-divisions.csv --dry-run
+   --> php artisan organisations:fill-divisions --file=storage/app/organisation-divisions.csv
+   Organisations are matched on id and only filled when name and branch
+   match the file and the division is in the organisation's branch. Every
+   other case is listed by id and left alone (the run then exits with
+   failure): set those divisions by hand on the organisation's edit page.
+   Organisations created on the server after the import show up as "Not in
+   the file". A second run reports everything as "Already had this
+   division". Each change is in the Audit Log (organisation_division_filled).
+   --> rm storage/app/organisation-divisions.csv
+
 Encrypt check: - [ ] mysql -u root -e "USE redcross_volunteer; SELECT
 SUM(CASE WHEN personal_info IS NOT NULL AND personal_info NOT LIKE 'eyJpdiI6%' THEN 1 ELSE 0 END) AS personal_info_unencrypted,
 SUM(CASE WHEN national_id_number IS NOT NULL AND national_id_number NOT LIKE 'eyJpdiI6%' THEN 1 ELSE 0 END) AS national_id_unencrypted
