@@ -777,6 +777,16 @@ class MembershipPaymentController extends Controller
                 ->with('error', 'This payment was made online through Paystack and cannot be deleted.');
         }
 
+        // A manual payment in a finished quarter is part of that quarter's
+        // Income Distribution figures, which must not change any more.
+        if ($membershipPayment->isInFinishedIncomeQuarter()) {
+            return redirect()->route('membership-payments.show', $membershipPayment)
+                ->with('error', sprintf(
+                    'This payment counts in %s, a finished quarter, so it can no longer be deleted.',
+                    $membershipPayment->incomeQuarterLabel()
+                ));
+        }
+
         // withAnyApprovalStatus(): a pending successor still depends on this payment's
         // expiry_date and must block deletion just as an approved one would — the
         // default ApprovedScope (from Approvable) would otherwise hide it, since new

@@ -163,6 +163,48 @@ class MembershipPayment extends Model
     }
 
     /**
+     * The day this payment counts in the Income Distribution report:
+     * accounting_date once its shares are stored; before that the same
+     * rule the backfill uses — the payment date for a legacy import (no
+     * approver), the approval date (app time) otherwise. Null while
+     * pending.
+     */
+    public function incomeAccountingDate(): ?Carbon
+    {
+        if ($this->accounting_date !== null) {
+            return $this->accounting_date->copy();
+        }
+
+        if ($this->decided_at === null) {
+            return null;
+        }
+
+        return $this->decided_by_user_id === null
+            ? $this->payment_date?->copy()
+            : $this->decided_at->copy()->setTimezone(config('app.timezone'))->startOfDay();
+    }
+
+    /**
+     * Whether the quarter this payment counts in has ended. Such a payment
+     * is part of a closed quarter of the Income Distribution report, so it
+     * can no longer be deleted.
+     */
+    public function isInFinishedIncomeQuarter(): bool
+    {
+        $date = $this->incomeAccountingDate();
+
+        return $date !== null && $date->copy()->firstOfQuarter()->lt(now()->firstOfQuarter()->startOfDay());
+    }
+
+    /** "2026 Q3" for the quarter this payment counts in, or null. */
+    public function incomeQuarterLabel(): ?string
+    {
+        $date = $this->incomeAccountingDate();
+
+        return $date === null ? null : $date->year.' Q'.$date->quarter;
+    }
+
+    /**
      * Runs inside the approval transaction, for a single approval and for
      * bulk approval alike: a manual payment gets its amount, income shares
      * (current Fee distribution percentages) and accounting_date — the

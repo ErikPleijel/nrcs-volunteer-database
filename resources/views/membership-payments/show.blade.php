@@ -227,6 +227,10 @@
                 <p class="mt-4 text-right text-xs text-gray-500">
                     <i class="fas fa-lock mr-1"></i>Paid online through Paystack — this payment cannot be deleted.
                 </p>
+            @elseif(!$membershipPayment->is_deleted && $membershipPayment->isInFinishedIncomeQuarter())
+                <p class="mt-4 text-right text-xs text-gray-500">
+                    <i class="fas fa-lock mr-1"></i>Counts in {{ $membershipPayment->incomeQuarterLabel() }}, a finished quarter — this payment can no longer be deleted.
+                </p>
             @elseif(!$membershipPayment->is_deleted)
                 <div class="flex justify-end mt-4">
                     <form action="{{ route('membership-payments.destroy', $membershipPayment) }}"
