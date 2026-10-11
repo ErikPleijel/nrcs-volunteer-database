@@ -89,6 +89,7 @@ class PermissionsTableSeeder extends Seeder
                     'change_settings',
                     'use_archive_tool',
                     'anonymize_user', // permanent; national DB admin only
+                    'view_income_distribution', // HQ/branch/division split of online income
 
                     // special
 

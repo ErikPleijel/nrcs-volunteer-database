@@ -1457,6 +1457,11 @@
             <a href="{{ route('reports.financial.index') }}" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded shadow">
                 <i class="fas fa-table mr-1"></i> Membership Revenue Reports
             </a>
+            @can('view_income_distribution')
+                <a href="{{ route('reports.income-distribution.index') }}" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded shadow">
+                    <i class="fas fa-hand-holding-dollar mr-1"></i> Income Distribution
+                </a>
+            @endcan
             <a href="{{ route('reports.donations.national') }}" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded shadow">
                 <i class="fas fa-table mr-1"></i> Donation Reports
             </a>
