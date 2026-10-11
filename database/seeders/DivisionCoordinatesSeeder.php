@@ -44,14 +44,6 @@ class DivisionCoordinatesSeeder extends Seeder
                 'updated_at' => now(),
             ]);
         }
-
-        // Special fix: Okeigbo (id=3654) gets Ile-Oluji coords + small offset.
-        // Ile-Oluji/Okeigbo CSV row: 7.166442, 4.724235 → Ile-Oluji in DB.
-        DB::table('divisions')->where('id', 3654)->update([
-            'latitude'   => 7.181442,   // 7.166442 + 0.015
-            'longitude'  => 4.744235,   // 4.724235 + 0.020
-            'updated_at' => now(),
-        ]);
     }
 
     // -------------------------------------------------------------------------

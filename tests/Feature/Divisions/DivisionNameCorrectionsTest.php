@@ -28,7 +28,7 @@ beforeEach(function () {
     DB::table('branches')->insert(['id' => 844, 'name' => 'Ebonyi', 'code' => 'EBO', 'is_active' => true]);
 });
 
-test('the list covers the eight known misspellings', function () {
+test('the list covers the eight known misspellings and the Ile Oluji/Okeigbo rename', function () {
     expect(collect(DivisionNameCorrections::BY_ID)->map(fn ($pair) => $pair[1])->all())->toBe([
         3289 => 'Ikwo',
         3317 => 'Ijero',
@@ -38,6 +38,7 @@ test('the list covers the eight known misspellings', function () {
         3411 => 'Jaba',
         3454 => 'Kumbotso',
         3774 => 'Kebbe',
+        3653 => 'Ile Oluji/Okeigbo',
     ]);
 });
 

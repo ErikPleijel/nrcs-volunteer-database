@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands\OldDbMigration;
 
+use App\Support\Divisions\DivisionMerges;
 use App\Support\Divisions\DivisionNameCorrections;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
@@ -76,6 +77,14 @@ class MigrateDivisions extends Command
                     $divisionData = [];
 
                     foreach ($divisions as $division) {
+                        // Merged into another division (DivisionMerges):
+                        // never created; the other importers map its id.
+                        if (DivisionMerges::isMergedAway($division->DivisionID)) {
+                            $skippedCount++;
+                            $progressBar->advance();
+                            continue;
+                        }
+
                         try {
                             // Check if division already exists
                             if (!$dryRun) {

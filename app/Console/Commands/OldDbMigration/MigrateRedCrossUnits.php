@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands\OldDbMigration;
 
+use App\Support\Divisions\DivisionMerges;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -147,7 +148,7 @@ class MigrateRedCrossUnits extends Command
         }
 
         // First try by ID (if divisions preserved original IDs)
-        $division = DB::table('divisions')->where('id', $oldDivisionId)->first();
+        $division = DB::table('divisions')->where('id', DivisionMerges::target($oldDivisionId))->first();
         if ($division) {
             return $division->id;
         }

@@ -25,6 +25,9 @@ final class DivisionNameCorrections
         3411 => ['jaba', 'Jaba'],                // Kaduna
         3454 => ['kumbotso', 'Kumbotso'],        // Kano
         3774 => ['kebbe', 'Kebbe'],              // Sokoto
+        // Ondo: the official LGA name, now that Okeigbo (3654) is merged
+        // into it (DivisionMerges).
+        3653 => ['Ile-Oluji', 'Ile Oluji/Okeigbo'],
     ];
 
     /**

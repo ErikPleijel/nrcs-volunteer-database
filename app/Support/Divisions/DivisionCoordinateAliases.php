@@ -45,7 +45,6 @@ final class DivisionCoordinateAliases
         'ifako-ijaiye' => 'Ifako-Ijaye',
         'somolu' => 'Shomolu',
         'nasarawa egon' => 'Nasarawa-Eggon',
-        'ile oluji/okeigbo' => 'Ile-Oluji',
         'ayedaade' => 'Aiyedade',
         'atakunmosa east' => 'Atakumosa East',
         'atakunmosa west' => 'Atakumosa West',

@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands\OldDbMigration;
 
+use App\Support\Divisions\DivisionMerges;
 use App\Console\Commands\OldDbMigration\Concerns\SanitizesOldDbDates;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
@@ -137,7 +138,7 @@ class MigrateActivities extends Command
                                 'reference'            => $this->cleanString($activity->Reference),
                                 'submitted_by_user_id' => $activity->SubmissionID, // Changed from submitted_by_id
                                 'branch_id'            => $activity->BranchID,
-                                'division_id'          => $activity->DivisionID, // Required field
+                                'division_id'          => DivisionMerges::target($activity->DivisionID), // Required field
                                 // ðŸ”¸ new polymorphic pair
                                 'assignable_type'      => $assignableType,
                                 'assignable_id'        => $assignableId,

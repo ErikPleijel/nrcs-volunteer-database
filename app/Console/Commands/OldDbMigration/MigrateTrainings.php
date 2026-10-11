@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands\OldDbMigration;
 
+use App\Support\Divisions\DivisionMerges;
 use App\Console\Commands\OldDbMigration\Concerns\SanitizesOldDbDates;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
@@ -111,7 +112,7 @@ class MigrateTrainings extends Command
                                 'reference' => $this->cleanString($training->Reference),
                                 'submitted_by_user_id' => $training->SubmissionID,
                                 'branch_id' => $training->BranchID,
-                                'division_id' => $training->DivisionID,
+                                'division_id' => DivisionMerges::target($training->DivisionID),
                                 'created_at' => now(),
                                 'updated_at' => now(),
                                 // Legacy records are pre-approved (no approval step existed).

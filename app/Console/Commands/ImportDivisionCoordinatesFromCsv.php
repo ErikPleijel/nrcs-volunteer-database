@@ -185,43 +185,6 @@ class ImportDivisionCoordinatesFromCsv extends Command
             $progressBar->advance();
         }
 
-        // ------------------------------------------------------------------
-// SPECIAL FIX: Set coordinates for Okeigbo (division id = 3654)
-// by displacing them slightly from Ile-Oluji
-// ------------------------------------------------------------------
-        if (!$dryRun) {
-
-            // 1. Get Ile-Oluji coordinates (same branch as Okeigbo)
-            $ileOluji = DB::table('divisions')
-                ->where('name', 'Ile-Oluji')
-                ->whereNotNull('latitude')
-                ->whereNotNull('longitude')
-                ->first();
-
-            if ($ileOluji) {
-
-                // 2. Displace slightly
-                $okeigboLat = $ileOluji->latitude  + 0.015;
-                $okeigboLng = $ileOluji->longitude + 0.020;
-
-                // 3. Update ONLY Okeigbo (id = 3654)
-                DB::table('divisions')
-                    ->where('id', 3654)
-                    ->update([
-                        'latitude'   => $okeigboLat,
-                        'longitude'  => $okeigboLng,
-                        'updated_at' => now(),
-                    ]);
-
-                $this->info("📍 Okeigbo (ID 3654) updated using displaced Ile-Oluji coordinates.");
-                $this->line("    Lat: {$okeigboLat}, Lng: {$okeigboLng}");
-
-            } else {
-                $this->warn('⚠️ Ile-Oluji not found or has no coordinates — Okeigbo not updated.');
-            }
-        }
-
-
         $progressBar->finish();
         $this->newLine(2);
 

@@ -4,6 +4,7 @@
 
 namespace App\Console\Commands\OldDbMigration;
 
+use App\Support\Divisions\DivisionMerges;
 use App\Console\Commands\OldDbMigration\Concerns\SanitizesOldDbDates;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Crypt;
@@ -286,7 +287,7 @@ class MigrateUsers extends Command
                     'telephone2' => !empty($record->Telephone2) ? trim($record->Telephone2) : null,
                     'disciplin' => !empty($record->Disciplin) ? trim($record->Disciplin) : null,
                     'branch_id' => $this->normalizeId($record->BranchID),
-                    'division_id' => $this->normalizeId($record->DivisionID),
+                    'division_id' => DivisionMerges::target($this->normalizeId($record->DivisionID)),
                     'red_cross_unit_id' => $this->normalizeId($record->RedCrossUnitID),
 
                     // New fields from old database
@@ -385,8 +386,10 @@ class MigrateUsers extends Command
 
             if (!($p->DivisionID ?? null)) continue;
 
+            $divisionId = DivisionMerges::target($p->DivisionID);
+
             $div = DB::table('divisions')
-                ->where('id', $p->DivisionID)
+                ->where('id', $divisionId)
                 ->where('branch_id', $u->branch_id)
                 ->first();
 
@@ -394,7 +397,7 @@ class MigrateUsers extends Command
 
             DB::table('users')
                 ->where('id', $u->id)
-                ->update(['division_id' => $p->DivisionID]);
+                ->update(['division_id' => $divisionId]);
 
             $restored++;
         }

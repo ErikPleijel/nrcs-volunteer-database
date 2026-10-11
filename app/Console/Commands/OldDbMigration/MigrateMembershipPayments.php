@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands\OldDbMigration;
 
+use App\Support\Divisions\DivisionMerges;
 use App\Console\Commands\OldDbMigration\Concerns\SanitizesOldDbDates;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
@@ -148,7 +149,7 @@ class MigrateMembershipPayments extends Command
                                 'reference' => $this->cleanString($payment->Reference),
                                 'submitted_by_user_id' => $payment->SubmissionID,
                                 'branch_id' => $payment->BranchID,
-                                'division_id' => $payment->DivisionID,
+                                'division_id' => DivisionMerges::target($payment->DivisionID),
                                 'id_card_included' => $this->convertBoolean($payment->IDCardIncluded),
                                 'created_at' => now(),
                                 'updated_at' => now(),

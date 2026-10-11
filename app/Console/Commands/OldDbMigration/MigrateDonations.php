@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands\OldDbMigration;
 
+use App\Support\Divisions\DivisionMerges;
 use App\Console\Commands\OldDbMigration\Concerns\SanitizesOldDbDates;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
@@ -137,7 +138,7 @@ class MigrateDonations extends Command
                                 'purpose' => $this->cleanString($donation->Purpose),
                                 'anonymous' => $this->convertBoolean($donation->Anonymous),
                                 'branch_id' => $donation->BranchID,
-                                'division_id' => $donation->DivisionID,
+                                'division_id' => DivisionMerges::target($donation->DivisionID),
                                 'removed_by_user_id' => $donation->RemovedID,
                                 'removed_date' => $convertedRemovedDate,
                                 // Legacy records are pre-approved (no approval step existed).
