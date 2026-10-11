@@ -62,17 +62,30 @@ test('the simulated Paystack charge is 1.5% + ₦100, the ₦100 waived under �
     '₦200,000 (capped)' => [20_000_000, 200_000],
 ]);
 
-test('it refuses to run in production', function () {
-    app()->detectEnvironment(fn () => 'production');
+test('it refuses to run, or purge, outside local and testing', function (string $environment) {
+    // A simulated row that a purge would delete if it were allowed to run.
+    $this->artisan('payments:simulate', ['--count' => 3])->assertSuccessful();
+
+    app()->detectEnvironment(fn () => $environment);
 
     $this->artisan('payments:simulate', ['--count' => 10])
-        ->expectsOutput('payments:simulate creates fake payments and never runs in production.')
+        ->expectsOutput("payments:simulate only runs when APP_ENV is local or testing (this is \"{$environment}\"). Nothing was changed.")
         ->assertFailed();
 
-    $this->artisan('payments:simulate', ['--purge' => true])->assertFailed();
+    $this->artisan('payments:simulate', ['--purge' => true])
+        ->expectsOutput("payments:simulate only runs when APP_ENV is local or testing (this is \"{$environment}\"). Nothing was changed.")
+        ->assertFailed();
 
-    expect(DB::table('membership_payments')->count())->toBe(0)
-        ->and(DB::table('payment_transactions')->count())->toBe(0);
+    expect(DB::table('membership_payments')->count())->toBe(3)
+        ->and(DB::table('payment_transactions')->count())->toBe(3);
+})->with(['production', 'staging', 'development']);
+
+test('it runs in the local environment', function () {
+    app()->detectEnvironment(fn () => 'local');
+
+    $this->artisan('payments:simulate', ['--count' => 5])->assertSuccessful();
+
+    expect(DB::table('membership_payments')->count())->toBe(5);
 });
 
 test('it creates approved Paystack payments that look like the webhook made them', function () {

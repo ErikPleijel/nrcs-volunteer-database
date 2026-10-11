@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
- * LOCAL TESTING ONLY. Creates realistic, gateway-confirmed Paystack
+ * LOCAL TESTING ONLY (APP_ENV local or testing). Creates realistic, gateway-confirmed Paystack
  * membership payments without calling Paystack, so the Income Distribution
  * report has data to show. Each payment is a payment_transactions row plus
  * an approved membership_payments row, written directly (no lifecycle
@@ -33,7 +33,7 @@ class SimulatePaystackPayments extends Command
                             {--to= : Latest payment date, Y-m-d (default now)}
                             {--purge : Delete all simulated (SIM-) payments and nothing else}';
 
-    protected $description = 'Create simulated Paystack membership payments for testing the Income Distribution report (never in production)';
+    protected $description = 'Create simulated Paystack membership payments for testing the Income Distribution report (local/testing only)';
 
     public const PREFIX = 'SIM-';
 
@@ -41,8 +41,13 @@ class SimulatePaystackPayments extends Command
 
     public function handle(): int
     {
-        if (app()->isProduction()) {
-            $this->error('payments:simulate creates fake payments and never runs in production.');
+        // An allowlist, not "not production": a staging or misnamed
+        // environment must never get fake payments either.
+        if (! app()->environment(['local', 'testing'])) {
+            $this->error(sprintf(
+                'payments:simulate only runs when APP_ENV is local or testing (this is "%s"). Nothing was changed.',
+                app()->environment()
+            ));
 
             return self::FAILURE;
         }
