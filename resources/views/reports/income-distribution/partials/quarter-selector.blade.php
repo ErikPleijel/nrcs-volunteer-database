@@ -19,7 +19,7 @@
 @if($quarterInProgress)
     <div class="bg-yellow-50 border-l-4 border-yellow-400 text-yellow-800 p-4 mb-6" role="alert" data-testid="in-progress-note">
         <p class="font-semibold">
-            <i class="fas fa-hourglass-half mr-1"></i>This quarter is not finished yet. Figures will change. Do not transfer money based on these numbers.
+            <i class="fas fa-hourglass-half mr-1"></i>{{ \App\Services\Reports\IncomeDistributionStatsService::IN_PROGRESS_NOTE }}
         </p>
     </div>
 @endif

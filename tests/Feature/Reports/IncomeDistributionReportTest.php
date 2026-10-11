@@ -391,6 +391,161 @@ test('the division level needs view_income_distribution and shows an empty state
     viewDivisions(['quarter' => '2026-Q4'])->assertOk()->assertSee('No division received a share in 2026 Q4.');
 });
 
+/*
+|--------------------------------------------------------------------------
+| CSV export (?export=csv, both levels)
+|--------------------------------------------------------------------------
+*/
+
+/**
+ * The downloaded CSV as rows of cells, after checking the BOM and the
+ * "sep=," line every report export starts with.
+ */
+function incomeCsv($response): array
+{
+    $content = $response->streamedContent();
+
+    expect(substr($content, 0, 3))->toBe("\xEF\xBB\xBF")
+        ->and(substr($content, 3, 7))->toBe("sep=,\r\n");
+
+    $lines = preg_split('/\r?\n/', trim(substr($content, 10)));
+
+    return array_map(fn (string $line) => str_getcsv($line), $lines);
+}
+
+/** The first CSV row whose first cell is $label. */
+function csvRow(array $rows, string $label): ?array
+{
+    foreach ($rows as $row) {
+        if (($row[0] ?? null) === $label) {
+            return $row;
+        }
+    }
+
+    return null;
+}
+
+test('the branch level exports a CSV with the quarter, percentages, headline, rows and TOTAL', function () {
+    incomePayment(1_000_000, $this->kano->id, $this->kanoDivision->id, '2026-07-10 09:00:00');
+    incomePayment(500_001, $this->kano->id, $this->kanoDivision->id, '2026-08-01 12:00:00');
+    $organisation = Organisation::create(['name' => 'Sponsor Org', 'branch_id' => $this->abia->id]);
+    incomePayment(2_000_000, $this->abia->id, null, '2026-08-20 10:00:00', ['organisation_id' => $organisation->id]);
+    incomePayment(300_000, 999_998, 999_999, '2026-07-20 10:00:00');
+
+    $response = viewIncomeReport(['quarter' => '2026-Q3', 'export' => 'csv'])->assertOk();
+
+    expect($response->headers->get('Content-Disposition'))->toContain('income-distribution-2026-Q3-branches.csv');
+
+    $rows = incomeCsv($response);
+    $page = viewIncomeReport(['quarter' => '2026-Q3']);
+    $headline = $page->viewData('headline');
+    $totals = $page->viewData('totals');
+
+    expect(csvRow($rows, 'Quarter'))->toBe(['Quarter', '2026 Q3'])
+        ->and(csvRow($rows, 'WARNING'))->toBeNull()
+        ->and(csvRow($rows, 'Net received (distributed)'))->toBe(['Net received (distributed)', '38000.01'])
+        ->and(csvRow($rows, 'Total paid by members')[1])->toBe(\App\Support\Naira::decimal($headline['paid']))
+        ->and(csvRow($rows, 'Payments'))->toBe(['Payments', '4']);
+
+    $percentages = array_values(array_filter($rows, fn ($r) => $r[0] === 'Percentages used'));
+    expect(array_column($percentages, 2))->toBe(['HQ 25% / Branch 75%', 'HQ 25% / Branch 25% / Division 50%']);
+
+    expect(csvRow($rows, 'Branch'))->toBe([
+        'Branch', 'Payments', 'Paid by members', 'Paystack charges', 'Net received',
+        'HQ share', 'Branch share', 'Division share', 'From Organisation',
+    ]);
+    expect(csvRow($rows, 'Abia'))->toBe(['Abia', '1', '20400.00', '400.00', '20000.00', '5000.00', '15000.00', '0.00', '20000.00'])
+        ->and(csvRow($rows, 'Deleted branch #999998'))->not->toBeNull();
+
+    $total = csvRow($rows, 'TOTAL');
+    expect($total[1])->toBe((string) $headline['count'])
+        ->and($total[4])->toBe(\App\Support\Naira::decimal($headline['net']))
+        ->and($total[5])->toBe(\App\Support\Naira::decimal($totals['hq']))
+        ->and($total[7])->toBe(\App\Support\Naira::decimal($totals['division']));
+});
+
+test('a CSV of the current quarter carries the in-progress warning', function () {
+    incomePayment(1_000_000, $this->kano->id, $this->kanoDivision->id, '2026-10-05 09:00:00');
+
+    $branches = viewIncomeReport(['quarter' => '2026-Q4', 'export' => 'csv']);
+    $divisions = $this->actingAs($this->admin)->get(route('reports.income-distribution.divisions', ['quarter' => '2026-Q4', 'export' => 'csv']));
+
+    foreach ([$branches, $divisions] as $response) {
+        $rows = incomeCsv($response);
+        expect(csvRow($rows, 'Quarter'))->toBe(['Quarter', '2026 Q4 (in progress)'])
+            ->and(csvRow($rows, 'WARNING'))->toBe(['WARNING', 'This quarter is not finished yet. Figures will change. Do not transfer money based on these numbers.']);
+    }
+
+    expect($branches->headers->get('Content-Disposition'))->toContain('income-distribution-2026-Q4-branches.csv');
+});
+
+test('the division level exports every division, and the TOTAL matches the branch level', function () {
+    $secondKanoDivision = Division::create(['name' => 'Fagge', 'branch_id' => $this->kano->id]);
+    incomePayment(1_000_000, $this->kano->id, $this->kanoDivision->id, '2026-07-10 09:00:00');
+    incomePayment(200_003, $this->kano->id, $secondKanoDivision->id, '2026-08-02 12:00:00');
+    incomePayment(400_000, $this->abia->id, $this->abiaDivision->id, '2026-09-15 08:00:00');
+
+    $response = viewDivisions(['quarter' => '2026-Q3', 'export' => 'csv'])->assertOk();
+    expect($response->headers->get('Content-Disposition'))->toContain('income-distribution-2026-Q3-divisions.csv');
+
+    $rows = incomeCsv($response);
+    expect(csvRow($rows, 'Branch'))->toBe(['Branch', 'All branches'])
+        ->and(csvRow($rows, 'Divisions'))->toBe(['Divisions', '3'])
+        ->and(csvRow($rows, 'Division'))->toBe(['Division', 'Branch', 'Payments', 'Net received', 'Division share'])
+        ->and(csvRow($rows, 'Kano Municipal'))->toBe(['Kano Municipal', 'Kano', '1', '10000.00', '5000.00'])
+        ->and(csvRow($rows, 'Fagge'))->toBe(['Fagge', 'Kano', '1', '2000.03', '1000.01']);
+
+    $branchLevelDivisionTotal = viewIncomeReport(['quarter' => '2026-Q3'])->viewData('totals')['division'];
+    expect(csvRow($rows, 'TOTAL'))->toBe(['TOTAL', '', '3', '16000.03', \App\Support\Naira::decimal($branchLevelDivisionTotal)]);
+});
+
+test('the division export respects the branch filter, including a deleted branch', function () {
+    incomePayment(1_000_000, $this->kano->id, $this->kanoDivision->id, '2026-07-10 09:00:00');
+    incomePayment(400_000, $this->abia->id, $this->abiaDivision->id, '2026-09-15 08:00:00');
+    incomePayment(300_000, 999_998, 999_999, '2026-07-20 10:00:00');
+
+    $kano = viewDivisions(['quarter' => '2026-Q3', 'branch' => $this->kano->id, 'export' => 'csv']);
+    expect($kano->headers->get('Content-Disposition'))->toContain('income-distribution-2026-Q3-divisions-kano.csv');
+
+    $rows = incomeCsv($kano);
+    expect(csvRow($rows, 'Branch'))->toBe(['Branch', 'Kano'])
+        ->and(csvRow($rows, 'Kano Municipal'))->not->toBeNull()
+        ->and(csvRow($rows, 'Aba North'))->toBeNull()
+        ->and(csvRow($rows, 'TOTAL')[4])->toBe('5000.00');
+
+    $deleted = viewDivisions(['quarter' => '2026-Q3', 'branch' => 999_998, 'export' => 'csv']);
+    expect($deleted->headers->get('Content-Disposition'))->toContain('income-distribution-2026-Q3-divisions-deleted-branch-999998.csv')
+        ->and(csvRow(incomeCsv($deleted), 'Deleted division #999999'))->not->toBeNull();
+});
+
+test('names that a spreadsheet would run as a formula are neutralised', function () {
+    $division = Division::create(['name' => '=HYPERLINK("http://x","y")', 'branch_id' => $this->kano->id]);
+    incomePayment(1_000_000, $this->kano->id, $division->id, '2026-07-10 09:00:00');
+
+    $rows = incomeCsv(viewDivisions(['quarter' => '2026-Q3', 'export' => 'csv']));
+
+    expect(csvRow($rows, '\'=HYPERLINK("http://x","y")'))->not->toBeNull()
+        ->and(csvRow($rows, '=HYPERLINK("http://x","y")'))->toBeNull();
+});
+
+test('both exports need view_income_distribution', function () {
+    $branchAdmin = User::factory()->create();
+    $branchAdmin->assignRole('branch_db_administrator');
+
+    $this->actingAs($branchAdmin)->get(route('reports.income-distribution.index', ['export' => 'csv']))->assertForbidden();
+    $this->actingAs($branchAdmin)->get(route('reports.income-distribution.divisions', ['export' => 'csv']))->assertForbidden();
+});
+
+test('both pages offer the export with the current quarter and branch', function () {
+    incomePayment(1_000_000, $this->kano->id, $this->kanoDivision->id, '2026-07-10 09:00:00');
+
+    viewIncomeReport(['quarter' => '2026-Q3'])
+        ->assertSee(e(route('reports.income-distribution.index', ['tab' => 'online', 'quarter' => '2026-Q3', 'export' => 'csv'])), false);
+
+    viewDivisions(['quarter' => '2026-Q3', 'branch' => $this->kano->id])
+        ->assertSee(e(route('reports.income-distribution.divisions', ['quarter' => '2026-Q3', 'branch' => $this->kano->id, 'export' => 'csv'])), false);
+});
+
 test('the division table carries every row for client-side search and sort', function () {
     incomePayment(1_000_000, $this->kano->id, $this->kanoDivision->id, '2026-07-10 09:00:00');
     incomePayment(400_000, $this->abia->id, $this->abiaDivision->id, '2026-09-15 08:00:00');

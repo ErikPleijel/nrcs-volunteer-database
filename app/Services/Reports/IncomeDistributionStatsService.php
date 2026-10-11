@@ -18,6 +18,34 @@ use Illuminate\Support\Facades\DB;
  */
 class IncomeDistributionStatsService
 {
+    /** Shown on screen and in the CSV whenever the current quarter is selected. */
+    public const IN_PROGRESS_NOTE = 'This quarter is not finished yet. Figures will change. Do not transfer money based on these numbers.';
+
+    public const RULE_LABELS = [
+        'standard' => 'Payments with a division',
+        'branch_level' => 'Payments with a branch but no division (e.g. organisations)',
+        'hq_only' => 'Payments with no branch',
+    ];
+
+    /**
+     * "HQ 25% / Branch 25% / Division 50%" for one percentage set (basis
+     * points), naming only the parties the rule pays.
+     */
+    public static function describePercentages(string $rule, array $set): string
+    {
+        $percent = fn (int $bp) => rtrim(rtrim(number_format($bp / 100, 2), '0'), '.').'%';
+
+        $parts = ['HQ '.$percent($set['hq'])];
+        if ($rule !== 'hq_only') {
+            $parts[] = 'Branch '.$percent($set['branch']);
+        }
+        if ($rule === 'standard') {
+            $parts[] = 'Division '.$percent($set['division']);
+        }
+
+        return implode(' / ', $parts);
+    }
+
     /**
      * Approved, not deleted Paystack membership payments. DB::table()
      * bypasses Approvable's ApprovedScope, so approval is filtered here.

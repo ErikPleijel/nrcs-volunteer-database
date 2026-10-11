@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Reports;
 
 use App\Http\Controllers\Controller;
+use App\Services\Reports\IncomeDistributionCsv;
 use App\Services\Reports\IncomeDistributionStatsService;
 use App\Support\Naira;
 use Illuminate\Http\Request;
@@ -16,13 +17,14 @@ use Illuminate\Http\Request;
  * Every figure is a sum of shares stored on the payments when they were
  * fulfilled, so a closed quarter never changes. The page checks that the
  * branch rows add up to the headline and the three shares to the net, and
- * shows a red warning if they ever do not.
+ * shows a red warning if they ever do not. ?export=csv downloads either
+ * level as CSV (IncomeDistributionCsv).
  */
 class IncomeDistributionReportController extends Controller
 {
     public const TABS = ['online', 'manual'];
 
-    public function index(Request $request, IncomeDistributionStatsService $stats)
+    public function index(Request $request, IncomeDistributionStatsService $stats, IncomeDistributionCsv $csv)
     {
         $activeTab = in_array($request->input('tab'), self::TABS, true) ? $request->input('tab') : 'online';
 
@@ -60,14 +62,20 @@ class IncomeDistributionReportController extends Controller
             }
         }
 
-        return view('reports.income-distribution.index', $data + [
+        $data += [
             'headline' => $headline,
             'rows' => $rows,
             'totals' => $totals,
             'percentageSets' => $percentageSets,
             'percentagesChanged' => collect($percentageSets)->contains(fn (array $sets) => count($sets) > 1),
             'integrityProblems' => $integrityProblems,
-        ]);
+        ];
+
+        if ($request->input('export') === 'csv') {
+            return $csv->branches($data);
+        }
+
+        return view('reports.income-distribution.index', $data);
     }
 
     /**
@@ -75,7 +83,7 @@ class IncomeDistributionReportController extends Controller
      * (optionally only those paid through one branch), for payouts. Bank
      * details per division are planned as an extra column here later.
      */
-    public function divisions(Request $request, IncomeDistributionStatsService $stats)
+    public function divisions(Request $request, IncomeDistributionStatsService $stats, IncomeDistributionCsv $csv)
     {
         $data = $this->quarterData($request, $stats);
         [$start, $end] = IncomeDistributionStatsService::quarterRange($data['selectedQuarter']);
@@ -105,13 +113,19 @@ class IncomeDistributionReportController extends Controller
             ),
         ];
 
-        return view('reports.income-distribution.divisions', $data + [
+        $data += [
             'branchFilter' => $branchFilter,
             'branchFilterLabel' => $branchFilter === null ? null : $stats->branchLabel($branchFilter),
             'rows' => $rows,
             'totals' => $totals,
             'integrityProblems' => $integrityProblems,
-        ]);
+        ];
+
+        if ($request->input('export') === 'csv') {
+            return $csv->divisions($data);
+        }
+
+        return view('reports.income-distribution.divisions', $data);
     }
 
     /**

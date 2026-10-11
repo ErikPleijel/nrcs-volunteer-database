@@ -8,12 +8,7 @@
 
     @php
         $naira = fn (int $kobo) => \App\Support\Naira::format($kobo);
-        $percent = fn (int $bp) => rtrim(rtrim(number_format($bp / 100, 2), '0'), '.').'%';
-        $ruleLabels = [
-            'standard' => 'Payments with a division',
-            'branch_level' => 'Payments with a branch but no division (e.g. organisations)',
-            'hq_only' => 'Payments with no branch',
-        ];
+        $ruleLabels = \App\Services\Reports\IncomeDistributionStatsService::RULE_LABELS;
     @endphp
 
     <div class="container mx-auto px-4 py-6">
@@ -97,18 +92,9 @@
                 <ul class="space-y-1 text-gray-700">
                     @foreach($percentageSets as $rule => $sets)
                         @foreach($sets as $set)
-                            @php
-                                $parts = ['HQ '.$percent($set['hq'])];
-                                if ($rule !== 'hq_only') {
-                                    $parts[] = 'Branch '.$percent($set['branch']);
-                                }
-                                if ($rule === 'standard') {
-                                    $parts[] = 'Division '.$percent($set['division']);
-                                }
-                            @endphp
                             <li>
                                 <span class="text-gray-500">{{ $ruleLabels[$rule] ?? $rule }}:</span>
-                                {{ implode(' / ', $parts) }}
+                                {{ \App\Services\Reports\IncomeDistributionStatsService::describePercentages($rule, $set) }}
                                 <span class="text-gray-400">({{ number_format($set['count']) }} {{ Str::plural('payment', $set['count']) }})</span>
                             </li>
                         @endforeach
@@ -117,7 +103,11 @@
             </div>
 
             {{-- ── BRANCH TABLE ──────────────────────────────────────────────── --}}
-            <div class="flex justify-end mb-3">
+            <div class="flex justify-end gap-2 mb-3">
+                <a href="{{ route('reports.income-distribution.index', ['tab' => 'online', 'quarter' => $selectedQuarter, 'export' => 'csv']) }}"
+                   class="filter-btn-secondary" data-testid="export-csv">
+                    <i class="fas fa-file-csv mr-1"></i>Export CSV
+                </a>
                 <a href="{{ route('reports.income-distribution.divisions', ['quarter' => $selectedQuarter]) }}"
                    class="inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-md shadow"
                    data-testid="division-level-button">

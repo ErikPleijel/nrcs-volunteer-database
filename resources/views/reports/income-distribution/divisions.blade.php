@@ -110,10 +110,19 @@
                                placeholder="Search division or branch…"
                                class="w-72 rounded-md border-2 border-gray-300 px-3 py-1.5 text-sm shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500">
                     </div>
-                    <p class="text-sm text-gray-600" data-testid="showing-count">
-                        Showing <span x-text="filtered.length">{{ $rows->count() }}</span>
-                        of {{ number_format($rows->count()) }} {{ Str::plural('division', $rows->count()) }}
-                    </p>
+                    <div class="flex items-center gap-4">
+                        <p class="text-sm text-gray-600" data-testid="showing-count">
+                            Showing <span x-text="filtered.length">{{ $rows->count() }}</span>
+                            of {{ number_format($rows->count()) }} {{ Str::plural('division', $rows->count()) }}
+                        </p>
+                        {{-- The search box is client-side only: the file always
+                             holds every division for this quarter and branch. --}}
+                        <a href="{{ route('reports.income-distribution.divisions', array_filter(['quarter' => $selectedQuarter, 'branch' => $branchFilter, 'export' => 'csv'])) }}"
+                           class="filter-btn-secondary" data-testid="export-csv"
+                           title="Exports every division for this quarter{{ $branchFilter !== null ? ' and branch' : '' }}, not only the search results">
+                            <i class="fas fa-file-csv mr-1"></i>Export CSV
+                        </a>
+                    </div>
                 </div>
 
                 <div class="overflow-x-auto rounded-lg shadow">

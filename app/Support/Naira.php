@@ -18,4 +18,16 @@ class Naira
 
         return $sign.($symbol ? '₦' : '').$naira;
     }
+
+    /**
+     * A plain decimal for CSV cells ("12345.67"): no symbol and no
+     * thousands separators, so spreadsheets read it as a number.
+     */
+    public static function decimal(int $kobo): string
+    {
+        $sign = $kobo < 0 ? '-' : '';
+        $kobo = abs($kobo);
+
+        return $sign.intdiv($kobo, 100).'.'.str_pad((string) ($kobo % 100), 2, '0', STR_PAD_LEFT);
+    }
 }
