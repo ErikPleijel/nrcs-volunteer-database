@@ -856,6 +856,10 @@ Route::middleware(['auth', 'verified.or.absent'])->group(function () {
                 ->name('income-distribution.index')
                 ->withoutMiddleware('can:view_reports')
                 ->middleware('can:view_income_distribution');
+            Route::get('income-distribution/divisions', [\App\Http\Controllers\Reports\IncomeDistributionReportController::class, 'divisions'])
+                ->name('income-distribution.divisions')
+                ->withoutMiddleware('can:view_reports')
+                ->middleware('can:view_income_distribution');
 
             // Breakdown: individual payments behind one Payments/Fee Breakdown
             // figure. Gated on the underlying data's own permission

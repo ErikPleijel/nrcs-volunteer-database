@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Reports;
 
 use App\Http\Controllers\Controller;
 use App\Services\Reports\IncomeDistributionStatsService;
+use App\Support\Naira;
 use Illuminate\Http\Request;
 
 /**
@@ -25,22 +26,8 @@ class IncomeDistributionReportController extends Controller
     {
         $activeTab = in_array($request->input('tab'), self::TABS, true) ? $request->input('tab') : 'online';
 
-        $quarterOptions = $stats->quarterOptions();
-        $defaultQuarter = $stats->defaultQuarter();
-        $selectedQuarter = (string) $request->input('quarter', $defaultQuarter);
-
-        // An unknown or malformed quarter falls back to the default rather
-        // than erroring — this is a query param, not validated user input.
-        if (! array_key_exists($selectedQuarter, $quarterOptions)) {
-            $selectedQuarter = $defaultQuarter;
-        }
-
-        $data = [
-            'activeTab' => $activeTab,
-            'quarterOptions' => $quarterOptions,
-            'selectedQuarter' => $selectedQuarter,
-            'quarterLabel' => $quarterOptions[$selectedQuarter] ?? str_replace('-', ' ', $selectedQuarter),
-        ];
+        $data = ['activeTab' => $activeTab] + $this->quarterData($request, $stats);
+        $selectedQuarter = $data['selectedQuarter'];
 
         if ($activeTab !== 'online') {
             return view('reports.income-distribution.index', $data);
@@ -81,5 +68,72 @@ class IncomeDistributionReportController extends Controller
             'percentagesChanged' => collect($percentageSets)->contains(fn (array $sets) => count($sets) > 1),
             'integrityProblems' => $integrityProblems,
         ]);
+    }
+
+    /**
+     * Division level: every division that receives a share in the quarter
+     * (optionally only those paid through one branch), for payouts. Bank
+     * details per division are planned as an extra column here later.
+     */
+    public function divisions(Request $request, IncomeDistributionStatsService $stats)
+    {
+        $data = $this->quarterData($request, $stats);
+        [$start, $end] = IncomeDistributionStatsService::quarterRange($data['selectedQuarter']);
+
+        // ?branch= is a payment's stored branch id, so a branch that no
+        // longer exists can still be filtered on. Anything that is not a
+        // positive whole number means "all branches".
+        $branchFilter = filter_var($request->query('branch'), FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) ?: null;
+
+        $rows = $stats->divisionRows($start, $end, $branchFilter);
+
+        $totals = [
+            'count' => $rows->sum('count'),
+            'net' => $rows->sum('net'),
+            'division' => $rows->sum('division_share'),
+        ];
+
+        // Should never happen: every division share belongs to a division
+        // row. Compared with the same figure Tab 1 shows (the quarter's, or
+        // the branch row's, division share total).
+        $expectedDivisionShare = $stats->headline($start, $end, $branchFilter)['division'];
+        $integrityProblems = $totals['division'] === $expectedDivisionShare ? [] : [
+            sprintf(
+                'The division shares here (%s) do not match the division share total on the branch level (%s).',
+                Naira::format($totals['division']),
+                Naira::format($expectedDivisionShare)
+            ),
+        ];
+
+        return view('reports.income-distribution.divisions', $data + [
+            'branchFilter' => $branchFilter,
+            'branchFilterLabel' => $branchFilter === null ? null : $stats->branchLabel($branchFilter),
+            'rows' => $rows,
+            'totals' => $totals,
+            'integrityProblems' => $integrityProblems,
+        ]);
+    }
+
+    /**
+     * The quarter selector shared by both levels: options, the selected
+     * quarter (an unknown or malformed ?quarter= falls back to the default
+     * rather than erroring — it is a query param, not validated user input)
+     * and whether it is still in progress.
+     */
+    private function quarterData(Request $request, IncomeDistributionStatsService $stats): array
+    {
+        $quarterOptions = $stats->quarterOptions();
+        $selectedQuarter = (string) $request->input('quarter', '');
+
+        if (! array_key_exists($selectedQuarter, $quarterOptions)) {
+            $selectedQuarter = $stats->defaultQuarter();
+        }
+
+        return [
+            'quarterOptions' => $quarterOptions,
+            'selectedQuarter' => $selectedQuarter,
+            'quarterLabel' => IncomeDistributionStatsService::quarterLabel($selectedQuarter),
+            'quarterInProgress' => IncomeDistributionStatsService::isInProgress($selectedQuarter),
+        ];
     }
 }

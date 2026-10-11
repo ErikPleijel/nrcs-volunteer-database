@@ -88,11 +88,11 @@ test('it runs in the local environment', function () {
     expect(DB::table('membership_payments')->count())->toBe(5);
 });
 
-test('it creates approved Paystack payments that look like the webhook made them', function () {
+test('with --edge-cases it creates approved Paystack payments that look like the webhook made them', function () {
     // Fixed seed: the personal/organisation/unit mix is random.
     mt_srand(20261011);
 
-    $this->artisan('payments:simulate', ['--count' => 60, '--from' => '2025-01-01', '--to' => '2026-09-30'])
+    $this->artisan('payments:simulate', ['--count' => 60, '--from' => '2025-01-01', '--to' => '2026-09-30', '--edge-cases' => true])
         ->assertSuccessful();
 
     $payments = MembershipPayment::withAnyApprovalStatus()->get();
@@ -123,12 +123,30 @@ test('it creates approved Paystack payments that look like the webhook made them
             ->toBe($payment->paid_at->format('Y-m-d H:i:s'));
     }
 
-    // All three rules, every branch, and organisation and unit payments appear.
+    // With --edge-cases: all three rules, every branch, and organisation and unit payments appear.
     expect($payments->pluck('distribution_rule')->unique()->sort()->values()->all())->toBe(['branch_level', 'hq_only', 'standard'])
         ->and($payments->pluck('branch_id')->filter()->unique()->count())->toBe(3)
         ->and($payments->whereNotNull('red_cross_unit_id')->count())->toBeGreaterThan(0)
         ->and($payments->whereNotNull('organisation_id')->count())->toBeGreaterThan(0)
         ->and($payments->where('id_card_included', true)->count())->toBeGreaterThan(0);
+});
+
+test('by default every payment has a branch and division, organisation payments a branch only', function () {
+    mt_srand(20261011);
+
+    $this->artisan('payments:simulate', ['--count' => 60])->assertSuccessful();
+
+    $payments = MembershipPayment::withAnyApprovalStatus()->get();
+    $organisationPayments = $payments->whereNotNull('organisation_id');
+    $otherPayments = $payments->whereNull('organisation_id');
+
+    expect($payments)->toHaveCount(60)
+        ->and($organisationPayments->count())->toBeGreaterThan(0)
+        ->and($payments->whereNull('branch_id')->count())->toBe(0)
+        ->and($organisationPayments->pluck('division_id')->unique()->values()->all())->toBe([null])
+        ->and($organisationPayments->pluck('distribution_rule')->unique()->values()->all())->toBe(['branch_level'])
+        ->and($otherPayments->whereNull('division_id')->count())->toBe(0)
+        ->and($otherPayments->pluck('distribution_rule')->unique()->values()->all())->toBe(['standard']);
 });
 
 test('it does not touch the payers\' lifecycle status', function () {

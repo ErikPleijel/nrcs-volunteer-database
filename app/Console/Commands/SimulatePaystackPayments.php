@@ -31,6 +31,7 @@ class SimulatePaystackPayments extends Command
                             {--count=500 : Number of payments to create}
                             {--from= : Earliest payment date, Y-m-d (default 2025-01-01)}
                             {--to= : Latest payment date, Y-m-d (default now)}
+                            {--edge-cases : Also create payments with no division / no branch (normally every payment has both, organisation payments a branch only)}
                             {--purge : Delete all simulated (SIM-) payments and nothing else}';
 
     protected $description = 'Create simulated Paystack membership payments for testing the Income Distribution report (local/testing only)';
@@ -181,6 +182,9 @@ class SimulatePaystackPayments extends Command
     {
         $divisions = DB::table('users')
             ->join('divisions', 'divisions.id', '=', 'users.division_id')
+            // A division without a branch would send the payment to HQ only;
+            // that is an --edge-cases payment, not a normal one.
+            ->whereNotNull('divisions.branch_id')
             ->where('users.lifecycle_status', '!=', 'archived')
             ->groupBy('users.division_id', 'divisions.branch_id')
             ->select('users.division_id', 'divisions.branch_id', DB::raw('COUNT(*) as members'))
@@ -190,7 +194,12 @@ class SimulatePaystackPayments extends Command
             'divisions' => $divisions,
             'byBranch' => $divisions->groupBy('branch_id'),
             'organisations' => DB::table('organisations')->whereNull('deleted_at')->whereNotNull('branch_id')->pluck('id'),
-            'units' => DB::table('red_cross_units')->where('is_active', true)->whereNotNull('division_id')->whereNotNull('team_leader_user_id')->pluck('team_leader_user_id', 'id'),
+            'units' => DB::table('red_cross_units')
+                ->join('divisions', 'divisions.id', '=', 'red_cross_units.division_id')
+                ->whereNotNull('divisions.branch_id')
+                ->where('red_cross_units.is_active', true)
+                ->whereNotNull('red_cross_units.team_leader_user_id')
+                ->pluck('red_cross_units.team_leader_user_id', 'red_cross_units.id'),
             'userBranchNoDivision' => DB::table('users')->where('lifecycle_status', '!=', 'archived')->whereNotNull('branch_id')->whereNull('division_id')->value('id'),
             'userNoBranch' => DB::table('users')->where('lifecycle_status', '!=', 'archived')->whereNull('branch_id')->whereNull('division_id')->value('id'),
             'unitNoDivision' => DB::table('red_cross_units')->whereNull('division_id')->value('id'),
@@ -199,15 +208,18 @@ class SimulatePaystackPayments extends Command
 
     /**
      * One plan per payment: who pays, for what, and the branch/division the
-     * webhook would store. The first payments cover every branch and the
-     * three edge cases; the rest are ~80% personal, ~10% organisation and
-     * ~10% unit.
+     * webhook would store. The first payments cover every branch (and,
+     * with --edge-cases, the three edge cases); the rest are ~80% personal,
+     * ~10% organisation and ~10% unit. Without --edge-cases every payment
+     * has a branch and division, organisation payments a branch only.
      */
     private function plan(int $count, array $fees, array $payers): array
     {
         $plans = [];
 
-        foreach ($this->edgeCasePlans($fees, $payers) as $plan) {
+        $edgeCases = $this->option('edge-cases') ? $this->edgeCasePlans($fees, $payers) : [];
+
+        foreach ($edgeCases as $plan) {
             if (count($plans) < $count) {
                 $plans[] = $plan;
             }

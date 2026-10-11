@@ -173,14 +173,16 @@ test('only approved, not deleted Paystack payments paid in the quarter count', f
         ->and(viewIncomeReport(['quarter' => '2026-Q4'])->viewData('headline')['net'])->toBe(666_600);
 });
 
-test('the quarter list runs from the first Paystack payment to now; the default is the latest quarter with income', function () {
+test('the quarter list runs from the first Paystack payment to now; the default is the latest FINISHED quarter with income', function () {
     incomePayment(100_000, $this->kano->id, $this->kanoDivision->id, '2025-02-10 10:00:00');
     incomePayment(100_000, $this->kano->id, $this->kanoDivision->id, '2026-08-10 10:00:00');
+    // Income in the current quarter (2026 Q4) does not make it the default.
+    incomePayment(100_000, $this->kano->id, $this->kanoDivision->id, '2026-10-05 10:00:00');
 
     $response = viewIncomeReport();
 
     expect($response->viewData('quarterOptions'))->toBe([
-        '2026-Q4' => '2026 Q4',
+        '2026-Q4' => '2026 Q4 (in progress)',
         '2026-Q3' => '2026 Q3',
         '2026-Q2' => '2026 Q2',
         '2026-Q1' => '2026 Q1',
@@ -195,11 +197,45 @@ test('the quarter list runs from the first Paystack payment to now; the default 
         ->and(viewIncomeReport(['quarter' => 'garbage'])->viewData('selectedQuarter'))->toBe('2026-Q3');
 });
 
-test('with no Paystack income at all, the current quarter is shown empty', function () {
+test('with no Paystack income at all, the current quarter is shown empty, with the in-progress note', function () {
     viewIncomeReport()
         ->assertOk()
         ->assertViewHas('selectedQuarter', '2026-Q4')
-        ->assertSee('No online payments in 2026 Q4.');
+        ->assertSee('No online payments in 2026 Q4.')
+        ->assertSee('This quarter is not finished yet. Figures will change. Do not transfer money based on these numbers.');
+});
+
+test('with income only in the current quarter, that quarter is the default', function () {
+    incomePayment(100_000, $this->kano->id, $this->kanoDivision->id, '2026-10-05 10:00:00');
+
+    viewIncomeReport()->assertViewHas('selectedQuarter', '2026-Q4');
+});
+
+test('the in-progress note shows for the current quarter only', function () {
+    incomePayment(100_000, $this->kano->id, $this->kanoDivision->id, '2026-08-10 10:00:00');
+    incomePayment(100_000, $this->kano->id, $this->kanoDivision->id, '2026-10-05 10:00:00');
+    $note = 'This quarter is not finished yet. Figures will change. Do not transfer money based on these numbers.';
+
+    viewIncomeReport(['quarter' => '2026-Q4'])
+        ->assertViewHas('quarterInProgress', true)
+        ->assertSee('2026 Q4 (in progress)')
+        ->assertSee($note);
+
+    viewIncomeReport(['quarter' => '2026-Q3'])
+        ->assertViewHas('quarterInProgress', false)
+        ->assertDontSee($note);
+
+    $this->actingAs($this->admin)
+        ->get(route('reports.income-distribution.divisions', ['quarter' => '2026-Q4']))
+        ->assertSee($note);
+});
+
+test('the organisation column is called From Organisation', function () {
+    incomePayment(100_000, $this->kano->id, $this->kanoDivision->id, '2026-08-10 10:00:00');
+
+    viewIncomeReport(['quarter' => '2026-Q3'])
+        ->assertSee('From Organisation')
+        ->assertDontSee('of which organisations');
 });
 
 test('the percentages used are shown, with a note when they changed during the quarter', function () {
@@ -234,4 +270,135 @@ test('the manual payments tab is a placeholder', function () {
         ->assertOk()
         ->assertSee('Manual payments (branches)')
         ->assertSee('Coming later.');
+});
+
+/*
+|--------------------------------------------------------------------------
+| Division level (reports.income-distribution.divisions)
+|--------------------------------------------------------------------------
+*/
+
+function viewDivisions(array $query = [])
+{
+    return test()->actingAs(test()->admin)->get(route('reports.income-distribution.divisions', $query));
+}
+
+test('the branch level links to the division level, for all branches and per branch', function () {
+    incomePayment(1_000_000, $this->kano->id, $this->kanoDivision->id, '2026-07-10 09:00:00');
+    incomePayment(300_000, 999_998, 999_999, '2026-07-20 10:00:00');
+    incomePayment(100_000, null, null, '2026-09-01 10:00:00');
+
+    $response = viewIncomeReport(['quarter' => '2026-Q3']);
+
+    $response->assertSee('View division level')
+        ->assertSee(e(route('reports.income-distribution.divisions', ['quarter' => '2026-Q3'])), false)
+        ->assertSee(e(route('reports.income-distribution.divisions', ['quarter' => '2026-Q3', 'branch' => $this->kano->id])), false)
+        ->assertSee(e(route('reports.income-distribution.divisions', ['quarter' => '2026-Q3', 'branch' => 999_998])), false);
+
+    // "No branch (to HQ)" has no divisions, so no link: only Kano and the deleted branch.
+    expect(substr_count($response->getContent(), 'divisions?quarter=2026-Q3&amp;branch='))->toBe(2);
+});
+
+test('every division with a share is listed, and the division shares add up to the branch level total', function () {
+    $secondKanoDivision = Division::create(['name' => 'Fagge', 'branch_id' => $this->kano->id]);
+
+    incomePayment(1_000_000, $this->kano->id, $this->kanoDivision->id, '2026-07-10 09:00:00');
+    incomePayment(500_001, $this->kano->id, $this->kanoDivision->id, '2026-08-01 12:00:00');
+    incomePayment(200_000, $this->kano->id, $secondKanoDivision->id, '2026-08-02 12:00:00');
+    incomePayment(400_000, $this->abia->id, $this->abiaDivision->id, '2026-09-15 08:00:00');
+    incomePayment(300_000, 999_998, 999_999, '2026-07-20 10:00:00');
+
+    // No division share: organisation (branch level) and no-branch payments.
+    $organisation = Organisation::create(['name' => 'Sponsor Org', 'branch_id' => $this->abia->id]);
+    incomePayment(2_000_000, $this->abia->id, null, '2026-08-20 10:00:00', ['organisation_id' => $organisation->id]);
+    incomePayment(100_000, null, null, '2026-09-01 10:00:00');
+
+    // Outside the quarter.
+    incomePayment(700_000, $this->kano->id, $this->kanoDivision->id, '2026-06-30 23:59:59');
+
+    $response = viewDivisions(['quarter' => '2026-Q3'])->assertOk();
+    $rows = $response->viewData('rows');
+
+    expect($rows->map(fn ($r) => $r['branch'].' / '.$r['division'])->all())->toBe([
+        'Abia / Aba North',
+        'Deleted branch #999998 / Deleted division #999999',
+        'Kano / Fagge',
+        'Kano / Kano Municipal',
+    ]);
+
+    $kanoMunicipal = $rows[3];
+    expect($kanoMunicipal['count'])->toBe(2)
+        ->and($kanoMunicipal['net'])->toBe(1_500_001)
+        ->and($kanoMunicipal['division_share'])->toBe(500_000 + 250_000);
+
+    $branchLevelDivisionTotal = viewIncomeReport(['quarter' => '2026-Q3'])->viewData('totals')['division'];
+    expect($response->viewData('totals')['division'])->toBe($branchLevelDivisionTotal)
+        ->and($response->viewData('integrityProblems'))->toBe([]);
+
+    $response->assertSee('Deleted division #999999')
+        ->assertSee('of 4 divisions')
+        ->assertDontSee('do not add up');
+});
+
+test('filtered by branch, the division shares equal that branch row on the branch level', function () {
+    $secondKanoDivision = Division::create(['name' => 'Fagge', 'branch_id' => $this->kano->id]);
+    incomePayment(1_000_000, $this->kano->id, $this->kanoDivision->id, '2026-07-10 09:00:00');
+    incomePayment(200_003, $this->kano->id, $secondKanoDivision->id, '2026-08-02 12:00:00');
+    incomePayment(400_000, $this->abia->id, $this->abiaDivision->id, '2026-09-15 08:00:00');
+    incomePayment(300_000, 999_998, 999_999, '2026-07-20 10:00:00');
+
+    $branchRows = viewIncomeReport(['quarter' => '2026-Q3'])->viewData('rows')->keyBy('label');
+
+    $kano = viewDivisions(['quarter' => '2026-Q3', 'branch' => $this->kano->id]);
+    expect($kano->viewData('rows')->pluck('division')->all())->toBe(['Fagge', 'Kano Municipal'])
+        ->and($kano->viewData('totals')['division'])->toBe($branchRows['Kano']['division'])
+        ->and($kano->viewData('integrityProblems'))->toBe([]);
+    $kano->assertSee('Show all branches')->assertViewHas('branchFilterLabel', 'Kano');
+
+    // A branch that no longer exists can still be opened.
+    $deleted = viewDivisions(['quarter' => '2026-Q3', 'branch' => 999_998]);
+    expect($deleted->viewData('rows')->pluck('division')->all())->toBe(['Deleted division #999999'])
+        ->and($deleted->viewData('totals')['division'])->toBe($branchRows['Deleted branch #999998']['division'])
+        ->and($deleted->viewData('branchFilterLabel'))->toBe('Deleted branch #999998');
+});
+
+test('an invalid branch filter shows all branches', function (string $branch) {
+    incomePayment(1_000_000, $this->kano->id, $this->kanoDivision->id, '2026-07-10 09:00:00');
+    incomePayment(400_000, $this->abia->id, $this->abiaDivision->id, '2026-09-15 08:00:00');
+
+    $response = viewDivisions(['quarter' => '2026-Q3', 'branch' => $branch]);
+
+    expect($response->viewData('branchFilter'))->toBeNull()
+        ->and($response->viewData('rows'))->toHaveCount(2);
+})->with(['text' => ['abc'], 'zero' => ['0'], 'negative' => ['-3']]);
+
+test('the division level warns in red if a division share has no division', function () {
+    incomePayment(1_000_000, $this->kano->id, $this->kanoDivision->id, '2026-07-10 09:00:00');
+    // Corrupt: a standard-rule share with no division to pay it to.
+    incomePayment(1_000_000, $this->kano->id, $this->kanoDivision->id, '2026-07-11 09:00:00', ['division_id' => null]);
+
+    viewDivisions(['quarter' => '2026-Q3'])
+        ->assertSee('The figures on this page do not add up.')
+        ->assertSee('do not match the division share total on the branch level');
+});
+
+test('the division level needs view_income_distribution and shows an empty state', function () {
+    $branchAdmin = User::factory()->create();
+    $branchAdmin->assignRole('branch_db_administrator');
+
+    $this->actingAs($branchAdmin)->get(route('reports.income-distribution.divisions'))->assertForbidden();
+
+    viewDivisions(['quarter' => '2026-Q4'])->assertOk()->assertSee('No division received a share in 2026 Q4.');
+});
+
+test('the division table carries every row for client-side search and sort', function () {
+    incomePayment(1_000_000, $this->kano->id, $this->kanoDivision->id, '2026-07-10 09:00:00');
+    incomePayment(400_000, $this->abia->id, $this->abiaDivision->id, '2026-09-15 08:00:00');
+
+    viewDivisions(['quarter' => '2026-Q3'])
+        ->assertSee('x-data="incomeDivisionTable(', false)
+        ->assertSee('Kano Municipal')
+        ->assertSee('Aba North')
+        ->assertSee('Search division or branch')
+        ->assertSee('TOTAL');
 });

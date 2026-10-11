@@ -32,13 +32,14 @@ class IncomeDistributionStatsService
 
     /**
      * Every quarter from the earliest Paystack payment's to the current
-     * one, newest first: ['2026-Q3' => '2026 Q3', ...].
+     * one, newest first: ['2026-Q4' => '2026 Q4 (in progress)',
+     * '2026-Q3' => '2026 Q3', ...].
      *
      * @return array<string, string>
      */
     public function quarterOptions(): array
     {
-        $current = Carbon::now()->firstOfQuarter()->startOfDay();
+        $current = self::currentQuarterStart();
         $earliest = $this->baseQuery()->min('paid_at');
         $first = $earliest ? Carbon::parse($earliest)->firstOfQuarter()->startOfDay() : $current->copy();
 
@@ -48,21 +49,42 @@ class IncomeDistributionStatsService
 
         $options = [];
         for ($q = $current->copy(); $q->gte($first); $q->subQuarter()) {
-            $options[self::quarterKey($q)] = $q->year.' Q'.$q->quarter;
+            $key = self::quarterKey($q);
+            $options[$key] = self::quarterLabel($key).(self::isInProgress($key) ? ' (in progress)' : '');
         }
 
         return $options;
     }
 
     /**
-     * The latest quarter with Paystack income, or the current quarter when
-     * there is none.
+     * The latest FINISHED quarter with Paystack income, so nobody is shown
+     * figures that will still change unless they choose to. The current
+     * quarter only when no finished quarter has income yet.
      */
     public function defaultQuarter(): string
     {
-        $latest = $this->baseQuery()->max('paid_at');
+        $latestFinished = $this->baseQuery()
+            ->where('membership_payments.paid_at', '<', self::currentQuarterStart())
+            ->max('paid_at');
 
-        return self::quarterKey($latest ? Carbon::parse($latest) : Carbon::now());
+        return self::quarterKey($latestFinished ? Carbon::parse($latestFinished) : Carbon::now());
+    }
+
+    /** Whether the quarter has not ended yet: its figures will still change. */
+    public static function isInProgress(string $key): bool
+    {
+        return $key === self::quarterKey(Carbon::now());
+    }
+
+    /** '2026-Q3' => '2026 Q3'. */
+    public static function quarterLabel(string $key): string
+    {
+        return str_replace('-', ' ', $key);
+    }
+
+    private static function currentQuarterStart(): Carbon
+    {
+        return Carbon::now()->firstOfQuarter()->startOfDay();
     }
 
     /**
@@ -93,9 +115,10 @@ class IncomeDistributionStatsService
      *
      * @return array{count: int, paid: int, fees: int, net: int, hq: int, branch: int, division: int}
      */
-    public function headline(Carbon $start, Carbon $end): array
+    public function headline(Carbon $start, Carbon $end, ?int $branchId = null): array
     {
         $row = $this->inQuarter($start, $end)
+            ->when($branchId !== null, fn (Builder $q) => $q->where('membership_payments.branch_id', $branchId))
             ->selectRaw($this->sumColumns())
             ->first();
 
@@ -141,6 +164,58 @@ class IncomeDistributionStatsService
                 $row['kind'] === 'branch' ? mb_strtolower($row['label']) : str_pad((string) $row['id'], 12, '0', STR_PAD_LEFT),
             ])
             ->values();
+    }
+
+    /**
+     * One row per division that receives a share in the quarter, grouped by
+     * the division AND branch stored on the payments (so a ?branch= filter
+     * matches that branch's row on the branch level exactly). Only the
+     * standard rule gives a division a share. A division or branch that no
+     * longer exists shows as "Deleted division #id" / "Deleted branch #id".
+     * Sorted by branch, then division.
+     *
+     * @return Collection<int, array<string, mixed>>
+     */
+    public function divisionRows(Carbon $start, Carbon $end, ?int $branchId = null): Collection
+    {
+        return $this->inQuarter($start, $end)
+            ->where('membership_payments.distribution_rule', 'standard')
+            ->whereNotNull('membership_payments.division_id')
+            ->when($branchId !== null, fn (Builder $q) => $q->where('membership_payments.branch_id', $branchId))
+            ->leftJoin('divisions', 'divisions.id', '=', 'membership_payments.division_id')
+            ->leftJoin('branches', 'branches.id', '=', 'membership_payments.branch_id')
+            ->groupBy('membership_payments.division_id', 'membership_payments.branch_id', 'divisions.name', 'branches.name')
+            ->havingRaw('SUM(membership_payments.division_share_kobo) > 0')
+            ->select(
+                'membership_payments.division_id',
+                'membership_payments.branch_id',
+                'divisions.name as division_name',
+                'branches.name as branch_name',
+                DB::raw('COUNT(*) as payments'),
+                DB::raw('COALESCE(SUM(membership_payments.net_kobo), 0) as net'),
+                DB::raw('COALESCE(SUM(membership_payments.division_share_kobo), 0) as division_share'),
+            )
+            ->get()
+            ->map(fn ($row) => [
+                'division_id' => (int) $row->division_id,
+                'division' => $row->division_name ?? "Deleted division #{$row->division_id}",
+                'division_deleted' => $row->division_name === null,
+                'branch_id' => $row->branch_id === null ? null : (int) $row->branch_id,
+                'branch' => $row->branch_id === null
+                    ? 'No branch'
+                    : ($row->branch_name ?? "Deleted branch #{$row->branch_id}"),
+                'count' => (int) $row->payments,
+                'net' => (int) $row->net,
+                'division_share' => (int) $row->division_share,
+            ])
+            ->sortBy(fn (array $row) => [mb_strtolower($row['branch']), mb_strtolower($row['division']), $row['division_id']])
+            ->values();
+    }
+
+    /** A branch's name, or "Deleted branch #id" if it no longer exists. */
+    public function branchLabel(int $branchId): string
+    {
+        return DB::table('branches')->where('id', $branchId)->value('name') ?? "Deleted branch #{$branchId}";
     }
 
     /**

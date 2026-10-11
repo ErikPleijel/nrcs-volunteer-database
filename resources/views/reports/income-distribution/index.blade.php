@@ -40,18 +40,11 @@
             <p class="text-center text-gray-400 italic py-12">Coming later.</p>
         @else
 
-        {{-- ── QUARTER SELECTOR ─────────────────────────────────────────────── --}}
-        <div class="flex flex-col items-center gap-2 mb-4">
-            <form action="{{ route('reports.income-distribution.index') }}" method="GET" class="flex items-center gap-2">
-                <input type="hidden" name="tab" value="online">
-                <label for="quarter" class="filter-label-small mb-0">Quarter</label>
-                <select name="quarter" id="quarter" class="filter-select-small" onchange="this.form.submit()">
-                    @foreach($quarterOptions as $key => $label)
-                        <option value="{{ $key }}" @selected($selectedQuarter === $key)>{{ $label }}</option>
-                    @endforeach
-                </select>
-            </form>
-        </div>
+        {{-- ── QUARTER SELECTOR (+ in-progress warning) ──────────────────────── --}}
+        @include('reports.income-distribution.partials.quarter-selector', [
+            'action' => route('reports.income-distribution.index'),
+            'hidden' => ['tab' => 'online'],
+        ])
 
         <div class="text-center mb-6">
             <span class="text-2xl font-bold text-gray-900">{{ $quarterLabel }} &mdash; Online payments (Paystack)</span>
@@ -124,6 +117,13 @@
             </div>
 
             {{-- ── BRANCH TABLE ──────────────────────────────────────────────── --}}
+            <div class="flex justify-end mb-3">
+                <a href="{{ route('reports.income-distribution.divisions', ['quarter' => $selectedQuarter]) }}"
+                   class="inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-md shadow"
+                   data-testid="division-level-button">
+                    <i class="fas fa-sitemap mr-2"></i>View division level
+                </a>
+            </div>
             <div class="overflow-x-auto rounded-lg shadow">
                 <table class="min-w-full text-sm bg-white" data-testid="branch-table">
                     <thead>
@@ -136,13 +136,24 @@
                             <th class="px-3 py-2 text-right border-l border-gray-200">HQ share</th>
                             <th class="px-3 py-2 text-right">Branch share</th>
                             <th class="px-3 py-2 text-right">Division share</th>
-                            <th class="px-3 py-2 text-right border-l border-gray-200">of which organisations (net)</th>
+                            <th class="px-3 py-2 text-right border-l border-gray-200" title="Net income from organisation payments, included in Net received">From Organisation</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100">
                         @foreach($rows as $row)
                             <tr class="hover:bg-gray-50 {{ $row['kind'] !== 'branch' ? 'italic text-gray-600' : '' }}">
-                                <td class="px-4 py-2 text-gray-900 whitespace-nowrap">{{ $row['label'] }}</td>
+                                <td class="px-4 py-2 text-gray-900 whitespace-nowrap">
+                                    {{-- No link for "No branch (to HQ)": it has no divisions. --}}
+                                    @if($row['id'] !== null)
+                                        <a href="{{ route('reports.income-distribution.divisions', ['quarter' => $selectedQuarter, 'branch' => $row['id']]) }}"
+                                           class="font-semibold text-blue-700 hover:text-blue-900 hover:underline"
+                                           title="Divisions paid through {{ $row['label'] }}">
+                                            {{ $row['label'] }}
+                                        </a>
+                                    @else
+                                        {{ $row['label'] }}
+                                    @endif
+                                </td>
                                 <td class="px-3 py-2 text-right">{{ number_format($row['count']) }}</td>
                                 <td class="px-3 py-2 text-right whitespace-nowrap">{{ $naira($row['paid']) }}</td>
                                 <td class="px-3 py-2 text-right whitespace-nowrap">{{ $naira($row['fees']) }}</td>
