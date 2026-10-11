@@ -33,7 +33,33 @@ ADAPT procedure accordingly. This might need changes:
   must print `+01:00`. (A local import once ran while MySQL was on a
   European zone with summer time, which put legacy `decided_at` values one
   hour early for summer dates; left as it is by decision, 2026-10-11.)
-- [ ] Do data migration procedure in MIGRATION.md
+- [ ] Do the data migration procedure in docs/migration.md, section
+  "Run (in order)", part A, step by step. In short:
+  1. time zone check (`+01:00`)
+  2. `php artisan migrate:fresh`
+  3. `php -d memory_limit=2048M artisan migrate:old-db --table=all` —
+     this runs **db:seed itself** and, last,
+     `payments:backfill-manual-shares` (Income Distribution Tab 2 shares on
+     the imported manual payments; its report must list no payments that
+     "could not be filled")
+  4. `php artisan migrate` → "Nothing to migrate"
+  5. phone duplicate clean-up
+  6. `php artisan db:seed --class=UserTokenSeeder`
+  7. `php artisan stats:backfill --from=2018-06-01`
+  8. photos (`php artisan images:migrate`)
+  9. `php artisan lifecycle:reconcile --apply`
+  10. final checks: `php artisan payments:backfill-manual-shares --dry-run`
+      → "Nothing to fill"; `php artisan divisions:check-coordinates` →
+      review; encrypt check; the data integrity checks below
+- [ ] ⚠️ Never run `php artisan db:seed` without `--class` by hand — it is
+  already part of migrate:old-db, and after go-live it would reset admin
+  edits (most settings, campaign purpose templates, role permissions,
+  branch/division coordinates, first-aid training types). Only the single
+  seeders named in this checklist / docs/migration.md, with `--class`.
+- [ ] Legacy Income Distribution shares use the default percentages
+  (25/25/50, 25/75). If NRCS wants other percentages for the comparison
+  quarters, decide that before the import — stored shares are never
+  recalculated.
 
 
 ### Data integrity checks
@@ -144,6 +170,17 @@ For DB-273857: since it holds a finance role and would be the one archived, don'
   is written in UTC), so imported times read the same on the VPS.
 - php artisan config:clear
 - php artisan config:cache
+
+### Final checks on the server (in this order)
+- [ ] `php artisan tinker --execute='echo DB::select("select @@session.time_zone tz")[0]->tz;'` → `+01:00`
+- [ ] `php artisan migrate --force` → "Nothing to migrate" (or only
+  migrations newer than the import)
+- [ ] `php artisan db:seed --class=SuperAdminSeeder` (see above; the only
+  seeder to run on the server)
+- [ ] `php artisan payments:backfill-manual-shares --dry-run` → "Nothing to fill"
+- [ ] `php artisan divisions:check-coordinates` → the same list as on the
+  migration machine
+- [ ] Spot-check row counts (users, activities, trainings, membership_payments)
 
 ### Other
   [ ] Set cron jobs (as www-data user):

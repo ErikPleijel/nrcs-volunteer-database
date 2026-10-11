@@ -253,6 +253,10 @@ class MigrateOldDatabase extends Command
         // (FirstAidTrainingTypesSeeder flags is_first_aid) â€” safe to backfill now.
         $this->backfillLastFirstAidAt();
 
+        // Last, after db:seed (Fee distribution settings in place) and every
+        // import: income shares on the imported manual payments.
+        $this->backfillManualPaymentShares();
+
         $this->info('ðŸŽ‰ Complete database migration finished successfully!');
         $this->showOverallStatistics();
     }
@@ -407,6 +411,21 @@ class MigrateOldDatabase extends Command
         }
 
         Artisan::call('migrate:membership-payments', $options);
+        $this->line(Artisan::output());
+
+        $this->backfillManualPaymentShares();
+    }
+
+    /**
+     * Income Distribution: amount, shares and accounting date for the
+     * imported (already approved) manual payments. Safe to repeat — only
+     * rows without shares are filled. Uses the Fee distribution percentages
+     * in force now (the defaults on a fresh database).
+     */
+    private function backfillManualPaymentShares(): void
+    {
+        $this->info('Storing income shares on imported manual payments...');
+        Artisan::call('payments:backfill-manual-shares');
         $this->line(Artisan::output());
     }
 
