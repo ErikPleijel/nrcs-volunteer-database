@@ -24,6 +24,15 @@ ADAPT procedure accordingly. This might need changes:
 ### Migration
 - [ ] Download old database to local environment
 - [ ] php artisan key:generate and put APP_KEY on local .env  + NIN_HASH_KEY
+- [ ] MySQL time zone: both the app and the legacy (`old_db`) connections
+  set the MySQL session time zone to `+01:00` (`DB_TIMEZONE` in
+  config/database.php, default `+01:00` = Africa/Lagos, no summer time).
+  Leave `DB_TIMEZONE` unset in .env unless there is a reason. Check before
+  the import:
+  `php artisan tinker --execute='echo DB::select("select @@session.time_zone tz")[0]->tz;'`
+  must print `+01:00`. (A local import once ran while MySQL was on a
+  European zone with summer time, which put legacy `decided_at` values one
+  hour early for summer dates; left as it is by decision, 2026-10-11.)
 - [ ] Do data migration procedure in MIGRATION.md
 
 
@@ -128,6 +137,11 @@ For DB-273857: since it holds a finance role and would be the one archived, don'
     - [ ] Back up APP_KEY in a secure password manager, separate from `.env`.
 - [ ] Set IMAGE_MIGRATION_SOURCE in .env — this is read by config/services.php and MigrateUserImages.php but has never actually been configured in any environment. Confirm the expected value/format by checking MigrateUserImages.php before setting it."
 - [ ] Set NRCS_DB_MIGRATION_DATE
+- [ ] Do not set `DB_TIMEZONE` (the default `+01:00` is right). After
+  config:cache, check the VPS connection prints `+01:00`:
+  `php artisan tinker --execute='echo DB::select("select @@session.time_zone tz")[0]->tz;'`
+  A mysqldump/restore keeps TIMESTAMP values correct on its own (the dump
+  is written in UTC), so imported times read the same on the VPS.
 - php artisan config:clear
 - php artisan config:cache
 

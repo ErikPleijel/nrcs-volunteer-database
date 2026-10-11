@@ -57,6 +57,12 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
+            // MySQL converts TIMESTAMP columns using the session time zone.
+            // Pin it to the app timezone (Africa/Lagos = +01:00 all year, no
+            // summer time) so stored times never depend on the server's own
+            // zone. A fixed offset, because named zones need MySQL's
+            // time-zone tables, which XAMPP and many servers lack.
+            'timezone' => env('DB_TIMEZONE', '+01:00'),
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
@@ -76,6 +82,9 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
+            // Same session time zone as the mysql connection, so the legacy
+            // import reads and writes TIMESTAMPs in one zone.
+            'timezone' => env('DB_TIMEZONE', '+01:00'),
         ],
 
         'mariadb' => [
