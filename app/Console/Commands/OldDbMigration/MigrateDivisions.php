@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands\OldDbMigration;
 
+use App\Support\Divisions\DivisionNameCorrections;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -89,16 +90,7 @@ class MigrateDivisions extends Command
                                 }
                             }
 
-                            $newDivision = [
-                                'id'         => $division->DivisionID, // Preserve original ID
-                                'name'       => $this->cleanString($division->Division),
-                                'branch_id'  => $this->getBranchId($division->BranchID ?? null),
-                                'is_active'  => $this->convertBoolean($division->Include_in_list),
-                                'created_at' => now(),
-                                'updated_at' => now(),
-                            ];
-
-                            $divisionData[] = $newDivision;
+                            $divisionData[] = $this->buildDivisionRow($division);
                             $migratedCount++;
 
                         } catch (\Exception $e) {
@@ -147,6 +139,23 @@ class MigrateDivisions extends Command
         }
 
         return Command::SUCCESS;
+    }
+
+    /**
+     * The divisions row for one legacy division: original id kept, name
+     * trimmed and, for the known misspellings, corrected
+     * (DivisionNameCorrections).
+     */
+    public function buildDivisionRow(object $division): array
+    {
+        return [
+            'id'         => $division->DivisionID, // Preserve original ID
+            'name'       => DivisionNameCorrections::apply((int) $division->DivisionID, $this->cleanString($division->Division)),
+            'branch_id'  => $this->getBranchId($division->BranchID ?? null),
+            'is_active'  => $this->convertBoolean($division->Include_in_list),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
     }
 
     private function getBranchId($oldBranchId)

@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Support\Divisions\DivisionCoordinateAliases;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -16,8 +17,8 @@ class DivisionCoordinatesSeeder extends Seeder
         $divisionCache = [];
 
         foreach ($this->csvData() as [$csvName, $csvState, $lat, $lng]) {
-            $stateName = $this->applyBranchAlias($csvState);
-            $divName   = $this->applyDivisionAlias($csvName, $csvState);
+            $stateName = DivisionCoordinateAliases::branch($csvState);
+            $divName   = DivisionCoordinateAliases::division($csvName, $csvState);
 
             $branch = $branches[strtolower($stateName)] ?? null;
             if (! $branch) {
@@ -28,10 +29,10 @@ class DivisionCoordinatesSeeder extends Seeder
                 $divisionCache[$branch->id] = DB::table('divisions')
                     ->where('branch_id', $branch->id)
                     ->get()
-                    ->keyBy(fn ($d) => $this->normalizeKey($d->name));
+                    ->keyBy(fn ($d) => DivisionCoordinateAliases::key($d->name));
             }
 
-            $key      = $this->normalizeKey($divName);
+            $key      = DivisionCoordinateAliases::key($divName);
             $division = $divisionCache[$branch->id][$key] ?? null;
             if (! $division) {
                 continue;
@@ -51,78 +52,6 @@ class DivisionCoordinatesSeeder extends Seeder
             'longitude'  => 4.744235,   // 4.724235 + 0.020
             'updated_at' => now(),
         ]);
-    }
-
-    // -------------------------------------------------------------------------
-    // Alias helpers (mirror ImportDivisionCoordinatesFromCsv)
-    // -------------------------------------------------------------------------
-
-    private function applyBranchAlias(string $stateName): string
-    {
-        return [
-            'federal capital territory' => 'FCT',
-            'f.c.t.'                    => 'FCT',
-            'abuja fct'                 => 'FCT',
-        ][strtolower(trim($stateName))] ?? $stateName;
-    }
-
-    private function applyDivisionAlias(string $name, string $stateName): string
-    {
-        $key      = strtolower(trim($name));
-        $stateKey = strtolower(trim($stateName));
-
-        if ($stateKey === 'federal capital territory' && $key === 'abuja') {
-            return 'Abuja Municipal';
-        }
-
-        return [
-            'southern ijaw'       => 'Southern Jaw',
-            'yenagoa'             => 'Yenegoa',
-            'otukpo'              => 'Oturkpo',
-            'bekwarra'            => 'Bekwara',
-            'izzi'                => 'Ngbo',
-            'ikwo'                => 'lkwo',
-            'orhionmwon'          => 'Orhionwon',
-            'ado-ekiti'           => 'Ado',
-            'emure'               => 'Emure/Ise/Orun',
-            'irepodun/ifelodun'   => 'Irepodun',
-            'igbo etiti'          => 'Igbo-Ekiti',
-            'shongom'             => 'Shomgom',
-            'ezinihitte mbaise'   => 'Ezinihitte',
-            'birnin kudu'         => 'Birni Kudu',
-            'kiri kasama'         => 'Kiri Kasamma',
-            'birnin gwari'        => 'Birni-Gwari',
-            'zangon kataf'        => 'Zango-Kataf',
-            'garun malam'         => 'Garum Malam',
-            'nasarawa'            => 'Nassarawa',
-            'matazu'              => 'Matazuu',
-            'aliero'              => 'Aleiro',
-            'danko-wasagu'        => 'Wasagu/Danko',
-            'ogori/magongo'       => 'Ogori/Mangongo',
-            'ifako-ijaiye'        => 'Ifako-Ijaye',
-            'somolu'              => 'Shomolu',
-            'nasarawa egon'       => 'Nasarawa-Eggon',
-            'ile oluji/okeigbo'   => 'Ile-Oluji',
-            'ayedaade'            => 'Aiyedade',
-            'atakunmosa east'     => 'Atakumosa East',
-            'atakunmosa west'     => 'Atakumosa West',
-            'ilesa east'          => 'Ilesha East',
-            'ilesa west'          => 'Ilesha West',
-            'ogbomosho south'     => 'Ogbmosho South',
-            'oorelope'            => 'Orelope',
-            'ogbomosho north'     => 'Ogbomoso North',
-            'barkin ladi'         => 'Barikin Ladi',
-            'isuikwuato'          => 'Isuikwato',
-            'warri south west'    => 'Warri-South West',
-            'obio/akpor'          => 'Obia/Akpor',
-            'omuma'               => 'Omumma',
-            'birnin magaji/kiyaw' => 'Birnin Magaji',
-        ][$key] ?? $name;
-    }
-
-    private function normalizeKey(string $name): string
-    {
-        return preg_replace('/[^a-z0-9]+/u', '', mb_strtolower($name)) ?? '';
     }
 
     // -------------------------------------------------------------------------

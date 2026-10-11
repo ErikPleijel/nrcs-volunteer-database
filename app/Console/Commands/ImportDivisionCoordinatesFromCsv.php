@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Support\Divisions\DivisionCoordinateAliases;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
@@ -113,8 +114,8 @@ class ImportDivisionCoordinatesFromCsv extends Command
             }
 
             // Apply spelling aliases on CSV side (division + state)
-            $stateNameForMatch = $this->applyBranchAlias($stateNameRaw);
-            $csvNameForMatch   = $this->applyDivisionAlias($nameRaw, $stateNameRaw);
+            $stateNameForMatch = DivisionCoordinateAliases::branch($stateNameRaw);
+            $csvNameForMatch   = DivisionCoordinateAliases::division($nameRaw, $stateNameRaw);
 
             // 1. Find branch by state_name (case-insensitive, with alias)
             $branchId = DB::table('branches')
@@ -136,7 +137,7 @@ class ImportDivisionCoordinatesFromCsv extends Command
 
                 $map = [];
                 foreach ($divisionsForBranch as $div) {
-                    $key = $this->normalizeKey($div->name);
+                    $key = DivisionCoordinateAliases::key($div->name);
                     if ($key !== '') {
                         $map[$key] = $div;
                     }
@@ -146,7 +147,7 @@ class ImportDivisionCoordinatesFromCsv extends Command
             }
 
             $branchMap = $divisionsCache[$branchId];
-            $searchKey = $this->normalizeKey($csvNameForMatch);
+            $searchKey = DivisionCoordinateAliases::key($csvNameForMatch);
 
             $division = $branchMap[$searchKey] ?? null;
 
@@ -284,142 +285,5 @@ class ImportDivisionCoordinatesFromCsv extends Command
 
         // Return as string; MySQL will cast into decimal(10,8 / 11,8)
         return $value;
-    }
-
-    /**
-     * Normalize a name for comparison:
-     * - lowercase
-     * - remove all non a–z / 0–9 characters (spaces, hyphens, punctuation)
-     */
-    private function normalizeKey(string $name): string
-    {
-        $name = mb_strtolower($name);
-        // remove everything except letters and digits
-        $name = preg_replace('/[^a-z0-9]+/u', '', $name);
-
-        return $name ?? '';
-    }
-
-    /**
-     * Apply manual alias fixes for truly different spellings (CSV -> DB).
-     */
-    private function applyDivisionAlias(string $name, string $stateName): string
-    {
-        $key = strtolower(trim($name));
-        $stateKey  = strtolower(trim($stateName));
-        // Special case: FCT Abuja -> Abuja Municipal
-        if ($stateKey === 'federal capital territory' && $key === 'abuja') {
-            return 'Abuja Municipal';
-        }
-
-
-        $aliases = [
-            // Bayelsa
-            'southern ijaw'           => 'Southern Jaw',
-            'yenagoa'                 => 'Yenegoa',
-
-            // Benue
-            'otukpo'                  => 'Oturkpo',
-
-            // Cross River
-            'bekwarra'                => 'Bekwara',
-
-            // Ebonyi
-            'izzi'                    => 'Ngbo',          // special case you noted
-            'ikwo'                    => 'lkwo',
-
-            // Edo
-            'orhionmwon'              => 'Orhionwon',
-
-            // Ekiti
-            'ado-ekiti'               => 'Ado',
-            'emure'                   => 'Emure/Ise/Orun',
-            'irepodun/ifelodun'       => 'Irepodun',
-
-            // Enugu
-            'igbo etiti'              => 'Igbo-Ekiti',
-
-            // Gombe
-            'shongom'                 => 'Shomgom',
-
-            // Imo
-            'ezinihitte mbaise'       => 'Ezinihitte',
-
-            // Jigawa
-            'birnin kudu'             => 'Birni Kudu',
-            'kiri kasama'             => 'Kiri Kasamma',
-
-            // Kaduna
-            'birnin gwari'            => 'Birni-Gwari',
-            'zangon kataf'            => 'Zango-Kataf',
-
-            // Kano
-            'garun malam'             => 'Garum Malam',
-            'nasarawa'                => 'Nassarawa',
-
-            // Katsina
-            'matazu'                  => 'Matazuu',
-
-            // Kebbi
-            'aliero'                  => 'Aleiro',
-            'danko-wasagu'            => 'Wasagu/Danko',
-
-            // Kogi
-            'ogori/magongo'           => 'Ogori/Mangongo',
-
-            // Lagos
-            'ifako-ijaiye'            => 'Ifako-Ijaye',
-            'somolu'                  => 'Shomolu',
-
-            // Nasarawa
-            'nasarawa egon'           => 'Nasarawa-Eggon',
-
-            // Ondo
-            'ile oluji/okeigbo'       => 'Ile-Oluji', // choose Ile-Oluji as target
-
-            // Osun
-            'ayedaade'                => 'Aiyedade',
-            'atakunmosa east'         => 'Atakumosa East',
-            'atakunmosa west'         => 'Atakumosa West',
-            'ilesa east'              => 'Ilesha East',
-            'ilesa west'              => 'Ilesha West',
-
-            // Oyo
-            'ogbomosho south'         => 'Ogbmosho South',
-            'oorelope'                => 'Orelope',
-            'ogbomosho north'         => 'Ogbomoso North',
-
-            // Plateau
-            'barkin ladi'             => 'Barikin Ladi',
-
-            'isuikwuato' => 'Isuikwato',
-            'warri south west' => 'Warri-South West',
-
-            // Rivers
-            'obio/akpor'              => 'Obia/Akpor',
-            'omuma'                   => 'Omumma',
-
-            // Zamfara
-            'birnin magaji/kiyaw'     => 'Birnin Magaji',
-        ];
-
-        return $aliases[$key] ?? $name;
-    }
-
-    /**
-     * Apply alias for state/branch names (CSV -> branches.name).
-     * Mainly for FCT / Federal Capital Territory.
-     */
-    private function applyBranchAlias(string $stateName): string
-    {
-        $key = strtolower(trim($stateName));
-
-        $aliases = [
-            'federal capital territory' => 'FCT',
-            'f.c.t.'                    => 'FCT',
-            'abuja fct'                 => 'FCT',
-        ];
-
-        return $aliases[$key] ?? $stateName;
     }
 }
