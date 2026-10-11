@@ -108,7 +108,8 @@ class BackfillManualPaymentShares extends Command
                     (bool) $row->id_card_included,
                     $row->branch_id === null ? null : (int) $row->branch_id,
                     $row->division_id === null ? null : (int) $row->division_id,
-                    $percentages,
+                    isOrganisation: $row->organisation_id !== null,
+                    percentages: $percentages,
                 ) + ['accounting_date' => substr((string) $accountingDate, 0, 10)];
 
                 $updates[$row->id] = $columns;
@@ -160,7 +161,7 @@ class BackfillManualPaymentShares extends Command
             ->where('approval_status', 'approved')
             ->where($this->notDeleted())
             ->whereNull('distribution_rule')
-            ->select(['id', 'membership_fee_id', 'id_card_included', 'branch_id', 'division_id', 'payment_date', 'decided_at', 'decided_by_user_id']);
+            ->select(['id', 'membership_fee_id', 'id_card_included', 'organisation_id', 'branch_id', 'division_id', 'payment_date', 'decided_at', 'decided_by_user_id']);
     }
 
     /** @return list<string> */

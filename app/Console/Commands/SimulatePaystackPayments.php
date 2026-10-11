@@ -429,7 +429,7 @@ class SimulatePaystackPayments extends Command
         ];
 
         $branchId = IncomeDistributionCalculator::resolveBranchId($plan['branch_id'], $plan['division_id']);
-        $distribution = IncomeDistributionCalculator::paymentColumns($amountKobo, $feeKobo, $paidAt, $branchId, $plan['division_id']);
+        $distribution = IncomeDistributionCalculator::paymentColumns($amountKobo, $feeKobo, $paidAt, $branchId, $plan['division_id'], $plan['organisation_id'] !== null);
         $paymentDate = $paidAt->copy()->startOfDay();
 
         $row = [

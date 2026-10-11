@@ -107,3 +107,22 @@ test('percentages that do not add up to 100 are refused', function () {
         'branch_level' => ['hq' => 25, 'branch' => 75],
     ]);
 })->throws(InvalidArgumentException::class);
+
+test('an organisation payment is always branch level, even with a division stored', function (?int $divisionId) {
+    expect(IncomeDistributionCalculator::calculate(1_000_000, 1, $divisionId, DEFAULT_SPLIT, isOrganisation: true))->toBe([
+        'distribution_rule' => 'branch_level',
+        'hq_pct_bp' => 2500,
+        'branch_pct_bp' => 7500,
+        'division_pct_bp' => 0,
+        'hq_share_kobo' => 250_000,
+        'branch_share_kobo' => 750_000,
+        'division_share_kobo' => 0,
+    ]);
+})->with([
+    'division stored' => [2],
+    'no division' => [null],
+]);
+
+test('an organisation payment without a branch still goes to HQ', function () {
+    expect(IncomeDistributionCalculator::calculate(1_000_000, null, 2, DEFAULT_SPLIT, isOrganisation: true)['distribution_rule'])->toBe('hq_only');
+});

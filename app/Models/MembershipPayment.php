@@ -193,6 +193,7 @@ class MembershipPayment extends Model
             (bool) $this->id_card_included,
             $this->branch_id,
             $this->division_id,
+            isOrganisation: $this->organisation_id !== null,
         ) + [
             'accounting_date' => ($this->decided_at ?? now())->copy()->setTimezone(config('app.timezone'))->toDateString(),
         ])->save();

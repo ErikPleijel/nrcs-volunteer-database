@@ -468,6 +468,7 @@ class PaystackPaymentController extends Controller
                             paidAt: $this->verifiedPaidAt($verified, $transaction),
                             branchId: $branchId,
                             divisionId: $divisionId,
+                            isOrganisation: $transaction->organisation_id !== null,
                         ));
                     } else {
                         $record = Donation::create([
