@@ -67,27 +67,6 @@
                 </div>
             @endforeach
 
-            <div class="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
-                <div class="bg-gray-50 border-b border-gray-200 px-6 py-4">
-                    <h3 class="text-base font-semibold text-gray-900">Manual payments (collected by branches)</h3>
-                </div>
-                <div class="px-6 py-5 space-y-2">
-                    <div class="flex items-center gap-3">
-                        <label for="manual-go-live-date" class="text-sm font-medium text-gray-700">Go-live date</label>
-                        <input type="date"
-                               id="manual-go-live-date"
-                               name="manual_go_live_date"
-                               value="{{ old('manual_go_live_date', $manualGoLiveDate) }}"
-                               class="rounded-md border-2 border-gray-300 px-2 py-1 text-sm shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500">
-                    </div>
-                    <p class="text-sm text-gray-500">
-                        From this day, manual payments are shared out for real using the percentages above.
-                        Earlier quarters are shown in the Income Distribution report as estimates for comparison only.
-                        Leave empty until manual payments go live.
-                    </p>
-                </div>
-            </div>
-
             <div class="flex justify-end pt-4">
                 <button type="submit"
                         class="inline-flex items-center px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-md shadow transition">

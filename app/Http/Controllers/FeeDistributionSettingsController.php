@@ -35,7 +35,6 @@ class FeeDistributionSettingsController extends Controller
             'percentages' => FeeDistributionSettings::percentages(),
             'ruleLabels' => self::RULE_LABELS,
             'partyLabels' => self::PARTY_LABELS,
-            'manualGoLiveDate' => FeeDistributionSettings::manualGoLiveDate()?->toDateString(),
         ]);
     }
 
@@ -49,9 +48,6 @@ class FeeDistributionSettingsController extends Controller
                 $attributes["percentages.{$rule}.{$party}"] = self::PARTY_LABELS[$party].' ('.strtolower(self::RULE_LABELS[$rule]).')';
             }
         }
-        // Optional in the request: left unchanged when not sent.
-        $rules['manual_go_live_date'] = ['nullable', 'date_format:Y-m-d'];
-        $attributes['manual_go_live_date'] = 'manual payments go-live date';
 
         $validated = validator($request->all(), $rules, [], $attributes)
             ->after(function (Validator $validator) {
@@ -75,7 +71,7 @@ class FeeDistributionSettingsController extends Controller
             })
             ->validate();
 
-        DB::transaction(function () use ($validated, $request) {
+        DB::transaction(function () use ($validated) {
             foreach (FeeDistributionSettings::DEFAULTS as $rule => $parties) {
                 foreach (array_keys($parties) as $party) {
                     $this->saveSetting(
@@ -84,10 +80,6 @@ class FeeDistributionSettingsController extends Controller
                         'int'
                     );
                 }
-            }
-
-            if ($request->has('manual_go_live_date')) {
-                $this->saveSetting(FeeDistributionSettings::MANUAL_GO_LIVE_KEY, (string) ($validated['manual_go_live_date'] ?? ''), 'date');
             }
         });
 

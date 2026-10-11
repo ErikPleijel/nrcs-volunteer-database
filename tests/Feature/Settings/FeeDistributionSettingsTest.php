@@ -52,7 +52,6 @@ function saveFeeDistribution(array $payload, ?User $user = null)
 }
 
 test('the migration installs the five settings with the default split', function () {
-    // The group also holds the manual payments go-live date (ManualGoLiveSettingTest).
     expect(Setting::where('group', 'fee_distribution')->where('type', 'int')->pluck('value', 'key')->all())->toEqual([
         'fee_distribution.standard.hq' => '25',
         'fee_distribution.standard.branch' => '25',

@@ -110,6 +110,9 @@ Follow DEPLOYMENT_CHECKLIST.md ("Upload DB to VPS", "Deploy files", "Set
    --> php artisan payments:backfill-manual-shares --dry-run   → "Nothing to fill"
    --> php artisan divisions:check-coordinates      → same list as on the migration machine
    --> spot-check row counts (users, activities, trainings, membership_payments)
+   --> MANUAL_GO_LIVE_DATE stays empty in .env until manual payments go live.
+       On go-live day: set MANUAL_GO_LIVE_DATE=YYYY-MM-DD (that day), then
+       php artisan config:cache. Never change it afterwards.
 
 Encrypt check: - [ ] mysql -u root -e "USE redcross_volunteer; SELECT
 SUM(CASE WHEN personal_info IS NOT NULL AND personal_info NOT LIKE 'eyJpdiI6%' THEN 1 ELSE 0 END) AS personal_info_unencrypted,

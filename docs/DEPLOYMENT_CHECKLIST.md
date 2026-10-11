@@ -163,6 +163,11 @@ For DB-273857: since it holds a finance role and would be the one archived, don'
     - [ ] Back up APP_KEY in a secure password manager, separate from `.env`.
 - [ ] Set IMAGE_MIGRATION_SOURCE in .env — this is read by config/services.php and MigrateUserImages.php but has never actually been configured in any environment. Confirm the expected value/format by checking MigrateUserImages.php before setting it."
 - [ ] Set NRCS_DB_MIGRATION_DATE
+- [ ] `MANUAL_GO_LIVE_DATE` (Income Distribution, manual payments): leave
+  it empty until the day manual (branch-collected) payments start being
+  shared out for real. On that go-live day set it to that date
+  (`MANUAL_GO_LIVE_DATE=YYYY-MM-DD`), then `php artisan config:cache`.
+  Quarters before it are shown as estimates; never change it afterwards.
 - [ ] Do not set `DB_TIMEZONE` (the default `+01:00` is right). After
   config:cache, check the VPS connection prints `+01:00`:
   `php artisan tinker --execute='echo DB::select("select @@session.time_zone tz")[0]->tz;'`

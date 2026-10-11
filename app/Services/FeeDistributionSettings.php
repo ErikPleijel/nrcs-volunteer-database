@@ -4,6 +4,8 @@ namespace App\Services;
 
 use App\Models\Setting;
 use Carbon\CarbonImmutable;
+use Carbon\Exceptions\InvalidFormatException;
+use Illuminate\Support\Facades\Log;
 
 /**
  * The percentages that split online (Paystack) membership income between
@@ -19,13 +21,6 @@ use Carbon\CarbonImmutable;
 class FeeDistributionSettings
 {
     public const GROUP = 'fee_distribution';
-
-    /**
-     * The day manual (staff-entered) payments start being shared out for
-     * real (Y-m-d, empty until set). Payments counted before it are shown
-     * as estimates for comparison only.
-     */
-    public const MANUAL_GO_LIVE_KEY = self::GROUP.'.manual_go_live_date';
 
     /** rule => party => default whole percentage. */
     public const DEFAULTS = [
@@ -73,15 +68,31 @@ class FeeDistributionSettings
     }
 
     /**
-     * The manual payments go-live date (start of that day, app timezone),
-     * or null while it is not set — then every manual payment counts as
-     * before go-live.
+     * The day manual (staff-entered) payments start being shared out for
+     * real: MANUAL_GO_LIVE_DATE in .env (Y-m-d), as the start of that day
+     * in Lagos time. Null while it is not set — then every manual payment
+     * counts as before go-live and is shown as an estimate for comparison.
      */
     public static function manualGoLiveDate(): ?CarbonImmutable
     {
-        $value = (string) Setting::get(self::MANUAL_GO_LIVE_KEY, '');
+        $value = trim((string) config('income.manual_go_live_date'));
+        if ($value === '') {
+            return null;
+        }
 
-        // The settings page only stores Y-m-d; anything else counts as unset.
-        return $value === '' ? null : (CarbonImmutable::createFromFormat('!Y-m-d', $value) ?: null);
+        try {
+            $date = CarbonImmutable::createFromFormat('!Y-m-d', $value, 'Africa/Lagos');
+        } catch (InvalidFormatException) {
+            $date = null;
+        }
+
+        // Anything other than a real Y-m-d date counts as unset.
+        if (! $date || $date->format('Y-m-d') !== $value) {
+            Log::warning('MANUAL_GO_LIVE_DATE is not a valid YYYY-MM-DD date; treated as not set.', ['value' => $value]);
+
+            return null;
+        }
+
+        return $date;
     }
 }
