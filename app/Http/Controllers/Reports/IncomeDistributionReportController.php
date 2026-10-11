@@ -14,11 +14,14 @@ use Illuminate\Support\Collection;
 /**
  * Income Distribution report: how a quarter's membership income is shared
  * between HQ, branches and divisions. Tab 1 covers online (Paystack)
- * payments; Tab 2 manual payments, collected by the branches.
+ * payments; Tab 2 manual payments, collected by the branches. Both have a
+ * branch level (index) and a division level (divisions, ?channel=manual
+ * for Tab 2).
  *
  * Who sees what: view_income_distribution (national DB administrators)
- * sees both tabs for every branch; view_income_distribution_branch (branch
- * secretary, branch DB administrator) sees Tab 2 only, for their own branch.
+ * sees every branch; view_income_distribution_branch (branch secretary,
+ * branch DB administrator) sees both tabs and both levels for their own
+ * branch only — any other branch is refused.
  *
  * Every figure is a sum of shares stored on the payments when they were
  * fulfilled or approved, so a closed quarter never changes. The page checks
@@ -32,71 +35,15 @@ class IncomeDistributionReportController extends Controller
 
     public function index(Request $request, IncomeDistributionStatsService $stats, IncomeDistributionCsv $csv)
     {
-        $user = $request->user();
-        $isNational = $user->can('view_income_distribution');
+        [$isNational, $branchScope] = $this->scope($request);
 
-        // Branch users: Tab 2, own branch only.
-        $branchScope = null;
-        if (! $isNational) {
-            abort_unless($user->can('view_income_distribution_branch'), 403);
-            $branchScope = $user->getScopedBranchId();
-            abort_if($branchScope === null, 403);
+        $activeTab = in_array($request->input('tab'), self::TABS, true) ? $request->input('tab') : 'online';
+        $isManual = $activeTab === 'manual';
+        if ($isManual) {
+            $stats = $stats->manual();
         }
 
-        $activeTab = $isNational
-            ? (in_array($request->input('tab'), self::TABS, true) ? $request->input('tab') : 'online')
-            : 'manual';
-
-        if ($activeTab === 'manual') {
-            return $this->manualTab($request, $stats->manual(), $isNational, $branchScope);
-        }
-
-        $data = ['activeTab' => $activeTab, 'isNational' => true] + $this->quarterData($request, $stats);
-        $selectedQuarter = $data['selectedQuarter'];
-
-        [$start, $end] = IncomeDistributionStatsService::quarterRange($selectedQuarter);
-
-        $headline = $stats->headline($start, $end);
-        $rows = $stats->branchRows($start, $end);
-        $percentageSets = $stats->percentageSets($start, $end);
-        $totals = $this->totals($rows);
-
-        $data += [
-            'headline' => $headline,
-            'rows' => $rows,
-            'totals' => $totals,
-            'percentageSets' => $percentageSets,
-            'percentagesChanged' => collect($percentageSets)->contains(fn (array $sets) => count($sets) > 1),
-            'integrityProblems' => $this->integrityProblems($headline, $rows, $totals, [
-                'count' => 'Payments',
-                'paid' => 'Paid by members',
-                'fees' => 'Paystack charges',
-                'net' => 'Net received',
-            ]),
-        ];
-
-        if ($request->input('export') === 'csv') {
-            return $csv->branches($data);
-        }
-
-        return view('reports.income-distribution.index', $data);
-    }
-
-    /**
-     * Tab 2: manual payments, which the branches collect themselves. Same
-     * layout as Tab 1, without Paystack charges (net = amount collected),
-     * plus the go-live notes: quarters before MANUAL_GO_LIVE_DATE are
-     * estimates; the quarter it falls in shows both parts separately.
-     */
-    private function manualTab(Request $request, IncomeDistributionStatsService $stats, bool $isNational, ?int $branchScope)
-    {
-        $data = [
-            'activeTab' => 'manual',
-            'isNational' => $isNational,
-            'branchScope' => $branchScope,
-            'branchScopeLabel' => $branchScope === null ? null : $stats->branchLabel($branchScope),
-        ] + $this->quarterData($request, $stats);
-
+        $data = ['activeTab' => $activeTab] + $this->commonData($request, $stats, $isNational, $branchScope);
         [$start, $end] = IncomeDistributionStatsService::quarterRange($data['selectedQuarter']);
 
         $headline = $stats->headline($start, $end, $branchScope);
@@ -104,25 +51,9 @@ class IncomeDistributionReportController extends Controller
         $percentageSets = $stats->percentageSets($start, $end, $branchScope);
         $totals = $this->totals($rows);
 
-        $goLive = FeeDistributionSettings::manualGoLiveDate();
-        $goLivePhase = IncomeDistributionStatsService::goLivePhase($start, $end, $goLive);
-
-        $transitionParts = null;
-        if ($goLivePhase === 'transition') {
-            $goLiveMoment = Carbon::instance($goLive);
-            $transitionParts = [
-                'before' => $stats->headline($start, $goLiveMoment, $branchScope),
-                'from' => $stats->headline($goLiveMoment, $end, $branchScope),
-            ];
-        }
-
-        $integrityProblems = $this->integrityProblems($headline, $rows, $totals, [
-            'count' => 'Payments',
-            'net' => 'Collected',
-        ]);
-        if ($transitionParts !== null && $transitionParts['before']['net'] + $transitionParts['from']['net'] !== $headline['net']) {
-            $integrityProblems[] = 'The amounts before and from go-live do not add up to the total collected.';
-        }
+        $integrityProblems = $this->integrityProblems($headline, $rows, $totals, $isManual
+            ? ['count' => 'Payments', 'net' => 'Collected']
+            : ['count' => 'Payments', 'paid' => 'Paid by members', 'fees' => 'Paystack charges', 'net' => 'Net received']);
 
         $data += [
             'headline' => $headline,
@@ -130,32 +61,65 @@ class IncomeDistributionReportController extends Controller
             'totals' => $totals,
             'percentageSets' => $percentageSets,
             'percentagesChanged' => collect($percentageSets)->contains(fn (array $sets) => count($sets) > 1),
-            'integrityProblems' => $integrityProblems,
-            'goLiveDate' => $goLive,
-            'goLivePhase' => $goLivePhase,
-            'transitionParts' => $transitionParts,
-            // .env mistakes and missing shares are for national admins to fix.
-            'goLiveDateInvalid' => $isNational && FeeDistributionSettings::manualGoLiveDateIsInvalid(),
-            'unsplitPayments' => $isNational ? $stats->unsplitManualPayments() : 0,
         ];
+
+        if ($isManual) {
+            $data += $this->goLiveData($start, $end, $isNational);
+
+            // The quarter the go-live date falls in: its two parts, shown
+            // under the headline total.
+            $data['transitionParts'] = null;
+            if ($data['goLivePhase'] === 'transition') {
+                $goLive = Carbon::instance($data['goLiveDate']);
+                $data['transitionParts'] = [
+                    'before' => $stats->headline($start, $goLive, $branchScope),
+                    'from' => $stats->headline($goLive, $end, $branchScope),
+                ];
+                if ($data['transitionParts']['before']['net'] + $data['transitionParts']['from']['net'] !== $headline['net']) {
+                    $integrityProblems[] = 'The amounts before and from go-live do not add up to the total collected.';
+                }
+            }
+
+            // Missing shares are for national admins to have fixed.
+            $data['unsplitPayments'] = $isNational ? $stats->unsplitManualPayments() : 0;
+        }
+
+        $data['integrityProblems'] = $integrityProblems;
+
+        if (! $isManual && $request->input('export') === 'csv') {
+            return $csv->branches($data);
+        }
 
         return view('reports.income-distribution.index', $data);
     }
 
     /**
      * Division level: every division that receives a share in the quarter
-     * (optionally only those paid through one branch), for payouts. Bank
-     * details per division are planned as an extra column here later.
+     * (optionally only those paid through one branch; always only the own
+     * branch for branch users), for payouts. Bank details per division are
+     * planned as an extra column here later.
      */
     public function divisions(Request $request, IncomeDistributionStatsService $stats, IncomeDistributionCsv $csv)
     {
-        $data = $this->quarterData($request, $stats);
-        [$start, $end] = IncomeDistributionStatsService::quarterRange($data['selectedQuarter']);
+        [$isNational, $branchScope] = $this->scope($request);
+
+        $channel = $request->query('channel') === 'manual' ? 'manual' : 'online';
+        $isManual = $channel === 'manual';
+        if ($isManual) {
+            $stats = $stats->manual();
+        }
 
         // ?branch= is a payment's stored branch id, so a branch that no
         // longer exists can still be filtered on. Anything that is not a
         // positive whole number means "all branches".
         $branchFilter = filter_var($request->query('branch'), FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) ?: null;
+        if ($branchScope !== null) {
+            abort_if($branchFilter !== null && $branchFilter !== $branchScope, 403);
+            $branchFilter = $branchScope;
+        }
+
+        $data = ['channel' => $channel] + $this->commonData($request, $stats, $isNational, $branchScope);
+        [$start, $end] = IncomeDistributionStatsService::quarterRange($data['selectedQuarter']);
 
         $rows = $stats->divisionRows($start, $end, $branchFilter);
 
@@ -166,8 +130,8 @@ class IncomeDistributionReportController extends Controller
         ];
 
         // Should never happen: every division share belongs to a division
-        // row. Compared with the same figure Tab 1 shows (the quarter's, or
-        // the branch row's, division share total).
+        // row. Compared with the same figure the branch level shows (the
+        // quarter's, or the branch row's, division share total).
         $expectedDivisionShare = $stats->headline($start, $end, $branchFilter)['division'];
         $integrityProblems = $totals['division'] === $expectedDivisionShare ? [] : [
             sprintf(
@@ -185,7 +149,11 @@ class IncomeDistributionReportController extends Controller
             'integrityProblems' => $integrityProblems,
         ];
 
-        if ($request->input('export') === 'csv') {
+        if ($isManual) {
+            $data += $this->goLiveData($start, $end, $isNational);
+        }
+
+        if (! $isManual && $request->input('export') === 'csv') {
             return $csv->divisions($data);
         }
 
@@ -193,12 +161,34 @@ class IncomeDistributionReportController extends Controller
     }
 
     /**
-     * The quarter selector shared by both levels: options, the selected
-     * quarter (an unknown or malformed ?quarter= falls back to the default
-     * rather than erroring — it is a query param, not validated user input)
-     * and whether it is still in progress.
+     * [is national, own branch id or null]. National admins see every
+     * branch; branch users their own; anyone else, or a branch user with
+     * no branch, is refused.
+     *
+     * @return array{0: bool, 1: int|null}
      */
-    private function quarterData(Request $request, IncomeDistributionStatsService $stats): array
+    private function scope(Request $request): array
+    {
+        $user = $request->user();
+
+        if ($user->can('view_income_distribution')) {
+            return [true, null];
+        }
+
+        abort_unless($user->can('view_income_distribution_branch'), 403);
+        $branchId = $user->getScopedBranchId();
+        abort_if($branchId === null, 403);
+
+        return [false, (int) $branchId];
+    }
+
+    /**
+     * What both levels of both tabs need: who is looking, the quarter
+     * selector (an unknown or malformed ?quarter= falls back to the default
+     * rather than erroring — it is a query param, not validated user input)
+     * and, for national admins, the payments dated before the first quarter.
+     */
+    private function commonData(Request $request, IncomeDistributionStatsService $stats, bool $isNational, ?int $branchScope): array
     {
         $quarterOptions = $stats->quarterOptions();
         $selectedQuarter = (string) $request->input('quarter', '');
@@ -208,10 +198,30 @@ class IncomeDistributionReportController extends Controller
         }
 
         return [
+            'isNational' => $isNational,
+            'branchScope' => $branchScope,
+            'branchScopeLabel' => $branchScope === null ? null : $stats->branchLabel($branchScope),
             'quarterOptions' => $quarterOptions,
             'selectedQuarter' => $selectedQuarter,
             'quarterLabel' => IncomeDistributionStatsService::quarterLabel($selectedQuarter),
             'quarterInProgress' => IncomeDistributionStatsService::isInProgress($selectedQuarter),
+            'paymentsBeforeFirstQuarter' => $isNational ? $stats->countBeforeFirstQuarter() : 0,
+        ];
+    }
+
+    /**
+     * Manual payments: where the quarter stands against MANUAL_GO_LIVE_DATE
+     * (before / transition / live), and — for national admins only — whether
+     * that .env value is set but invalid.
+     */
+    private function goLiveData(Carbon $start, Carbon $end, bool $isNational): array
+    {
+        $goLive = FeeDistributionSettings::manualGoLiveDate();
+
+        return [
+            'goLiveDate' => $goLive,
+            'goLivePhase' => IncomeDistributionStatsService::goLivePhase($start, $end, $goLive),
+            'goLiveDateInvalid' => $isNational && FeeDistributionSettings::manualGoLiveDateIsInvalid(),
         ];
     }
 

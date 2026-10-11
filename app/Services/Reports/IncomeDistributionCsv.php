@@ -18,14 +18,20 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class IncomeDistributionCsv
 {
     /**
-     * Branch level. $data is what the branch-level page receives.
+     * Branch level. $data is what the branch-level page receives; for a
+     * branch user that is their own branch's row only.
      */
     public function branches(array $data): StreamedResponse
     {
-        $filename = "income-distribution-{$data['selectedQuarter']}-branches.csv";
+        $branchLabel = $data['branchScopeLabel'] ?? null;
+        $scope = $branchLabel === null ? '' : '-'.(Str::slug($branchLabel) ?: 'branch-'.$data['branchScope']);
+        $filename = "income-distribution-{$data['selectedQuarter']}-branches{$scope}.csv";
 
-        return $this->download($filename, function ($out) use ($data) {
+        return $this->download($filename, function ($out) use ($data, $branchLabel) {
             $this->preamble($out, $data, 'Branch level');
+            if ($branchLabel !== null) {
+                fputcsv($out, ['Branch', $this->text($branchLabel)]);
+            }
 
             foreach ($data['percentageSets'] as $rule => $sets) {
                 foreach ($sets as $set) {

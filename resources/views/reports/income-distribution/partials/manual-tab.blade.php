@@ -6,14 +6,7 @@
     $statsClass = \App\Services\Reports\IncomeDistributionStatsService::class;
 @endphp
 
-{{-- ── .env MISTAKE (national admins only) ──────────────────────────────── --}}
-@if($goLiveDateInvalid)
-    <div class="bg-yellow-50 border-l-4 border-yellow-400 text-yellow-800 p-4 mb-6" role="alert" data-testid="invalid-go-live-note">
-        <p class="font-semibold">
-            <i class="fas fa-exclamation-triangle mr-1"></i>{{ $statsClass::INVALID_GO_LIVE_NOTE }}
-        </p>
-    </div>
-@endif
+@include('reports.income-distribution.partials.before-first-quarter-note')
 
 {{-- ── QUARTER SELECTOR (+ in-progress warning) ──────────────────────────── --}}
 @include('reports.income-distribution.partials.quarter-selector', [
@@ -27,16 +20,8 @@
     </span>
 </div>
 
-{{-- ── GO-LIVE NOTES ──────────────────────────────────────────────────────── --}}
-@if($goLivePhase === 'before')
-    <div class="bg-yellow-50 border-l-4 border-yellow-400 text-yellow-800 p-4 mb-6" role="note" data-testid="before-go-live-note">
-        <p class="font-semibold"><i class="fas fa-info-circle mr-1"></i>{{ $statsClass::BEFORE_GO_LIVE_NOTE }}</p>
-    </div>
-@elseif($goLivePhase === 'transition')
-    <div class="bg-yellow-50 border-l-4 border-yellow-400 text-yellow-800 p-4 mb-6" role="note" data-testid="transition-note">
-        <p class="font-semibold"><i class="fas fa-info-circle mr-1"></i>{{ $statsClass::transitionNote($goLiveDate) }}</p>
-    </div>
-@endif
+{{-- ── GO-LIVE NOTES (+ invalid .env value, national admins only) ─────────── --}}
+@include('reports.income-distribution.partials.go-live-notes')
 
 {{-- ── MISSING SHARES (national admins only; should be none) ──────────────── --}}
 @if($unsplitPayments > 0)
@@ -132,6 +117,13 @@
     </div>
 
     {{-- ── BRANCH TABLE ──────────────────────────────────────────────────── --}}
+    <div class="flex justify-end gap-2 mb-3">
+        <a href="{{ route('reports.income-distribution.divisions', array_filter(['channel' => 'manual', 'quarter' => $selectedQuarter, 'branch' => $branchScope])) }}"
+           class="inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-md shadow"
+           data-testid="division-level-button">
+            <i class="fas fa-sitemap mr-2"></i>View division level
+        </a>
+    </div>
     <div class="overflow-x-auto rounded-lg shadow">
         <table class="min-w-full text-sm bg-white" data-testid="branch-table">
             <thead>
@@ -148,7 +140,18 @@
             <tbody class="divide-y divide-gray-100">
                 @foreach($rows as $row)
                     <tr class="hover:bg-gray-50 {{ $row['kind'] !== 'branch' ? 'italic text-gray-600' : '' }}">
-                        <td class="px-4 py-2 text-gray-900 whitespace-nowrap font-semibold">{{ $row['label'] }}</td>
+                        <td class="px-4 py-2 text-gray-900 whitespace-nowrap">
+                            {{-- No link for "No branch (to HQ)": it has no divisions. --}}
+                            @if($row['id'] !== null)
+                                <a href="{{ route('reports.income-distribution.divisions', ['channel' => 'manual', 'quarter' => $selectedQuarter, 'branch' => $row['id']]) }}"
+                                   class="font-semibold text-blue-700 hover:text-blue-900 hover:underline"
+                                   title="Divisions paid through {{ $row['label'] }}">
+                                    {{ $row['label'] }}
+                                </a>
+                            @else
+                                {{ $row['label'] }}
+                            @endif
+                        </td>
                         <td class="px-3 py-2 text-right">{{ number_format($row['count']) }}</td>
                         <td class="px-3 py-2 text-right whitespace-nowrap font-semibold">{{ $naira($row['net']) }}</td>
                         <td class="px-3 py-2 text-right whitespace-nowrap border-l border-gray-200">{{ $naira($row['hq']) }}</td>

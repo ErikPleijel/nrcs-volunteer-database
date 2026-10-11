@@ -31,6 +31,12 @@ class IncomeDistributionStatsService
     private string $channel = self::CHANNEL_ONLINE;
 
     /** Shown on screen and in the CSV whenever the current quarter is selected. */
+    /**
+     * The first quarter the report offers: the old system started in 2016.
+     * Payments dated earlier are counted by countBeforeFirstQuarter().
+     */
+    public const FIRST_QUARTER = '2016-01-01';
+
     public const IN_PROGRESS_NOTE = 'This quarter is not finished yet. Figures will change. Do not transfer money based on these numbers.';
 
     /** Manual payments: a quarter that ends on or before the go-live date (or no go-live date yet). */
@@ -156,7 +162,7 @@ class IncomeDistributionStatsService
     }
 
     /**
-     * Every quarter from the earliest payment's to the current
+     * Every quarter from the earliest payment's (never before FIRST_QUARTER) to the current
      * one, newest first: ['2026-Q4' => '2026 Q4 (in progress)',
      * '2026-Q3' => '2026 Q3', ...].
      *
@@ -165,7 +171,9 @@ class IncomeDistributionStatsService
     public function quarterOptions(): array
     {
         $current = self::currentQuarterStart();
-        $earliest = $this->baseQuery()->min($this->dateColumn());
+        $earliest = $this->baseQuery()
+            ->where($this->dateColumn(), '>=', $this->bound(self::firstQuarterStart()))
+            ->min($this->dateColumn());
         $first = $earliest ? Carbon::parse($earliest)->firstOfQuarter()->startOfDay() : $current->copy();
 
         if ($first->gt($current)) {
@@ -189,6 +197,7 @@ class IncomeDistributionStatsService
     public function defaultQuarter(): string
     {
         $latestFinished = $this->baseQuery()
+            ->where($this->dateColumn(), '>=', $this->bound(self::firstQuarterStart()))
             ->where($this->dateColumn(), '<', $this->bound(self::currentQuarterStart()))
             ->max($this->dateColumn());
 
@@ -205,6 +214,22 @@ class IncomeDistributionStatsService
     public static function quarterLabel(string $key): string
     {
         return str_replace('-', ' ', $key);
+    }
+
+    /**
+     * Payments dated before FIRST_QUARTER: they belong to no quarter in the
+     * list, so the page points them out to national admins.
+     */
+    public function countBeforeFirstQuarter(): int
+    {
+        return $this->baseQuery()
+            ->where($this->dateColumn(), '<', $this->bound(self::firstQuarterStart()))
+            ->count();
+    }
+
+    private static function firstQuarterStart(): Carbon
+    {
+        return Carbon::parse(self::FIRST_QUARTER)->startOfDay();
     }
 
     private static function currentQuarterStart(): Carbon

@@ -203,17 +203,13 @@ test('approved manual payments without shares are flagged to national admins onl
         ->assertDontSee('no income shares yet');
 });
 
-test('a branch user sees only their own branch, only Tab 2, and not the division level', function () {
+test('a branch user sees both tabs, with only their own branch on Tab 2', function () {
     manualIncomePayment(1_000_000, $this->kano->id, $this->kanoDivision->id, '2026-08-01');
     manualIncomePayment(400_000, $this->abia->id, $this->abiaDivision->id, '2026-08-01');
     incomePaymentOnline($this->abia->id);
 
-    // Asking for Tab 1 still gives Tab 2.
-    $response = $this->actingAs($this->branchAdmin)
-        ->get(route('reports.income-distribution.index', ['tab' => 'online', 'quarter' => '2026-Q3']))
-        ->assertOk();
+    $response = viewManualTab(['quarter' => '2026-Q3'], $this->branchAdmin)->assertOk();
 
-    $response->assertViewHas('activeTab', 'manual');
     expect($response->viewData('rows')->pluck('label')->all())->toBe(['Kano'])
         ->and($response->viewData('headline')['net'])->toBe(1_000_000)
         ->and($response->viewData('integrityProblems'))->toBe([]);
@@ -221,12 +217,128 @@ test('a branch user sees only their own branch, only Tab 2, and not the division
     $response->assertSee('Manual payments — Kano')
         ->assertSee('Collected by the branch')
         ->assertDontSee('Abia')
-        ->assertDontSee('Online payments (Paystack)')
-        ->assertDontSee('id="income-distribution-tabs"', false);
+        ->assertSee('id="income-distribution-tabs"', false)
+        ->assertSee('Online payments (Paystack)')
+        ->assertSee(route('reports.income-distribution.divisions', ['channel' => 'manual', 'quarter' => '2026-Q3', 'branch' => $this->kano->id]));
+});
 
-    $this->actingAs($this->branchAdmin)
-        ->get(route('reports.income-distribution.divisions'))
-        ->assertForbidden();
+/*
+|--------------------------------------------------------------------------
+| Quarters start at 2016 Q1 (the old system started in 2016)
+|--------------------------------------------------------------------------
+*/
+
+test('the quarter list starts at 2016 Q1; earlier payments are in no quarter and national admins see a note', function () {
+    manualIncomePayment(100_000, $this->kano->id, $this->kanoDivision->id, '2010-08-24');
+    manualIncomePayment(100_000, $this->kano->id, $this->kanoDivision->id, '2015-12-31');
+    manualIncomePayment(100_000, $this->kano->id, $this->kanoDivision->id, '2014-02-24', ['is_deleted' => true]);
+    manualIncomePayment(100_000, $this->kano->id, $this->kanoDivision->id, '2016-02-01');
+
+    $response = viewManualTab(['quarter' => '2015-Q4'])->assertOk();
+
+    expect(array_key_last($response->viewData('quarterOptions')))->toBe('2016-Q1')
+        ->and($response->viewData('selectedQuarter'))->toBe('2016-Q1')
+        ->and($response->viewData('paymentsBeforeFirstQuarter'))->toBe(2);
+    $response->assertSee('2 older payments (before 2016, from paper records) are not included.')
+        ->assertDontSee('data-testid="before-first-quarter-note" role="alert"', false);
+
+    viewManualTab([], $this->branchAdmin)->assertOk()->assertDontSee('before 2016');
+
+    // Same notice on the division level.
+    $this->actingAs($this->admin)
+        ->get(route('reports.income-distribution.divisions', ['channel' => 'manual']))
+        ->assertSee('2 older payments (before 2016, from paper records) are not included.');
+});
+
+test('with no payments before 2016 there is no note; a single one reads in the singular', function () {
+    manualIncomePayment(100_000, $this->kano->id, $this->kanoDivision->id, '2016-01-01');
+    viewManualTab()->assertDontSee('before 2016');
+
+    manualIncomePayment(100_000, $this->kano->id, $this->kanoDivision->id, '2015-06-03');
+    viewManualTab()->assertSee('1 older payment (before 2016, from paper records) is not included.');
+});
+
+/*
+|--------------------------------------------------------------------------
+| Division level (?channel=manual)
+|--------------------------------------------------------------------------
+*/
+
+function viewManualDivisions(array $query = [], ?User $user = null)
+{
+    return test()->actingAs($user ?? test()->admin)
+        ->get(route('reports.income-distribution.divisions', ['channel' => 'manual'] + $query));
+}
+
+test('the manual division level lists manual division shares only, and they match Tab 2', function () {
+    manualIncomePayment(1_000_000, $this->kano->id, $this->kanoDivision->id, '2026-07-10');
+    manualIncomePayment(500_001, $this->kano->id, $this->kanoDivision->id, '2026-09-30');
+    manualIncomePayment(400_000, $this->abia->id, $this->abiaDivision->id, '2026-08-15');
+    manualIncomePayment(2_000_000, $this->abia->id, null, '2026-08-20');
+    incomePaymentOnline($this->abia->id);
+
+    $response = viewManualDivisions(['quarter' => '2026-Q3'])->assertOk();
+
+    $rows = $response->viewData('rows');
+    expect($rows->pluck('division')->all())->toBe(['Aba North', 'Kano Municipal'])
+        ->and($rows[1]['count'])->toBe(2)
+        ->and($rows[1]['net'])->toBe(1_500_001)
+        ->and($response->viewData('integrityProblems'))->toBe([]);
+
+    $tab2 = viewManualTab(['quarter' => '2026-Q3']);
+    expect($response->viewData('totals')['division'])->toBe($tab2->viewData('headline')['division']);
+
+    $response->assertSee('2026 Q3 &mdash; Manual payments &mdash; All branches', false)
+        ->assertSee('Collected')
+        ->assertDontSee('data-testid="export-csv"', false)
+        ->assertSee(route('reports.income-distribution.index', ['tab' => 'manual', 'quarter' => '2026-Q3']));
+
+    $kanoOnly = viewManualDivisions(['quarter' => '2026-Q3', 'branch' => $this->kano->id]);
+    expect($kanoOnly->viewData('rows')->pluck('division')->all())->toBe(['Kano Municipal']);
+    $kanoOnly->assertSee(route('reports.income-distribution.divisions', ['channel' => 'manual', 'quarter' => '2026-Q3']));
+});
+
+test('Tab 2 branch names link to the manual division level', function () {
+    manualIncomePayment(1_000_000, $this->kano->id, $this->kanoDivision->id, '2026-08-01');
+    manualIncomePayment(100_000, null, null, '2026-08-01');
+
+    viewManualTab(['quarter' => '2026-Q3'])
+        ->assertSee(route('reports.income-distribution.divisions', ['channel' => 'manual', 'quarter' => '2026-Q3', 'branch' => $this->kano->id]))
+        ->assertSee('No branch (to HQ)');
+});
+
+test('the manual division level shows the same go-live notes as Tab 2', function () {
+    manualIncomePayment(100_000, $this->kano->id, $this->kanoDivision->id, '2026-08-01');
+
+    viewManualDivisions(['quarter' => '2026-Q3'])->assertSee(IncomeDistributionStatsService::BEFORE_GO_LIVE_NOTE);
+
+    config(['income.manual_go_live_date' => '2026-08-15']);
+    viewManualDivisions(['quarter' => '2026-Q3'])
+        ->assertSee('Transition quarter: payments before 15 August 2026 are estimates based on fee prices; payments from 15 August 2026 are recorded amounts.')
+        ->assertDontSee(IncomeDistributionStatsService::BEFORE_GO_LIVE_NOTE);
+
+    config(['income.manual_go_live_date' => 'soon']);
+    viewManualDivisions(['quarter' => '2026-Q3'])->assertSee(IncomeDistributionStatsService::INVALID_GO_LIVE_NOTE);
+    viewManualDivisions(['quarter' => '2026-Q3'], $this->branchAdmin)->assertOk()->assertDontSee('MANUAL_GO_LIVE_DATE');
+
+    // Online division level: no manual notes.
+    $this->actingAs($this->admin)->get(route('reports.income-distribution.divisions'))
+        ->assertDontSee(IncomeDistributionStatsService::BEFORE_GO_LIVE_NOTE)
+        ->assertDontSee('MANUAL_GO_LIVE_DATE');
+});
+
+test('a branch user sees only their own branch\'s manual divisions; another branch is refused', function () {
+    manualIncomePayment(1_000_000, $this->kano->id, $this->kanoDivision->id, '2026-08-01');
+    manualIncomePayment(400_000, $this->abia->id, $this->abiaDivision->id, '2026-08-01');
+
+    // No ?branch= : forced to their own.
+    $response = viewManualDivisions(['quarter' => '2026-Q3'], $this->branchAdmin)->assertOk();
+    expect($response->viewData('branchFilter'))->toBe($this->kano->id)
+        ->and($response->viewData('rows')->pluck('division')->all())->toBe(['Kano Municipal']);
+    $response->assertDontSee('Aba North')->assertDontSee('Show all branches');
+
+    viewManualDivisions(['quarter' => '2026-Q3', 'branch' => $this->kano->id], $this->branchAdmin)->assertOk();
+    viewManualDivisions(['quarter' => '2026-Q3', 'branch' => $this->abia->id], $this->branchAdmin)->assertForbidden();
 });
 
 test('users without either permission, or a branch user with no branch, are refused', function () {

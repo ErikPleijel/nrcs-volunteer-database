@@ -384,7 +384,7 @@ test('the division level warns in red if a division share has no division', func
         ->assertSee('do not match the division share total on the branch level');
 });
 
-test('the division level needs view_income_distribution and shows an empty state', function () {
+test('the division level needs one of the two permissions and shows an empty state', function () {
     $branchAdmin = User::factory()->create();
     $branchAdmin->assignRole('branch_db_administrator');
 
@@ -530,7 +530,7 @@ test('names that a spreadsheet would run as a formula are neutralised', function
         ->and(csvRow($rows, '=HYPERLINK("http://x","y")'))->toBeNull();
 });
 
-test('both exports need view_income_distribution', function () {
+test('both exports need one of the two permissions', function () {
     $branchAdmin = User::factory()->create();
     $branchAdmin->assignRole('branch_db_administrator');
 
@@ -558,4 +558,103 @@ test('the division table carries every row for client-side search and sort', fun
         ->assertSee('Aba North')
         ->assertSee('Search division or branch')
         ->assertSee('TOTAL');
+});
+
+/*
+|--------------------------------------------------------------------------
+| Branch users (view_income_distribution_branch): own branch only
+|--------------------------------------------------------------------------
+*/
+
+function kanoBranchUser(): User
+{
+    Permission::findOrCreate('view_income_distribution_branch', 'web');
+    Role::findOrCreate('branch_secretary', 'web')->syncPermissions(['view_income_distribution_branch']);
+    app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+    $user = User::factory()->create(['branch_id' => test()->kano->id, 'division_id' => test()->kanoDivision->id]);
+    $user->assignRole('branch_secretary');
+
+    return $user;
+}
+
+test('a branch user sees Tab 1 for their own branch only', function () {
+    incomePayment(1_000_000, $this->kano->id, $this->kanoDivision->id, '2026-07-10 09:00:00');
+    incomePayment(400_000, $this->abia->id, $this->abiaDivision->id, '2026-08-10 09:00:00');
+    incomePayment(100_000, null, null, '2026-08-11 09:00:00');
+    $user = kanoBranchUser();
+
+    $response = $this->actingAs($user)
+        ->get(route('reports.income-distribution.index', ['quarter' => '2026-Q3']))
+        ->assertOk();
+
+    expect($response->viewData('activeTab'))->toBe('online')
+        ->and($response->viewData('rows')->pluck('label')->all())->toBe(['Kano'])
+        ->and($response->viewData('headline')['net'])->toBe(1_000_000)
+        ->and($response->viewData('integrityProblems'))->toBe([]);
+
+    $response->assertSee('Online payments (Paystack) — Kano')
+        ->assertSee('Manual payments (branches)')
+        ->assertDontSee('Abia')
+        ->assertDontSee('No branch (to HQ)')
+        ->assertSee(route('reports.income-distribution.divisions', ['quarter' => '2026-Q3', 'branch' => $this->kano->id]));
+});
+
+test('a branch user sees their own branch\'s divisions on Tab 1; another branch is refused', function () {
+    incomePayment(1_000_000, $this->kano->id, $this->kanoDivision->id, '2026-07-10 09:00:00');
+    incomePayment(400_000, $this->abia->id, $this->abiaDivision->id, '2026-08-10 09:00:00');
+    $user = kanoBranchUser();
+
+    $response = $this->actingAs($user)
+        ->get(route('reports.income-distribution.divisions', ['quarter' => '2026-Q3']))
+        ->assertOk();
+
+    expect($response->viewData('branchFilter'))->toBe($this->kano->id)
+        ->and($response->viewData('rows')->pluck('division')->all())->toBe(['Kano Municipal'])
+        ->and($response->viewData('integrityProblems'))->toBe([]);
+    $response->assertDontSee('Aba North')->assertDontSee('Show all branches');
+
+    $this->actingAs($user)
+        ->get(route('reports.income-distribution.divisions', ['quarter' => '2026-Q3', 'branch' => $this->abia->id]))
+        ->assertForbidden();
+    $this->actingAs($user)
+        ->get(route('reports.income-distribution.divisions', ['quarter' => '2026-Q3', 'branch' => $this->abia->id, 'export' => 'csv']))
+        ->assertForbidden();
+});
+
+test('a branch user\'s Tab 1 exports hold their own branch only', function () {
+    incomePayment(1_000_000, $this->kano->id, $this->kanoDivision->id, '2026-07-10 09:00:00');
+    incomePayment(400_000, $this->abia->id, $this->abiaDivision->id, '2026-08-10 09:00:00');
+    $user = kanoBranchUser();
+
+    $branches = $this->actingAs($user)
+        ->get(route('reports.income-distribution.index', ['quarter' => '2026-Q3', 'export' => 'csv']))
+        ->assertOk()
+        ->assertDownload('income-distribution-2026-Q3-branches-kano.csv');
+    $rows = incomeCsv($branches);
+    expect(csvRow($rows, 'Branch')[1])->toBe('Kano')
+        ->and(csvRow($rows, 'Abia'))->toBeNull()
+        ->and(csvRow($rows, 'TOTAL')[4])->toBe('10000.00');
+
+    $divisions = $this->actingAs($user)
+        ->get(route('reports.income-distribution.divisions', ['quarter' => '2026-Q3', 'export' => 'csv']))
+        ->assertOk();
+    $rows = incomeCsv($divisions);
+    expect(csvRow($rows, 'Aba North'))->toBeNull()
+        ->and(csvRow($rows, 'Kano Municipal'))->not->toBeNull();
+});
+
+test('Tab 1 quarters also start at 2016 Q1; earlier Paystack payments get the same note for national admins', function () {
+    incomePayment(100_000, $this->kano->id, $this->kanoDivision->id, '2015-12-31 10:00:00');
+    incomePayment(100_000, $this->kano->id, $this->kanoDivision->id, '2016-01-01 10:00:00');
+
+    $response = viewIncomeReport();
+
+    expect(array_key_last($response->viewData('quarterOptions')))->toBe('2016-Q1')
+        ->and($response->viewData('paymentsBeforeFirstQuarter'))->toBe(1);
+    $response->assertSee('1 older payment (before 2016, from paper records) is not included.');
+
+    $this->actingAs(kanoBranchUser())->get(route('reports.income-distribution.index'))
+        ->assertOk()
+        ->assertDontSee('before 2016');
 });

@@ -13,8 +13,7 @@
 
     <div class="container mx-auto px-4 py-6">
 
-        {{-- ── TABS (branch users only have Tab 2) ───────────────────────────── --}}
-        @if($isNational)
+        {{-- ── TABS ─────────────────────────────────────────────────────────── --}}
         <div id="income-distribution-tabs" class="flex gap-2 border-b border-gray-200 mb-6">
             @foreach([
                 'online' => ['label' => 'Online payments (Paystack)', 'icon' => 'fa-credit-card'],
@@ -30,12 +29,13 @@
                 </a>
             @endforeach
         </div>
-        @endif
 
         {{-- ── TAB 2: Manual payments (branches) ──────────────────────────────── --}}
         @if($activeTab === 'manual')
             @include('reports.income-distribution.partials.manual-tab')
         @else
+
+        @include('reports.income-distribution.partials.before-first-quarter-note')
 
         {{-- ── QUARTER SELECTOR (+ in-progress warning) ──────────────────────── --}}
         @include('reports.income-distribution.partials.quarter-selector', [
@@ -44,7 +44,7 @@
         ])
 
         <div class="text-center mb-6">
-            <span class="text-2xl font-bold text-gray-900">{{ $quarterLabel }} &mdash; Online payments (Paystack)</span>
+            <span class="text-2xl font-bold text-gray-900">{{ $quarterLabel }} &mdash; Online payments (Paystack){{ $branchScopeLabel !== null ? ' — '.$branchScopeLabel : '' }}</span>
         </div>
 
         {{-- ── INTEGRITY WARNING (should never appear) ──────────────────────── --}}
@@ -110,7 +110,7 @@
                    class="filter-btn-secondary" data-testid="export-csv">
                     <i class="fas fa-file-csv mr-1"></i>Export CSV
                 </a>
-                <a href="{{ route('reports.income-distribution.divisions', ['quarter' => $selectedQuarter]) }}"
+                <a href="{{ route('reports.income-distribution.divisions', array_filter(['quarter' => $selectedQuarter, 'branch' => $branchScope])) }}"
                    class="inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-md shadow"
                    data-testid="division-level-button">
                     <i class="fas fa-sitemap mr-2"></i>View division level

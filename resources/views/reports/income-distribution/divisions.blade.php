@@ -2,41 +2,54 @@
     <x-slot name="pageHeader">
         <i class="fas fa-hand-holding-dollar mr-3"></i> Income Distribution &mdash; Division level
     </x-slot>
-    <x-slot name="subHeader">
-        What each division receives from online (Paystack) membership income
-    </x-slot>
-
     @php
         $naira = fn (int $kobo) => \App\Support\Naira::format($kobo);
+        $isManual = $channel === 'manual';
+        $channelLabel = $isManual ? 'Manual payments' : 'Online payments (Paystack)';
+        // The channel and quarter every link on this page keeps.
+        $keep = fn (array $extra = []) => array_filter(['channel' => $isManual ? 'manual' : null, 'quarter' => $selectedQuarter] + $extra);
     @endphp
+
+    <x-slot name="subHeader">
+        {{ $isManual
+            ? 'What each division receives from manual membership payments collected by the branches'
+            : 'What each division receives from online (Paystack) membership income' }}
+    </x-slot>
 
     <style>[x-cloak]{ display:none !important; }</style>
 
     <div class="container mx-auto px-4 py-6">
 
         <div class="mb-4">
-            <a href="{{ route('reports.income-distribution.index', ['tab' => 'online', 'quarter' => $selectedQuarter]) }}"
+            <a href="{{ route('reports.income-distribution.index', ['tab' => $channel, 'quarter' => $selectedQuarter]) }}"
                class="text-blue-700 hover:text-blue-900 hover:underline">
                 <i class="fas fa-arrow-left mr-1"></i>Back to branch level
             </a>
         </div>
 
+        @include('reports.income-distribution.partials.before-first-quarter-note')
+
         @include('reports.income-distribution.partials.quarter-selector', [
             'action' => route('reports.income-distribution.divisions'),
-            'hidden' => array_filter(['branch' => $branchFilter]),
+            'hidden' => array_filter(['channel' => $isManual ? 'manual' : null, 'branch' => $branchFilter]),
         ])
 
         <div class="text-center mb-6">
             <span class="text-2xl font-bold text-gray-900">
-                {{ $quarterLabel }} &mdash; {{ $branchFilterLabel ?? 'All branches' }}
+                {{ $quarterLabel }} &mdash; {{ $channelLabel }} &mdash; {{ $branchFilterLabel ?? 'All branches' }}
             </span>
-            @if($branchFilter !== null)
+            {{-- Branch users only ever see their own branch. --}}
+            @if($branchFilter !== null && $isNational)
                 <div class="mt-1">
-                    <a href="{{ route('reports.income-distribution.divisions', ['quarter' => $selectedQuarter]) }}"
+                    <a href="{{ route('reports.income-distribution.divisions', $keep()) }}"
                        class="text-sm text-blue-700 hover:text-blue-900 hover:underline">Show all branches</a>
                 </div>
             @endif
         </div>
+
+        @if($isManual)
+            @include('reports.income-distribution.partials.go-live-notes')
+        @endif
 
         @if($integrityProblems)
             <div class="bg-red-100 border-l-4 border-red-600 text-red-800 p-4 mb-6" role="alert" data-testid="integrity-warning">
@@ -116,12 +129,15 @@
                             of {{ number_format($rows->count()) }} {{ Str::plural('division', $rows->count()) }}
                         </p>
                         {{-- The search box is client-side only: the file always
-                             holds every division for this quarter and branch. --}}
-                        <a href="{{ route('reports.income-distribution.divisions', array_filter(['quarter' => $selectedQuarter, 'branch' => $branchFilter, 'export' => 'csv'])) }}"
+                             holds every division for this quarter and branch.
+                             Manual payments: CSV comes in a later step. --}}
+                        @unless($isManual)
+                        <a href="{{ route('reports.income-distribution.divisions', $keep(['branch' => $branchFilter, 'export' => 'csv'])) }}"
                            class="filter-btn-secondary" data-testid="export-csv"
                            title="Exports every division for this quarter{{ $branchFilter !== null ? ' and branch' : '' }}, not only the search results">
                             <i class="fas fa-file-csv mr-1"></i>Export CSV
                         </a>
+                        @endunless
                     </div>
                 </div>
 
@@ -139,7 +155,7 @@
                                     Payments <span x-text="arrow('count')"></span>
                                 </th>
                                 <th class="px-3 py-2 text-right cursor-pointer hover:text-gray-800" @click="sortBy('net')">
-                                    Net received <span x-text="arrow('net')"></span>
+                                    {{ $isManual ? 'Collected' : 'Net received' }} <span x-text="arrow('net')"></span>
                                 </th>
                                 <th class="px-3 py-2 text-right cursor-pointer hover:text-gray-800 border-l border-gray-200" @click="sortBy('division_share')">
                                     Division share <span x-text="arrow('division_share')"></span>
@@ -178,8 +194,13 @@
                 </div>
 
                 <p class="text-xs text-gray-500 mt-3">
-                    Net received is the income from payments made in each division; the division share is the part that goes to the division.
-                    Payments are counted by the branch and division stored when they were paid.
+                    @if($isManual)
+                        Collected is the amount of the manual payments made in each division; the division share is the part the branch passes on to the division.
+                        Payments are counted by the branch and division stored on them, in the quarter they were approved (old-system payments by payment date).
+                    @else
+                        Net received is the income from payments made in each division; the division share is the part that goes to the division.
+                        Payments are counted by the branch and division stored when they were paid.
+                    @endif
                 </p>
             </div>
         @endif
