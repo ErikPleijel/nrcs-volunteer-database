@@ -118,6 +118,10 @@
 
     {{-- ── BRANCH TABLE ──────────────────────────────────────────────────── --}}
     <div class="flex justify-end gap-2 mb-3">
+        <a href="{{ route('reports.income-distribution.index', ['tab' => 'manual', 'quarter' => $selectedQuarter, 'export' => 'csv']) }}"
+           class="filter-btn-secondary" data-testid="export-csv">
+            <i class="fas fa-file-csv mr-1"></i>Export CSV
+        </a>
         <a href="{{ route('reports.income-distribution.divisions', array_filter(['channel' => 'manual', 'quarter' => $selectedQuarter, 'branch' => $branchScope])) }}"
            class="inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-md shadow"
            data-testid="division-level-button">

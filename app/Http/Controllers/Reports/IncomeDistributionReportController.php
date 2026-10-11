@@ -27,7 +27,7 @@ use Illuminate\Support\Collection;
  * fulfilled or approved, so a closed quarter never changes. The page checks
  * that the branch rows add up to the headline and the three shares to the
  * net, and shows a red warning if they ever do not. ?export=csv downloads
- * Tab 1 at either level as CSV (IncomeDistributionCsv).
+ * either tab at either level as CSV (IncomeDistributionCsv).
  */
 class IncomeDistributionReportController extends Controller
 {
@@ -86,7 +86,7 @@ class IncomeDistributionReportController extends Controller
 
         $data['integrityProblems'] = $integrityProblems;
 
-        if (! $isManual && $request->input('export') === 'csv') {
+        if ($request->input('export') === 'csv') {
             return $csv->branches($data);
         }
 
@@ -153,7 +153,7 @@ class IncomeDistributionReportController extends Controller
             $data += $this->goLiveData($start, $end, $isNational);
         }
 
-        if (! $isManual && $request->input('export') === 'csv') {
+        if ($request->input('export') === 'csv') {
             return $csv->divisions($data);
         }
 

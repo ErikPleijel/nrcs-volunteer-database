@@ -290,7 +290,7 @@ test('the manual division level lists manual division shares only, and they matc
 
     $response->assertSee('2026 Q3 &mdash; Manual payments &mdash; All branches', false)
         ->assertSee('Collected')
-        ->assertDontSee('data-testid="export-csv"', false)
+        ->assertSee(route('reports.income-distribution.divisions', ['channel' => 'manual', 'quarter' => '2026-Q3', 'export' => 'csv']))
         ->assertSee(route('reports.income-distribution.index', ['tab' => 'manual', 'quarter' => '2026-Q3']));
 
     $kanoOnly = viewManualDivisions(['quarter' => '2026-Q3', 'branch' => $this->kano->id]);
@@ -383,3 +383,181 @@ function incomePaymentOnline(int $branchId): MembershipPayment
         'net_kobo' => 7_777_700,
     ] + IncomeDistributionCalculator::calculate(7_777_700, $branchId, null, FeeDistributionSettings::DEFAULTS));
 }
+
+/*
+|--------------------------------------------------------------------------
+| CSV export (?export=csv, both levels)
+|--------------------------------------------------------------------------
+*/
+
+/** The downloaded CSV as rows of cells (after the BOM and "sep=," line). */
+function manualCsv($response): array
+{
+    $content = $response->streamedContent();
+
+    expect(substr($content, 0, 3))->toBe("\xEF\xBB\xBF")
+        ->and(substr($content, 3, 7))->toBe("sep=,\r\n");
+
+    return array_map(fn (string $line) => str_getcsv($line), preg_split('/\r?\n/', trim(substr($content, 10))));
+}
+
+/** The first CSV row whose first cell is $label. */
+function manualCsvRow(array $rows, string $label): ?array
+{
+    foreach ($rows as $row) {
+        if (($row[0] ?? null) === $label) {
+            return $row;
+        }
+    }
+
+    return null;
+}
+
+test('the Tab 2 branch level exports the quarter, notes, percentages, headline, rows and TOTAL', function () {
+    manualIncomePayment(1_000_000, $this->kano->id, $this->kanoDivision->id, '2026-07-10');
+    manualIncomePayment(500_001, $this->kano->id, $this->kanoDivision->id, '2026-09-30');
+    $organisation = Organisation::create(['name' => 'Sponsor Org', 'branch_id' => $this->abia->id]);
+    manualIncomePayment(2_000_000, $this->abia->id, null, '2026-08-20', ['organisation_id' => $organisation->id]);
+    manualIncomePayment(100_000, $this->kano->id, $this->kanoDivision->id, '2015-06-03');
+
+    $response = viewManualTab(['quarter' => '2026-Q3', 'export' => 'csv'])
+        ->assertOk()
+        ->assertDownload('income-distribution-manual-2026-Q3-branches.csv');
+    $rows = manualCsv($response);
+
+    expect($rows[0])->toBe(['Income Distribution — Manual payments (branches) — Branch level'])
+        ->and(manualCsvRow($rows, 'Quarter'))->toBe(['Quarter', '2026 Q3'])
+        ->and(manualCsvRow($rows, 'WARNING'))->toBeNull()
+        ->and($rows)->toContain(['Note', IncomeDistributionStatsService::BEFORE_GO_LIVE_NOTE])
+        ->and(collect($rows)->flatten()->filter(fn ($cell) => str_contains((string) $cell, 'older payment'))->all())->toBe([])
+        ->and(manualCsvRow($rows, 'Amounts')[1])->toBe('Naira; by approval date (payments from the old system by payment date)')
+        ->and(manualCsvRow($rows, 'Percentages used'))->not->toBeNull()
+        ->and(manualCsvRow($rows, 'Payments'))->toBe(['Payments', '3'])
+        ->and(manualCsvRow($rows, 'Collected by branches'))->toBe(['Collected by branches', '35000.01'])
+        ->and(manualCsvRow($rows, 'Paystack charges'))->toBeNull()
+        ->and(manualCsvRow($rows, 'Branch'))->toBe(['Branch', 'Payments', 'Collected', 'HQ share', 'Branch share', 'Division share', 'From Organisation'])
+        ->and(manualCsvRow($rows, 'Abia'))->toBe(['Abia', '1', '20000.00', '5000.00', '15000.00', '0.00', '20000.00'])
+        ->and(manualCsvRow($rows, 'Kano')[2])->toBe('15000.01');
+
+    $total = manualCsvRow($rows, 'TOTAL');
+    $headline = viewManualTab(['quarter' => '2026-Q3'])->viewData('headline');
+    $kobo = fn (string $naira) => (int) round((float) $naira * 100);
+    expect($total[2])->toBe('35000.01')
+        ->and($total[3])->toBe(manualCsvRow($rows, 'HQ share')[1])
+        ->and($kobo($total[3]) + $kobo($total[4]) + $kobo($total[5]))->toBe($headline['net']);
+});
+
+test('the older-payments note stays on the page but is never in a CSV (both tabs, both levels)', function () {
+    manualIncomePayment(100_000, $this->kano->id, $this->kanoDivision->id, '2015-06-03');
+    manualIncomePayment(100_000, $this->kano->id, $this->kanoDivision->id, '2026-08-01');
+    MembershipPayment::factory()->approved()->create([
+        'payment_channel' => 'paystack',
+        'gateway_reference' => 'PSK-OLD',
+        'branch_id' => $this->kano->id,
+        'paid_at' => '2015-06-03 10:00:00',
+        'payment_date' => '2015-06-03',
+        'amount_paid_kobo' => 100_000,
+        'paystack_fee_kobo' => 0,
+        'net_kobo' => 100_000,
+    ] + IncomeDistributionCalculator::calculate(100_000, $this->kano->id, null, FeeDistributionSettings::DEFAULTS));
+
+    viewManualTab(['quarter' => '2026-Q3'])->assertSee('1 older payment (before 2016, from paper records) is not included.');
+    $this->actingAs($this->admin)->get(route('reports.income-distribution.index'))
+        ->assertSee('1 older payment (before 2016, from paper records) is not included.');
+
+    $files = [
+        viewManualTab(['quarter' => '2026-Q3', 'export' => 'csv']),
+        viewManualDivisions(['quarter' => '2026-Q3', 'export' => 'csv']),
+        $this->actingAs($this->admin)->get(route('reports.income-distribution.index', ['export' => 'csv'])),
+        $this->actingAs($this->admin)->get(route('reports.income-distribution.divisions', ['export' => 'csv'])),
+    ];
+    foreach ($files as $file) {
+        expect($file->streamedContent())->not->toContain('older payment');
+    }
+});
+
+test('a transition quarter CSV carries the transition note and both parts', function () {
+    config(['income.manual_go_live_date' => '2026-08-15']);
+    manualIncomePayment(100_000, $this->kano->id, $this->kanoDivision->id, '2026-07-10');
+    manualIncomePayment(400_000, $this->kano->id, $this->kanoDivision->id, '2026-08-15');
+    $transitionNote = ['Note', 'Transition quarter: payments before 15 August 2026 are estimates based on fee prices; payments from 15 August 2026 are recorded amounts.'];
+
+    $rows = manualCsv(viewManualTab(['quarter' => '2026-Q3', 'export' => 'csv']));
+
+    expect($rows)->toContain($transitionNote)
+        ->and($rows)->not->toContain(['Note', IncomeDistributionStatsService::BEFORE_GO_LIVE_NOTE])
+        ->and(manualCsvRow($rows, 'Before 15 August 2026 (estimates)'))->toBe(['Before 15 August 2026 (estimates)', '1000.00', '1 payment'])
+        ->and(manualCsvRow($rows, 'From 15 August 2026 (recorded)'))->toBe(['From 15 August 2026 (recorded)', '4000.00', '1 payment']);
+
+    $divisions = manualCsv(viewManualDivisions(['quarter' => '2026-Q3', 'export' => 'csv']));
+    expect($divisions)->toContain($transitionNote);
+
+    // A live quarter has neither note.
+    config(['income.manual_go_live_date' => '2026-07-01']);
+    $live = manualCsv(viewManualTab(['quarter' => '2026-Q3', 'export' => 'csv']));
+    expect(manualCsvRow($live, 'Note'))->toBeNull();
+});
+
+test('national admins get the invalid go-live and missing-shares warnings in the CSV; branch users do not', function () {
+    config(['income.manual_go_live_date' => 'soon']);
+    manualIncomePayment(100_000, $this->kano->id, $this->kanoDivision->id, '2026-08-01');
+    manualIncomePayment(100_000, $this->kano->id, $this->kanoDivision->id, '2015-06-03');
+    MembershipPayment::factory()->approved()->create(['payment_channel' => 'manual', 'branch_id' => $this->kano->id]);
+
+    $national = manualCsv(viewManualTab(['quarter' => '2026-Q3', 'export' => 'csv']));
+    expect($national)->toContain(['WARNING', IncomeDistributionStatsService::INVALID_GO_LIVE_NOTE])
+        ->and($national)->toContain(['WARNING', '1 approved manual payment with no income shares yet, not counted in any quarter.'])
+        ->and($national)->toContain(['Note', IncomeDistributionStatsService::BEFORE_GO_LIVE_NOTE]);
+
+    $branch = manualCsv(viewManualTab(['quarter' => '2026-Q3', 'export' => 'csv'], $this->branchAdmin));
+    expect(manualCsvRow($branch, 'WARNING'))->toBeNull()
+        ->and($branch)->not->toContain(['Note', '1 older payment (before 2016, from paper records) is not included.'])
+        ->and($branch)->toContain(['Note', IncomeDistributionStatsService::BEFORE_GO_LIVE_NOTE]);
+});
+
+test('a branch user gets only their own branch in the Tab 2 exports; another branch is refused', function () {
+    manualIncomePayment(1_000_000, $this->kano->id, $this->kanoDivision->id, '2026-08-01');
+    manualIncomePayment(400_000, $this->abia->id, $this->abiaDivision->id, '2026-08-01');
+
+    $branches = viewManualTab(['quarter' => '2026-Q3', 'export' => 'csv'], $this->branchAdmin)
+        ->assertDownload('income-distribution-manual-2026-Q3-branches-kano.csv');
+    $rows = manualCsv($branches);
+    expect(manualCsvRow($rows, 'Branch')[1])->toBe('Kano')
+        ->and(manualCsvRow($rows, 'Collected by the branch'))->toBe(['Collected by the branch', '10000.00'])
+        ->and(manualCsvRow($rows, 'Abia'))->toBeNull()
+        ->and(manualCsvRow($rows, 'TOTAL')[2])->toBe('10000.00');
+
+    $divisions = viewManualDivisions(['quarter' => '2026-Q3', 'export' => 'csv'], $this->branchAdmin)
+        ->assertDownload('income-distribution-manual-2026-Q3-divisions-kano.csv');
+    $rows = manualCsv($divisions);
+    expect(manualCsvRow($rows, 'Kano Municipal'))->not->toBeNull()
+        ->and(manualCsvRow($rows, 'Aba North'))->toBeNull();
+
+    viewManualDivisions(['quarter' => '2026-Q3', 'branch' => $this->abia->id, 'export' => 'csv'], $this->branchAdmin)->assertForbidden();
+});
+
+test('the Tab 2 division level exports every division, and the TOTAL matches Tab 2', function () {
+    manualIncomePayment(1_000_000, $this->kano->id, $this->kanoDivision->id, '2026-07-10');
+    manualIncomePayment(400_000, $this->abia->id, $this->abiaDivision->id, '2026-08-15');
+    incomePaymentOnline($this->abia->id);
+
+    $response = viewManualDivisions(['quarter' => '2026-Q3', 'export' => 'csv'])
+        ->assertDownload('income-distribution-manual-2026-Q3-divisions.csv');
+    $rows = manualCsv($response);
+
+    expect($rows[0])->toBe(['Income Distribution — Manual payments (branches) — Division level'])
+        ->and(manualCsvRow($rows, 'Branch'))->toBe(['Branch', 'All branches'])
+        ->and(manualCsvRow($rows, 'Divisions'))->toBe(['Divisions', '2'])
+        ->and(manualCsvRow($rows, 'Division'))->toBe(['Division', 'Branch', 'Payments', 'Collected', 'Division share'])
+        ->and(manualCsvRow($rows, 'Kano Municipal'))->toBe(['Kano Municipal', 'Kano', '1', '10000.00', '5000.00']);
+
+    $headline = viewManualTab(['quarter' => '2026-Q3'])->viewData('headline');
+    expect((int) round((float) manualCsvRow($rows, 'TOTAL')[4] * 100))->toBe($headline['division']);
+});
+
+test('Tab 2 offers the branch-level export with the current quarter', function () {
+    manualIncomePayment(100_000, $this->kano->id, $this->kanoDivision->id, '2026-08-01');
+
+    viewManualTab(['quarter' => '2026-Q3'])
+        ->assertSee(route('reports.income-distribution.index', ['tab' => 'manual', 'quarter' => '2026-Q3', 'export' => 'csv']));
+});

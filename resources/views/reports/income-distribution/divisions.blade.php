@@ -129,15 +129,12 @@
                             of {{ number_format($rows->count()) }} {{ Str::plural('division', $rows->count()) }}
                         </p>
                         {{-- The search box is client-side only: the file always
-                             holds every division for this quarter and branch.
-                             Manual payments: CSV comes in a later step. --}}
-                        @unless($isManual)
+                             holds every division for this quarter and branch. --}}
                         <a href="{{ route('reports.income-distribution.divisions', $keep(['branch' => $branchFilter, 'export' => 'csv'])) }}"
                            class="filter-btn-secondary" data-testid="export-csv"
                            title="Exports every division for this quarter{{ $branchFilter !== null ? ' and branch' : '' }}, not only the search results">
                             <i class="fas fa-file-csv mr-1"></i>Export CSV
                         </a>
-                        @endunless
                     </div>
                 </div>
 
