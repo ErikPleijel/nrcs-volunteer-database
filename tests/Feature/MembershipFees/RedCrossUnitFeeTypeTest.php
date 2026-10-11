@@ -20,10 +20,11 @@ beforeEach(function () {
     $this->withoutVite();
     config(['paystack.enabled' => true, 'paystack.public_key' => 'pk_test_public', 'paystack.secret_key' => 'sk_test_secret']);
 
-    foreach (['manage-admin-panel', 'add_payments'] as $permission) {
+    // change_settings: changing fees is national-only (as in PermissionsTableSeeder).
+    foreach (['manage-admin-panel', 'add_payments', 'change_settings'] as $permission) {
         Permission::findOrCreate($permission, 'web');
     }
-    Role::findOrCreate('national_db_administrator', 'web')->syncPermissions(['manage-admin-panel', 'add_payments']);
+    Role::findOrCreate('national_db_administrator', 'web')->syncPermissions(['manage-admin-panel', 'add_payments', 'change_settings']);
     app(PermissionRegistrar::class)->forgetCachedPermissions();
 
     $this->admin = User::factory()->create();

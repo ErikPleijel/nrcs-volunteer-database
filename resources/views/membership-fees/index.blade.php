@@ -123,11 +123,13 @@
         <div class="flex justify-between items-center mb-6">
 
 
-            <a href="{{ route('membership-fees.create') }}"
-               class="btn-addCategory">
-                <i class="fas fa-plus mr-2"></i>
-                Add New Membership Category
-            </a>
+            @can('change_settings')
+                <a href="{{ route('membership-fees.create') }}"
+                   class="btn-addCategory">
+                    <i class="fas fa-plus mr-2"></i>
+                    Add New Membership Category
+                </a>
+            @endcan
         </div>
 
         @if(session('error'))
@@ -231,7 +233,7 @@
                             </td>
                             <td class="px-6 py-4 text-sm font-medium">
                                 <div class="flex-space-x-3">
-                                    @if ($fee->is_active)
+                                    @if ($fee->is_active && auth()->user()->can('change_settings'))
                                         <a href="{{ route('membership-fees.edit', $fee) }}"
                                            class="btn-primary">
                                             Edit

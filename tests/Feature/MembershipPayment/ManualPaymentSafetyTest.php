@@ -30,7 +30,7 @@ uses(TestCase::class, RefreshDatabase::class);
 beforeEach(function () {
     $this->withoutVite();
 
-    $permissions = ['manage-admin-panel', 'view_user', 'add_payments', 'view_payments'];
+    $permissions = ['manage-admin-panel', 'view_user', 'add_payments', 'view_payments', 'change_settings'];
     foreach ($permissions as $permission) {
         Permission::findOrCreate($permission, 'web');
     }

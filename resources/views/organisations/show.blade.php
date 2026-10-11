@@ -255,12 +255,12 @@
                     </div>
                     <h2 class="text-xl font-bold text-gray-900">MEMBERSHIP</h2>
                 </div>
-                @unless($organisation->trashed())
+                @if(! $organisation->trashed() && auth()->user()->can('add_payments') && $organisation->isInPaymentScopeOf(auth()->user()))
                     <a href="{{ route('organisations.payments.create', $organisation) }}"
                        class="btn-primary-small whitespace-nowrap">
                         <i class="fas fa-plus mr-2"></i>Add Payment
                     </a>
-                @endunless
+                @endif
             </div>
             <div class="px-6 py-4 flex items-center gap-4 flex-wrap">
                 @if($organisation->isMember())

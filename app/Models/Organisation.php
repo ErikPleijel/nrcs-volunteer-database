@@ -58,6 +58,23 @@ class Organisation extends Model
         return $this->belongsTo(Branch::class);
     }
 
+    /**
+     * Whether $user may record payments for this organisation: national
+     * staff for any, branch staff for their own branch's. Division staff
+     * never: organisations have no division, so none is in their scope.
+     * Mirrors RedCrossUnit::isViewableBy() for unit payments.
+     */
+    public function isInPaymentScopeOf(User $user): bool
+    {
+        return match ($user->getAccessLevel()) {
+            'national' => true,
+            'branch' => $this->branch_id !== null
+                && $user->getScopedId() !== null
+                && (int) $this->branch_id === (int) $user->getScopedId(),
+            default => false,
+        };
+    }
+
     public function deactivatedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'deactivated_by_id');

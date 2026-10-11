@@ -430,8 +430,17 @@ Route::middleware(['auth', 'verified.or.absent'])->group(function () {
             Route::post('/certificates/mark-as-printed', [App\Http\Controllers\CertificateController::class, 'markAsPrinted'])->name('certificates.mark-as-printed');
         });
 
-        // Membership Fees Management (settings area — requires recent password confirmation)
-        Route::resource('membership-fees', MembershipFeeController::class)->middleware('password.confirm');
+        // Membership Fees Management (settings area — requires recent password confirmation).
+        // Changing fees (create, edit, activate/deactivate via update, delete)
+        // needs change_settings (national DB administrator); anyone with the
+        // admin panel may still view them. Registered before the read routes
+        // so membership-fees/create is not taken for a fee id.
+        Route::resource('membership-fees', MembershipFeeController::class)
+            ->except(['index', 'show'])
+            ->middleware(['can:change_settings', 'password.confirm']);
+        Route::resource('membership-fees', MembershipFeeController::class)
+            ->only(['index', 'show'])
+            ->middleware('password.confirm');
 
         // In-app notifications (bell dropdown)
         Route::get('/notifications/{id}/read', [NotificationController::class, 'read'])->name('notifications.read');
@@ -600,7 +609,7 @@ Route::middleware(['auth', 'verified.or.absent'])->group(function () {
         Route::post('/organisations/{organisation}/link-user', [OrganisationController::class, 'linkUser'])->name('organisations.link-user');
         Route::delete('/organisations/{organisation}/users/{user}/unlink', [OrganisationController::class, 'unlinkUser'])->name('organisations.unlink-user');
         Route::put('/organisations/{organisation}/users/{user}/set-primary-contact', [OrganisationController::class, 'setPrimaryContact'])->name('organisations.set-primary-contact');
-        Route::get('/organisations/{organisation}/payments/create', [MembershipPaymentController::class, 'createForOrganisation'])->name('organisations.payments.create');
+        Route::get('/organisations/{organisation}/payments/create', [MembershipPaymentController::class, 'createForOrganisation'])->name('organisations.payments.create')->middleware('can:add_payments');
         Route::get('/organisations/{organisation}/donations/create', [DonationController::class, 'createForOrganisation'])->name('organisations.donations.create');
 
         Route::middleware(['can:campaign_request_approve'])

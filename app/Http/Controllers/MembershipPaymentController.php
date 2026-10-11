@@ -341,6 +341,8 @@ class MembershipPaymentController extends Controller
 
     public function createForOrganisation(Organisation $organisation)
     {
+        abort_unless($organisation->isInPaymentScopeOf(Auth::user()), 403, 'You can only record payments for organisations in your own branch.');
+
         $organisation->load(['users', 'branch']);
 
         $membershipFees = MembershipFee::select('id', 'name', 'amount', 'id_card_fee', 'validity_years')
@@ -617,6 +619,17 @@ class MembershipPaymentController extends Controller
         // already scoped; this stops a hand-made request.
         if (! $isOrgPayment && ! $isRcuPayment) {
             $this->authorize('view', User::findOrFail($request->user_id));
+        }
+
+        // Same for an organisation payment: the organisation must be in the
+        // clerk's scope (the form checks this too; a hand-made request must
+        // not get round it).
+        if ($isOrgPayment) {
+            abort_unless(
+                Organisation::findOrFail($request->organisation_id)->isInPaymentScopeOf(Auth::user()),
+                403,
+                'You can only record payments for organisations in your own branch.'
+            );
         }
 
         $membershipFee = MembershipFee::findOrFail($request->membership_fee_id);
