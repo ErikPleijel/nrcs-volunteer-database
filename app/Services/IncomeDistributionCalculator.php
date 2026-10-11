@@ -55,6 +55,43 @@ class IncomeDistributionCalculator
     }
 
     /**
+     * Every income-distribution column for a manual (staff-entered)
+     * payment: the amount from its own fee row (fee + ID card fee when
+     * included — fee rows are versioned, so this is the price that applied
+     * to the payment), no Paystack charge, and the split with the current
+     * percentages. accounting_date is the caller's: the approval date, or
+     * the payment date for legacy imports.
+     *
+     * @return array<string, mixed>
+     */
+    public static function manualPaymentColumns(
+        string|float|int $feeAmountNaira,
+        string|float|int $idCardFeeNaira,
+        bool $idCardIncluded,
+        ?int $branchId,
+        ?int $divisionId,
+    ): array {
+        $amountKobo = self::nairaToKobo($feeAmountNaira) + ($idCardIncluded ? self::nairaToKobo($idCardFeeNaira) : 0);
+        $branchId = self::resolveBranchId($branchId, $divisionId);
+
+        return [
+            'branch_id' => $branchId,
+            'amount_paid_kobo' => $amountKobo,
+            'paystack_fee_kobo' => 0,
+            'net_kobo' => $amountKobo,
+        ] + self::calculate($amountKobo, $branchId, $divisionId, self::currentPercentages());
+    }
+
+    /**
+     * A naira amount as stored on membership_fees (decimal(10,2), read as
+     * "5000.00") in kobo.
+     */
+    public static function nairaToKobo(string|float|int $naira): int
+    {
+        return (int) round(((float) $naira) * 100);
+    }
+
+    /**
      * The branch to store on a payment that has a division but no branch:
      * the division's own branch, so the standard rule applies. Null when the
      * division has no branch (divisions.branch_id is a foreign key that is

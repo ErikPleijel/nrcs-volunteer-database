@@ -3,12 +3,14 @@
 namespace App\Models;
 
 use App\Models\Concerns\Approvable;
+use App\Services\IncomeDistributionCalculator;
 use Carbon\Carbon;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use RuntimeException;
 
 class MembershipPayment extends Model
 {
@@ -158,6 +160,42 @@ class MembershipPayment extends Model
     public function isPaystack(): bool
     {
         return $this->payment_channel === 'paystack';
+    }
+
+    /**
+     * Runs inside the approval transaction, for a single approval and for
+     * bulk approval alike: a manual payment gets its amount, income shares
+     * (current Fee distribution percentages) and accounting_date — the
+     * approval date in app time, which decides its quarter in the Income
+     * Distribution report. Stored once and never recalculated.
+     *
+     * Skipped for Paystack payments (the webhook stores theirs, and
+     * markApprovedViaGateway() calls this hook too) and for a payment that
+     * already has a split.
+     */
+    protected function afterApproved(?User $member): void
+    {
+        if ($this->isPaystack() || $this->distribution_rule !== null) {
+            return;
+        }
+
+        $fee = $this->membershipFee()->first();
+        if ($fee === null) {
+            // Fees in use cannot be deleted, so this should never happen;
+            // approving without an amount would silently drop the money
+            // from the report, so the approval is refused instead.
+            throw new RuntimeException("Membership payment #{$this->id} has no fee, so its amount cannot be recorded.");
+        }
+
+        $this->forceFill(IncomeDistributionCalculator::manualPaymentColumns(
+            $fee->amount ?? 0,
+            $fee->id_card_fee ?? 0,
+            (bool) $this->id_card_included,
+            $this->branch_id,
+            $this->division_id,
+        ) + [
+            'accounting_date' => ($this->decided_at ?? now())->copy()->setTimezone(config('app.timezone'))->toDateString(),
+        ])->save();
     }
 
     /**
