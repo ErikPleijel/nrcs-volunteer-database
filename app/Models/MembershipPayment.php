@@ -49,6 +49,19 @@ class MembershipPayment extends Model
         'payment_channel',
         'gateway_reference',
         'gateway_response',
+        // Income distribution, set once when a Paystack payment is fulfilled
+        // (IncomeDistributionCalculator); null on manual payments.
+        'paid_at',
+        'amount_paid_kobo',
+        'paystack_fee_kobo',
+        'net_kobo',
+        'hq_share_kobo',
+        'branch_share_kobo',
+        'division_share_kobo',
+        'hq_pct_bp',
+        'branch_pct_bp',
+        'division_pct_bp',
+        'distribution_rule',
     ];
 
     /**
@@ -69,6 +82,16 @@ class MembershipPayment extends Model
         'removed_date' => 'datetime',
         'removed_by_user_id' => 'integer',
         'gateway_response' => 'array',
+        'paid_at' => 'datetime',
+        'amount_paid_kobo' => 'integer',
+        'paystack_fee_kobo' => 'integer',
+        'net_kobo' => 'integer',
+        'hq_share_kobo' => 'integer',
+        'branch_share_kobo' => 'integer',
+        'division_share_kobo' => 'integer',
+        'hq_pct_bp' => 'integer',
+        'branch_pct_bp' => 'integer',
+        'division_pct_bp' => 'integer',
     ];
 
     /**

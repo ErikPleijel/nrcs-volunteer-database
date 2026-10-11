@@ -8,6 +8,7 @@ use App\Models\MembershipFee;
 use App\Models\MembershipPayment;
 use App\Models\PaymentTransaction;
 use App\Models\RedCrossUnit;
+use App\Services\IncomeDistributionCalculator;
 use App\Services\OnlinePaymentEligibility;
 use App\Services\PaystackService;
 use Carbon\Carbon;
@@ -456,7 +457,13 @@ class PaystackPaymentController extends Controller
                             'payment_channel' => 'paystack',
                             'gateway_reference' => $transaction->reference,
                             'gateway_response' => $verified,
-                        ]);
+                        ] + IncomeDistributionCalculator::paymentColumns(
+                            amountPaidKobo: (int) $transaction->amount,
+                            paystackFeeKobo: $this->verifiedPaystackFee($verified, $transaction),
+                            paidAt: $this->verifiedPaidAt($verified, $transaction),
+                            branchId: $branchId,
+                            divisionId: $divisionId,
+                        ));
                     } else {
                         $record = Donation::create([
                             'user_id' => $transaction->user_id,
@@ -531,5 +538,53 @@ class PaystackPaymentController extends Controller
         }
 
         return response()->json(['status' => 'received'], 200);
+    }
+
+    /**
+     * The Paystack charge in kobo from the verify response (data.fees),
+     * which NRCS absorbs. Missing or impossible (negative, or more than was
+     * paid): 0, with a warning, so the payment is still fulfilled.
+     */
+    private function verifiedPaystackFee(array $verified, PaymentTransaction $transaction): int
+    {
+        $fees = $verified['data']['fees'] ?? null;
+
+        if (! is_numeric($fees) || (int) $fees < 0 || (int) $fees > (int) $transaction->amount) {
+            Log::warning('Paystack webhook: no usable data.fees in the verify response; recording the charge as 0', [
+                'reference' => $transaction->reference,
+                'payment_transaction_id' => $transaction->id,
+                'fees' => $fees,
+            ]);
+
+            return 0;
+        }
+
+        return (int) $fees;
+    }
+
+    /**
+     * When Paystack says the payment was made (data.paid_at, UTC), in the
+     * app's Africa/Lagos time; it decides the payment's quarter. Missing or
+     * unreadable: now(), with a warning.
+     */
+    private function verifiedPaidAt(array $verified, PaymentTransaction $transaction): Carbon
+    {
+        $paidAt = $verified['data']['paid_at'] ?? null;
+
+        if (filled($paidAt)) {
+            try {
+                return Carbon::parse($paidAt)->setTimezone(config('app.timezone'));
+            } catch (\Throwable) {
+                // Fall through to the warning below.
+            }
+        }
+
+        Log::warning('Paystack webhook: no usable data.paid_at in the verify response; using the current time', [
+            'reference' => $transaction->reference,
+            'payment_transaction_id' => $transaction->id,
+            'paid_at' => $paidAt,
+        ]);
+
+        return now();
     }
 }
