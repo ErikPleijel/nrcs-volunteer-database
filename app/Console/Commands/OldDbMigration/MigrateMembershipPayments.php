@@ -32,6 +32,16 @@ class MigrateMembershipPayments extends Command
             $this->warn('DRY RUN MODE - No changes will be made to the database');
         }
 
+        // Paystack payments are money already received and shared out in the
+        // Income Distribution report; --clear would delete them with
+        // everything else, so it is refused once any exist.
+        if ($clear && Schema::hasColumn('membership_payments', 'payment_channel')
+            && DB::table('membership_payments')->where('payment_channel', 'paystack')->exists()) {
+            $this->error('Refusing --clear: membership_payments contains Paystack payments, which must never be deleted.');
+
+            return Command::FAILURE;
+        }
+
         // Clear existing data if requested
         if ($clear && !$dryRun && $this->confirm('This will delete all existing membership payments. Continue?')) {
             DB::table('membership_payments')->delete();
