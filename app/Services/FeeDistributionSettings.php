@@ -75,24 +75,44 @@ class FeeDistributionSettings
      */
     public static function manualGoLiveDate(): ?CarbonImmutable
     {
-        $value = trim((string) config('income.manual_go_live_date'));
+        $value = self::manualGoLiveValue();
         if ($value === '') {
             return null;
         }
 
-        try {
-            $date = CarbonImmutable::createFromFormat('!Y-m-d', $value, 'Africa/Lagos');
-        } catch (InvalidFormatException) {
-            $date = null;
-        }
-
         // Anything other than a real Y-m-d date counts as unset.
-        if (! $date || $date->format('Y-m-d') !== $value) {
+        $date = self::parseGoLiveDate($value);
+        if ($date === null) {
             Log::warning('MANUAL_GO_LIVE_DATE is not a valid YYYY-MM-DD date; treated as not set.', ['value' => $value]);
-
-            return null;
         }
 
         return $date;
+    }
+
+    /**
+     * Whether MANUAL_GO_LIVE_DATE is set but not a real YYYY-MM-DD date —
+     * a mistake in .env that the report points out to national admins.
+     */
+    public static function manualGoLiveDateIsInvalid(): bool
+    {
+        $value = self::manualGoLiveValue();
+
+        return $value !== '' && self::parseGoLiveDate($value) === null;
+    }
+
+    private static function manualGoLiveValue(): string
+    {
+        return trim((string) config('income.manual_go_live_date'));
+    }
+
+    private static function parseGoLiveDate(string $value): ?CarbonImmutable
+    {
+        try {
+            $date = CarbonImmutable::createFromFormat('!Y-m-d', $value, 'Africa/Lagos');
+        } catch (InvalidFormatException) {
+            return null;
+        }
+
+        return $date && $date->format('Y-m-d') === $value ? $date : null;
     }
 }

@@ -143,6 +143,7 @@ class PermissionsTableSeeder extends Seeder
                     'print_certificates',
                     'use_archive_tool',
                     'campaign_request_create',
+                    'view_income_distribution_branch', // own branch's manual payments (Income Distribution Tab 2)
 
                     // approval (two-step workflow)
                     'approve_donations',
@@ -175,6 +176,7 @@ class PermissionsTableSeeder extends Seeder
                     'print_certificates',
                     'use_archive_tool',
                     'campaign_request_create',
+                    'view_income_distribution_branch', // own branch's manual payments (Income Distribution Tab 2)
 
                     // approval (two-step workflow)
                     'approve_donations',

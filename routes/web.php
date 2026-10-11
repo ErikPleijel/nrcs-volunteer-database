@@ -858,13 +858,14 @@ Route::middleware(['auth', 'verified.or.absent'])->group(function () {
             Route::get('financial', [\App\Http\Controllers\Reports\FinancialOverviewReportController::class, 'index'])
                 ->name('financial.index');
 
-            // HQ/branch/division split of online (Paystack) membership
-            // income. National DB administrators only, via its own
-            // permission rather than the group's view_reports.
+            // HQ/branch/division split of membership income, via its own
+            // permissions rather than the group's view_reports:
+            // view_income_distribution (national, both tabs) or
+            // view_income_distribution_branch (manual payments tab, own
+            // branch only) — checked in the controller.
             Route::get('income-distribution', [\App\Http\Controllers\Reports\IncomeDistributionReportController::class, 'index'])
                 ->name('income-distribution.index')
-                ->withoutMiddleware('can:view_reports')
-                ->middleware('can:view_income_distribution');
+                ->withoutMiddleware('can:view_reports');
             Route::get('income-distribution/divisions', [\App\Http\Controllers\Reports\IncomeDistributionReportController::class, 'divisions'])
                 ->name('income-distribution.divisions')
                 ->withoutMiddleware('can:view_reports')

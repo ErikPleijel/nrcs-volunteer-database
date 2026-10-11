@@ -265,11 +265,13 @@ test('a red warning appears if the stored shares do not add up to the net', func
     $response->assertSee('The figures on this page do not add up.');
 });
 
-test('the manual payments tab is a placeholder', function () {
-    viewIncomeReport(['tab' => 'manual'])
-        ->assertOk()
-        ->assertSee('Manual payments (branches)')
-        ->assertSee('Coming later.');
+test('Paystack payments do not show on the manual payments tab (IncomeDistributionManualTabTest)', function () {
+    incomePayment(1_000_000, $this->kano->id, $this->kanoDivision->id, '2026-07-10 09:00:00');
+
+    $response = viewIncomeReport(['tab' => 'manual', 'quarter' => '2026-Q3'])->assertOk();
+
+    expect($response->viewData('activeTab'))->toBe('manual')
+        ->and($response->viewData('headline')['count'])->toBe(0);
 });
 
 /*

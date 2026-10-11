@@ -13,7 +13,8 @@
 
     <div class="container mx-auto px-4 py-6">
 
-        {{-- ── TABS ─────────────────────────────────────────────────────────── --}}
+        {{-- ── TABS (branch users only have Tab 2) ───────────────────────────── --}}
+        @if($isNational)
         <div id="income-distribution-tabs" class="flex gap-2 border-b border-gray-200 mb-6">
             @foreach([
                 'online' => ['label' => 'Online payments (Paystack)', 'icon' => 'fa-credit-card'],
@@ -29,10 +30,11 @@
                 </a>
             @endforeach
         </div>
+        @endif
 
-        {{-- ── TAB 2: Manual payments (placeholder) ───────────────────────────── --}}
+        {{-- ── TAB 2: Manual payments (branches) ──────────────────────────────── --}}
         @if($activeTab === 'manual')
-            <p class="text-center text-gray-400 italic py-12">Coming later.</p>
+            @include('reports.income-distribution.partials.manual-tab')
         @else
 
         {{-- ── QUARTER SELECTOR (+ in-progress warning) ──────────────────────── --}}

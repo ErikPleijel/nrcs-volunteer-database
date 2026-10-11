@@ -3,23 +3,69 @@
 namespace App\Services\Reports;
 
 use Carbon\Carbon;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Figures for the Income Distribution report: how online (Paystack)
- * membership income is shared between HQ, branches and divisions.
+ * Figures for the Income Distribution report: how membership income is
+ * shared between HQ, branches and divisions.
  *
- * Only sums the shares stored on each payment when it was fulfilled
- * (IncomeDistributionCalculator) — nothing is recalculated, so a closed
- * quarter never changes. A payment's quarter is decided by paid_at
- * (Paystack's payment time, stored in Africa/Lagos time). All money in kobo.
+ * Only sums the shares stored on each payment when it was fulfilled or
+ * approved (IncomeDistributionCalculator) — nothing is recalculated, so a
+ * closed quarter never changes. All money in kobo.
+ *
+ * Two channels: online (Paystack, Tab 1; quarter by paid_at, Paystack's
+ * payment time in Africa/Lagos time) and, via manual(), manual payments
+ * collected by branches (Tab 2; quarter by accounting_date — the approval
+ * day, or the payment day for legacy imports; no Paystack charge, so net =
+ * amount collected).
  */
 class IncomeDistributionStatsService
 {
+    public const CHANNEL_ONLINE = 'online';
+
+    public const CHANNEL_MANUAL = 'manual';
+
+    private string $channel = self::CHANNEL_ONLINE;
+
     /** Shown on screen and in the CSV whenever the current quarter is selected. */
     public const IN_PROGRESS_NOTE = 'This quarter is not finished yet. Figures will change. Do not transfer money based on these numbers.';
+
+    /** Manual payments: a quarter that ends on or before the go-live date (or no go-live date yet). */
+    public const BEFORE_GO_LIVE_NOTE = 'Before go-live: amounts are estimates based on fee prices, for comparison only. Money shared during this period may have been different.';
+
+    /** Shown to national admins when MANUAL_GO_LIVE_DATE is set but unusable. */
+    public const INVALID_GO_LIVE_NOTE = 'MANUAL_GO_LIVE_DATE in .env is not a valid date (YYYY-MM-DD). All payments are treated as before go-live.';
+
+    /** Manual payments: the quarter that contains the go-live date. */
+    public static function transitionNote(CarbonInterface $goLive): string
+    {
+        $date = self::formatGoLiveDate($goLive);
+
+        return "Transition quarter: payments before {$date} are estimates based on fee prices; payments from {$date} are recorded amounts.";
+    }
+
+    /** "1 November 2026". */
+    public static function formatGoLiveDate(CarbonInterface $goLive): string
+    {
+        return $goLive->format('j F Y');
+    }
+
+    /**
+     * Where a quarter stands against the manual payments go-live date:
+     * 'before' (ends on or before it, or no go-live date yet), 'transition'
+     * (go-live falls inside it, after its first day) or 'live'.
+     */
+    public static function goLivePhase(Carbon $start, Carbon $end, ?CarbonInterface $goLive): string
+    {
+        return match (true) {
+            $goLive === null || $goLive->gte($end) => 'before',
+            $goLive->gt($start) => 'transition',
+            default => 'live',
+        };
+    }
 
     public const RULE_LABELS = [
         'standard' => 'Payments with a division',
@@ -46,20 +92,71 @@ class IncomeDistributionStatsService
         return implode(' / ', $parts);
     }
 
-    /**
-     * Approved, not deleted Paystack membership payments. DB::table()
-     * bypasses Approvable's ApprovedScope, so approval is filtered here.
-     */
-    public function baseQuery(): Builder
+    /** The same figures for manual payments collected by branches (Tab 2). */
+    public function manual(): static
     {
-        return DB::table('membership_payments')
-            ->where('membership_payments.payment_channel', 'paystack')
-            ->where('membership_payments.approval_status', 'approved')
-            ->where('membership_payments.is_deleted', false);
+        $copy = clone $this;
+        $copy->channel = self::CHANNEL_MANUAL;
+
+        return $copy;
+    }
+
+    public function isManual(): bool
+    {
+        return $this->channel === self::CHANNEL_MANUAL;
     }
 
     /**
-     * Every quarter from the earliest Paystack payment's to the current
+     * Approved, not deleted membership payments of this channel. DB::table()
+     * bypasses Approvable's ApprovedScope, so approval is filtered here.
+     * Manual payments: channel 'manual' (or empty on very old rows) with
+     * their shares stored — see unsplitManualPayments() for those without.
+     */
+    public function baseQuery(): Builder
+    {
+        $query = DB::table('membership_payments')
+            ->where('membership_payments.approval_status', 'approved');
+
+        if (! $this->isManual()) {
+            return $query
+                ->where('membership_payments.payment_channel', 'paystack')
+                ->where('membership_payments.is_deleted', false);
+        }
+
+        return $query
+            ->where(fn (Builder $q) => $q->where('membership_payments.payment_channel', 'manual')->orWhereNull('membership_payments.payment_channel'))
+            ->where(fn (Builder $q) => $q->where('membership_payments.is_deleted', false)->orWhereNull('membership_payments.is_deleted'))
+            ->whereNotNull('membership_payments.accounting_date');
+    }
+
+    /**
+     * Approved manual payments that have no shares yet, so they are in no
+     * quarter. Should be 0 after payments:backfill-manual-shares.
+     */
+    public function unsplitManualPayments(): int
+    {
+        return DB::table('membership_payments')
+            ->where(fn (Builder $q) => $q->where('payment_channel', 'manual')->orWhereNull('payment_channel'))
+            ->where('approval_status', 'approved')
+            ->where(fn (Builder $q) => $q->where('is_deleted', false)->orWhereNull('is_deleted'))
+            ->where(fn (Builder $q) => $q->whereNull('distribution_rule')->orWhereNull('accounting_date'))
+            ->count();
+    }
+
+    /** The column that decides a payment's quarter. */
+    private function dateColumn(): string
+    {
+        return 'membership_payments.'.($this->isManual() ? 'accounting_date' : 'paid_at');
+    }
+
+    /** A moment as compared with dateColumn() (accounting_date is a DATE). */
+    private function bound(Carbon $moment): Carbon|string
+    {
+        return $this->isManual() ? $moment->toDateString() : $moment;
+    }
+
+    /**
+     * Every quarter from the earliest payment's to the current
      * one, newest first: ['2026-Q4' => '2026 Q4 (in progress)',
      * '2026-Q3' => '2026 Q3', ...].
      *
@@ -68,7 +165,7 @@ class IncomeDistributionStatsService
     public function quarterOptions(): array
     {
         $current = self::currentQuarterStart();
-        $earliest = $this->baseQuery()->min('paid_at');
+        $earliest = $this->baseQuery()->min($this->dateColumn());
         $first = $earliest ? Carbon::parse($earliest)->firstOfQuarter()->startOfDay() : $current->copy();
 
         if ($first->gt($current)) {
@@ -85,15 +182,15 @@ class IncomeDistributionStatsService
     }
 
     /**
-     * The latest FINISHED quarter with Paystack income, so nobody is shown
+     * The latest FINISHED quarter with income, so nobody is shown
      * figures that will still change unless they choose to. The current
      * quarter only when no finished quarter has income yet.
      */
     public function defaultQuarter(): string
     {
         $latestFinished = $this->baseQuery()
-            ->where('membership_payments.paid_at', '<', self::currentQuarterStart())
-            ->max('paid_at');
+            ->where($this->dateColumn(), '<', $this->bound(self::currentQuarterStart()))
+            ->max($this->dateColumn());
 
         return self::quarterKey($latestFinished ? Carbon::parse($latestFinished) : Carbon::now());
     }
@@ -157,13 +254,14 @@ class IncomeDistributionStatsService
      * One row per branch that received income in the quarter, sorted by
      * name, then any branch that no longer exists ("Deleted branch #id"),
      * then payments with no branch at all ("No branch (to HQ)") — so the
-     * rows always add up to the headline.
+     * rows always add up to the headline. $branchId: that branch's row only.
      *
      * @return Collection<int, array<string, mixed>>
      */
-    public function branchRows(Carbon $start, Carbon $end): Collection
+    public function branchRows(Carbon $start, Carbon $end, ?int $branchId = null): Collection
     {
         $rows = $this->inQuarter($start, $end)
+            ->when($branchId !== null, fn (Builder $q) => $q->where('membership_payments.branch_id', $branchId))
             ->leftJoin('branches', 'branches.id', '=', 'membership_payments.branch_id')
             ->groupBy('membership_payments.branch_id', 'branches.id', 'branches.name')
             ->selectRaw('membership_payments.branch_id, branches.id as existing_branch_id, branches.name as branch_name, '.$this->sumColumns())
@@ -253,9 +351,10 @@ class IncomeDistributionStatsService
      *
      * @return array<string, list<array{hq: int, branch: int, division: int, count: int}>>
      */
-    public function percentageSets(Carbon $start, Carbon $end): array
+    public function percentageSets(Carbon $start, Carbon $end, ?int $branchId = null): array
     {
         return $this->inQuarter($start, $end)
+            ->when($branchId !== null, fn (Builder $q) => $q->where('membership_payments.branch_id', $branchId))
             ->groupBy('distribution_rule', 'hq_pct_bp', 'branch_pct_bp', 'division_pct_bp')
             ->orderBy('distribution_rule')
             ->orderBy('hq_pct_bp')
@@ -275,8 +374,8 @@ class IncomeDistributionStatsService
     private function inQuarter(Carbon $start, Carbon $end): Builder
     {
         return $this->baseQuery()
-            ->where('membership_payments.paid_at', '>=', $start)
-            ->where('membership_payments.paid_at', '<', $end);
+            ->where($this->dateColumn(), '>=', $this->bound($start))
+            ->where($this->dateColumn(), '<', $this->bound($end));
     }
 
     private function sumColumns(): string
