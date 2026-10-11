@@ -105,10 +105,6 @@
 
                                     <!-- Hidden User ID -->
                                     <input type="hidden" name="user_id" id="selected-user-id">
-                                    <!-- Hidden Branch ID -->
-                                    <input type="hidden" name="branch_id" id="selected-branch-id">
-                                    <!-- Hidden Division ID -->
-                                    <input type="hidden" name="division_id" id="selected-division-id">
 
                                     <div class="entry-card">
                                         <h4 class="entry-card-title">Enter payment details</h4>
@@ -164,7 +160,7 @@
                                                 <label for="reference" class="block text-sm font-medium text-gray-700">Reference</label>
                                                 <input type="text" name="reference" id="reference"
                                                        class="entry-field"
-                                                       value="{{ old('reference') }}" placeholder="Payment reference">
+                                                       value="{{ old('reference') }}" placeholder="Payment reference" maxlength="45">
                                                 @error('reference')
                                                     <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
                                                 @enderror
@@ -442,8 +438,6 @@
             const selectedUserReference = document.getElementById('selected-user-reference');
             const selectedUserBranch = document.getElementById('selected-user-branch');
             const selectedUserDivision = document.getElementById('selected-user-division');
-            const selectedBranchId = document.getElementById('selected-branch-id');
-            const selectedDivisionId = document.getElementById('selected-division-id');
             const changeUserBtn = document.getElementById('change-user-btn');
             const membershipFeeSelect = document.getElementById('membership_fee_id');
             const idCardCheckbox = document.getElementById('id_card_included');
@@ -685,9 +679,6 @@
                 selectedUserDivision.textContent = user.division ? user.division.name : 'No division assigned';
             }
 
-            // Set hidden branch and division IDs
-            selectedBranchId.value = user.branch_id || '';
-            selectedDivisionId.value = user.division_id || '';
 
             // Order the fee groups for this person and refresh the explainers
             selectedFeeFacts = { in_active_unit: !!user.in_active_unit, left_unit: !!user.left_unit };

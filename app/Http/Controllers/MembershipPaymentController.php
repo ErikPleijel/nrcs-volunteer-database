@@ -11,6 +11,7 @@ use App\Models\MembershipPayment;
 use App\Models\Organisation;
 use App\Models\RedCrossUnit;
 use App\Models\User;
+use App\Services\IncomeDistributionCalculator;
 use Carbon\Carbon;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
@@ -592,9 +593,8 @@ class MembershipPaymentController extends Controller
                 },
             ],
             'payment_date' => 'required|date',
-            'reference' => 'nullable|string|max:255',
-            'branch_id' => 'nullable|exists:branches,id',
-            'division_id' => 'nullable|exists:divisions,id',
+            // membership_payments.reference is varchar(45).
+            'reference' => 'nullable|string|max:45',
             'id_card_included' => [
                 'nullable',
                 'boolean',
@@ -611,6 +611,13 @@ class MembershipPaymentController extends Controller
                 },
             ],
         ]);
+
+        // A personal payment is attributed to the payer's branch/division,
+        // so the payer must be inside the clerk's scope. The payer search is
+        // already scoped; this stops a hand-made request.
+        if (! $isOrgPayment && ! $isRcuPayment) {
+            $this->authorize('view', User::findOrFail($request->user_id));
+        }
 
         $membershipFee = MembershipFee::findOrFail($request->membership_fee_id);
         $paymentDate = Carbon::parse($request->payment_date);
@@ -634,15 +641,24 @@ class MembershipPaymentController extends Controller
             }
         }
 
-        // An RCU payment is scoped to the unit's own division and branch,
-        // taken from the unit rather than the form's hidden fields.
-        $branchId = $request->branch_id;
-        $divisionId = $request->division_id;
+        // Branch and division are decided here, never taken from the form,
+        // the same way the Paystack webhook does it: the unit's division
+        // and branch for an RCU payment, the organisation's branch (no
+        // division) for an organisation payment, otherwise the payer's own
+        // — with a division's branch filling in a missing branch.
         if ($isRcuPayment) {
             $unit = RedCrossUnit::with('division')->findOrFail($request->red_cross_unit_id);
             $branchId = $unit->division?->branch_id;
             $divisionId = $unit->division_id;
+        } elseif ($isOrgPayment) {
+            $branchId = Organisation::whereKey($request->organisation_id)->value('branch_id');
+            $divisionId = null;
+        } else {
+            $payer = User::findOrFail($request->user_id);
+            $branchId = $payer->branch_id;
+            $divisionId = $payer->division_id;
         }
+        $branchId = IncomeDistributionCalculator::resolveBranchId($branchId === null ? null : (int) $branchId, $divisionId === null ? null : (int) $divisionId);
 
         $membershipPayment = MembershipPayment::create([
             'user_id' => $request->user_id,

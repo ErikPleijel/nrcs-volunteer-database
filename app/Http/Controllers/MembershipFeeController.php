@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Log as AuditLog;
 use App\Models\MembershipFee;
+use App\Models\MembershipPayment;
+use App\Models\PaymentTransaction;
 use Illuminate\Http\Request;
 
 class MembershipFeeController extends Controller
@@ -240,6 +242,24 @@ class MembershipFeeController extends Controller
      */
     public function destroy(MembershipFee $membershipFee)
     {
+        // A payment's amount is read from its fee row, and a Paystack
+        // checkout in progress looks its fee up again when it completes, so
+        // a fee that is in use is deactivated (Edit), never deleted.
+        $payments = MembershipPayment::withAnyApprovalStatus()->where('membership_fee_id', $membershipFee->id)->count();
+        $checkoutsInProgress = PaymentTransaction::where('status', 'initiated')
+            ->where('meta->membership_fee_id', $membershipFee->id)
+            ->count();
+
+        if ($payments > 0 || $checkoutsInProgress > 0) {
+            return redirect()->route('membership-fees.index')->with('error', sprintf(
+                'The fee "%s" cannot be deleted: %s. Deactivate it instead.',
+                $membershipFee->name,
+                $payments > 0
+                    ? sprintf('%s %s use it', number_format($payments), $payments === 1 ? 'payment' : 'payments')
+                    : 'an online payment using it is still in progress'
+            ));
+        }
+
         $attributes = $membershipFee->toArray();
 
         $membershipFee->delete();

@@ -40,8 +40,6 @@
                     <form method="POST" action="{{ route('membership-payments.store') }}">
                         @csrf
                         <input type="hidden" name="red_cross_unit_id" value="{{ $redCrossUnit->id }}">
-                        <input type="hidden" name="branch_id" value="{{ $redCrossUnit->division->branch_id ?? '' }}">
-                        <input type="hidden" name="division_id" value="{{ $redCrossUnit->division_id }}">
 
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
@@ -132,7 +130,7 @@
                                 <label for="reference" class="block text-sm font-medium text-gray-700">Reference</label>
                                 <input type="text" name="reference" id="reference"
                                        class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                       value="{{ old('reference') }}" placeholder="Payment reference">
+                                       value="{{ old('reference') }}" placeholder="Payment reference" maxlength="45">
                                 @error('reference')
                                     <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
                                 @enderror

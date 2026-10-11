@@ -181,7 +181,8 @@ test('the create form offers only the unit\'s leaders as payer and only RCU fees
         ->assertDontSee('Mo Member')
         ->assertSee('Unit Yearly')
         ->assertDontSee('Personal Gold')
-        ->assertSee('name="division_id" value="'.$this->division->id.'"', false);
+        // Branch and division come from the unit on the server, not the form.
+        ->assertDontSee('name="division_id"', false);
 
     expect($response->viewData('payers')->pluck('id')->sort()->values()->all())
         ->toBe(collect([$this->leader->id, $this->assistant->id])->sort()->values()->all());
