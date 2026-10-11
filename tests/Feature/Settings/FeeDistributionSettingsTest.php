@@ -52,7 +52,8 @@ function saveFeeDistribution(array $payload, ?User $user = null)
 }
 
 test('the migration installs the five settings with the default split', function () {
-    expect(Setting::where('group', 'fee_distribution')->pluck('value', 'key')->all())->toEqual([
+    // The group also holds the manual payments go-live date (ManualGoLiveSettingTest).
+    expect(Setting::where('group', 'fee_distribution')->where('type', 'int')->pluck('value', 'key')->all())->toEqual([
         'fee_distribution.standard.hq' => '25',
         'fee_distribution.standard.branch' => '25',
         'fee_distribution.standard.division' => '50',
@@ -60,8 +61,7 @@ test('the migration installs the five settings with the default split', function
         'fee_distribution.branch_level.branch' => '75',
     ]);
 
-    expect(Setting::where('group', 'fee_distribution')->pluck('type')->unique()->all())->toBe(['int'])
-        ->and(FeeDistributionSettings::percentages())->toBe(FeeDistributionSettings::DEFAULTS);
+    expect(FeeDistributionSettings::percentages())->toBe(FeeDistributionSettings::DEFAULTS);
 });
 
 test('the National DB admin sees the page with the note about earlier payments', function () {

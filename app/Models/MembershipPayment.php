@@ -52,6 +52,7 @@ class MembershipPayment extends Model
         // Income distribution, set once when a Paystack payment is fulfilled
         // (IncomeDistributionCalculator); null on manual payments.
         'paid_at',
+        'accounting_date',
         'amount_paid_kobo',
         'paystack_fee_kobo',
         'net_kobo',
@@ -83,6 +84,7 @@ class MembershipPayment extends Model
         'removed_by_user_id' => 'integer',
         'gateway_response' => 'array',
         'paid_at' => 'datetime',
+        'accounting_date' => 'date',
         'amount_paid_kobo' => 'integer',
         'paystack_fee_kobo' => 'integer',
         'net_kobo' => 'integer',

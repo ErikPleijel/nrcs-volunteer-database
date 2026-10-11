@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Setting;
+use Carbon\CarbonImmutable;
 
 /**
  * The percentages that split online (Paystack) membership income between
@@ -18,6 +19,13 @@ use App\Models\Setting;
 class FeeDistributionSettings
 {
     public const GROUP = 'fee_distribution';
+
+    /**
+     * The day manual (staff-entered) payments start being shared out for
+     * real (Y-m-d, empty until set). Payments counted before it are shown
+     * as estimates for comparison only.
+     */
+    public const MANUAL_GO_LIVE_KEY = self::GROUP.'.manual_go_live_date';
 
     /** rule => party => default whole percentage. */
     public const DEFAULTS = [
@@ -62,5 +70,18 @@ class FeeDistributionSettings
         }
 
         return $percentages;
+    }
+
+    /**
+     * The manual payments go-live date (start of that day, app timezone),
+     * or null while it is not set — then every manual payment counts as
+     * before go-live.
+     */
+    public static function manualGoLiveDate(): ?CarbonImmutable
+    {
+        $value = (string) Setting::get(self::MANUAL_GO_LIVE_KEY, '');
+
+        // The settings page only stores Y-m-d; anything else counts as unset.
+        return $value === '' ? null : (CarbonImmutable::createFromFormat('!Y-m-d', $value) ?: null);
     }
 }
