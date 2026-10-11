@@ -3,9 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\Branch;
+use App\Models\Division;
+use App\Models\Log as AuditLog;
 use App\Models\Organisation;
 use App\Models\User;
+use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -26,7 +30,7 @@ class OrganisationController extends Controller
         // --------------------------------------------------
         $viewMode = $request->input('view_mode', 'standard');
 
-        $with = ['branch', 'activeMembership.membershipFee', 'latestMembership'];
+        $with = ['branch', 'division', 'activeMembership.membershipFee', 'latestMembership'];
         if ($viewMode === 'donations') {
             $with[] = 'donations';
         } elseif ($viewMode === 'certificates') {
@@ -39,7 +43,7 @@ class OrganisationController extends Controller
         }
 
         $query = $status === 'archived'
-            ? Organisation::onlyTrashed()->with('branch')->withCount('users')
+            ? Organisation::onlyTrashed()->with(['branch', 'division'])->withCount('users')
             : Organisation::with($with)->withCount(['users', 'donations']);
 
         if ($request->filled('search')) {
@@ -68,6 +72,16 @@ class OrganisationController extends Controller
                 }
                 $branches = Branch::orderBy('name')->get();
                 break;
+        }
+
+        // Division filter: the divisions of the branch shown (branch staff's
+        // own, or the one chosen); a division outside it is ignored.
+        $filterBranchId = $accessLevel === 'branch' ? $scopedId : $request->input('branch_id');
+        $divisions = filled($filterBranchId)
+            ? Division::where('branch_id', $filterBranchId)->orderBy('name')->get(['id', 'name'])
+            : collect();
+        if ($request->filled('division_id') && $divisions->contains('id', (int) $request->division_id)) {
+            $query->where('division_id', $request->division_id);
         }
 
         if ($status === 'active') {
@@ -127,11 +141,11 @@ class OrganisationController extends Controller
             });
         }
 
-        $hasFilters = $request->anyFilled(['search', 'branch_id'])
+        $hasFilters = $request->anyFilled(['search', 'branch_id', 'division_id'])
             || ($status === 'active' && $membership !== 'all')
             || $sortBy !== 'name_asc';
 
-        return view('organisations.index', compact('organisations', 'branches', 'accessLevel', 'status', 'membership', 'sortBy', 'hasFilters', 'viewMode'));
+        return view('organisations.index', compact('organisations', 'branches', 'divisions', 'accessLevel', 'status', 'membership', 'sortBy', 'hasFilters', 'viewMode'));
     }
 
     public function create()
@@ -150,7 +164,9 @@ class OrganisationController extends Controller
                 break;
         }
 
-        return view('organisations.create', compact('branches', 'accessLevel'));
+        $divisionsByBranch = $this->divisionsByBranch($branches);
+
+        return view('organisations.create', compact('branches', 'accessLevel', 'divisionsByBranch'));
     }
 
     public function store(Request $request)
@@ -158,6 +174,11 @@ class OrganisationController extends Controller
         $authUser    = Auth::user();
         $accessLevel = $authUser->getAccessLevel();
         $scopedId    = $authUser->getScopedId();
+
+        // Branch staff always create in their own branch.
+        if ($accessLevel === 'branch') {
+            $request->merge(['branch_id' => $scopedId]);
+        }
 
         $validated = $request->validate([
             'name'                => 'required|string|max:255',
@@ -167,12 +188,8 @@ class OrganisationController extends Controller
             'description'         => 'nullable|string|max:1000',
             'email'               => 'nullable|email|max:255',
             'phone'               => 'nullable|string|max:50',
-            'branch_id'           => 'nullable|exists:branches,id',
+            ...$this->locationRules($request),
         ]);
-
-        if ($accessLevel === 'branch') {
-            $validated['branch_id'] = $scopedId;
-        }
 
         Organisation::create($validated);
 
@@ -186,7 +203,7 @@ class OrganisationController extends Controller
 
     public function show(Organisation $organisation)
     {
-        $organisation->load(['branch', 'users']);
+        $organisation->load(['branch', 'division', 'users']);
 
         $prints = $organisation->certificatePrints()
             ->with('printedBy')
@@ -238,8 +255,16 @@ class OrganisationController extends Controller
                 ->with('error', 'Archived organisations cannot be edited.');
         }
 
-        $branches = Branch::orderBy('name')->get();
-        return view('organisations.edit', compact('organisation', 'branches'));
+        $accessLevel = Auth::user()->getAccessLevel();
+
+        // Only national staff can move an organisation to another branch;
+        // branch staff choose a division within its branch.
+        $branches = $accessLevel === 'national'
+            ? Branch::orderBy('name')->get()
+            : Branch::whereKey($organisation->branch_id)->get();
+        $divisionsByBranch = $this->divisionsByBranch($branches);
+
+        return view('organisations.edit', compact('organisation', 'branches', 'accessLevel', 'divisionsByBranch'));
     }
 
     public function update(Request $request, Organisation $organisation)
@@ -249,6 +274,8 @@ class OrganisationController extends Controller
                 ->with('error', 'Archived organisations cannot be updated.');
         }
 
+        $accessLevel = Auth::user()->getAccessLevel();
+
         $validated = $request->validate([
             'name'                => 'required|string|max:255',
             'short_name'          => 'nullable|string|max:50',
@@ -257,9 +284,50 @@ class OrganisationController extends Controller
             'description'         => 'nullable|string|max:1000',
             'email'               => 'nullable|email|max:255',
             'phone'               => 'nullable|string|max:50',
+            ...$this->locationRules($request),
         ]);
 
+        // Moving rules, as for persons (UserController::update): national
+        // staff anywhere; branch staff only between divisions of their own
+        // branch; anyone else not at all.
+        $branchChanged   = (int) $validated['branch_id'] !== (int) $organisation->branch_id;
+        $divisionChanged = (int) $validated['division_id'] !== (int) $organisation->division_id;
+
+        if ($branchChanged && $accessLevel !== 'national') {
+            return back()->withInput()->withErrors([
+                'branch_id' => 'Only national staff can move an organisation to a different branch.',
+            ]);
+        }
+        if ($divisionChanged && ! in_array($accessLevel, ['national', 'branch'], true)) {
+            return back()->withInput()->withErrors([
+                'division_id' => 'You cannot move organisations.',
+            ]);
+        }
+
+        $old = ['branch_id' => $organisation->branch_id, 'division_id' => $organisation->division_id];
+        $oldNames = [$organisation->branch?->name, $organisation->division?->name];
+
         $organisation->update($validated);
+
+        if ($branchChanged || $divisionChanged) {
+            $organisation->load('branch', 'division');
+            $new = ['branch_id' => $organisation->branch_id, 'division_id' => $organisation->division_id];
+
+            $parts = [];
+            if ($branchChanged) {
+                $parts[] = sprintf('Branch: %s → %s', $oldNames[0] ?: 'N/A', $organisation->branch?->name ?: 'N/A');
+            }
+            $parts[] = sprintf('Division: %s → %s', $oldNames[1] ?: 'N/A', $organisation->division?->name ?: 'N/A');
+
+            AuditLog::write(
+                'organisation_branch_division_changed',
+                $organisation,
+                $new,
+                $old,
+                $new,
+                'Organisation location updated ('.implode(', ', $parts).'). Earlier payments keep their recorded branch and division.'
+            );
+        }
 
         if ($admin = Auth::user()) {
             $admin->touchLastAdminActivity();
@@ -365,5 +433,43 @@ class OrganisationController extends Controller
         }
 
         return back()->with('success', 'Primary contact updated successfully.');
+    }
+
+    /**
+     * Branch and division are both required, and the division must be in
+     * the branch. The column stays nullable (a deleted division sets it to
+     * null), so the requirement lives here.
+     */
+    private function locationRules(Request $request): array
+    {
+        return [
+            'branch_id'   => 'required|exists:branches,id',
+            'division_id' => [
+                'required',
+                'exists:divisions,id',
+                function (string $attribute, mixed $value, Closure $fail) use ($request) {
+                    $branchId = Division::whereKey($value)->value('branch_id');
+                    if ($branchId !== null && (int) $branchId !== (int) $request->input('branch_id')) {
+                        $fail('The selected division is not in the selected branch.');
+                    }
+                },
+            ],
+        ];
+    }
+
+    /**
+     * The divisions of $branches, keyed by branch id, for the forms'
+     * division list (filtered in the page when the branch changes).
+     *
+     * @return array<int, list<array{id: int, name: string}>>
+     */
+    private function divisionsByBranch(Collection $branches): array
+    {
+        return Division::whereIn('branch_id', $branches->pluck('id'))
+            ->orderBy('name')
+            ->get(['id', 'name', 'branch_id'])
+            ->groupBy('branch_id')
+            ->map(fn ($divisions) => $divisions->map(fn ($d) => ['id' => $d->id, 'name' => $d->name])->values()->all())
+            ->all();
     }
 }

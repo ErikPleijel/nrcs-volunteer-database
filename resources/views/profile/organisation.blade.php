@@ -47,6 +47,10 @@
                         <span class="text-gray-600">Branch:</span>
                         <span class="col-span-2 text-gray-900">{{ $organisation->branch->name ?? '—' }}</span>
                     </div>
+                    <div class="grid grid-cols-3 gap-2">
+                        <span class="text-gray-600">Division:</span>
+                        <span class="col-span-2 text-gray-900">{{ $organisation->division->name ?? '—' }}</span>
+                    </div>
                     @if($organisation->email)
                         <div class="grid grid-cols-3 gap-2">
                             <span class="text-gray-600">Official Email:</span>

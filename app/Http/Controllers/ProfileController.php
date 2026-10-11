@@ -522,7 +522,7 @@ class ProfileController extends Controller
             abort(403);
         }
 
-        $organisation->load(['branch', 'users']);
+        $organisation->load(['branch', 'division', 'users']);
 
         $allPayments = $organisation->membershipPayments()
             ->where('is_deleted', false)

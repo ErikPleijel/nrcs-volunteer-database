@@ -41,7 +41,7 @@
                         </button>
                         <div x-show="open === 'general'" x-collapse class="px-4 py-3 bg-white">
                             <ul class="space-y-1 text-gray-700 list-disc pl-4">
-                                <li>An <span class="font-semibold">organisation</span> is a company or institution that belongs to a branch.</li>
+                                <li>An <span class="font-semibold">organisation</span> is a company or institution that belongs to a branch and a division.</li>
                                 <li>It can pay membership fees, make donations, receive certificates, and receive campaign messages.</li>
                                 <li>Unlike persons, an organisation <span class="font-semibold">cannot register itself</span> — it can only be added by a branch.</li>
                                 <li>An organisation must have at least one linked person before it can make payments or donations.</li>
@@ -169,7 +169,7 @@
         <div class="filter-container">
             <div class="filter-form-content">
                 <form method="GET" action="{{ route('organisations.index') }}" class="filter-form">
-                    <div class="filter-grid filter-grid-4">
+                    <div class="filter-grid filter-grid-5">
                         <div class="flex flex-col gap-4">
                             <div>
                                 <label for="search" class="filter-label">Search</label>
@@ -201,7 +201,8 @@
                                 </select>
                                 <input type="hidden" name="branch_id" value="{{ $branches->first()->id ?? '' }}">
                             @else
-                                <select name="branch_id" id="branch_id" class="filter-select {{ request('branch_id') ? 'filter-active' : '' }}">
+                                <select name="branch_id" id="branch_id" class="filter-select {{ request('branch_id') ? 'filter-active' : '' }}"
+                                        onchange="document.getElementById('division_id').value = ''; this.form.submit();">
                                     <option value="">All Branches</option>
                                     @foreach($branches as $branch)
                                         <option value="{{ $branch->id }}" {{ request('branch_id') == $branch->id ? 'selected' : '' }}>
@@ -210,6 +211,20 @@
                                     @endforeach
                                 </select>
                             @endif
+                        </div>
+
+                        <div>
+                            <label for="division_id" class="filter-label">Division</label>
+                            <select name="division_id" id="division_id"
+                                    class="filter-select {{ request('division_id') ? 'filter-active' : '' }}"
+                                    @disabled($divisions->isEmpty())>
+                                <option value="">{{ $divisions->isEmpty() ? 'Choose a branch first' : 'All Divisions' }}</option>
+                                @foreach($divisions as $division)
+                                    <option value="{{ $division->id }}" {{ request('division_id') == $division->id ? 'selected' : '' }}>
+                                        {{ $division->name }}
+                                    </option>
+                                @endforeach
+                            </select>
                         </div>
 
                         <div>
@@ -309,7 +324,7 @@
                         <thead class="table-header">
                             <tr class="table-header-row">
                                 <th class="table-header-cell">Name</th>
-                                <th class="table-header-cell">Branch</th>
+                                <th class="table-header-cell">Branch / Division</th>
                                 @if($viewMode === 'donations')
                                     <th colspan="3" class="table-header-cell">Donations</th>
                                 @elseif($viewMode === 'campaigns')
@@ -344,6 +359,7 @@
 
                                     <td class="table-body-cell">
                                         <div class="table-field-main">{{ $organisation->branch->name ?? '—' }}</div>
+                                        <div class="table-field-sub">{{ $organisation->division->name ?? 'No division' }}</div>
                                     </td>
 
                                     @if($viewMode === 'donations')

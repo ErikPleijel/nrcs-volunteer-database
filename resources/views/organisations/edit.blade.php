@@ -78,6 +78,15 @@
                             @enderror
                         </div>
 
+                        <!-- Branch and division -->
+                        @include('organisations._location-fields', [
+                            'branches' => $branches,
+                            'divisionsByBranch' => $divisionsByBranch,
+                            'selectedBranch' => $organisation->branch_id,
+                            'selectedDivision' => $organisation->division_id,
+                            'moveNote' => true,
+                        ])
+
                         <!-- Email -->
                         <div class="form-section">
                             <label for="email" class="form-label">

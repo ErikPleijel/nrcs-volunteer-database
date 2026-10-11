@@ -90,6 +90,10 @@
                         <td>Branch</td>
                         <td>{{ $organisation->branch->name ?? '—' }}</td>
                     </tr>
+                    <tr>
+                        <td>Division</td>
+                        <td>{{ $organisation->division->name ?? '—' }}</td>
+                    </tr>
 
                     @if($organisation->email)
                         <tr>
