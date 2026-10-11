@@ -145,6 +145,17 @@ function storeOrganisationPayment(User $clerk, Organisation $organisation)
     ]);
 }
 
+test('a staff-entered organisation payment stores the organisation\'s branch and division, not the payer\'s', function () {
+    $organisation = Organisation::create(['name' => 'Kano Org', 'branch_id' => $this->kano->id, 'division_id' => $this->kanoDivision->id]);
+
+    // The contact person storeOrganisationPayment() creates has no division.
+    storeOrganisationPayment($this->national, $organisation)->assertSessionHasNoErrors();
+
+    $payment = MembershipPayment::withAnyApprovalStatus()->sole();
+    expect($payment->branch_id)->toBe($this->kano->id)
+        ->and($payment->division_id)->toBe($this->kanoDivision->id);
+});
+
 test('a branch clerk can record a payment for an organisation in their own branch', function () {
     $clerk = clerkWith('branch_db_assistant', ['branch_id' => $this->kano->id]);
     $own = Organisation::create(['name' => 'Kano Org', 'branch_id' => $this->kano->id]);

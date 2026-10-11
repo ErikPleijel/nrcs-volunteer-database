@@ -371,10 +371,13 @@
                         <span class="font-semibold text-gray-900 dark:text-white">₦{{ number_format($revVolunteerFees, 0) }}</span>
                     </div>
 
-                    <div class="flex justify-between text-xs">
-                        <span class="text-gray-600 dark:text-gray-300">Organisation-sponsored:</span>
-                        <span class="font-semibold text-gray-900 dark:text-white">₦{{ number_format($revOrganisationFees, 0) }}</span>
-                    </div>
+                    {{-- Null for division-level viewers: organisation payments are hidden from them. --}}
+                    @if(($dashboardData['revenueOrganisationFees'] ?? null) !== null)
+                        <div class="flex justify-between text-xs">
+                            <span class="text-gray-600 dark:text-gray-300">Organisation-sponsored:</span>
+                            <span class="font-semibold text-gray-900 dark:text-white">₦{{ number_format($revOrganisationFees, 0) }}</span>
+                        </div>
+                    @endif
 
                     <div class="flex justify-between text-xs">
                         <span class="text-gray-600 dark:text-gray-300">Red Cross Unit fees:</span>
@@ -450,10 +453,13 @@
                         <span class="font-semibold text-gray-900 dark:text-white">₦{{ number_format($donationsPersonal, 0) }}</span>
                     </div>
 
+                    {{-- Null for division-level viewers: organisation donations are hidden from them. --}}
+                    @if(($dashboardData['donationsCashOrganisation'] ?? null) !== null)
                     <div class="flex justify-between text-xs">
                         <span class="text-gray-600 dark:text-gray-300">Organisation-sponsored:</span>
                         <span class="font-semibold text-gray-900 dark:text-white">₦{{ number_format($donationsOrganisation, 0) }}</span>
                     </div>
+                    @endif
 
                 </div>
 

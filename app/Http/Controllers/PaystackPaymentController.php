@@ -418,17 +418,15 @@ class PaystackPaymentController extends Controller
                     $meta = $transaction->meta ?? [];
 
                     // Personal payment: scope to the payer's own branch/division.
-                    // Org-sponsored payment: scope to the organisation's branch —
-                    // organisations have no division of their own (Organisation ->
-                    // Branch only, confirmed against every organisations-table
-                    // migration), so division_id stays null for these.
+                    // Org-sponsored payment: the organisation's own branch and
+                    // division (organisations.division_id, since 2026-10-11).
                     // RCU payment: scope to the unit's own division and branch.
                     if ($transaction->red_cross_unit_id !== null) {
                         $branchId = $transaction->redCrossUnit->division?->branch_id;
                         $divisionId = $transaction->redCrossUnit->division_id;
                     } elseif ($transaction->organisation_id !== null) {
                         $branchId = $transaction->organisation->branch_id;
-                        $divisionId = null;
+                        $divisionId = $transaction->organisation->division_id;
                     } else {
                         $branchId = $transaction->user->branch_id;
                         $divisionId = $transaction->user->division_id;
@@ -468,7 +466,6 @@ class PaystackPaymentController extends Controller
                             paidAt: $this->verifiedPaidAt($verified, $transaction),
                             branchId: $branchId,
                             divisionId: $divisionId,
-                            isOrganisation: $transaction->organisation_id !== null,
                         ));
                     } else {
                         $record = Donation::create([

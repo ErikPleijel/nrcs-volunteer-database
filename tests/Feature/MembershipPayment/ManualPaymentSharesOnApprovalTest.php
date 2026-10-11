@@ -151,8 +151,8 @@ test('an organisation payment uses the branch level rule; a payment without a br
         ->and($noBranch->hq_share_kobo)->toBe(500_000);
 });
 
-test('an organisation payment gives no division a share, even with a division stored', function () {
-    $organisation = Organisation::create(['name' => 'Sponsor Org', 'branch_id' => $this->kano->id]);
+test('an organisation payment with a division is shared under the standard rule, like everyone else\'s', function () {
+    $organisation = Organisation::create(['name' => 'Sponsor Org', 'branch_id' => $this->kano->id, 'division_id' => $this->kanoDivision->id]);
     $orgFee = MembershipFee::factory()->create(['for_organizations' => true, 'amount' => 20000, 'id_card_fee' => 0]);
     $payment = pendingManualPayment([
         'organisation_id' => $organisation->id,
@@ -163,10 +163,8 @@ test('an organisation payment gives no division a share, even with a division st
     approveOne($payment);
 
     $payment = freshPayment($payment);
-    expect($payment->distribution_rule)->toBe('branch_level')
-        ->and($payment->division_share_kobo)->toBe(0)
-        ->and([$payment->hq_share_kobo, $payment->branch_share_kobo])->toBe([500_000, 1_500_000])
-        // The stored division is kept; it just earns no share.
+    expect($payment->distribution_rule)->toBe('standard')
+        ->and([$payment->hq_share_kobo, $payment->branch_share_kobo, $payment->division_share_kobo])->toBe([500_000, 500_000, 1_000_000])
         ->and($payment->division_id)->toBe($this->kanoDivision->id);
 });
 

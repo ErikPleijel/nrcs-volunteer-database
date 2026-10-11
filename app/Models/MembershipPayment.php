@@ -235,7 +235,6 @@ class MembershipPayment extends Model
             (bool) $this->id_card_included,
             $this->branch_id,
             $this->division_id,
-            isOrganisation: $this->organisation_id !== null,
         ) + [
             'accounting_date' => ($this->decided_at ?? now())->copy()->setTimezone(config('app.timezone'))->toDateString(),
         ])->save();
@@ -541,6 +540,25 @@ class MembershipPayment extends Model
     public function scopeOrganisational(Builder $query): Builder
     {
         return $query->whereNotNull($query->qualifyColumn('organisation_id'));
+    }
+
+    /**
+     * Organisation payments are hidden from division-level users, like the
+     * organisations themselves (Organisation::isInScopeOf(), Decisions.md
+     * 2026-10-11): their payment lists, payment pages and payment counts
+     * leave them out. Everyone else is unaffected.
+     */
+    public function scopeExceptOrganisationalFor(Builder $query, User $user): Builder
+    {
+        return $user->getAccessLevel() === 'division'
+            ? $query->whereNull($query->qualifyColumn('organisation_id'))
+            : $query;
+    }
+
+    /** Whether this payment is hidden from $user (scopeExceptOrganisationalFor()). */
+    public function isHiddenFrom(User $user): bool
+    {
+        return $this->organisation_id !== null && $user->getAccessLevel() === 'division';
     }
 
     /**

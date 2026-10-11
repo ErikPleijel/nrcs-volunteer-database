@@ -615,7 +615,10 @@ class UserController extends Controller
         $membershipPayments = $processedPayments;
 
         // Process Donations
+        // Organisation donations (this person as contact) are hidden from
+        // division-level viewers (Donation::scopeExceptOrganisationalFor()).
         $allDonations = $user->donations()
+            ->exceptOrganisationalFor(Auth::user())
             ->withAnyApprovalStatus()
             ->whereIn('approval_status', ['approved', 'pending'])
             ->where('is_deleted', false)

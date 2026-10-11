@@ -158,6 +158,24 @@ class Donation extends Model
         return $query->whereNotNull('organisation_id');
     }
 
+    /**
+     * Organisation donations are hidden from division-level users, like
+     * organisation payments (MembershipPayment::scopeExceptOrganisationalFor(),
+     * Decisions.md 2026-10-11). Everyone else is unaffected.
+     */
+    public function scopeExceptOrganisationalFor(Builder $query, User $user): Builder
+    {
+        return $user->getAccessLevel() === 'division'
+            ? $query->whereNull($query->qualifyColumn('organisation_id'))
+            : $query;
+    }
+
+    /** Whether this donation is hidden from $user (scopeExceptOrganisationalFor()). */
+    public function isHiddenFrom(User $user): bool
+    {
+        return $this->organisation_id !== null && $user->getAccessLevel() === 'division';
+    }
+
     // Accessors
     public function getDonorFullNameAttribute()
     {

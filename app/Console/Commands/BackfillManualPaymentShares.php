@@ -108,7 +108,6 @@ class BackfillManualPaymentShares extends Command
                     (bool) $row->id_card_included,
                     $row->branch_id === null ? null : (int) $row->branch_id,
                     $row->division_id === null ? null : (int) $row->division_id,
-                    isOrganisation: $row->organisation_id !== null,
                     percentages: $percentages,
                 ) + ['accounting_date' => substr((string) $accountingDate, 0, 10)];
 

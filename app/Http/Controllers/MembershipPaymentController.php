@@ -84,6 +84,9 @@ class MembershipPaymentController extends Controller
                 // 'national' level sees all, so no additional filter here
         }
 
+        // Organisation payments are hidden from division-level users.
+        $query->exceptOrganisationalFor($user);
+
         // Handle "My Records" filter
         if ($request->filled('my_records') && $request->my_records == '1') {
             $query->where('submitted_by_user_id', auth()->id());
@@ -246,6 +249,7 @@ class MembershipPaymentController extends Controller
                 }
                 break;
         }
+        $totalRecordsQuery->exceptOrganisationalFor($user);
         $totalRecords = $totalRecordsQuery->count();
 
         $membershipPayments = $query->paginate(15)
@@ -656,16 +660,17 @@ class MembershipPaymentController extends Controller
 
         // Branch and division are decided here, never taken from the form,
         // the same way the Paystack webhook does it: the unit's division
-        // and branch for an RCU payment, the organisation's branch (no
-        // division) for an organisation payment, otherwise the payer's own
+        // and branch for an RCU payment, the organisation's branch and
+        // division for an organisation payment, otherwise the payer's own
         // — with a division's branch filling in a missing branch.
         if ($isRcuPayment) {
             $unit = RedCrossUnit::with('division')->findOrFail($request->red_cross_unit_id);
             $branchId = $unit->division?->branch_id;
             $divisionId = $unit->division_id;
         } elseif ($isOrgPayment) {
-            $branchId = Organisation::whereKey($request->organisation_id)->value('branch_id');
-            $divisionId = null;
+            $organisation = Organisation::findOrFail($request->organisation_id);
+            $branchId = $organisation->branch_id;
+            $divisionId = $organisation->division_id;
         } else {
             $payer = User::findOrFail($request->user_id);
             $branchId = $payer->branch_id;
@@ -725,6 +730,8 @@ class MembershipPaymentController extends Controller
      */
     public function show(MembershipPayment $membershipPayment)
     {
+        abort_if($membershipPayment->isHiddenFrom(Auth::user()), 403, 'Organisation payments are not shown at division level.');
+
         $membershipPayment->load(['user', 'membershipFee', 'submittedByUser', 'branch', 'division', 'decidedByUser']);
 
         if (! $membershipPayment->user) {
@@ -760,6 +767,8 @@ class MembershipPaymentController extends Controller
      */
     public function destroy(MembershipPayment $membershipPayment)
     {
+        abort_if($membershipPayment->isHiddenFrom(Auth::user()), 403, 'Organisation payments are not shown at division level.');
+
         $membershipPayment->load('user');
 
         if (! $membershipPayment->user) {

@@ -55,6 +55,10 @@
         }
     </style>
 
+    @if($hidesOrganisations ?? false)
+        <p class="text-sm text-gray-500 text-center mb-4">Organisation donations are not shown at division level.</p>
+    @endif
+
     <div id="donations-branch-actions" class="flex justify-end gap-2 mb-4">
         <a href="{{ route('reports.donations.in-kind', ['branch' => $branch->id]) }}" class="filter-btn-secondary">
             <i class="fas fa-box-open mr-1"></i>In Kind Donations

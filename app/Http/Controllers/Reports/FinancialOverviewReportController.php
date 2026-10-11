@@ -42,6 +42,11 @@ class FinancialOverviewReportController extends Controller
         $yearStart    = Carbon::create($selectedYear, 1, 1)->startOfDay();
         $yearEnd      = Carbon::create($selectedYear, 12, 31)->endOfDay();
 
+        // Organisation payments are hidden from division-level viewers
+        // (MembershipPayment::scopeExceptOrganisationalFor()): left out of
+        // both tabs and their CSVs, with a note on the page.
+        $hidesOrganisations = auth()->user()->getAccessLevel() === 'division';
+
         $selectedScope     = $request->input('scope', 'national');
         $isNational        = $selectedScope === 'national';
         $scopeBranchId     = !$isNational ? (int) $selectedScope : null;
@@ -84,6 +89,10 @@ class FinancialOverviewReportController extends Controller
                 ->where('membership_payments.is_deleted', false)
                 ->where('membership_payments.approval_status', 'approved') // Phase 2: only approved records are real — explicit because DB::table() bypasses ApprovedScope
                 ->whereBetween('membership_payments.payment_date', [$yearStart, $yearEnd]);
+
+            if ($hidesOrganisations) {
+                $query->whereNull('membership_payments.organisation_id');
+            }
 
             if (!$isNational && $scopeBranchId) {
                 $query->where('membership_payments.branch_id', $scopeBranchId);
@@ -204,6 +213,8 @@ class FinancialOverviewReportController extends Controller
             $feeBreakdownBase = MembershipPayment::query()
                 ->where('is_deleted', false)
                 ->whereBetween('payment_date', [$yearStart, $yearEnd]);
+
+            $feeBreakdownBase->exceptOrganisationalFor(auth()->user());
 
             if (!$isNational && $scopeBranchId) {
                 $feeBreakdownBase->where('branch_id', $scopeBranchId);
@@ -343,6 +354,7 @@ class FinancialOverviewReportController extends Controller
             'organisationFeeBreakdown',
             'rcuFeeBreakdown',
             'feeBreakdownGrandTotal',
+            'hidesOrganisations',
         ));
     }
 
@@ -419,7 +431,11 @@ class FinancialOverviewReportController extends Controller
 
         [$qStart, $qEnd] = $this->parseQuarterRange($quarter);
 
+        // Organisation payments are hidden from division-level viewers.
+        abort_if($category === 'organisation' && $accessLevel === 'division', 403);
+
         $baseQuery = MembershipPayment::query()
+            ->exceptOrganisationalFor(auth()->user())
             ->where('is_deleted', false)
             ->whereBetween('payment_date', [$qStart, $qEnd])
             ->when($level === 'division', fn ($q) => $q->where('division_id', $id))
@@ -528,7 +544,11 @@ class FinancialOverviewReportController extends Controller
 
         [$qStart, $qEnd] = $this->parseQuarterRange($quarter);
 
+        // Organisation payments are hidden from division-level viewers.
+        abort_if($category === 'organisation' && $accessLevel === 'division', 403);
+
         $baseQuery = MembershipPayment::query()
+            ->exceptOrganisationalFor(auth()->user())
             ->where('is_deleted', false)
             ->whereBetween('payment_date', [$qStart, $qEnd])
             ->where('membership_fee_id', $feeId)

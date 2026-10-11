@@ -31,7 +31,7 @@ class SimulatePaystackPayments extends Command
                             {--count=500 : Number of payments to create}
                             {--from= : Earliest payment date, Y-m-d (default 2025-01-01)}
                             {--to= : Latest payment date, Y-m-d (default now)}
-                            {--edge-cases : Also create payments with no division / no branch (normally every payment has both, organisation payments a branch only)}
+                            {--edge-cases : Also create payments with no division / no branch (normally every payment has both)}
                             {--purge : Delete all simulated (SIM-) payments and nothing else}';
 
     protected $description = 'Create simulated Paystack membership payments for testing the Income Distribution report (local/testing only)';
@@ -175,7 +175,8 @@ class SimulatePaystackPayments extends Command
 
     /**
      * Who can pay: divisions that have (non-archived) members, keyed by
-     * branch so every branch gets payments; organisations with a branch;
+     * branch so every branch gets payments; organisations with a branch and
+     * division;
      * active units with a division and a team leader; plus the edge cases.
      */
     private function payerPools(): array
@@ -193,7 +194,7 @@ class SimulatePaystackPayments extends Command
         return [
             'divisions' => $divisions,
             'byBranch' => $divisions->groupBy('branch_id'),
-            'organisations' => DB::table('organisations')->whereNull('deleted_at')->whereNotNull('branch_id')->pluck('id'),
+            'organisations' => DB::table('organisations')->whereNull('deleted_at')->whereNotNull('branch_id')->whereNotNull('division_id')->pluck('id'),
             'units' => DB::table('red_cross_units')
                 ->join('divisions', 'divisions.id', '=', 'red_cross_units.division_id')
                 ->whereNotNull('divisions.branch_id')
@@ -211,7 +212,7 @@ class SimulatePaystackPayments extends Command
      * webhook would store. The first payments cover every branch (and,
      * with --edge-cases, the three edge cases); the rest are ~80% personal,
      * ~10% organisation and ~10% unit. Without --edge-cases every payment
-     * has a branch and division, organisation payments a branch only.
+     * has a branch and division.
      */
     private function plan(int $count, array $fees, array $payers): array
     {
@@ -282,6 +283,7 @@ class SimulatePaystackPayments extends Command
     private function organisationPlan(array $fees, array $payers): array
     {
         $organisationId = $payers['organisations']->random();
+        $organisation = DB::table('organisations')->where('id', $organisationId)->first(['branch_id', 'division_id']);
         $fee = $fees['organisation']->random();
 
         return [
@@ -292,9 +294,9 @@ class SimulatePaystackPayments extends Command
             'fee' => $fee,
             'id_card_included' => false,
             'amount_naira' => (float) $fee->amount,
-            // As the webhook does: the organisation's branch, no division.
-            'branch_id' => DB::table('organisations')->where('id', $organisationId)->value('branch_id'),
-            'division_id' => null,
+            // As the webhook does: the organisation's own branch and division.
+            'branch_id' => $organisation->branch_id,
+            'division_id' => $organisation->division_id,
         ];
     }
 
@@ -429,7 +431,7 @@ class SimulatePaystackPayments extends Command
         ];
 
         $branchId = IncomeDistributionCalculator::resolveBranchId($plan['branch_id'], $plan['division_id']);
-        $distribution = IncomeDistributionCalculator::paymentColumns($amountKobo, $feeKobo, $paidAt, $branchId, $plan['division_id'], $plan['organisation_id'] !== null);
+        $distribution = IncomeDistributionCalculator::paymentColumns($amountKobo, $feeKobo, $paidAt, $branchId, $plan['division_id']);
         $paymentDate = $paidAt->copy()->startOfDay();
 
         $row = [

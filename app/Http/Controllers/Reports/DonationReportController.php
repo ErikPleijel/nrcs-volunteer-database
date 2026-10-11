@@ -47,6 +47,9 @@ class DonationReportController extends Controller
         $yearOptions   = range($currentYear, 2016);
         $selectedYear  = (int) $request->input('year', $currentYear);
 
+        // Organisation donations are hidden from division-level viewers.
+        $this->donationStatsService->exceptOrganisationalFor(auth()->user());
+
         // 📈 National donation trend (all branches) for Chart.js
         $trendDataset = $this->donationStatsService->getDonationTrendForChart(
             $years,
@@ -62,6 +65,7 @@ class DonationReportController extends Controller
         }
 
         return view('reports.donations.national', [
+            'hidesOrganisations'         => auth()->user()->getAccessLevel() === 'division',
             'trendOptions'               => $trendOptions,
             'selectedTrendKey'           => $selectedTrendKey,
             'years'                      => $yearOptions,
@@ -143,6 +147,9 @@ class DonationReportController extends Controller
         $yearOptions  = range($currentYear, 2016);
         $selectedYear = (int) $request->input('year', $currentYear);
 
+        // Organisation donations are hidden from division-level viewers.
+        $this->donationStatsService->exceptOrganisationalFor(auth()->user());
+
         // Branch trend
         $trendDataset = $this->donationStatsService->getDonationTrendForChart(
             $yearsToShow,
@@ -158,6 +165,7 @@ class DonationReportController extends Controller
         }
 
         return view('reports.donations.branch', [
+            'hidesOrganisations'        => auth()->user()->getAccessLevel() === 'division',
             'branch'                    => $branch,
             'trendOptions'              => $trendOptions,
             'selectedTrendKey'          => $selectedTrendKey,
@@ -221,6 +229,7 @@ class DonationReportController extends Controller
         }
 
         $donations = Donation::query()
+            ->exceptOrganisationalFor(auth()->user())
             ->where('is_deleted', 0)
             ->where('approval_status', 'approved')
             ->whereYear('date_donation', $year)
@@ -301,6 +310,7 @@ class DonationReportController extends Controller
         // (removed_date) mechanism, so it still needs its own explicit
         // filter here, same as breakdown().
         $query = Donation::query()
+            ->exceptOrganisationalFor(auth()->user())
             ->where('is_deleted', 0)
             ->where('in_kind_donation', true)
             ->when($scopeBranchId, fn ($q) => $q->where('branch_id', $scopeBranchId))

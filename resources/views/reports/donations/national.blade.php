@@ -56,6 +56,10 @@
         }
     </style>
 
+    @if($hidesOrganisations ?? false)
+        <p class="text-sm text-gray-500 text-center mb-4">Organisation donations are not shown at division level.</p>
+    @endif
+
     <div id="donations-in-kind-cta" class="flex justify-center mb-4">
         <a href="{{ route('reports.donations.in-kind') }}"
            class="inline-flex items-center px-4 py-2 rounded-md shadow-sm text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500">

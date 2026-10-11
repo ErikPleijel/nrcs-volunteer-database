@@ -104,7 +104,25 @@ test('paid_at is converted from UTC to Lagos time, which can move it into the ne
     expect($payment->paid_at->format('Y-m-d H:i:s'))->toBe('2026-10-01 00:30:00');
 });
 
-test('an organisation payment uses the branch_level rule', function () {
+test('an organisation payment stores the organisation\'s division and uses the standard rule', function () {
+    $user = User::factory()->create(); // the payer's own branch/division play no part
+    $organisation = Organisation::create(['name' => 'Sponsor Org', 'branch_id' => $this->branch->id, 'division_id' => $this->division->id]);
+
+    $payment = fulfilWithVerifyData($user, 2_000_000, ['fees' => 30_000, 'paid_at' => '2026-08-14T10:15:00.000Z'], [
+        'organisation_id' => $organisation->id,
+        'meta' => ['organisation_id' => $organisation->id],
+    ]);
+
+    expect($payment->branch_id)->toBe($this->branch->id)
+        ->and($payment->division_id)->toBe($this->division->id)
+        ->and($payment->distribution_rule)->toBe('standard')
+        ->and($payment->net_kobo)->toBe(1_970_000)
+        ->and($payment->hq_share_kobo)->toBe(492_500)
+        ->and($payment->branch_share_kobo)->toBe(492_500)
+        ->and($payment->division_share_kobo)->toBe(985_000);
+});
+
+test('an organisation payment without a division has no division share', function () {
     $user = User::factory()->create();
     $organisation = Organisation::create(['name' => 'Sponsor Org', 'branch_id' => $this->branch->id]);
 

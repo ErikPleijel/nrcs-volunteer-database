@@ -5,12 +5,28 @@ namespace App\Services\Reports;
 use App\Models\Branch;
 use App\Models\Division;
 use App\Models\Donation;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class DonationStatsService
 {
+    /** Leave organisation donations out of every figure (see exceptOrganisationalFor()). */
+    private bool $exceptOrganisational = false;
+
+    /**
+     * Organisation donations are hidden from division-level users
+     * (Donation::scopeExceptOrganisationalFor()): for such a viewer every
+     * figure from this instance leaves them out. Returns $this.
+     */
+    public function exceptOrganisationalFor(User $user): static
+    {
+        $this->exceptOrganisational = $user->getAccessLevel() === 'division';
+
+        return $this;
+    }
+
     /**
      * Build a monthly donation trend dataset for Chart.js.
      *
@@ -106,6 +122,7 @@ class DonationStatsService
             ->join('branches', 'donations.branch_id', '=', 'branches.id')
             ->where('donations.is_deleted', 0)
             ->where('donations.approval_status', 'approved') // Phase 2: only approved records are real
+            ->when($this->exceptOrganisational, fn ($q) => $q->whereNull('donations.organisation_id'))
             ->whereYear('donations.date_donation', $year)
             ->select(
                 'branches.id as branch_id',
@@ -199,6 +216,7 @@ class DonationStatsService
             ->join('divisions', 'donations.division_id', '=', 'divisions.id')
             ->where('donations.is_deleted', 0)
             ->where('donations.approval_status', 'approved') // Phase 2: only approved records are real
+            ->when($this->exceptOrganisational, fn ($q) => $q->whereNull('donations.organisation_id'))
             ->where('donations.branch_id', $branchId)
             ->whereYear('donations.date_donation', $year)
             ->select(
@@ -303,6 +321,10 @@ class DonationStatsService
 
         if (! is_null($inKind)) {
             $query->where('in_kind_donation', $inKind);
+        }
+
+        if ($this->exceptOrganisational) {
+            $query->personal();
         }
 
         return $query;
@@ -432,6 +454,22 @@ class DonationStatsService
             'personal' => $personal,
             'organisation' => $organisation,
         ];
+    }
+
+    /**
+     * Organisation-sponsored cash donation amount 12–24 months ago (the
+     * dashboard takes it out of the previous-year total for division-level
+     * viewers).
+     */
+    public function getOrganisationCashDonationAmount12to24MonthsAgo(?int $branchId = null): float
+    {
+        $end = Carbon::now()->subYear()->toDateString();
+        $start = Carbon::now()->subYears(2)->toDateString();
+
+        return (float) $this->baseDonationQuery($branchId, false)
+            ->organisational()
+            ->whereBetween('date_donation', [$start, $end])
+            ->sum('amount');
     }
 
     /**

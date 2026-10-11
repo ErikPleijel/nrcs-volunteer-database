@@ -96,7 +96,7 @@ class DashboardController extends Controller
         // state. Most are recomputed on every request; the three slow scans (hanging/unverified
         // registrations, Volunteers in Limbo) have their own 5-minute cache.
         $dashboardData = array_merge(
-            $cached['data'],
+            $this->withoutOrganisationFiguresFor($user, $cached['data']),
             $this->buildFreshDashboardData($user, $branchId)
         );
         $dashboardGeneratedAt = $cached['generated_at'];
@@ -113,6 +113,39 @@ class DashboardController extends Controller
      * in O(1) (via Cache::increment) without needing tag support, which the 'file'/'database'
      * cache drivers used in this app don't have.
      */
+    /**
+     * Organisation payments and donations are hidden from division-level
+     * users (MembershipPayment/Donation::scopeExceptOrganisationalFor()).
+     * The cached card data is shared by every viewer of a branch, so it is
+     * adjusted here, per viewer: organisation amounts leave the revenue and
+     * cash-donation totals and their lines are hidden (null).
+     */
+    private function withoutOrganisationFiguresFor(User $user, array $data): array
+    {
+        if ($user->getAccessLevel() !== 'division') {
+            return $data;
+        }
+
+        if (($data['revenueOrganisationFees'] ?? null) !== null) {
+            $data['revenueLast12Months'] -= (float) $data['revenueOrganisationFees'];
+            $data['revenuePrevious12Months'] -= (float) ($data['revenuePreviousOrganisationFees'] ?? 0);
+            $data['revenueChangeYear'] = $data['revenuePrevious12Months'] > 0
+                ? round((($data['revenueLast12Months'] - $data['revenuePrevious12Months']) / $data['revenuePrevious12Months']) * 100, 1)
+                : null;
+            $data['revenueOrganisationFees'] = null;
+            $data['revenuePreviousOrganisationFees'] = null;
+        }
+
+        if (($data['donationsCashOrganisation'] ?? null) !== null) {
+            $data['cashLast12'] -= (float) $data['donationsCashOrganisation'];
+            $data['cashPrev12'] -= (float) ($data['donationsCashPreviousOrganisation'] ?? 0);
+            $data['donationsCashOrganisation'] = null;
+            $data['donationsCashPreviousOrganisation'] = null;
+        }
+
+        return $data;
+    }
+
     private function dashboardCacheKey(?int $branchId, bool $extended): string
     {
         return sprintf(
@@ -262,6 +295,7 @@ class DashboardController extends Controller
             $revenueMemberFees       = $revenueBreakdown['memberFees'];
             $revenueVolunteerFees    = $revenueBreakdown['volunteerFees'];
             $revenueOrganisationFees = $revenueBreakdown['organisationFees'];
+            $revenuePreviousOrganisationFees = $revenuePreviousBreakdown['organisationFees'];
             $revenueRcuFees          = $revenueBreakdown['rcuFees'];
 
             $revenueChangeYear       = $revenuePrevious12Months > 0
@@ -281,6 +315,7 @@ class DashboardController extends Controller
             $donationCashBreakdown  = $this->donationStatsService->getCashDonationBreakdownLast12Months($branchId);
             $donationsCashPersonal     = $donationCashBreakdown['personal'];
             $donationsCashOrganisation = $donationCashBreakdown['organisation'];
+            $donationsCashPreviousOrganisation = $this->donationStatsService->getOrganisationCashDonationAmount12to24MonthsAgo($branchId);
 
             // Registrations card
             $registrationsLast12Months = $this->registrationStatsService->getRegistrationsLast12Months($branchId);
@@ -301,6 +336,7 @@ class DashboardController extends Controller
             $revenueMemberFees        = null;
             $revenueVolunteerFees     = null;
             $revenueOrganisationFees  = null;
+            $revenuePreviousOrganisationFees = null;
             $revenueRcuFees           = null;
             $totalTrainingsLast12Months       = null;
             $totalTrainings12to24MonthsAgo    = null;
@@ -310,6 +346,7 @@ class DashboardController extends Controller
             $cashPrev12               = null;
             $donationsCashPersonal     = null;
             $donationsCashOrganisation = null;
+            $donationsCashPreviousOrganisation = null;
             $registrationsLast12Months = null;
             $registrationsPrev12Months = null;
             $activeUnitsCount            = null;
@@ -366,6 +403,7 @@ class DashboardController extends Controller
             'revenueMemberFees'                        => $revenueMemberFees,
             'revenueVolunteerFees'                      => $revenueVolunteerFees,
             'revenueOrganisationFees'                   => $revenueOrganisationFees,
+            'revenuePreviousOrganisationFees'           => $revenuePreviousOrganisationFees,
             'revenueRcuFees'                            => $revenueRcuFees,
             'volunteersCount'        => $volunteersCount,
             'volunteeringMembersCount' => $volunteeringMembersCount,
@@ -382,6 +420,7 @@ class DashboardController extends Controller
             'cashPrev12'                               => $cashPrev12,
             'donationsCashPersonal'                     => $donationsCashPersonal,
             'donationsCashOrganisation'                  => $donationsCashOrganisation,
+            'donationsCashPreviousOrganisation'          => $donationsCashPreviousOrganisation,
             'registrationsLast12Months'                => $registrationsLast12Months,
             'registrationsPrev12Months'                => $registrationsPrev12Months,
 

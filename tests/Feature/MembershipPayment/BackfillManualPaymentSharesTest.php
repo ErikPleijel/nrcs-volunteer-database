@@ -73,17 +73,16 @@ test('a legacy payment gets amount, shares and its payment date as accounting da
     expect(backfilled($withoutCard)->amount_paid_kobo)->toBe(50_000);
 });
 
-test('an organisation payment is filled with the branch level rule, even with a division stored', function () {
-    $organisation = \App\Models\Organisation::create(['name' => 'Sponsor Org', 'branch_id' => $this->kano->id]);
+test('an organisation payment with a division is filled with the standard rule, like everyone else\'s', function () {
+    $organisation = \App\Models\Organisation::create(['name' => 'Sponsor Org', 'branch_id' => $this->kano->id, 'division_id' => $this->kanoDivision->id]);
     $payment = legacyPayment(['organisation_id' => $organisation->id]);
 
     $this->artisan('payments:backfill-manual-shares')->assertSuccessful();
 
     $payment = backfilled($payment);
     expect($payment->division_id)->toBe($this->kanoDivision->id)
-        ->and($payment->distribution_rule)->toBe('branch_level')
-        ->and($payment->division_share_kobo)->toBe(0)
-        ->and([$payment->hq_share_kobo, $payment->branch_share_kobo])->toBe([12_500, 37_500]);
+        ->and($payment->distribution_rule)->toBe('standard')
+        ->and([$payment->hq_share_kobo, $payment->branch_share_kobo, $payment->division_share_kobo])->toBe([12_500, 12_500, 25_000]);
 });
 
 test('a payment approved in this system uses its approval date', function () {

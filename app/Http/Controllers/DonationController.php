@@ -92,6 +92,9 @@ class DonationController extends Controller
                 // national sees all
         }
 
+        // Organisation donations are hidden from division-level users.
+        $query->exceptOrganisationalFor($user);
+
         // Donations record the submitter in entered_by_user_id (see Approvable::submitterColumn()),
         // NOT submitted_by_user_id — point the "My Records" filter at the right column.
         $submittedByColumn = (new Donation)->submitterColumn();
@@ -405,6 +408,8 @@ class DonationController extends Controller
      */
     public function show(Donation $donation): View
     {
+        abort_if($donation->isHiddenFrom(Auth::user()), 403, 'Organisation donations are not shown at division level.');
+
         $donation->load(['user', 'branch', 'division', 'enteredBy', 'removedBy', 'decidedByUser']);
 
         $viewer = Auth::user();
@@ -442,6 +447,8 @@ class DonationController extends Controller
      */
     public function destroy(Donation $donation): RedirectResponse
     {
+        abort_if($donation->isHiddenFrom(Auth::user()), 403, 'Organisation donations are not shown at division level.');
+
         $viewer = Auth::user();
         $accessLevel = $viewer->getAccessLevel();
         $scopedId = $viewer->getScopedId();

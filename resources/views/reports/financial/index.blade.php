@@ -147,6 +147,9 @@
             <span class="text-2xl font-bold text-gray-900">
                 {{ $selectedYear }} &mdash; {{ $scopeAreaLabel }}
             </span>
+            @if($hidesOrganisations)
+                <p class="text-sm text-gray-500 mt-1">Organisation payments are not shown at division level.</p>
+            @endif
         </div>
 
         {{-- ── TAB 1: Payments ─────────────────────────────────────────────── --}}

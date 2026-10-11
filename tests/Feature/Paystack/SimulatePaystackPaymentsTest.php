@@ -43,7 +43,7 @@ beforeEach(function () {
     $leader = User::where('division_id', $this->division->id)->first();
     RedCrossUnit::create(['name' => 'Alpha Unit', 'division_id' => $this->division->id, 'team_leader_user_id' => $leader->id, 'is_active' => true]);
     RedCrossUnit::create(['name' => 'Lost Unit', 'division_id' => null, 'is_active' => true]);
-    Organisation::create(['name' => 'Sponsor Org', 'branch_id' => $this->branch->id]);
+    Organisation::create(['name' => 'Sponsor Org', 'branch_id' => $this->division->branch_id, 'division_id' => $this->division->id]);
 
     MembershipFee::factory()->create(['amount' => 5000, 'id_card_fee' => 2000, 'is_active' => true]);
     MembershipFee::factory()->create(['amount' => 1500, 'id_card_fee' => 500, 'is_active' => true]);
@@ -131,22 +131,21 @@ test('with --edge-cases it creates approved Paystack payments that look like the
         ->and($payments->where('id_card_included', true)->count())->toBeGreaterThan(0);
 });
 
-test('by default every payment has a branch and division, organisation payments a branch only', function () {
+test('by default every payment has a branch and division and the standard rule, organisation payments too', function () {
     mt_srand(20261011);
 
     $this->artisan('payments:simulate', ['--count' => 60])->assertSuccessful();
 
     $payments = MembershipPayment::withAnyApprovalStatus()->get();
     $organisationPayments = $payments->whereNotNull('organisation_id');
-    $otherPayments = $payments->whereNull('organisation_id');
 
     expect($payments)->toHaveCount(60)
         ->and($organisationPayments->count())->toBeGreaterThan(0)
         ->and($payments->whereNull('branch_id')->count())->toBe(0)
-        ->and($organisationPayments->pluck('division_id')->unique()->values()->all())->toBe([null])
-        ->and($organisationPayments->pluck('distribution_rule')->unique()->values()->all())->toBe(['branch_level'])
-        ->and($otherPayments->whereNull('division_id')->count())->toBe(0)
-        ->and($otherPayments->pluck('distribution_rule')->unique()->values()->all())->toBe(['standard']);
+        // The organisation's own division, as the webhook stores it.
+        ->and($organisationPayments->pluck('division_id')->unique()->values()->all())->toBe([$this->division->id])
+        ->and($payments->whereNull('division_id')->count())->toBe(0)
+        ->and($payments->pluck('distribution_rule')->unique()->values()->all())->toBe(['standard']);
 });
 
 test('it does not touch the payers\' lifecycle status', function () {

@@ -352,7 +352,9 @@
                                 <select name="organisation_scope" id="organisation_scope" class="filter-select-small {{ request('organisation_scope') ? 'filter-active' : '' }}">
                                     <option value="">All</option>
                                     <option value="person" {{ request('organisation_scope') == 'person' ? 'selected' : '' }}>Person</option>
-                                    <option value="organisation" {{ request('organisation_scope') == 'organisation' ? 'selected' : '' }}>Organisation</option>
+                                    @unless(auth()->user()->getAccessLevel() === 'division')
+                                        <option value="organisation" {{ request('organisation_scope') == 'organisation' ? 'selected' : '' }}>Organisation</option>
+                                    @endunless
                                 </select>
                             </div>
                         </div>
