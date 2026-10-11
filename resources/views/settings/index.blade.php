@@ -103,6 +103,7 @@
                             <div x-show="open === 'operational'" x-collapse class="px-4 py-3 bg-white">
                                 <ul class="space-y-1 text-gray-700 list-disc pl-4">
                                     <li><span class="font-semibold">Membership Fees</span> — change fee amounts, or add new membership fee types.</li>
+                                    <li><span class="font-semibold">Fee Distribution</span> — set how online membership income is shared between HQ, branch and division.</li>
                                     <li><span class="font-semibold">Training Types</span> — manage the kinds of trainings, and mark whether certificates for a type are HQ-print only.</li>
                                 </ul>
                             </div>
@@ -181,6 +182,9 @@
                     <div class="flex flex-wrap gap-3">
                         <a href="{{ route('membership-fees.index') }}" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
                             <i class="fas fa-cog mr-1"></i>Membership Fees
+                        </a>
+                        <a href="{{ route('admin.settings.fee-distribution.index') }}" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+                            <i class="fas fa-percent mr-1"></i>Fee Distribution
                         </a>
                         <a href="{{ route('training-types.index') }}" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
                             <i class="fas fa-graduation-cap mr-1"></i>Training Types

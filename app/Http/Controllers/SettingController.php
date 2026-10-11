@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Models\Log as AuditLog;
 use App\Models\Setting;
+use App\Services\FeeDistributionSettings;
 use App\Services\SettingHtmlSanitizer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -19,7 +20,11 @@ class SettingController extends Controller
 
     public function edit()
     {
-        $settings = Setting::all()->groupBy('group');
+        // Fee distribution has its own page (each rule must add up to 100).
+        $settings = Setting::where('group', '!=', FeeDistributionSettings::GROUP)
+            ->orWhereNull('group')
+            ->get()
+            ->groupBy('group');
         return view('settings.edit', compact('settings'));
     }
 
@@ -36,7 +41,9 @@ class SettingController extends Controller
 
         foreach ($settings as $key => $value) {
             $setting = Setting::where('key', $key)->first();
-            if ($setting) {
+            // Fee distribution is saved only through its own page, which
+            // checks that each rule adds up to 100.
+            if ($setting && $setting->group !== FeeDistributionSettings::GROUP) {
                 // An empty field arrives as null (ConvertEmptyStringsToNull)
                 // but is stored as ''; normalise it so an unchanged empty
                 // setting is not audited as changed on every save.

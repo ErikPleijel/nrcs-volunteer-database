@@ -929,6 +929,9 @@ Route::middleware(['auth', 'verified.or.absent'])->group(function () {
 
         Route::get('/settings/campaign-purposes', [\App\Http\Controllers\CampaignPurposeSettingsController::class, 'index'])->name('settings.campaign-purposes.index');
         Route::post('/settings/campaign-purposes', [\App\Http\Controllers\CampaignPurposeSettingsController::class, 'update'])->name('settings.campaign-purposes.update');
+
+        Route::get('/settings/fee-distribution', [\App\Http\Controllers\FeeDistributionSettingsController::class, 'index'])->name('settings.fee-distribution.index');
+        Route::post('/settings/fee-distribution', [\App\Http\Controllers\FeeDistributionSettingsController::class, 'update'])->name('settings.fee-distribution.update');
     });
 
     /*
