@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Log as AuditLog;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use InvalidArgumentException;
 
 /**
@@ -13,8 +14,8 @@ use InvalidArgumentException;
  * import maps the ids itself and never creates the merged-away division.
  *
  * Covers every place a division id is stored:
- *   users, red_cross_units, membership_payments, donations, activities,
- *   trainings, logs (plain division_id columns);
+ *   users, red_cross_units, organisations, membership_payments, donations,
+ *   activities, trainings, logs (plain division_id columns);
  *   messaging_campaigns (scope_id when scope_level = 'division', and the
  *   saved filter's division_id);
  *   stats_snapshots (one row per date/branch/division — rows are added
@@ -29,6 +30,7 @@ class DivisionMerger
     public const DIVISION_ID_TABLES = [
         'users',
         'red_cross_units',
+        'organisations',
         'membership_payments',
         'donations',
         'activities',
@@ -67,6 +69,11 @@ class DivisionMerger
 
             $counts = [];
             foreach (self::DIVISION_ID_TABLES as $table) {
+                // organisations.division_id is added after the Okeigbo merge
+                // migration, which runs this on a database migrated up to it.
+                if (! Schema::hasColumn($table, 'division_id')) {
+                    continue;
+                }
                 $counts[$table] = DB::table($table)->where('division_id', $fromId)->update(['division_id' => $toId]);
             }
 

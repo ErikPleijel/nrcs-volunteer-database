@@ -41,6 +41,14 @@ class Division extends Model
         return $this->hasMany(RedCrossUnit::class);
     }
 
+    /**
+     * A division has many organisations
+     */
+    public function organisations()
+    {
+        return $this->hasMany(Organisation::class);
+    }
+
     public function isEditableBy(User $user): bool
     {
         switch ($user->getAccessLevel()) {

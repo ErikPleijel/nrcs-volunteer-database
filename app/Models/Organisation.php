@@ -38,6 +38,7 @@ class Organisation extends Model
         'email',
         'phone',
         'branch_id',
+        'division_id',
         'deactivated_date',
         'deactivated_by_id',
     ];
@@ -56,6 +57,11 @@ class Organisation extends Model
     public function branch(): BelongsTo
     {
         return $this->belongsTo(Branch::class);
+    }
+
+    public function division(): BelongsTo
+    {
+        return $this->belongsTo(Division::class);
     }
 
     /**

@@ -10,6 +10,7 @@ use App\Console\Commands\OldDbMigration\MigrateDivisions;
 use App\Models\Activity;
 use App\Models\Donation;
 use App\Models\MembershipPayment;
+use App\Models\Organisation;
 use App\Models\RedCrossUnit;
 use App\Models\Training;
 use App\Models\User;
@@ -60,6 +61,7 @@ function recordsIn(int $divisionId): array
     return [
         'users' => $user->id,
         'red_cross_units' => RedCrossUnit::create(['name' => "Unit {$divisionId}", 'division_id' => $divisionId, 'is_active' => true])->id,
+        'organisations' => Organisation::create(['name' => "Org {$divisionId}", 'branch_id' => 862, 'division_id' => $divisionId])->id,
         'membership_payments' => MembershipPayment::factory()->approved()->create(['user_id' => $user->id, 'branch_id' => 862, 'division_id' => $divisionId])->id,
         'donations' => Donation::factory()->create(['user_id' => $user->id, 'branch_id' => 862, 'division_id' => $divisionId])->id,
         'activities' => Activity::factory()->create(['user_id' => $user->id, 'branch_id' => 862, 'division_id' => $divisionId])->id,
