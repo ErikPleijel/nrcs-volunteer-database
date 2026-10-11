@@ -295,6 +295,7 @@ class PermissionsTableSeeder extends Seeder
                 'view_user',
                 'view_red_cross_unit',
                 'view_task_force',
+                'view_organisation', // read-only: no add/edit/archive/restore
                 'view_reports',
                 'view_log',
 

@@ -35,11 +35,11 @@ beforeEach(function () {
     // The admin layout loads assets via @vite; no build manifest exists in CI/test.
     $this->withoutVite();
 
-    foreach (['manage-admin-panel', 'view_user', 'add_payments', 'edit_payments', 'view_payments'] as $permission) {
+    foreach (['manage-admin-panel', 'view_user', 'add_payments', 'edit_payments', 'view_payments', 'edit_organisation'] as $permission) {
         Permission::findOrCreate($permission, 'web');
     }
     Role::findOrCreate('national_db_administrator', 'web')->syncPermissions([
-        'manage-admin-panel', 'view_user', 'add_payments', 'edit_payments', 'view_payments',
+        'manage-admin-panel', 'view_user', 'add_payments', 'edit_payments', 'view_payments', 'edit_organisation',
     ]);
     app(PermissionRegistrar::class)->forgetCachedPermissions();
 

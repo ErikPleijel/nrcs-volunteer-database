@@ -7,7 +7,7 @@
         Find & Filter
     </x-slot>
 
-    @if($status === 'active')
+    @if($status === 'active' && auth()->user()->can('add_organisation'))
         <x-slot name="button1">
             <a href="{{ route('organisations.create') }}" class="btn-add">
                 <i class="fas fa-plus mr-2"></i>Add Organisation
@@ -481,13 +481,13 @@
                                     @endif
 
                                     <td class="table-body-cell">
-                                        @if($status === 'archived')
+                                        @if($status === 'archived' && auth()->user()->can('restore_organisation'))
                                             <form action="{{ route('organisations.restore', $organisation->id) }}"
                                                   method="POST" class="inline">
                                                 @csrf
                                                 <button type="submit" class="btn-primary">Restore</button>
                                             </form>
-                                        @else
+                                        @elseif($status !== 'archived')
                                             <div class="flex gap-2">
                                                 <a href="{{ route('organisations.show', $organisation) }}"
                                                    class="btn-primary inline-flex flex-col items-center justify-center py-1 px-3 leading-tight text-center">

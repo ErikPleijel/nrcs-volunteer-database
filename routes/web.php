@@ -603,14 +603,22 @@ Route::middleware(['auth', 'verified.or.absent'])->group(function () {
             Route::post('/certificates/red-cross-units/print/plain', [CertificateController::class, 'rcuBulkPrintPlain'])->name('red-cross-units.certificates.print.plain');
             Route::post('/certificates/red-cross-units/print/branded', [CertificateController::class, 'rcuBulkPrintBranded'])->name('red-cross-units.certificates.print.branded');
         });
-        Route::resource('organisations', OrganisationController::class, ['except' => ['destroy']]);
-        Route::post('/organisations/{organisation}/archive', [OrganisationController::class, 'archive'])->name('organisations.archive');
-        Route::post('/organisations/{id}/restore', [OrganisationController::class, 'restore'])->name('organisations.restore');
-        Route::post('/organisations/{organisation}/link-user', [OrganisationController::class, 'linkUser'])->name('organisations.link-user');
-        Route::delete('/organisations/{organisation}/users/{user}/unlink', [OrganisationController::class, 'unlinkUser'])->name('organisations.unlink-user');
-        Route::put('/organisations/{organisation}/users/{user}/set-primary-contact', [OrganisationController::class, 'setPrimaryContact'])->name('organisations.set-primary-contact');
+        // Each route gated on its organisation permission; the controller
+        // also limits every page to the user's scope (Organisation::isInScopeOf():
+        // national all, branch staff own branch, division staff none).
+        Route::get('/organisations', [OrganisationController::class, 'index'])->name('organisations.index')->middleware('can:view_organisation');
+        Route::get('/organisations/create', [OrganisationController::class, 'create'])->name('organisations.create')->middleware('can:add_organisation');
+        Route::post('/organisations', [OrganisationController::class, 'store'])->name('organisations.store')->middleware('can:add_organisation');
+        Route::get('/organisations/{organisation}', [OrganisationController::class, 'show'])->name('organisations.show')->middleware('can:view_organisation');
+        Route::get('/organisations/{organisation}/edit', [OrganisationController::class, 'edit'])->name('organisations.edit')->middleware('can:edit_organisation');
+        Route::match(['put', 'patch'], '/organisations/{organisation}', [OrganisationController::class, 'update'])->name('organisations.update')->middleware('can:edit_organisation');
+        Route::post('/organisations/{organisation}/archive', [OrganisationController::class, 'archive'])->name('organisations.archive')->middleware('can:archive_organisation');
+        Route::post('/organisations/{id}/restore', [OrganisationController::class, 'restore'])->name('organisations.restore')->middleware('can:restore_organisation');
+        Route::post('/organisations/{organisation}/link-user', [OrganisationController::class, 'linkUser'])->name('organisations.link-user')->middleware('can:edit_organisation');
+        Route::delete('/organisations/{organisation}/users/{user}/unlink', [OrganisationController::class, 'unlinkUser'])->name('organisations.unlink-user')->middleware('can:edit_organisation');
+        Route::put('/organisations/{organisation}/users/{user}/set-primary-contact', [OrganisationController::class, 'setPrimaryContact'])->name('organisations.set-primary-contact')->middleware('can:edit_organisation');
         Route::get('/organisations/{organisation}/payments/create', [MembershipPaymentController::class, 'createForOrganisation'])->name('organisations.payments.create')->middleware('can:add_payments');
-        Route::get('/organisations/{organisation}/donations/create', [DonationController::class, 'createForOrganisation'])->name('organisations.donations.create');
+        Route::get('/organisations/{organisation}/donations/create', [DonationController::class, 'createForOrganisation'])->name('organisations.donations.create')->middleware('can:add_donations');
 
         Route::middleware(['can:campaign_request_approve'])
             ->prefix('campaigns/admin')

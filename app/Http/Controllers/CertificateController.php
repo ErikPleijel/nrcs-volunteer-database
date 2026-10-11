@@ -1133,8 +1133,10 @@ class CertificateController extends Controller
                 ];
             }
         } elseif (in_array($certificateType, ['organisation_membership', 'organisation_donation'])) {
-            // Here, the itemIds are organisation_ids.
-            foreach ($itemIds as $orgId) {
+            // Here, the itemIds are organisation_ids — only those in the
+            // admin's scope are recorded.
+            $orgIds = Organisation::inScopeOf(Auth::user())->whereIn('id', (array) $itemIds)->pluck('id');
+            foreach ($orgIds as $orgId) {
                 $printRecords[] = [
                     'user_id'            => null,
                     'organisation_id'    => $orgId,
@@ -1363,6 +1365,9 @@ class CertificateController extends Controller
         $user        = Auth::user();
         $accessLevel = $user->getAccessLevel();
         $scopedId    = $user->getScopedId();
+
+        // Organisations are national and branch staff only (Organisation::isInScopeOf()).
+        abort_unless(in_array($accessLevel, ['national', 'branch'], true), 403, 'Organisations are managed by national and branch staff.');
 
         $userBranchId = null;
         if ($accessLevel === 'branch') {
@@ -1645,6 +1650,8 @@ class CertificateController extends Controller
 
         $incomingLayout   = json_decode($request->input('layout', '{}'), true) ?: [];
         $layout           = $this->buildPlainLayout($incomingLayout);
+        // Only organisations in the user's scope; others posted are skipped.
+        $orgIds           = Organisation::inScopeOf(Auth::user())->whereIn('id', $orgIds)->pluck('id')->all();
         $certificatesData = $this->buildOrganisationCertificatesData($certificateType, $orgIds, $sign1Title, $sign2Title);
 
         if (empty($certificatesData)) {
@@ -1673,6 +1680,8 @@ class CertificateController extends Controller
         [$sign1Title, $sign2Title]                               = $this->resolveSignatureTitlesFromRequest($request);
         [$sign1ImageUrl, $sign1Name, $sign2ImageUrl, $sign2Name] = $this->resolveSignatureImagesFromRequest($request);
 
+        // Only organisations in the user's scope; others posted are skipped.
+        $orgIds           = Organisation::inScopeOf(Auth::user())->whereIn('id', $orgIds)->pluck('id')->all();
         $certificatesData = $this->buildOrganisationCertificatesData($certificateType, $orgIds, $sign1Title, $sign2Title);
 
         if (empty($certificatesData)) {

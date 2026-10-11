@@ -26,15 +26,17 @@ uses(TestCase::class, RefreshDatabase::class);
 beforeEach(function () {
     $this->withoutVite();
 
-    foreach (['manage-admin-panel', 'change_settings', 'add_payments', 'view_payments', 'view_user'] as $permission) {
+    foreach (['manage-admin-panel', 'change_settings', 'add_payments', 'view_payments', 'view_user', 'view_organisation'] as $permission) {
         Permission::findOrCreate($permission, 'web');
     }
-    // As in PermissionsTableSeeder, reduced to what these routes check.
-    Role::findOrCreate('national_db_administrator', 'web')->syncPermissions(['manage-admin-panel', 'change_settings', 'add_payments', 'view_payments', 'view_user']);
-    Role::findOrCreate('branch_db_administrator', 'web')->syncPermissions(['manage-admin-panel', 'add_payments', 'view_payments', 'view_user']);
-    Role::findOrCreate('branch_db_assistant', 'web')->syncPermissions(['manage-admin-panel', 'add_payments', 'view_payments', 'view_user']);
-    Role::findOrCreate('division_db_assistant_finance', 'web')->syncPermissions(['manage-admin-panel', 'add_payments', 'view_payments', 'view_user']);
-    Role::findOrCreate('division_db_assistant_operations', 'web')->syncPermissions(['manage-admin-panel', 'view_user']);
+    // As in PermissionsTableSeeder, reduced to what these routes check — except
+    // view_organisation for the division roles, which the seeder does not
+    // give: here it shows the controller still refuses division staff.
+    Role::findOrCreate('national_db_administrator', 'web')->syncPermissions(['manage-admin-panel', 'change_settings', 'add_payments', 'view_payments', 'view_user', 'view_organisation']);
+    Role::findOrCreate('branch_db_administrator', 'web')->syncPermissions(['manage-admin-panel', 'add_payments', 'view_payments', 'view_user', 'view_organisation']);
+    Role::findOrCreate('branch_db_assistant', 'web')->syncPermissions(['manage-admin-panel', 'add_payments', 'view_payments', 'view_user', 'view_organisation']);
+    Role::findOrCreate('division_db_assistant_finance', 'web')->syncPermissions(['manage-admin-panel', 'add_payments', 'view_payments', 'view_user', 'view_organisation']);
+    Role::findOrCreate('division_db_assistant_operations', 'web')->syncPermissions(['manage-admin-panel', 'view_user', 'view_organisation']);
     app(PermissionRegistrar::class)->forgetCachedPermissions();
 
     $this->kano = Branch::create(['name' => 'Kano', 'code' => 'KAN']);
@@ -171,9 +173,8 @@ test('a division clerk cannot record organisation payments, not even in their ow
     storeOrganisationPayment($clerk, $own)->assertForbidden();
     expect(MembershipPayment::withAnyApprovalStatus()->count())->toBe(0);
 
-    $this->actingAs($clerk)->get(route('organisations.show', $own))
-        ->assertOk()
-        ->assertDontSee(route('organisations.payments.create', $own), false);
+    // Division staff do not see organisation pages at all (Decisions.md 2026-10-11).
+    $this->actingAs($clerk)->get(route('organisations.show', $own))->assertForbidden();
 });
 
 test('national staff may record payments for any organisation', function () {
@@ -199,7 +200,6 @@ test('the organisation page shows Add Payment only to clerks who may use it', fu
         ->assertOk()
         ->assertSee(route('organisations.payments.create', $own), false);
 
-    $this->actingAs($clerk)->get(route('organisations.show', $other))
-        ->assertOk()
-        ->assertDontSee(route('organisations.payments.create', $other), false);
+    // Another branch's organisation page is out of scope altogether.
+    $this->actingAs($clerk)->get(route('organisations.show', $other))->assertForbidden();
 });

@@ -13,11 +13,13 @@
         </a>
     </x-slot>
 
-    <x-slot name="button2">
-        <a href="{{ route('organisations.edit', $organisation) }}" class="btn-edit">
-            <i class="fas fa-edit mr-1"></i>Edit
-        </a>
-    </x-slot>
+    @can('edit_organisation')
+        <x-slot name="button2">
+            <a href="{{ route('organisations.edit', $organisation) }}" class="btn-edit">
+                <i class="fas fa-edit mr-1"></i>Edit
+            </a>
+        </x-slot>
+    @endcan
 
     <div class="show-page-container space-y-6">
 
@@ -32,12 +34,14 @@
                         by {{ $organisation->deactivatedBy->first_name }} {{ $organisation->deactivatedBy->last_name }}
                     @endif
                 </div>
-                <form action="{{ route('organisations.restore', $organisation->id) }}" method="POST" class="ml-4">
-                    @csrf
-                    <button type="submit" class="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-1 px-3 rounded text-sm">
-                        <i class="fas fa-undo mr-1"></i>Restore
-                    </button>
-                </form>
+                @can('restore_organisation')
+                    <form action="{{ route('organisations.restore', $organisation->id) }}" method="POST" class="ml-4">
+                        @csrf
+                        <button type="submit" class="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-1 px-3 rounded text-sm">
+                            <i class="fas fa-undo mr-1"></i>Restore
+                        </button>
+                    </form>
+                @endcan
             </div>
         @endif
 
@@ -168,6 +172,7 @@
                                 </div>
                             </div>
 
+                            @can('edit_organisation')
                             <div class="flex items-center gap-2">
                                 @if(!$user->pivot->is_primary_contact)
                                     <form action="{{ route('organisations.set-primary-contact', [$organisation, $user]) }}"
@@ -194,6 +199,7 @@
                                     </button>
                                 </form>
                             </div>
+                            @endcan
                         </div>
                     @endforeach
                 </div>
@@ -204,6 +210,7 @@
             @endif
 
             <!-- Link a person -->
+            @can('edit_organisation')
             <div class="px-6 py-4 bg-gray-50 border-t">
                 <h4 class="text-sm font-semibold text-gray-700 mb-3">Link a Person</h4>
                 <form action="{{ route('organisations.link-user', $organisation) }}" method="POST" id="link-user-form">
@@ -244,6 +251,7 @@
                     </button>
                 </form>
             </div>
+            @endcan
         </div>
 
     </div>
@@ -371,12 +379,12 @@
                     </div>
                     <h2 class="text-xl font-bold text-gray-900">DONATIONS</h2>
                 </div>
-                @unless($organisation->trashed())
+                @if(! $organisation->trashed() && auth()->user()->can('add_donations'))
                     <a href="{{ route('organisations.donations.create', $organisation) }}"
                        class="btn-primary-small whitespace-nowrap">
                         <i class="fas fa-plus mr-2"></i>Add Donation
                     </a>
-                @endunless
+                @endif
             </div>
 
             @php
@@ -615,7 +623,7 @@
         </div>
 
         <!-- 6. Danger Zone -->
-        @unless($organisation->trashed())
+        @if(! $organisation->trashed() && auth()->user()->can('archive_organisation'))
             <div class="bg-white rounded-lg shadow overflow-hidden border border-red-200">
 
                 <div class="px-6 py-4 flex items-center justify-between">
@@ -634,7 +642,7 @@
                     </form>
                 </div>
             </div>
-        @endunless
+        @endif
 
     </div>
 
@@ -648,6 +656,11 @@
             const clearBtn      = document.getElementById('org-clear-selection');
             const hiddenUserId  = document.getElementById('link-user-id');
             const linkBtn       = document.getElementById('org-link-btn');
+
+            // No link form for read-only users (no edit_organisation).
+            if (! searchInput) {
+                return;
+            }
 
             let debounceTimer = null;
 

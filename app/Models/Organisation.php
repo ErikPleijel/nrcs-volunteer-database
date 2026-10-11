@@ -3,6 +3,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -65,12 +66,13 @@ class Organisation extends Model
     }
 
     /**
-     * Whether $user may record payments for this organisation: national
-     * staff for any, branch staff for their own branch's. Division staff
-     * never: organisations have no division, so none is in their scope.
-     * Mirrors RedCrossUnit::isViewableBy() for unit payments.
+     * Whether $user may see and manage this organisation (its pages,
+     * payments, donations and certificates): national staff for any,
+     * branch staff for their own branch's. Division staff never — a
+     * decision, although organisations belong to a division (Decisions.md
+     * 2026-10-11).
      */
-    public function isInPaymentScopeOf(User $user): bool
+    public function isInScopeOf(User $user): bool
     {
         return match ($user->getAccessLevel()) {
             'national' => true,
@@ -79,6 +81,24 @@ class Organisation extends Model
                 && (int) $this->branch_id === (int) $user->getScopedId(),
             default => false,
         };
+    }
+
+    /** The organisations isInScopeOf() allows $user. */
+    public function scopeInScopeOf(Builder $query, User $user): Builder
+    {
+        return match ($user->getAccessLevel()) {
+            'national' => $query,
+            'branch' => $user->getScopedId() === null
+                ? $query->whereRaw('1 = 0')
+                : $query->where($query->qualifyColumn('branch_id'), $user->getScopedId()),
+            default => $query->whereRaw('1 = 0'),
+        };
+    }
+
+    /** Whether $user may record payments for this organisation (isInScopeOf()). */
+    public function isInPaymentScopeOf(User $user): bool
+    {
+        return $this->isInScopeOf($user);
     }
 
     public function deactivatedBy(): BelongsTo

@@ -21,6 +21,8 @@ class OrganisationController extends Controller
         $accessLevel = $authUser->getAccessLevel();
         $scopedId    = $authUser->getScopedId();
 
+        $this->abortUnlessOrganisationStaff($accessLevel);
+
         $status     = $request->input('status', 'active');
         $membership = $request->input('membership', 'all');
         $sortBy     = $request->input('sort_by', 'name_asc');
@@ -45,6 +47,7 @@ class OrganisationController extends Controller
         $query = $status === 'archived'
             ? Organisation::onlyTrashed()->with(['branch', 'division'])->withCount('users')
             : Organisation::with($with)->withCount(['users', 'donations']);
+        $query->inScopeOf($authUser);
 
         if ($request->filled('search')) {
             $search = $request->search;
@@ -60,9 +63,6 @@ class OrganisationController extends Controller
 
         switch ($accessLevel) {
             case 'branch':
-                if ($scopedId) {
-                    $query->where('branch_id', $scopedId);
-                }
                 $branches = Branch::where('id', $scopedId)->orderBy('name')->get();
                 break;
 
@@ -154,6 +154,8 @@ class OrganisationController extends Controller
         $accessLevel = $authUser->getAccessLevel();
         $scopedId    = $authUser->getScopedId();
 
+        $this->abortUnlessOrganisationStaff($accessLevel);
+
         switch ($accessLevel) {
             case 'branch':
                 $branches = Branch::where('id', $scopedId)->get();
@@ -174,6 +176,8 @@ class OrganisationController extends Controller
         $authUser    = Auth::user();
         $accessLevel = $authUser->getAccessLevel();
         $scopedId    = $authUser->getScopedId();
+
+        $this->abortUnlessOrganisationStaff($accessLevel);
 
         // Branch staff always create in their own branch.
         if ($accessLevel === 'branch') {
@@ -203,6 +207,7 @@ class OrganisationController extends Controller
 
     public function show(Organisation $organisation)
     {
+        $this->authorizeOrganisation($organisation);
         $organisation->load(['branch', 'division', 'users']);
 
         $prints = $organisation->certificatePrints()
@@ -250,6 +255,7 @@ class OrganisationController extends Controller
 
     public function edit(Organisation $organisation)
     {
+        $this->authorizeOrganisation($organisation);
         if ($organisation->trashed()) {
             return redirect()->route('organisations.index', ['status' => 'archived'])
                 ->with('error', 'Archived organisations cannot be edited.');
@@ -269,6 +275,7 @@ class OrganisationController extends Controller
 
     public function update(Request $request, Organisation $organisation)
     {
+        $this->authorizeOrganisation($organisation);
         if ($organisation->trashed()) {
             return redirect()->route('organisations.index', ['status' => 'archived'])
                 ->with('error', 'Archived organisations cannot be updated.');
@@ -339,6 +346,7 @@ class OrganisationController extends Controller
 
     public function archive(Organisation $organisation)
     {
+        $this->authorizeOrganisation($organisation);
         $organisation->update([
             'deactivated_date'  => now()->toDateString(),
             'deactivated_by_id' => Auth::id(),
@@ -357,6 +365,7 @@ class OrganisationController extends Controller
     public function restore(int $id)
     {
         $organisation = Organisation::withTrashed()->findOrFail($id);
+        $this->authorizeOrganisation($organisation);
 
         $organisation->restore();
 
@@ -375,6 +384,7 @@ class OrganisationController extends Controller
 
     public function linkUser(Request $request, Organisation $organisation)
     {
+        $this->authorizeOrganisation($organisation);
         $request->validate(['user_id' => 'required|exists:users,id']);
 
         if ($organisation->users()->where('user_id', $request->user_id)->exists()) {
@@ -403,6 +413,7 @@ class OrganisationController extends Controller
 
     public function unlinkUser(Request $request, Organisation $organisation, User $user)
     {
+        $this->authorizeOrganisation($organisation);
         if (!$organisation->users()->where('user_id', $user->id)->exists()) {
             return back()->with('error', 'User is not linked to this organisation.');
         }
@@ -418,6 +429,7 @@ class OrganisationController extends Controller
 
     public function setPrimaryContact(Request $request, Organisation $organisation, User $user)
     {
+        $this->authorizeOrganisation($organisation);
         if (!$organisation->users()->where('user_id', $user->id)->exists()) {
             return back()->with('error', 'User is not linked to this organisation.');
         }
@@ -433,6 +445,22 @@ class OrganisationController extends Controller
         }
 
         return back()->with('success', 'Primary contact updated successfully.');
+    }
+
+    /**
+     * Organisations are managed by national and branch staff only; division
+     * staff and anyone without a scope get a 403 even if a role was given
+     * an organisation permission. The routes are also gated (can:*_organisation).
+     */
+    private function abortUnlessOrganisationStaff(string $accessLevel): void
+    {
+        abort_unless(in_array($accessLevel, ['national', 'branch'], true), 403, 'Organisations are managed by national and branch staff.');
+    }
+
+    /** 403 unless the organisation is in the signed-in user's scope (Organisation::isInScopeOf()). */
+    private function authorizeOrganisation(Organisation $organisation): void
+    {
+        abort_unless($organisation->isInScopeOf(Auth::user()), 403, 'This organisation is not in your branch.');
     }
 
     /**
