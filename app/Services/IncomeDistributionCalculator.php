@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Division;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
@@ -15,7 +16,7 @@ use InvalidArgumentException;
  * Rules, decided by the branch/division stored on the payment:
  *   standard     - branch and division: HQ / branch / division
  *   branch_level - branch, no division (e.g. organisation payments): HQ / branch
- *   hq_only      - no branch: 100% HQ
+ *   hq_only      - no branch, not even through the division: 100% HQ
  *
  * All money in kobo, percentages in basis points (25% = 2500). Branch and
  * division shares are rounded down and HQ gets the remainder, so the three
@@ -54,7 +55,26 @@ class IncomeDistributionCalculator
     }
 
     /**
-     * The pure split: rule, percentages used and the three shares.
+     * The branch to store on a payment that has a division but no branch:
+     * the division's own branch, so the standard rule applies. Null when the
+     * division has no branch (divisions.branch_id is a foreign key that is
+     * set to null when its branch is deleted) — the payment then goes to HQ.
+     */
+    public static function resolveBranchId(?int $branchId, ?int $divisionId): ?int
+    {
+        if ($branchId !== null || $divisionId === null) {
+            return $branchId;
+        }
+
+        $resolved = Division::whereKey($divisionId)->value('branch_id');
+
+        return $resolved === null ? null : (int) $resolved;
+    }
+
+    /**
+     * The pure split: rule, percentages used and the three shares. Callers
+     * resolve a missing branch first (resolveBranchId()); here, no branch
+     * always means hq_only.
      *
      * @param  array<string, array<string, int>>  $percentages  whole percentages, shaped like FeeDistributionSettings::DEFAULTS
      * @return array{distribution_rule: string, hq_pct_bp: int, branch_pct_bp: int, division_pct_bp: int, hq_share_kobo: int, branch_share_kobo: int, division_share_kobo: int}

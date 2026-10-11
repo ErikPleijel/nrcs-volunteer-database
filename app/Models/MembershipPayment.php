@@ -150,6 +150,15 @@ class MembershipPayment extends Model
     }
 
     /**
+     * Paid online through Paystack (fulfilled by the webhook). Such a payment
+     * can never be deleted: its income is already shared out.
+     */
+    public function isPaystack(): bool
+    {
+        return $this->payment_channel === 'paystack';
+    }
+
+    /**
      * Get the user who made this payment.
      */
     public function user()

@@ -16,6 +16,7 @@ use App\Models\Organisation;
 use App\Models\PaymentTransaction;
 use App\Models\Setting;
 use App\Models\User;
+use App\Services\IncomeDistributionCalculator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -131,6 +132,38 @@ test('a payer with no branch sends everything to HQ', function () {
         ->and($payment->hq_share_kobo)->toBe(482_500)
         ->and($payment->branch_share_kobo)->toBe(0)
         ->and($payment->division_share_kobo)->toBe(0);
+});
+
+test('a payer with a division but no branch gets the division\'s branch and the standard rule', function () {
+    $user = User::factory()->create(['branch_id' => null, 'division_id' => $this->division->id]);
+
+    $payment = fulfilWithVerifyData($user, 500_000, ['fees' => 17_500, 'paid_at' => '2026-08-14T10:15:00.000Z']);
+
+    expect($payment->branch_id)->toBe($this->branch->id)
+        ->and($payment->division_id)->toBe($this->division->id)
+        ->and($payment->distribution_rule)->toBe('standard')
+        ->and([$payment->hq_share_kobo, $payment->branch_share_kobo, $payment->division_share_kobo])->toBe([120_625, 120_625, 241_250]);
+});
+
+test('a payer whose division has no branch goes to HQ', function () {
+    $orphanDivision = Division::create(['name' => 'Orphan Division', 'branch_id' => null]);
+    $user = User::factory()->create(['branch_id' => null, 'division_id' => $orphanDivision->id]);
+
+    $payment = fulfilWithVerifyData($user, 500_000, ['fees' => 17_500, 'paid_at' => '2026-08-14T10:15:00.000Z']);
+
+    expect($payment->branch_id)->toBeNull()
+        ->and($payment->division_id)->toBe($orphanDivision->id)
+        ->and($payment->distribution_rule)->toBe('hq_only')
+        ->and($payment->hq_share_kobo)->toBe(482_500);
+});
+
+test('resolveBranchId keeps a stored branch and only looks up a missing one', function () {
+    $otherBranch = Branch::create(['name' => 'Beta Branch', 'code' => 'BET']);
+
+    expect(IncomeDistributionCalculator::resolveBranchId($otherBranch->id, $this->division->id))->toBe($otherBranch->id)
+        ->and(IncomeDistributionCalculator::resolveBranchId(null, $this->division->id))->toBe($this->branch->id)
+        ->and(IncomeDistributionCalculator::resolveBranchId(null, null))->toBeNull()
+        ->and(IncomeDistributionCalculator::resolveBranchId(null, 999_999))->toBeNull();
 });
 
 test('the leftover kobo from rounding goes to HQ', function () {

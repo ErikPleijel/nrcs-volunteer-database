@@ -35,7 +35,10 @@ test('a payment with a branch but no division uses the branch_level rule', funct
     ]);
 });
 
-test('a payment with no branch goes entirely to HQ, even if it has a division', function (?int $divisionId) {
+// calculate() gets the branch already resolved through the division
+// (resolveBranchId(), covered in IncomeDistributionWebhookTest), so here no
+// branch always means HQ only.
+test('calculate() sends a payment with no branch entirely to HQ', function (?int $divisionId) {
     expect(IncomeDistributionCalculator::calculate(1_000_000, null, $divisionId, DEFAULT_SPLIT))->toBe([
         'distribution_rule' => 'hq_only',
         'hq_pct_bp' => 10000,

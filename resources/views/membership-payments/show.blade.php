@@ -17,6 +17,13 @@
             </div>
         @endif
 
+        @if (session('error'))
+            <div class="mb-5 flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">
+                <i class="fas fa-exclamation-circle text-red-500"></i>
+                {{ session('error') }}
+            </div>
+        @endif
+
         @if (session('deleted'))
             <div class="mb-5 flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
                 <i class="fas fa-trash-alt text-red-400"></i>
@@ -216,7 +223,11 @@
         </div>
 
         @can('remove_payments')
-            @if(!$membershipPayment->is_deleted)
+            @if($membershipPayment->isPaystack())
+                <p class="mt-4 text-right text-xs text-gray-500">
+                    <i class="fas fa-lock mr-1"></i>Paid online through Paystack — this payment cannot be deleted.
+                </p>
+            @elseif(!$membershipPayment->is_deleted)
                 <div class="flex justify-end mt-4">
                     <form action="{{ route('membership-payments.destroy', $membershipPayment) }}"
                           method="POST"

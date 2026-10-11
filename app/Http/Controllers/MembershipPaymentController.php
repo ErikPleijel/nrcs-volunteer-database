@@ -740,6 +740,14 @@ class MembershipPaymentController extends Controller
 
         $this->authorize('view', $membershipPayment->user);
 
+        // A Paystack payment is real money already received and shared out
+        // in the Income Distribution report; deleting it would change a
+        // closed quarter.
+        if ($membershipPayment->isPaystack()) {
+            return redirect()->route('membership-payments.show', $membershipPayment)
+                ->with('error', 'This payment was made online through Paystack and cannot be deleted.');
+        }
+
         // withAnyApprovalStatus(): a pending successor still depends on this payment's
         // expiry_date and must block deletion just as an approved one would — the
         // default ApprovedScope (from Approvable) would otherwise hide it, since new

@@ -435,6 +435,11 @@ class PaystackPaymentController extends Controller
                     }
 
                     if ($transaction->payable_type === 'membership_payment') {
+                        // A division without a branch (e.g. a payer whose
+                        // branch_id is missing) takes its division's branch,
+                        // so the income is shared under the standard rule.
+                        $branchId = IncomeDistributionCalculator::resolveBranchId($branchId, $divisionId);
+
                         $fee = MembershipFee::findOrFail($meta['membership_fee_id']);
                         $paymentDate = Carbon::today();
                         // Identical formula to MembershipPaymentController::store().
