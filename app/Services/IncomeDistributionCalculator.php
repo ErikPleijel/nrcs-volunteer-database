@@ -59,9 +59,11 @@ class IncomeDistributionCalculator
      * payment: the amount from its own fee row (fee + ID card fee when
      * included — fee rows are versioned, so this is the price that applied
      * to the payment), no Paystack charge, and the split with the current
-     * percentages. accounting_date is the caller's: the approval date, or
-     * the payment date for legacy imports.
+     * percentages (or $percentages, for a run that must use one fixed
+     * set). accounting_date is the caller's: the approval date, or the
+     * payment date for legacy imports.
      *
+     * @param  array<string, array<string, int>>|null  $percentages  shaped like FeeDistributionSettings::DEFAULTS
      * @return array<string, mixed>
      */
     public static function manualPaymentColumns(
@@ -70,6 +72,7 @@ class IncomeDistributionCalculator
         bool $idCardIncluded,
         ?int $branchId,
         ?int $divisionId,
+        ?array $percentages = null,
     ): array {
         $amountKobo = self::nairaToKobo($feeAmountNaira) + ($idCardIncluded ? self::nairaToKobo($idCardFeeNaira) : 0);
         $branchId = self::resolveBranchId($branchId, $divisionId);
@@ -79,7 +82,7 @@ class IncomeDistributionCalculator
             'amount_paid_kobo' => $amountKobo,
             'paystack_fee_kobo' => 0,
             'net_kobo' => $amountKobo,
-        ] + self::calculate($amountKobo, $branchId, $divisionId, self::currentPercentages());
+        ] + self::calculate($amountKobo, $branchId, $divisionId, $percentages ?? self::currentPercentages());
     }
 
     /**
@@ -169,7 +172,7 @@ class IncomeDistributionCalculator
      *
      * @return array<string, array<string, int>>
      */
-    private static function currentPercentages(): array
+    public static function currentPercentages(): array
     {
         $percentages = FeeDistributionSettings::percentages();
 
