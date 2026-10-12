@@ -26,7 +26,8 @@
 
         <p class="text-sm text-gray-500 mb-2">
             How the net income from online (Paystack) membership payments — the amount paid minus the Paystack charge — is shared between HQ, the branch and the division.
-            Each set of percentages must add up to exactly 100. A payment with no branch goes 100% to HQ.
+            The percentages must add up to exactly 100. Organisation payments are shared the same way, by the organisation's branch and division.
+            A payment with a branch but no division gives the division's share to the branch. A payment with no branch goes 100% to HQ.
         </p>
         <p class="text-sm font-semibold text-gray-700 mb-6">
             Changes apply only to payments made after saving. Earlier payments keep the percentages that applied when they were paid.

@@ -15,7 +15,9 @@ use InvalidArgumentException;
  *
  * Rules, decided by the branch/division stored on the payment:
  *   standard     - branch and division: HQ / branch / division
- *   branch_level - branch but no division: HQ / branch
+ *   branch_level - branch but no division: HQ / branch, with the standard
+ *                  percentages; the division's share goes to the branch
+ *                  (since 2026-10-11; before, it had percentages of its own)
  *   hq_only      - no branch, not even through the division: 100% HQ
  *
  * All money in kobo, percentages in basis points (25% = 2500). Branch and
@@ -141,9 +143,11 @@ class IncomeDistributionCalculator
                 'branch' => self::toBasisPoints($percentages['standard']['branch']),
                 'division' => self::toBasisPoints($percentages['standard']['division']),
             ],
+            // No division to pay: its share goes to the branch.
             self::BRANCH_LEVEL => [
-                'hq' => self::toBasisPoints($percentages['branch_level']['hq']),
-                'branch' => self::toBasisPoints($percentages['branch_level']['branch']),
+                'hq' => self::toBasisPoints($percentages['standard']['hq']),
+                'branch' => self::toBasisPoints($percentages['standard']['branch'])
+                    + self::toBasisPoints($percentages['standard']['division']),
                 'division' => 0,
             ],
             self::HQ_ONLY => ['hq' => 10000, 'branch' => 0, 'division' => 0],

@@ -75,7 +75,7 @@ class IncomeDistributionStatsService
 
     public const RULE_LABELS = [
         'standard' => 'Payments with a division',
-        'branch_level' => 'Payments with a branch but no division (e.g. organisations)',
+        'branch_level' => 'Payments with a branch but no division (the division\'s share goes to the branch)',
         'hq_only' => 'Payments with no branch',
     ];
 

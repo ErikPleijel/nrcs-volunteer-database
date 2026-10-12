@@ -19,8 +19,7 @@ use Illuminate\Validation\Validator;
 class FeeDistributionSettingsController extends Controller
 {
     private const RULE_LABELS = [
-        'standard' => 'Payment with a division',
-        'branch_level' => 'Payment with a branch but no division (e.g. organisation payments)',
+        'standard' => 'HQ / Branch / Division',
     ];
 
     private const PARTY_LABELS = [

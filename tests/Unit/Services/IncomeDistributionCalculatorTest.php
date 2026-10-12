@@ -23,7 +23,7 @@ test('a payment with a branch and division uses the standard rule', function () 
     ]);
 });
 
-test('a payment with a branch but no division uses the branch_level rule', function () {
+test('a payment with a branch but no division uses the branch_level rule: the division\'s share goes to the branch', function () {
     expect(IncomeDistributionCalculator::calculate(1_000_000, 1, null, DEFAULT_SPLIT))->toBe([
         'distribution_rule' => 'branch_level',
         'hq_pct_bp' => 2500,
@@ -31,6 +31,22 @@ test('a payment with a branch but no division uses the branch_level rule', funct
         'division_pct_bp' => 0,
         'hq_share_kobo' => 250_000,
         'branch_share_kobo' => 750_000,
+        'division_share_kobo' => 0,
+    ]);
+});
+
+test('branch_level follows the standard percentages, not percentages of its own', function () {
+    $split = IncomeDistributionCalculator::calculate(1_000_000, 1, null, [
+        'standard' => ['hq' => 20, 'branch' => 30, 'division' => 50],
+    ]);
+
+    expect($split)->toBe([
+        'distribution_rule' => 'branch_level',
+        'hq_pct_bp' => 2000,
+        'branch_pct_bp' => 8000, // 30% + the division's 50%
+        'division_pct_bp' => 0,
+        'hq_share_kobo' => 200_000,
+        'branch_share_kobo' => 800_000,
         'division_share_kobo' => 0,
     ]);
 });
@@ -71,9 +87,9 @@ test('branch and division are rounded down and HQ gets the leftover kobo', funct
 test('the three shares always add up exactly to the net amount', function () {
     $splits = [
         DEFAULT_SPLIT,
-        ['standard' => ['hq' => 33, 'branch' => 33, 'division' => 34], 'branch_level' => ['hq' => 1, 'branch' => 99]],
-        ['standard' => ['hq' => 0, 'branch' => 0, 'division' => 100], 'branch_level' => ['hq' => 100, 'branch' => 0]],
-        ['standard' => ['hq' => 7, 'branch' => 29, 'division' => 64], 'branch_level' => ['hq' => 49, 'branch' => 51]],
+        ['standard' => ['hq' => 33, 'branch' => 33, 'division' => 34]],
+        ['standard' => ['hq' => 0, 'branch' => 0, 'division' => 100]],
+        ['standard' => ['hq' => 7, 'branch' => 29, 'division' => 64]],
     ];
 
     mt_srand(20261011);
@@ -104,7 +120,6 @@ test('a negative net amount is refused', function () {
 test('percentages that do not add up to 100 are refused', function () {
     IncomeDistributionCalculator::calculate(1_000, 1, 2, [
         'standard' => ['hq' => 25, 'branch' => 25, 'division' => 60],
-        'branch_level' => ['hq' => 25, 'branch' => 75],
     ]);
 })->throws(InvalidArgumentException::class);
 

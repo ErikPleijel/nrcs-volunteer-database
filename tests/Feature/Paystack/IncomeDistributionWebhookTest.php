@@ -122,7 +122,11 @@ test('an organisation payment stores the organisation\'s division and uses the s
         ->and($payment->division_share_kobo)->toBe(985_000);
 });
 
-test('an organisation payment without a division has no division share', function () {
+test('a payment with a branch but no division gives the division\'s share to the branch', function () {
+    setFeeDistribution('standard.hq', 20);
+    setFeeDistribution('standard.branch', 30);
+    setFeeDistribution('standard.division', 50);
+
     $user = User::factory()->create();
     $organisation = Organisation::create(['name' => 'Sponsor Org', 'branch_id' => $this->branch->id]);
 
@@ -134,10 +138,10 @@ test('an organisation payment without a division has no division share', functio
     expect($payment->division_id)->toBeNull()
         ->and($payment->distribution_rule)->toBe('branch_level')
         ->and($payment->net_kobo)->toBe(1_970_000)
-        ->and($payment->hq_share_kobo)->toBe(492_500)
-        ->and($payment->branch_share_kobo)->toBe(1_477_500)
-        ->and($payment->division_share_kobo)->toBe(0)
-        ->and($payment->division_pct_bp)->toBe(0);
+        ->and([$payment->hq_pct_bp, $payment->branch_pct_bp, $payment->division_pct_bp])->toBe([2000, 8000, 0])
+        ->and($payment->hq_share_kobo)->toBe(394_000)
+        ->and($payment->branch_share_kobo)->toBe(1_576_000)
+        ->and($payment->division_share_kobo)->toBe(0);
 });
 
 test('a payer with no branch sends everything to HQ', function () {

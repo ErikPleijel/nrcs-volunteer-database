@@ -247,7 +247,6 @@ test('the percentages used are shown, with a note when they changed during the q
 
     incomePayment(1_000_000, $this->kano->id, $this->kanoDivision->id, '2026-08-10 09:00:00', [], [
         'standard' => ['hq' => 30, 'branch' => 20, 'division' => 50],
-        'branch_level' => ['hq' => 25, 'branch' => 75],
     ]);
 
     viewIncomeReport(['quarter' => '2026-Q3'])

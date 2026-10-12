@@ -9,14 +9,16 @@ use Illuminate\Support\Facades\Log;
 
 /**
  * The percentages that split online (Paystack) membership income between
- * HQ, branch and division. Stored as five whole-number settings in the
+ * HQ, branch and division. Stored as three whole-number settings in the
  * 'fee_distribution' group and edited on their own Settings page
  * (FeeDistributionSettingsController), never on the generic settings form,
  * because each rule must add up to exactly 100.
  *
- * Rules: 'standard' (payment has a division: HQ / branch / division) and
- * 'branch_level' (branch but no division: HQ / branch). The third rule,
- * 'hq_only' (no branch), is always 100% HQ and has no settings.
+ * One set of percentages, 'standard' (HQ / branch / division). A payment
+ * with a branch but no division (rule 'branch_level') uses the same
+ * percentages, its division's share going to the branch; one with no
+ * branch ('hq_only') is 100% HQ. Until 2026-10-11 'branch_level' had
+ * percentages of its own (removed by migration 2026_10_12_120000).
  */
 class FeeDistributionSettings
 {
@@ -25,7 +27,6 @@ class FeeDistributionSettings
     /** rule => party => default whole percentage. */
     public const DEFAULTS = [
         'standard' => ['hq' => 25, 'branch' => 25, 'division' => 50],
-        'branch_level' => ['hq' => 25, 'branch' => 75],
     ];
 
     public static function key(string $rule, string $party): string

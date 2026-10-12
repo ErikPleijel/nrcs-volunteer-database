@@ -57,7 +57,7 @@ class BackfillManualPaymentShares extends Command
 
         $percentages = IncomeDistributionCalculator::currentPercentages();
         $this->line('Percentages used: payments with a division '.implode(' / ', $this->describe($percentages['standard']))
-            .'; with a branch but no division '.implode(' / ', $this->describe($percentages['branch_level'])).'; no branch: HQ 100%.');
+            .'; with a branch but no division the same, the division\'s share going to the branch; no branch: HQ 100%.');
 
         if ($total === 0) {
             $this->info('Nothing to fill: every approved manual payment already has its shares.');
