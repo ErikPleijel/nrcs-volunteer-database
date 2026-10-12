@@ -109,9 +109,11 @@ Auto-approves a pending record with no decider. Differences from
    marks the `PaymentTransaction` `success`.
    - `branch_id`/`division_id` are derived from the **payer's own**
      branch/division for a personal payment, or the **organisation's**
-     branch for an org-sponsored one. `division_id` is always `null` for
-     an org-sponsored payment — `Organisation` has no `division_id` column
-     of its own (`Organisation` → `Branch` only).
+     branch and division for an org-sponsored one (organisations belong
+     to a division since 2026-10-11, see Decisions.md), so org-sponsored
+     income is shared 25/25/50 like everyone else's. An online
+     organisation donation gets the organisation's branch and division
+     the same way.
 6. On a mismatch or non-success verified status: marks the
    `PaymentTransaction` `failed` and logs a warning — no record is created.
 7. Any uncaught exception during fulfilment is logged as an error and the

@@ -53,7 +53,7 @@ The sidebar order comes from `resources/views/components/layouts/admin.blade.php
 | 2.2 | Persons | `users.index` | `/users` | **Persons** — Find & Filter | `view_user` | All 9 |
 | 2.3 | Red Cross Units | `red-cross-units.index` | `/red-cross-units` | **Red Cross Units** — Find & Filter | `view_red_cross_unit` | All 9 |
 | 2.4 | Task Forces | `task-forces.index` | `/task-forces` | **Task Forces** — Find & Filter | `view_task_force` | All 9 |
-| 2.5 | Organisations | `organisations.index` | `/organisations` | **Organisations** — Find & Filter | `manage-admin-panel` only (the menu item needs `view_organisation`) | Menu: NA, NAs, BS, BA, BAs. By URL: all 9 (see §4). |
+| 2.5 | Organisations | `organisations.index` | `/organisations` | **Organisations** — Find & Filter | `view_organisation` (since 2026-10-11; each action needs its own `*_organisation` permission) | NA, NAs, BS, BA, BAs; National Observer read-only. Branch staff see their own branch only; division staff get 403. |
 | 2.6 | Branches | `branches.index` | `/branches` | **Branches** — Find & Filter | `view_branch_information` | NA, NAs, BS, BA, DF, DO |
 | 2.7 | Divisions | `divisions.index` | `/divisions` | **Divisions** — Find & Filter | `view_division_information` | NA, NAs, BS, BA, DF, DO |
 | 2.8 | Payment Records | `membership-payments.index` | `/membership-payments` | **Payments** — List of recorded payments | `view_payments` | SA, NA, NAs, Obs, BS, BA, BAs, DF (**not DO**) |
@@ -111,7 +111,7 @@ Trigger: grey **?** icon. Only shown in extended mode, after **Show more statist
 > - **Volunteers** — Persons attached to an active Red Cross unit, with lifecycle status active or dormant. Historical comparisons are based on nightly statistics snapshots. For dates before the snapshot system was introduced, figures are approximated from unit assignment dates, so volunteers who later left a unit are not reflected.
 > - **Training & First Aid** — Number of trainings conducted in the last 12 months (all types). First Aid training count is listed separately below.
 > - **First Aid training** — Total number of First Aid–related trainings conducted during this period.
-> - **Donations** — Total cash donations received in the last 12 months, split into individual (personal) and organisation-sponsored contributions.
+> - **Donations** — Total cash donations received in the last 12 months, split into individual (personal) and organisation-sponsored contributions (division staff see the personal amount only).
 > - **Registrations** — People who created a profile in the last 12 months (new member or volunteer registrations).
 > - **Red Cross Units** — Units currently marked as active in the database.
 > - **Leadership Coverage** — Active units that have at least one team leader or assistant. Units without leadership indicate a gap to follow up.
@@ -569,7 +569,7 @@ Trigger: grey **?** icon. Only shown in extended mode, after **Show more statist
 >
 > **▸ General information**
 >
-> - An **organisation** is a company or institution that belongs to a branch.
+> - An **organisation** is a company or institution that belongs to a branch and a division.
 > - It can pay membership fees, make donations, receive certificates, and receive campaign messages.
 > - Unlike persons, an organisation **cannot register itself** — it can only be added by a branch.
 > - An organisation must have at least one linked person before it can make payments or donations.
@@ -614,7 +614,7 @@ Trigger: grey **?** icon. Only shown in extended mode, after **Show more statist
 |---|---|
 | Buttons | **Add Organisation**. **Filter**. **Make campaign from this filter** (`campaign_request_create`). Per row: **View**; **Link persons**; **Restore** (archived list). |
 | Search | **Search** (placeholder "Name, email, phone, reg. number..."). Matches **name, short name, registration number, email, phone** (partial) and the **organisation ID** (exact, numeric). |
-| Filters | **Branch**. **Status** (Active / Archived). **Membership** (All / Members / Expiring in 14 days / Expiring in 28 days / Non-members). |
+| Filters | **Branch**. **Division** (the chosen branch's divisions; "Choose a branch first" until then). **Status** (Active / Archived). **Membership** (All / Members / Expiring in 14 days / Expiring in 28 days / Non-members). |
 | Sort | **Sort By**: Name A–Z [default] / Name Z–A / Newest first / Oldest first. |
 | Bulk / export | None. |
 
@@ -746,7 +746,7 @@ Trigger: grey **?** icon. Only shown in extended mode, after **Show more statist
 |---|---|
 | Buttons | **Add Payments** (subtitle "View Your Entries"; `add_payments`: NA, NAs, BS, BA, BAs, DF). **Add RCU Payment** (subtitle "Choose a unit"). **Filter & Sort** (shows an "Active" badge when filters are on). **Filter**. **Clear**. Per row: **View** / **View Details**. Tabs: **Records** \| **Approvals** (with a pending count; `approve_payments`: NA, BS, BA). |
 | Search | **Search** (placeholder "Name, ID, Ref..."). Matches the **payment ID** (exact), the **person's ID** (exact), the **person's first / middle / last / full name** (partial), the **submitter's ID or name**, and the **reference** (partial). It does not match a full DB-code string or an organisation name. |
-| Filters | **Branch** → **Division** → **Red Cross Unit**. **Membership Type**. **Status** (All Memberships / Valid / Expiring Within 30 Days / Expired). **Type** (All / Person / Organisation / Red Cross Unit). **Include deleted?** (Active / Deleted / All). **Entered by me** / **Entered by all**. |
+| Filters | **Branch** → **Division** → **Red Cross Unit**. **Membership Type**. **Status** (All Memberships / Valid / Expiring Within 30 Days / Expired). **Type** (All / Person / Organisation / Red Cross Unit; division staff have no Organisation option — organisation payments are hidden from them). **Include deleted?** (Active / Deleted / All). **Entered by me** / **Entered by all**. |
 | Sort | **Sort By**: Payment Date (Newest First) [default] / Payment Date (Oldest First) / Expiry Date (Oldest First) / Expiry Date (Newest First). |
 | Bulk | On the **Approvals** tab: bulk approve (`/membership-payments/approvals/bulk-approve`). |
 | Export | None. |
@@ -937,7 +937,7 @@ Trigger: grey **?** icon. Only shown in extended mode, after **Show more statist
 |---|---|
 | Buttons | **Add Donation** (subtitle "View Your Entries"; `add_donations`: NA, NAs, BS, BA, BAs, DF). **Filter & Sort**. **Filter**. **Clear**. Per row: **View** / **View Details**. Tabs: **Records** \| **Approvals** (`approve_donations`: NA, BS, BA). |
 | Search | **Search** (placeholder "Name, ID, ref, purpose…"). Each word must match at least one of: **reference**, **purpose** or **donation item** (partial); the **donation ID** or **person ID** (numeric); **branch** name; **division** name; the **donor's** first / middle / last / full name; the donor's **Red Cross Unit** name; or the word **"anonymous"** (finds anonymous donations). The organisation name is not searched. |
-| Filters | **Branch** → **Division** → **Red Cross Unit**. **Type** (All / Person / Organisation). **Include deleted?**. **Entered by me** / **Entered by all**. |
+| Filters | **Branch** → **Division** → **Red Cross Unit**. **Type** (All / Person / Organisation; division staff have no Organisation option — organisation donations are hidden from them). **Include deleted?**. **Entered by me** / **Entered by all**. |
 | Sort | **Sort By**: Date (Newest First) [default] / Date (Oldest First) / Amount (Highest First) / Amount (Lowest First). |
 | Bulk | Bulk approve on the **Approvals** tab. |
 | Export | None. |
@@ -1764,5 +1764,5 @@ Reached via Settings → **Training Types**. Needs password confirmation.
 
 1. **Guide text contradicts the screen in several places.** These are marked ⚠ above. The most common case is the non-existent **Show archived** button on Persons, which appears in both the Persons guide and the Organisations guide. There is also "Show more filters" instead of **Show all filters**, and the Donation/Training Records mix-up in the Training Statistics tip. The Authorizations guide suggests branch staff can appoint Branch Secretaries and Branch DB Administrators; they can't.
 2. **DB-number search.** Guides and placeholders suggest you can search by DB-number. In practice only the numeric part works (the person or user ID). Teach participants to type **7442**, not **DB-7442-LAG-Ikeja**.
-3. **Access gaps, for the developer rather than the course.** `organisations.index`, `membership-fees.*`, `training-types.*`, `task-force-types.*` and `activity-types.*` only check the general `manage-admin-panel` permission (plus password confirmation for fees and training types). Any admin role, including division assistants and observers, can therefore open them by typing the URL, even though they are hidden from the menu. I didn't test whether their create, update or delete actions have further checks.
+3. **Access gaps, for the developer rather than the course.** `membership-fees.*`, `training-types.*`, `task-force-types.*` and `activity-types.*` only check the general `manage-admin-panel` permission (plus password confirmation for fees and training types). Any admin role, including division assistants and observers, can therefore open them by typing the URL, even though they are hidden from the menu. I didn't test whether their create, update or delete actions have further checks. (Organisations were fixed on 2026-10-11: every organisation page now needs its own permission.)
 4. **Exports:** none of the 25 pages with a guide has an export or download button.

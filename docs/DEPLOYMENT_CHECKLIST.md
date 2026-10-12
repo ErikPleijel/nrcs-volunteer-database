@@ -57,7 +57,8 @@ ADAPT procedure accordingly. This might need changes:
   branch/division coordinates, first-aid training types). Only the single
   seeders named in this checklist / docs/migration.md, with `--class`.
 - [ ] Legacy Income Distribution shares use the default percentages
-  (25/25/50, 25/75). If NRCS wants other percentages for the comparison
+  (25/25/50; a payment without a division gives the division's share to
+  the branch). If NRCS wants other percentages for the comparison
   quarters, decide that before the import — stored shares are never
   recalculated.
 

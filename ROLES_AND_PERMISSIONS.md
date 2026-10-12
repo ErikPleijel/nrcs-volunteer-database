@@ -60,7 +60,7 @@ others submit · **—** = no access.
 | Red Cross Units — view | View | Full | Full | View | Own area | Own area | View (own area) | View (own area) | View (own area) | Own record ¹⁰ | — |
 | Task forces — create, edit, manage members | — | Full | Full | — | Own area | Own area | — | — | — | — | — |
 | Task forces — view | View | Full | Full | View | Own area | Own area | View (own area) | View (own area) | View (own area) | Own record ¹¹ | — |
-| Organisations (corporate members) | — | Full ? | Full ? | — ? | Own area ? | Own area ? | Own area ? | — ? | — ? | Own record ¹² | — |
+| Organisations (corporate members) | — | Full | Full | View | Own branch | Own branch | Own branch (no archive/restore) | — | — | Own record ¹² | — |
 | Membership payments — enter | View | Request only | Request only | View | Request only | Request only | Request only | Request only | — | Own record ¹³ | — |
 | Donations — enter | View | Request only | Request only | View | Request only | Request only | Request only | Request only | — | Own record ¹³ | — |
 | Volunteering hours — enter | View | Request only | Request only | View | Request only | Request only | Request only | Request only | Request only | — | — |
@@ -107,7 +107,7 @@ others submit · **—** = no access.
 20. Changing settings needs the password to be re-entered.
 21. See section 4 for exactly who can appoint whom.
 22. The System Administrator sees the tutorials page, but all lessons are locked.
-? **Organisations:** the permission set-up gives organisation management to the five administrator and data-entry roles shown above. Whether the system enforces exactly these limits is under review.
+**Organisations** (since 2026-10-11): each organisation belongs to a branch and a division. Branch staff manage their own branch's organisations and may move one between its divisions; only national staff move one to another branch. Division staff have no organisation access, and organisation payments and donations are hidden from them in lists, pages, reports and the dashboard.
 
 ---
 
@@ -276,12 +276,12 @@ email address must verify it.
    `can:manage-admin-panel` only. They are linked only from the Settings page (`change_settings`),
    but any role holder, including Observers and division assistants, can reach them by URL and
    create, edit or delete fee types or training types.
-6. **Organisation permissions are seeded but not enforced.** `add_organisation`,
-   `edit_organisation`, `archive_organisation` and `restore_organisation` are used nowhere.
-   `view_organisation` only hides the menu item. Every `OrganisationController` action (create,
-   edit, archive, restore, link/unlink users, set primary contact) needs only
-   `manage-admin-panel`. `show`/`edit`/`archive` have no branch-scope check, and `create` gives
-   division users every branch.
+6. ~~**Organisation permissions are seeded but not enforced.**~~ Fixed 2026-10-11: every
+   organisation route needs its own permission (`view_organisation` for the list and page,
+   `add_`/`edit_`/`archive_`/`restore_organisation` for the actions, `add_donations` for the
+   donation form), and `Organisation::isInScopeOf()` limits every page to national staff (all) and
+   branch staff (own branch). Division staff get 403. `observer_national_level` has
+   `view_organisation` only (read-only); super-admin has no organisation access.
 
 **Inconsistencies**
 

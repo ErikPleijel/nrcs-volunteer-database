@@ -285,7 +285,7 @@ Everything on **Persons**:
 - **Org Representatives**; **Team Leaders**; **National ID (NIN)**; **Digital Activity**; **Email**; **Email Verification**; **Registration Source**;
 - **Database Roles**; **Trainings**; **Training Expiry**; **First Aid Refresher**; **Donations**; **Campaign Messages**.
 
-For organisations: **Branch**, **Status**, **Membership**.
+For organisations: **Branch**, **Division**, **Status**, **Membership**. The organisation emails follow the organisation's own branch and division, and so do its linked contact persons: a contact living in another division still receives the campaign.
 
 The filter is saved with the campaign and shown at the top of step 1.
 

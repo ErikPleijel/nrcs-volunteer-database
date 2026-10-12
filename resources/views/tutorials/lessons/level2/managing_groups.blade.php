@@ -68,7 +68,7 @@
                     <div class="rounded-xl bg-gray-50 border border-gray-100 p-4" data-reveal>
                         <p class="text-sm text-gray-700">
                             <i class="fas fa-industry text-indigo-400 mr-1"></i>
-                            An organisation is a company or institution that belongs to a branch — it can pay membership fees, make donations, receive certificates, and receive campaign messages.
+                            An organisation is a company or institution that belongs to a branch and a division — it can pay membership fees, make donations, receive certificates, and receive campaign messages.
                         </p>
                     </div>
 

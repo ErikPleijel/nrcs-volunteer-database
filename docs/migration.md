@@ -42,8 +42,11 @@ then uploaded to the new server (DEPLOYMENT_CHECKLIST.md, "Upload DB to VPS").
    lifecycle:reconcile again, the first-aid date backfill, and LAST
    **payments:backfill-manual-shares** (income shares on the imported
    manual payments, accounting date = payment date, the Fee distribution
-   percentages in force — the defaults 25/25/50 and 25/75 on a fresh
-   database; stored once, never recalculated).
+   percentages in force — the default 25/25/50 on a fresh database, a
+   payment without a division giving the division's share to the branch;
+   stored once, never recalculated). The organisations step sets each
+   organisation's division from the legacy DivisionID; any it cannot
+   trust are listed as warnings ("division_id left empty").
    Check at the end: the backfill's report must list no payments that
    "could not be filled".
 

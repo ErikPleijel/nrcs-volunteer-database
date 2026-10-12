@@ -1799,3 +1799,56 @@ the check at approval.
 - `Approvable` promotes a pending person on any approved personal payment, as before. The
   2026-07-20 reason for the server check ("don't hand Approvable invalid data") no longer
   applies, because every personal fee is now a valid choice.
+
+## 2026-10-11 — Organisations belong to a division; organisation payments use the standard rule
+
+**Context:** organisations belonged to a branch only, so every organisation payment was
+shared HQ / branch with a separate `branch_level` rule (25/75, its own settings), and division
+staff could not be given a sensible scope for them. The legacy data has a DivisionID for every
+organisation (1,003; all valid, all in the organisation's own branch; checked 2026-10-11).
+
+**Decision:**
+- `organisations.division_id` (nullable, foreign key, set null when a division is deleted). The
+  create and edit forms require it and check it is in the branch. National staff may move an
+  organisation to any branch and division; branch staff only between their own branch's
+  divisions; the move is audit-logged (`organisation_branch_division_changed`) and only affects
+  payments and donations recorded afterwards.
+- Filled from the legacy `persons.DivisionID` (`IsOrganisation = 1`), matched on id (the import
+  keeps PersonID as the organisation id). A fresh import sets it in `MigrateOrganisations`. A
+  database imported before (the sandbox) is filled by `organisations:fill-divisions` from an
+  exported file — the server cannot reach the legacy database. Nothing is guessed: name, branch
+  and division must all check out, everything else is listed by id (docs/migration.md §C).
+- Organisation payments (staff form and Paystack) and organisation donations take the
+  organisation's branch and division on the server and follow the standard 25/25/50 rule. The
+  organisation special case (commit 42d072d, "organisation payments always branch_level") is
+  reversed.
+- A payment with a branch but no division gives the division's share to the branch, using the
+  standard percentages. The `branch_level` settings are removed; the Fee distribution page has one
+  set of percentages. No branch: 100% HQ, as before. Stored shares are never recalculated, so
+  older `branch_level` rows keep 25/75.
+- Organisations are national and branch staff only (`Organisation::isInScopeOf()`): every
+  organisation route is gated on its own permission, branch staff see their own branch, division
+  staff get 403. `observer_national_level` has `view_organisation` (read-only); super-admin has no
+  organisation access.
+- Organisation payments and donations are hidden from division-level users: payment and donation
+  lists, pages (403), the person page, the financial and donation reports with their CSVs and
+  drill-downs, and the dashboard cards (adjusted per viewer after the shared cache).
+- Campaigns: organisation emails follow the campaign's branch/division scope and its filter;
+  representatives are placed by their organisation's branch/division, not their own. Personal
+  recipients keep the person's own division. The Users list has no Org Representatives filter for
+  division staff.
+- Reports: the certificate prints report and the admin activity report count organisations down
+  to division level (not to Red Cross Units). The Income Distribution report's "From
+  Organisation" column is dropped.
+
+**Why:** organisations are local partners of a division like any member, so the division should
+share in their income; one rule is simpler to explain and to set. Division staff were kept out of
+organisations on purpose, and hiding the organisation money keeps that consistent.
+
+**Accepted consequences:**
+- For the quarters around the change the Income Distribution report shows both rules side by
+  side (`branch_level` 25/75 for older organisation payments, `standard` for new ones).
+- With the default 25/25/50, a payment without a division still splits 25/75; only a change to
+  the standard percentages now changes it.
+- Division staff no longer see organisation figures that branch staff see for the same area, so
+  their totals can be lower (the pages say so).
