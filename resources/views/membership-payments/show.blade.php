@@ -75,12 +75,39 @@
                         </td>
                     </tr>
 
+                    {{-- Links only where the viewer may open the page (same checks as those pages). --}}
                     @if($membershipPayment->organisation_id && $membershipPayment->organisation)
+                        @php
+                            $organisation = $membershipPayment->organisation;
+                            $canOpenOrganisation = auth()->user()->can('view_organisation') && $organisation->isInScopeOf(auth()->user());
+                        @endphp
                         <tr>
                             <td>Organisation</td>
                             <td>
-                                <span class="db-code">{!! $membershipPayment->organisation->org_reference_link !!} </span>
-                                <div class="text-sm font-medium text-purple-800 mt-0.5">{{ $membershipPayment->organisation->name }}</div>
+                                @if($canOpenOrganisation)
+                                    <span class="db-code">{!! $organisation->org_reference_link !!} </span>
+                                    <a href="{{ route('organisations.show', $organisation) }}" class="block text-sm font-medium text-purple-800 underline mt-0.5">{{ $organisation->name }}</a>
+                                @else
+                                    <span class="db-code">{{ $organisation->org_reference }}</span>
+                                    <div class="text-sm font-medium text-purple-800 mt-0.5">{{ $organisation->name }}</div>
+                                @endif
+                            </td>
+                        </tr>
+                    @endif
+
+                    @if($membershipPayment->red_cross_unit_id && $membershipPayment->redCrossUnit)
+                        @php
+                            $unit = $membershipPayment->redCrossUnit;
+                            $canOpenUnit = auth()->user()->can('view_red_cross_unit') && $unit->isViewableBy(auth()->user());
+                        @endphp
+                        <tr>
+                            <td>Red Cross Unit</td>
+                            <td>
+                                @if($canOpenUnit)
+                                    <a href="{{ route('red-cross-units.show', $unit) }}" class="text-sm font-medium text-red-800 underline">{{ $unit->name }}</a>
+                                @else
+                                    <span class="text-sm font-medium text-red-800">{{ $unit->name }}</span>
+                                @endif
                             </td>
                         </tr>
                     @endif

@@ -730,16 +730,16 @@ class MembershipPaymentController extends Controller
      */
     public function show(MembershipPayment $membershipPayment)
     {
-        abort_if($membershipPayment->isHiddenFrom(Auth::user()), 403, 'Organisation payments are not shown at division level.');
+        // The payment's own branch/division decides, as in the list — not
+        // the payer's (see MembershipPayment::isViewableBy()).
+        abort_unless($membershipPayment->isViewableBy(Auth::user()), 403, 'You are not authorized to view this payment.');
 
-        $membershipPayment->load(['user', 'membershipFee', 'submittedByUser', 'branch', 'division', 'decidedByUser']);
+        $membershipPayment->load(['user', 'membershipFee', 'submittedByUser', 'branch', 'division', 'decidedByUser', 'organisation', 'redCrossUnit']);
 
         if (! $membershipPayment->user) {
             return redirect()->route('membership-payments.index')
                 ->with('error', 'The associated user for this payment no longer exists.');
         }
-
-        $this->authorize('view', $membershipPayment->user);
 
         return view('membership-payments.show', compact('membershipPayment'));
     }
@@ -767,7 +767,7 @@ class MembershipPaymentController extends Controller
      */
     public function destroy(MembershipPayment $membershipPayment)
     {
-        abort_if($membershipPayment->isHiddenFrom(Auth::user()), 403, 'Organisation payments are not shown at division level.');
+        abort_unless($membershipPayment->isViewableBy(Auth::user()), 403, 'You are not authorized to delete this payment.');
 
         $membershipPayment->load('user');
 
@@ -775,8 +775,6 @@ class MembershipPaymentController extends Controller
             return redirect()->route('membership-payments.index')
                 ->with('error', 'The associated user for this payment no longer exists.');
         }
-
-        $this->authorize('view', $membershipPayment->user);
 
         // A Paystack payment is real money already received and shared out
         // in the Income Distribution report; deleting it would change a

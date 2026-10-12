@@ -555,6 +555,30 @@ class MembershipPayment extends Model
             : $query;
     }
 
+    /**
+     * Whether $user may open this payment's page — the same rule as the
+     * payments list: the payment's OWN branch/division, not the payer's
+     * (an organisation's contact or a unit's team leader may live
+     * elsewhere, and a payer may have moved since). National staff: any;
+     * branch staff: their branch; division staff: their division, never an
+     * organisation payment; anyone else: only their own payment.
+     */
+    public function isViewableBy(User $user): bool
+    {
+        if ($this->isHiddenFrom($user)) {
+            return false;
+        }
+
+        $scopedId = $user->getScopedId();
+
+        return match ($user->getAccessLevel()) {
+            'national' => true,
+            'branch' => $scopedId !== null && (int) $this->branch_id === (int) $scopedId,
+            'division' => $scopedId !== null && (int) $this->division_id === (int) $scopedId,
+            default => (int) $this->user_id === (int) $user->id,
+        };
+    }
+
     /** Whether this payment is hidden from $user (scopeExceptOrganisationalFor()). */
     public function isHiddenFrom(User $user): bool
     {
