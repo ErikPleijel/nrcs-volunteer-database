@@ -71,7 +71,7 @@ class IncomeDistributionCsv
                 fputcsv($out, ['Division share', Naira::decimal($headline['division'])]);
                 fputcsv($out, []);
 
-                fputcsv($out, ['Branch', 'Payments', 'Collected', 'HQ share', 'Branch share', 'Division share', 'From Organisation']);
+                fputcsv($out, ['Branch', 'Payments', 'Collected', 'HQ share', 'Branch share', 'Division share']);
                 foreach ($data['rows'] as $row) {
                     fputcsv($out, $this->manualBranchLine($this->text($row['label']), $row));
                 }
@@ -87,7 +87,7 @@ class IncomeDistributionCsv
 
             fputcsv($out, [
                 'Branch', 'Payments', 'Paid by members', 'Paystack charges', 'Net received',
-                'HQ share', 'Branch share', 'Division share', 'From Organisation',
+                'HQ share', 'Branch share', 'Division share',
             ]);
             foreach ($data['rows'] as $row) {
                 fputcsv($out, $this->branchLine($this->text($row['label']), $row));
@@ -184,7 +184,6 @@ class IncomeDistributionCsv
             Naira::decimal($figures['hq']),
             Naira::decimal($figures['branch']),
             Naira::decimal($figures['division']),
-            Naira::decimal($figures['organisation_net']),
         ];
     }
 
@@ -197,7 +196,6 @@ class IncomeDistributionCsv
             Naira::decimal($figures['hq']),
             Naira::decimal($figures['branch']),
             Naira::decimal($figures['division']),
-            Naira::decimal($figures['organisation_net']),
         ];
     }
 

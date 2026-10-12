@@ -99,7 +99,7 @@ test('one row per branch by accounting date; only approved, not deleted manual p
     $rows = $response->viewData('rows');
     expect($rows->pluck('label')->all())->toBe(['Abia', 'Kano'])
         ->and($rows[0]['net'])->toBe(2_400_000)
-        ->and($rows[0]['organisation_net'])->toBe(2_000_000)
+        ->and($rows[0])->not->toHaveKey('organisation_net')
         ->and($rows[1]['net'])->toBe(1_500_001)
         ->and($rows[1]['count'])->toBe(2);
 
@@ -435,8 +435,8 @@ test('the Tab 2 branch level exports the quarter, notes, percentages, headline, 
         ->and(manualCsvRow($rows, 'Payments'))->toBe(['Payments', '3'])
         ->and(manualCsvRow($rows, 'Collected by branches'))->toBe(['Collected by branches', '35000.01'])
         ->and(manualCsvRow($rows, 'Paystack charges'))->toBeNull()
-        ->and(manualCsvRow($rows, 'Branch'))->toBe(['Branch', 'Payments', 'Collected', 'HQ share', 'Branch share', 'Division share', 'From Organisation'])
-        ->and(manualCsvRow($rows, 'Abia'))->toBe(['Abia', '1', '20000.00', '5000.00', '15000.00', '0.00', '20000.00'])
+        ->and(manualCsvRow($rows, 'Branch'))->toBe(['Branch', 'Payments', 'Collected', 'HQ share', 'Branch share', 'Division share'])
+        ->and(manualCsvRow($rows, 'Abia'))->toBe(['Abia', '1', '20000.00', '5000.00', '15000.00', '0.00'])
         ->and(manualCsvRow($rows, 'Kano')[2])->toBe('15000.01');
 
     $total = manualCsvRow($rows, 'TOTAL');
@@ -560,4 +560,13 @@ test('Tab 2 offers the branch-level export with the current quarter', function (
 
     viewManualTab(['quarter' => '2026-Q3'])
         ->assertSee(route('reports.income-distribution.index', ['tab' => 'manual', 'quarter' => '2026-Q3', 'export' => 'csv']));
+});
+
+test('Tab 2 has no separate organisation column', function () {
+    $organisation = Organisation::create(['name' => 'Sponsor Org', 'branch_id' => $this->kano->id, 'division_id' => $this->kanoDivision->id]);
+    manualIncomePayment(1_000_000, $this->kano->id, $this->kanoDivision->id, '2026-08-10', ['organisation_id' => $organisation->id]);
+
+    viewManualTab(['quarter' => '2026-Q3'])
+        ->assertOk()
+        ->assertDontSee('From Organisation');
 });

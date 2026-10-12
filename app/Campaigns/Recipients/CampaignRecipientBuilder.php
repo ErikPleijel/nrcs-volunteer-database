@@ -189,8 +189,9 @@ final class CampaignRecipientBuilder
     }
 
     /**
-     * Organisation contact emails, when the campaign filter asks for them. Existing rows are
-     * left alone.
+     * Organisation contact emails, when the campaign filter asks for them: the organisations
+     * in the campaign's scope (its branch or division) and, when the filter names a branch or
+     * division, in that one too. Existing rows are left alone.
      */
     private function addOrganisationRepresentatives(MessagingCampaign $campaign): int
     {
@@ -199,6 +200,8 @@ final class CampaignRecipientBuilder
         }
 
         $added = 0;
+        $filterBranchId = data_get($campaign->filter_json, 'branch_id');
+        $filterDivisionId = data_get($campaign->filter_json, 'division_id');
 
         Organisation::query()
             ->whereNotNull('email')
@@ -206,6 +209,10 @@ final class CampaignRecipientBuilder
             ->whereHas('users')
             ->when($campaign->scope_level === 'branch' && $campaign->scope_id,
                 fn ($q) => $q->where('branch_id', $campaign->scope_id))
+            ->when($campaign->scope_level === 'division' && $campaign->scope_id,
+                fn ($q) => $q->where('division_id', $campaign->scope_id))
+            ->when(filled($filterBranchId), fn ($q) => $q->where('branch_id', $filterBranchId))
+            ->when(filled($filterDivisionId), fn ($q) => $q->where('division_id', $filterDivisionId))
             ->select(['id', 'name', 'email'])
             ->orderBy('id')
             ->each(function (Organisation $org) use ($campaign, &$added) {

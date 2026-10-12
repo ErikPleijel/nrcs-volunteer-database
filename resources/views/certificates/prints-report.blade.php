@@ -261,7 +261,7 @@
                                 {{ $print->user->branch->name ?? $print->organisation->branch->name ?? $print->redCrossUnit->division->branch->name ?? 'N/A' }}
                             </td>
                             <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {{ $print->user->division->name ?? $print->redCrossUnit->division->name ?? 'N/A' }}
+                                {{ $print->user->division->name ?? $print->organisation->division->name ?? $print->redCrossUnit->division->name ?? 'N/A' }}
                             </td>
                             <td class="px-3 py-4 text-sm text-gray-500 whitespace-normal">
                                 {{ $print->user->redCrossUnit->name ?? $print->redCrossUnit->name ?? 'N/A' }}

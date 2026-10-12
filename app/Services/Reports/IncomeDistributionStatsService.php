@@ -411,8 +411,7 @@ class IncomeDistributionStatsService
             COALESCE(SUM(membership_payments.net_kobo), 0) as net,
             COALESCE(SUM(membership_payments.hq_share_kobo), 0) as hq,
             COALESCE(SUM(membership_payments.branch_share_kobo), 0) as branch,
-            COALESCE(SUM(membership_payments.division_share_kobo), 0) as division,
-            COALESCE(SUM(CASE WHEN membership_payments.organisation_id IS NOT NULL THEN membership_payments.net_kobo ELSE 0 END), 0) as organisation_net';
+            COALESCE(SUM(membership_payments.division_share_kobo), 0) as division';
     }
 
     /**
@@ -429,7 +428,6 @@ class IncomeDistributionStatsService
             'hq' => (int) ($row->hq ?? 0),
             'branch' => (int) ($row->branch ?? 0),
             'division' => (int) ($row->division ?? 0),
-            'organisation_net' => (int) ($row->organisation_net ?? 0),
         ];
     }
 }

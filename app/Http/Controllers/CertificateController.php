@@ -1200,9 +1200,11 @@ class CertificateController extends Controller
         }
 
         // Apply global access level filters to the main query.
-        // For org prints (user_id is null), scope by organisation.branch_id instead;
-        // for RCU prints, by the unit's division (and its branch) — the same
-        // scoping as the RCU certificates page.
+        // For org prints (user_id is null), scope by organisation.branch_id instead
+        // (division viewers see none: organisations are national and branch
+        // staff only, Organisation::isInScopeOf()); for RCU prints, by the
+        // unit's division (and its branch) — the same scoping as the RCU
+        // certificates page.
         if ($accessLevel === 'branch' && $userBranchId) {
             $query->where(function ($q) use ($userBranchId) {
                 $q->whereHas('user', fn ($u) => $u->where('branch_id', $userBranchId))
@@ -1210,9 +1212,8 @@ class CertificateController extends Controller
                   ->orWhereHas('redCrossUnit.division', fn ($d) => $d->where('branch_id', $userBranchId));
             });
         } elseif ($accessLevel === 'division' && $userDivisionId) {
-            $query->where(function ($q) use ($userDivisionId, $userBranchId) {
+            $query->where(function ($q) use ($userDivisionId) {
                 $q->whereHas('user', fn ($u) => $u->where('division_id', $userDivisionId))
-                  ->orWhereHas('organisation', fn ($o) => $o->where('branch_id', $userBranchId))
                   ->orWhereHas('redCrossUnit', fn ($r) => $r->where('division_id', $userDivisionId));
             });
         }
@@ -1246,10 +1247,12 @@ class CertificateController extends Controller
         }
 
         // Division filter — people in the division, or the division's own units
+        // and organisations
         if ($request->filled('division_id')) {
             $divisionId = $request->input('division_id');
             $query->where(function ($q) use ($divisionId) {
                 $q->whereHas('user', fn ($u) => $u->where('division_id', $divisionId))
+                  ->orWhereHas('organisation', fn ($o) => $o->where('division_id', $divisionId))
                   ->orWhereHas('redCrossUnit', fn ($r) => $r->where('division_id', $divisionId));
             });
         }
@@ -1278,7 +1281,7 @@ class CertificateController extends Controller
         }
 
         // Eager load relationships for displaying user and printer information
-        $certificatePrints = $query->with('user.branch', 'user.division', 'user.redCrossUnit', 'printedBy', 'organisation.branch', 'redCrossUnit.division.branch')
+        $certificatePrints = $query->with('user.branch', 'user.division', 'user.redCrossUnit', 'printedBy', 'organisation.branch', 'organisation.division', 'redCrossUnit.division.branch')
             ->latest('printed_at')
             ->paginate(20);
 

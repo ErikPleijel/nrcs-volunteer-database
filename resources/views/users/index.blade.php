@@ -476,6 +476,7 @@
                                 </select>
                             </div>
 
+                            @unless(auth()->user()->getAccessLevel() === 'division')
                             <div>
                                 <label for="org_representatives" class="filter-label-small">Org Representatives</label>
                                 <select name="org_representatives" id="org_representatives" class="filter-select-small {{ request('org_representatives') ? 'filter-active' : '' }}">
@@ -483,6 +484,7 @@
                                     <option value="1" {{ request('org_representatives') === '1' ? 'selected' : '' }}>Org representatives only</option>
                                 </select>
                             </div>
+                            @endunless
 
                             <div>
                                 <label for="team_leader_filter" class="filter-label-small">Team Leaders</label>

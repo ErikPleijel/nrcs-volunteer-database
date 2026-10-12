@@ -270,6 +270,9 @@
                             @if(request('branch_id'))
                                 <input type="hidden" name="filter_json[branch_id]" value="{{ request('branch_id') }}">
                             @endif
+                            @if(request('division_id') && $divisions->contains('id', (int) request('division_id')))
+                                <input type="hidden" name="filter_json[division_id]" value="{{ request('division_id') }}">
+                            @endif
                             @if(request('membership') && request('membership') !== 'all')
                                 <input type="hidden" name="filter_json[membership_filter]" value="{{ request('membership') }}">
                             @endif

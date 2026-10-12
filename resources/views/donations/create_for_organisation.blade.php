@@ -39,14 +39,13 @@
                         <div class="text-xs font-medium text-blue-600 uppercase tracking-wide mb-1">Organisation</div>
                         <div class="text-lg font-semibold text-blue-900">{{ $organisation->name }}</div>
                         @if($organisation->branch)
-                            <div class="text-sm text-blue-700 mt-0.5">{{ $organisation->branch->name }}</div>
+                            <div class="text-sm text-blue-700 mt-0.5">{{ $organisation->branch->name }}@if($organisation->division) / {{ $organisation->division->name }}@endif</div>
                         @endif
                     </div>
 
                     <form method="POST" action="{{ route('donations.store') }}">
                         @csrf
                         <input type="hidden" name="organisation_id" value="{{ $organisation->id }}">
-                        <input type="hidden" name="branch_id" value="{{ $organisation->branch_id }}">
 
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 

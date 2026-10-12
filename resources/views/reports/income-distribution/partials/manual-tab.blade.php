@@ -138,7 +138,6 @@
                     <th class="px-3 py-2 text-right border-l border-gray-200">HQ share</th>
                     <th class="px-3 py-2 text-right">Branch share</th>
                     <th class="px-3 py-2 text-right">Division share</th>
-                    <th class="px-3 py-2 text-right border-l border-gray-200" title="Collected from organisation payments, included in Collected">From Organisation</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-100">
@@ -161,7 +160,6 @@
                         <td class="px-3 py-2 text-right whitespace-nowrap border-l border-gray-200">{{ $naira($row['hq']) }}</td>
                         <td class="px-3 py-2 text-right whitespace-nowrap">{{ $naira($row['branch']) }}</td>
                         <td class="px-3 py-2 text-right whitespace-nowrap">{{ $naira($row['division']) }}</td>
-                        <td class="px-3 py-2 text-right whitespace-nowrap border-l border-gray-200 {{ $row['organisation_net'] === 0 ? 'text-gray-300' : '' }}">{{ $naira($row['organisation_net']) }}</td>
                     </tr>
                 @endforeach
             </tbody>
@@ -173,7 +171,6 @@
                     <td class="px-3 py-2 text-right whitespace-nowrap border-l border-gray-200">{{ $naira($totals['hq']) }}</td>
                     <td class="px-3 py-2 text-right whitespace-nowrap">{{ $naira($totals['branch']) }}</td>
                     <td class="px-3 py-2 text-right whitespace-nowrap">{{ $naira($totals['division']) }}</td>
-                    <td class="px-3 py-2 text-right whitespace-nowrap border-l border-gray-200">{{ $naira($totals['organisation_net']) }}</td>
                 </tr>
             </tfoot>
         </table>

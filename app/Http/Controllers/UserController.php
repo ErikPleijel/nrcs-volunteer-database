@@ -106,9 +106,17 @@ class UserController extends Controller
         // --------------------------------------------------
         // APPLY ALL FILTERS via service
         // --------------------------------------------------
+        // Division staff have no organisation access, and representatives are
+        // placed by their organisation (who may live elsewhere): no
+        // Org Representatives filter for them.
+        $filters = $request->all();
+        if ($accessLevel === 'division') {
+            unset($filters['org_representatives']);
+        }
+
         $query = $userFilterService->apply(
             $query,
-            $request->all(),
+            $filters,
             $accessLevel,
             $scopedId
         );
@@ -220,8 +228,8 @@ class UserController extends Controller
         // --------------------------------------------------
         // Filter description
         // --------------------------------------------------
-        $filters = $request->all();
-
+        // $filters: the request's filters, as applied above (without
+        // org_representatives for division staff).
         $filterDescriptionHtml = UserFilterDescriber::description(
             $filters,
             empty: 'Showing all users'

@@ -229,7 +229,7 @@ class IncomeDistributionReportController extends Controller
     private function totals(Collection $rows): array
     {
         $totals = [];
-        foreach (['count', 'paid', 'fees', 'net', 'hq', 'branch', 'division', 'organisation_net'] as $column) {
+        foreach (['count', 'paid', 'fees', 'net', 'hq', 'branch', 'division'] as $column) {
             $totals[$column] = $rows->sum($column);
         }
 

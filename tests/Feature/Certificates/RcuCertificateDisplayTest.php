@@ -263,14 +263,26 @@ test('the admin activity report attributes RCU prints via the unit\'s division, 
         ->and($division->viewData('drillRows')->pluck('total', 'name')->all())->toBe(['Unit Display' => 2]);
 });
 
-test('regression: organisation certificate types are still clamped to branch level', function () {
-    $response = $this->actingAs($this->national)
-        ->get(route('reports.admin-activities.index', [
-            'tab' => 'certificates', 'certificate_type' => 'organisation_membership',
-            'branch_id' => $this->branchA->id, 'division_id' => $this->divisionA1->id,
-        ]))
+test('organisation certificate types drill down to division (by the organisation\'s division), not to units', function () {
+    $organisation = \App\Models\Organisation::create(['name' => 'Org A1', 'branch_id' => $this->branchA->id, 'division_id' => $this->divisionA1->id]);
+    \Illuminate\Support\Facades\DB::table('certificates_print')->insert([
+        'user_id' => null, 'organisation_id' => $organisation->id, 'training_id' => null,
+        'printed_by_user_id' => $this->national->id, 'certificate_type' => 'organisation_membership',
+        'printed_at' => now(), 'created_at' => now(), 'updated_at' => now(),
+    ]);
+
+    $get = fn (array $params) => $this->actingAs($this->national)
+        ->get(route('reports.admin-activities.index', ['tab' => 'certificates', 'certificate_type' => 'organisation_membership'] + $params))
         ->assertOk();
 
-    expect($response->viewData('drillLevel'))->toBe('branch')
-        ->and($response->viewData('isOrganisationScoped'))->toBeTrue();
+    $branch = $get(['branch_id' => $this->branchA->id]);
+    expect($branch->viewData('drillLevel'))->toBe('division')
+        ->and($branch->viewData('isOrganisationScoped'))->toBeTrue()
+        ->and($branch->viewData('drillRows')->pluck('total', 'name')->all())->toBe(['Alpha One' => 1, 'Alpha Two' => 0])
+        // A dead end at division level: no links to unit level.
+        ->and($branch->viewData('drillRowField'))->toBeNull();
+
+    // A unit-level request is clamped back to division.
+    $unit = $get(['branch_id' => $this->branchA->id, 'division_id' => $this->divisionA1->id]);
+    expect($unit->viewData('drillLevel'))->toBe('division');
 });

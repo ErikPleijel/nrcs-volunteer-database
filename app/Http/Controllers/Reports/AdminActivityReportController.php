@@ -94,14 +94,15 @@ class AdminActivityReportController extends Controller
             $drillLevel = 'branch';
         }
 
-        // Organisation-based certificate selections have no division/unit
-        // column to drill into (organisations table is branch_id only) —
-        // branch is a structural dead end for these, so clamp back to it
-        // even if a stray division_id is left over from another selection.
+        // Organisation-based certificate selections drill down to division
+        // (organisations.division_id) but not to Red Cross Units, which
+        // organisations do not belong to — division is a structural dead
+        // end for these, so clamp back to it from unit level.
         $organisationCertificateTypes = ['organisation_membership', 'organisation_donation'];
         $isOrganisationScoped = $tab === 'certificates' && in_array($certificateType, $organisationCertificateTypes, true);
-        if ($isOrganisationScoped) {
-            $drillLevel = 'branch';
+        if ($isOrganisationScoped && $drillLevel === 'unit') {
+            $drillLevel = 'division';
+            $divisionId = null;
         }
 
         $currentBranch = $branchId ? Branch::find($branchId) : null;
@@ -156,15 +157,15 @@ class AdminActivityReportController extends Controller
                 case 'branch':
                     $drillRows = $this->adminActivityStatsService->getCertificateSummaryByBranch($trendYears, $certificateType);
                     $drillAreaHeader = 'Branch';
-                    // Organisation-based types are a structural dead end at
-                    // branch level — no link field means the blade renders
-                    // plain text instead of an <a>.
-                    $drillRowField = $isOrganisationScoped ? null : 'branch_id';
+                    $drillRowField = 'branch_id';
                     break;
                 case 'division':
                     $drillRows = $this->adminActivityStatsService->getCertificateSummaryByDivision($trendYears, $certificateType, $branchId);
                     $drillAreaHeader = 'Division';
-                    $drillRowField = 'division_id';
+                    // Organisation-based types are a structural dead end at
+                    // division level — no link field means the blade renders
+                    // plain text instead of an <a>.
+                    $drillRowField = $isOrganisationScoped ? null : 'division_id';
                     break;
                 case 'unit':
                     $drillRows = $this->adminActivityStatsService->getCertificateSummaryByUnit($trendYears, $certificateType, $divisionId);
@@ -195,11 +196,11 @@ class AdminActivityReportController extends Controller
             }
         }
 
-        // Messages: organisation-recipient messages can't be attributed
-        // below branch level (organisations has no division_id/unit_id) —
-        // show an explanatory note once we're drilled past branch, so the
-        // smaller division/unit totals don't read as unexplained data loss.
-        $showMessagesOrgNote = $tab === 'messages' && in_array($drillLevel, ['division', 'unit'], true);
+        // Messages: organisation-recipient messages are attributed down to
+        // division level (organisations.division_id) but not to Red Cross
+        // Units — show an explanatory note at unit level, so the smaller
+        // unit totals don't read as unexplained data loss.
+        $showMessagesOrgNote = $tab === 'messages' && $drillLevel === 'unit';
 
         // Export reflects whichever tab AND drill level is currently active
         // — $drillRows/$drillAreaHeader above are already scoped to exactly

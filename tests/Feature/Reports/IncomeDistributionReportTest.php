@@ -124,7 +124,6 @@ test('one row per branch, sorted by name, then deleted branches, then no branch;
 
     $abia = $rows[0];
     expect($abia['net'])->toBe(2_400_000)
-        ->and($abia['organisation_net'])->toBe(2_000_000)
         ->and($abia['branch'])->toBe(100_000 + 1_500_000)
         ->and($abia['division'])->toBe(200_000)
         ->and($abia['hq'])->toBe(100_000 + 500_000);
@@ -230,12 +229,16 @@ test('the in-progress note shows for the current quarter only', function () {
         ->assertSee($note);
 });
 
-test('the organisation column is called From Organisation', function () {
-    incomePayment(100_000, $this->kano->id, $this->kanoDivision->id, '2026-08-10 10:00:00');
+test('there is no separate organisation column (organisation payments are shared like any other)', function () {
+    $organisation = Organisation::create(['name' => 'Sponsor Org', 'branch_id' => $this->kano->id, 'division_id' => $this->kanoDivision->id]);
+    incomePayment(100_000, $this->kano->id, $this->kanoDivision->id, '2026-08-10 10:00:00', ['organisation_id' => $organisation->id]);
 
-    viewIncomeReport(['quarter' => '2026-Q3'])
-        ->assertSee('From Organisation')
+    $response = viewIncomeReport(['quarter' => '2026-Q3'])
+        ->assertDontSee('From Organisation')
         ->assertDontSee('of which organisations');
+
+    expect($response->viewData('rows')->first())->not->toHaveKey('organisation_net')
+        ->and($response->viewData('totals'))->not->toHaveKey('organisation_net');
 });
 
 test('the percentages used are shown, with a note when they changed during the quarter', function () {
@@ -309,7 +312,8 @@ test('every division with a share is listed, and the division shares add up to t
     incomePayment(400_000, $this->abia->id, $this->abiaDivision->id, '2026-09-15 08:00:00');
     incomePayment(300_000, 999_998, 999_999, '2026-07-20 10:00:00');
 
-    // No division share: organisation (branch level) and no-branch payments.
+    // No division share: a branch but no division (an organisation payment
+    // stored before organisations had a division) and no-branch payments.
     $organisation = Organisation::create(['name' => 'Sponsor Org', 'branch_id' => $this->abia->id]);
     incomePayment(2_000_000, $this->abia->id, null, '2026-08-20 10:00:00', ['organisation_id' => $organisation->id]);
     incomePayment(100_000, null, null, '2026-09-01 10:00:00');
@@ -453,9 +457,9 @@ test('the branch level exports a CSV with the quarter, percentages, headline, ro
 
     expect(csvRow($rows, 'Branch'))->toBe([
         'Branch', 'Payments', 'Paid by members', 'Paystack charges', 'Net received',
-        'HQ share', 'Branch share', 'Division share', 'From Organisation',
+        'HQ share', 'Branch share', 'Division share',
     ]);
-    expect(csvRow($rows, 'Abia'))->toBe(['Abia', '1', '20400.00', '400.00', '20000.00', '5000.00', '15000.00', '0.00', '20000.00'])
+    expect(csvRow($rows, 'Abia'))->toBe(['Abia', '1', '20400.00', '400.00', '20000.00', '5000.00', '15000.00', '0.00'])
         ->and(csvRow($rows, 'Deleted branch #999998'))->not->toBeNull();
 
     $total = csvRow($rows, 'TOTAL');

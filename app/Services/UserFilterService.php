@@ -19,18 +19,26 @@ class UserFilterService
      */
     public function apply(Builder $query, array $filters, string $accessLevel, $scopedId): Builder
     {
+        // Organisation representatives are placed by their ORGANISATION's
+        // branch and division, not their own: a contact living elsewhere is
+        // still in scope when the organisation is. So the branch/division
+        // scope and the branch/division filters move onto the organisation
+        // below. (The Users list never sends this filter for division staff,
+        // who have no organisation access — UserController::index().)
+        $orgRepresentatives = ($filters['org_representatives'] ?? null) == '1';
+
         // ----------------------------
         // Global access level scope FIRST
         // ----------------------------
         switch ($accessLevel) {
             case 'branch':
-                if ($scopedId) {
+                if ($scopedId && ! $orgRepresentatives) {
                     $query->where('branch_id', $scopedId);
                 }
                 break;
 
             case 'division':
-                if ($scopedId) {
+                if ($scopedId && ! $orgRepresentatives) {
                     $query->where('division_id', $scopedId);
                 }
                 break;
@@ -84,12 +92,12 @@ class UserFilterService
         // ----------------------------
 
         // Branch (only national)
-        if ($accessLevel === 'national' && ! empty($filters['branch_id'])) {
+        if ($accessLevel === 'national' && ! empty($filters['branch_id']) && ! $orgRepresentatives) {
             $query->where('branch_id', $filters['branch_id']);
         }
 
         // Division (national + branch)
-        if (in_array($accessLevel, ['national', 'branch'], true) && ! empty($filters['division_id'])) {
+        if (in_array($accessLevel, ['national', 'branch'], true) && ! empty($filters['division_id']) && ! $orgRepresentatives) {
             $query->where('division_id', $filters['division_id']);
         }
 
@@ -177,8 +185,16 @@ class UserFilterService
             $query->where('can_contribute_volunteering', true);
         }
 
-        if (($filters['org_representatives'] ?? null) == '1') {
-            $query->whereHas('organisations', fn ($q) => $q->whereNull('deleted_at'));
+        if ($orgRepresentatives) {
+            // One organisation must match everything: not archived, in the
+            // scope and in the chosen branch/division.
+            $query->whereHas('organisations', function ($q) use ($filters, $accessLevel, $scopedId) {
+                $q->whereNull('organisations.deleted_at')
+                    ->when($accessLevel === 'branch' && $scopedId, fn ($o) => $o->where('organisations.branch_id', $scopedId))
+                    ->when($accessLevel === 'division' && $scopedId, fn ($o) => $o->where('organisations.division_id', $scopedId))
+                    ->when($accessLevel === 'national' && ! empty($filters['branch_id']), fn ($o) => $o->where('organisations.branch_id', $filters['branch_id']))
+                    ->when(in_array($accessLevel, ['national', 'branch'], true) && ! empty($filters['division_id']), fn ($o) => $o->where('organisations.division_id', $filters['division_id']));
+            });
         }
 
         // ----------------------------

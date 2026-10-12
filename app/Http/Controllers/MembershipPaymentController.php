@@ -347,7 +347,7 @@ class MembershipPaymentController extends Controller
     {
         abort_unless($organisation->isInPaymentScopeOf(Auth::user()), 403, 'You can only record payments for organisations in your own branch.');
 
-        $organisation->load(['users', 'branch']);
+        $organisation->load(['users', 'branch', 'division']);
 
         $membershipFees = MembershipFee::select('id', 'name', 'amount', 'id_card_fee', 'validity_years')
             ->where('for_organizations', true)

@@ -193,7 +193,7 @@
             @if($isOrganisationScoped)
                 <p class="mt-4 text-xs text-gray-500 italic">
                     <i class="fas fa-circle-info mr-1"></i>
-                    Organisation-based certificates are only tracked at branch level — branches below cannot be drilled into divisions or RC units.
+                    Organisation-based certificates are tracked down to division level — divisions cannot be drilled into RC units.
                 </p>
             @endif
 
@@ -230,7 +230,7 @@
             @if($showMessagesOrgNote)
                 <p class="mt-4 text-xs text-gray-500 italic">
                     <i class="fas fa-circle-info mr-1"></i>
-                    Organisation-recipient messages are only tracked at branch level — totals below branch reflect individual recipients only.
+                    Organisation-recipient messages are tracked down to division level — totals per RC unit reflect individual recipients only.
                 </p>
             @endif
 

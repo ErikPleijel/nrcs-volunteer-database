@@ -298,7 +298,7 @@ class DonationController extends Controller
     {
         abort_unless($organisation->isInScopeOf(Auth::user()), 403, 'You can only record donations for organisations in your own branch.');
 
-        $organisation->load(['users', 'branch']);
+        $organisation->load(['users', 'branch', 'division']);
 
         return view('donations.create_for_organisation', compact('organisation'));
     }
@@ -369,12 +369,17 @@ class DonationController extends Controller
         ]);
 
         // Same scope as the organisation donation form (a hand-crafted post).
+        // An organisation donation takes the organisation's own branch and
+        // division, never the form's — as organisation payments do.
         if (filled($validated['organisation_id'] ?? null)) {
+            $organisation = Organisation::findOrFail($validated['organisation_id']);
             abort_unless(
-                Organisation::findOrFail($validated['organisation_id'])->isInScopeOf(Auth::user()),
+                $organisation->isInScopeOf(Auth::user()),
                 403,
                 'You can only record donations for organisations in your own branch.'
             );
+            $validated['branch_id'] = $organisation->branch_id;
+            $validated['division_id'] = $organisation->division_id;
         }
 
         if (! ($validated['in_kind_donation'] ?? false)) {

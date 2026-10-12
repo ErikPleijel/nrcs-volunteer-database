@@ -214,9 +214,10 @@ class AdminActivityStatsService
     }
 
     /**
-     * Certificate types whose branch attribution comes from `organisations`,
-     * not `users` — organisations has no division_id/red_cross_unit_id
-     * column, so these can never resolve below branch level.
+     * Certificate types whose branch and division attribution comes from
+     * `organisations`, not `users`. Organisations belong to a division
+     * (since 2026-10-11) but not to a Red Cross Unit, so these resolve down
+     * to division level, never to unit level.
      */
     private const ORGANISATION_CERTIFICATE_TYPES = ['organisation_membership', 'organisation_donation'];
 
@@ -286,18 +287,31 @@ class AdminActivityStatsService
 
     /**
      * Drill-down table, branch level: one row per division in the given
-     * branch. Organisation-based certificate types cannot be scoped below
-     * branch (organisations has no division_id) — throws if called for
-     * one, since the controller clamps drillLevel back to 'branch' for
-     * these types and should never reach this method for them.
+     * branch. Organisation-based certificate types are counted by the
+     * organisation's own division.
      */
     public function getCertificateSummaryByDivision(int $trendYears, string $certificateType, int $branchId): Collection
     {
-        if (in_array($certificateType, self::ORGANISATION_CERTIFICATE_TYPES, true)) {
-            throw new \InvalidArgumentException("Certificate type [{$certificateType}] has no division-level data; organisations are not scoped below branch.");
-        }
-
         [$start, $end] = $this->rollingWindow($trendYears);
+
+        if (in_array($certificateType, self::ORGANISATION_CERTIFICATE_TYPES, true)) {
+            $counts = CertificatePrint::query()
+                ->join('organisations', 'organisations.id', '=', 'certificates_print.organisation_id')
+                ->where('certificates_print.certificate_type', $certificateType)
+                ->where('organisations.branch_id', $branchId)
+                ->whereBetween('certificates_print.printed_at', [$start, $end])
+                ->whereNotNull('organisations.division_id')
+                ->selectRaw('organisations.division_id, COUNT(*) as cnt')
+                ->groupBy('organisations.division_id')
+                ->pluck('cnt', 'division_id');
+
+            return Division::where('branch_id', $branchId)->orderBy('name')->get(['id', 'name'])
+                ->map(fn ($division) => [
+                    'id'    => $division->id,
+                    'name'  => $division->name,
+                    'total' => (int) ($counts[$division->id] ?? 0),
+                ]);
+        }
 
         if (in_array($certificateType, self::RCU_CERTIFICATE_TYPES, true)) {
             $counts = $this->joinRcuDivision(CertificatePrint::query())
@@ -343,7 +357,7 @@ class AdminActivityStatsService
     public function getCertificateSummaryByUnit(int $trendYears, string $certificateType, int $divisionId): Collection
     {
         if (in_array($certificateType, self::ORGANISATION_CERTIFICATE_TYPES, true)) {
-            throw new \InvalidArgumentException("Certificate type [{$certificateType}] has no unit-level data; organisations are not scoped below branch.");
+            throw new \InvalidArgumentException("Certificate type [{$certificateType}] has no unit-level data; organisations are not scoped below division.");
         }
 
         [$start, $end] = $this->rollingWindow($trendYears);
@@ -548,10 +562,9 @@ class AdminActivityStatsService
 
     /**
      * Drill-down table, branch level: one row per division in the given
-     * branch. User-recipient only — organisations has no division_id, so
-     * an Organisation-recipient message cannot be attributed to a division.
-     * No 'org_total' key on these rows (the view's badge only ever shows
-     * when that key is present and > 0, so it naturally stays hidden here).
+     * branch, combining User and Organisation recipients (an organisation
+     * by its own division, since 2026-10-11), with the Organisation portion
+     * as 'org_total' — same shape as getMessageSummaryByBranch().
      */
     public function getMessageSummaryByDivision(int $trendYears, int $branchId): Collection
     {
@@ -568,18 +581,35 @@ class AdminActivityStatsService
             ->groupBy('users.division_id')
             ->pluck('cnt', 'division_id');
 
+        $orgCounts = DB::table('messaging_recipients')
+            ->join('organisations', 'organisations.id', '=', 'messaging_recipients.recipient_id')
+            ->where('messaging_recipients.recipient_type', 'App\\Models\\Organisation')
+            ->where('messaging_recipients.status', 'sent')
+            ->where('organisations.branch_id', $branchId)
+            ->whereBetween('messaging_recipients.sent_at', [$start, $end])
+            ->whereNotNull('organisations.division_id')
+            ->selectRaw('organisations.division_id, COUNT(*) as cnt')
+            ->groupBy('organisations.division_id')
+            ->pluck('cnt', 'division_id');
+
         return Division::where('branch_id', $branchId)->orderBy('name')->get(['id', 'name'])
-            ->map(fn ($division) => [
-                'id'    => $division->id,
-                'name'  => $division->name,
-                'total' => (int) ($counts[$division->id] ?? 0),
-            ]);
+            ->map(function ($division) use ($counts, $orgCounts) {
+                $userTotal = (int) ($counts[$division->id] ?? 0);
+                $orgTotal  = (int) ($orgCounts[$division->id] ?? 0);
+
+                return [
+                    'id'        => $division->id,
+                    'name'      => $division->name,
+                    'total'     => $userTotal + $orgTotal,
+                    'org_total' => $orgTotal,
+                ];
+            });
     }
 
     /**
      * Drill-down table, division level: one row per RC unit in the given
-     * division, plus a synthetic "(No RC Unit)" row if applicable. Same
-     * User-recipient-only rule as getMessageSummaryByDivision().
+     * division, plus a synthetic "(No RC Unit)" row if applicable.
+     * User-recipient only: organisations do not belong to a Red Cross Unit.
      */
     public function getMessageSummaryByUnit(int $trendYears, int $divisionId): Collection
     {
