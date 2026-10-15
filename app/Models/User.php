@@ -1912,6 +1912,31 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
+     * Get the roles that the current user may remove from (or change on) someone:
+     * every assignable role, plus the roles named by the user's revoke_* permissions
+     * (remove-only — e.g. a national admin removing a branch/division assistant it
+     * may not appoint). super-admin and national_db_administrator never come via
+     * revoke_*.
+     *
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    public function getRemovableRoles()
+    {
+        $revocableRoleNames = $this->getAllPermissions()
+            ->filter(fn ($permission) => Str::startsWith($permission->name, 'revoke_'))
+            ->map(fn ($permission) => Str::after($permission->name, 'revoke_'))
+            ->reject(fn ($name) => in_array($name, ['super-admin', 'national_db_administrator'], true));
+
+        $roleNames = $this->getAssignableRoles()->pluck('name')
+            ->merge($revocableRoleNames)
+            ->unique()
+            ->values()
+            ->all();
+
+        return Role::whereIn('name', $roleNames)->orderBy('name')->get();
+    }
+
+    /**
      * Get the last payment date for an ID card for the user.
      *
      * @return \Carbon\Carbon|null

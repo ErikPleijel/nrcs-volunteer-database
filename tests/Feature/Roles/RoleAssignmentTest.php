@@ -67,6 +67,9 @@ beforeEach(function () {
         'authorize_division_db_assistant_finance',
         'authorize_division_db_assistant_operations',
         'authorize_national_db_administrator',
+        'revoke_branch_db_assistant',
+        'revoke_division_db_assistant_finance',
+        'revoke_division_db_assistant_operations',
     ] as $permission) {
         Permission::findOrCreate($permission, 'web');
     }
@@ -76,6 +79,8 @@ beforeEach(function () {
         'manage-admin-panel', 'manage_roles_and_permissions',
         'authorize_branch_secretary', 'authorize_branch_db_administrator',
         'authorize_national_db_assistant', 'authorize_observer_national_level',
+        'revoke_branch_db_assistant', 'revoke_division_db_assistant_finance',
+        'revoke_division_db_assistant_operations',
     ]);
 
     Role::findOrCreate('branch_secretary', 'web')->syncPermissions([
@@ -471,4 +476,66 @@ test('the Secretary General flow works end to end: open the roles page, find a p
 
     // Both changes are in the audit log.
     expect(\App\Models\Log::where('action', 'user_roles_updated')->where('subject_id', $person->id)->count())->toBe(2);
+});
+
+/*
+|--------------------------------------------------------------------------
+| PART 5 — getRemovableRoles(): assignable roles plus revoke_* (remove-only)
+|--------------------------------------------------------------------------
+*/
+
+test('getRemovableRoles() gives a national admin its assignable roles plus the three assistant roles', function () {
+    expect(nationalAdmin()->getRemovableRoles()->pluck('name')->all())->toBe([
+        'branch_db_administrator',
+        'branch_db_assistant',
+        'branch_secretary',
+        'division_db_assistant_finance',
+        'division_db_assistant_operations',
+        'national_db_assistant',
+        'observer_national_level',
+    ]);
+});
+
+test('revoke_* does not make a role assignable', function () {
+    expect(nationalAdmin()->getAssignableRoles()->pluck('name'))
+        ->not->toContain('branch_db_assistant')
+        ->not->toContain('division_db_assistant_finance')
+        ->not->toContain('division_db_assistant_operations');
+});
+
+test('getRemovableRoles() equals getAssignableRoles() for actors without revoke_* permissions', function () {
+    $secretary = User::factory()->inBranch($this->branchA)->create();
+    $secretary->assignRole('branch_secretary');
+
+    expect($secretary->getRemovableRoles()->pluck('name')->all())
+        ->toBe($secretary->getAssignableRoles()->pluck('name')->all())
+        ->and(superAdmin()->getRemovableRoles()->pluck('name')->all())->toBe(['national_db_administrator']);
+});
+
+test('super-admin and national_db_administrator never become removable through revoke_*', function () {
+    Role::findOrCreate('national_db_assistant', 'web')->givePermissionTo([
+        Permission::findOrCreate('revoke_super-admin', 'web'),
+        Permission::findOrCreate('revoke_national_db_administrator', 'web'),
+    ]);
+    app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+    $user = User::factory()->create();
+    $user->assignRole('national_db_assistant');
+
+    expect($user->getRemovableRoles()->pluck('name')->all())->toBe([]);
+});
+
+test('the revoke migration grants national_db_administrator the three revoke_* permissions and is idempotent', function () {
+    $revokes = ['revoke_branch_db_assistant', 'revoke_division_db_assistant_finance', 'revoke_division_db_assistant_operations'];
+    $role = Role::findByName('national_db_administrator', 'web');
+    $role->revokePermissionTo($revokes);
+
+    $migration = require database_path('migrations/2026_10_15_100000_add_revoke_assistant_role_permissions.php');
+    $migration->up();
+    $migration->up();
+
+    $names = $role->fresh()->permissions->pluck('name');
+    expect($names)->toContain(...$revokes)
+        ->and($names->filter(fn ($n) => str_starts_with($n, 'revoke_'))->count())->toBe(3)
+        ->and($names)->toContain('authorize_branch_secretary'); // nothing else removed
 });

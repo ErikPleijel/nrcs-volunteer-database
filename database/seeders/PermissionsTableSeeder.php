@@ -112,6 +112,10 @@ class PermissionsTableSeeder extends Seeder
                     'authorize_observer_national_level',
                     // Branch/division assistants are appointed at branch level only
                     // (branch_secretary, branch_db_administrator) — by design.
+                    // National admins may remove or change them (revoke_*), not appoint.
+                    'revoke_branch_db_assistant',
+                    'revoke_division_db_assistant_finance',
+                    'revoke_division_db_assistant_operations',
 
                     // meta
                     'manage_roles_and_permissions',
