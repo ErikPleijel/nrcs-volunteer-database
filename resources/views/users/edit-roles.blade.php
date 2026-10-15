@@ -254,8 +254,9 @@
                                 <label for="role" class="block font-medium text-sm text-gray-700 mb-2">Assign Role</label>
                                 {{-- A current role the actor cannot assign is shown as a disabled, selected
                                      "keep current" first option with an empty value: with `required`, the
-                                     browser will not submit the form until another option is chosen (a
-                                     disabled option is never submitted, so it would otherwise clear the role). --}}
+                                     browser will not submit the form until another option is chosen. That is
+                                     extra protection only: a missing or empty role is "no change" on the
+                                     server, and only "-- No Role --" (REMOVE_ROLE) removes a role. --}}
                                 <select name="role" id="role" @required(! $currentRoleAssignable) class="form-select w-full rounded-md shadow-sm border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
                                     @if (! $currentRoleAssignable)
                                         <option value="" disabled selected>
@@ -263,7 +264,7 @@
                                         </option>
                                     @endif
                                     @if (! $userRole || $canRemoveCurrentRole)
-                                        <option value="">-- No Role --</option>
+                                        <option value="{{ \App\Http\Controllers\UserController::REMOVE_ROLE }}">-- No Role --</option>
                                     @endif
                                     @foreach ($roleOptions as $role)
                                         <option value="{{ $role->name }}" @selected($userRole == $role->name)>
@@ -402,6 +403,11 @@
         @if (session('success'))
             <div x-data="{ show: true }" x-init="setTimeout(() => show = false, 4000)" x-show="show" class="fixed top-20 right-10 mt-4 p-4 bg-green-100 text-green-800 rounded-md shadow-lg">
                 {{ session('success') }}
+            </div>
+        @endif
+        @if (session('info'))
+            <div x-data="{ show: true }" x-init="setTimeout(() => show = false, 4000)" x-show="show" class="fixed top-20 right-10 mt-4 p-4 bg-gray-100 text-gray-800 rounded-md shadow-lg">
+                {{ session('info') }}
             </div>
         @endif
     </div>

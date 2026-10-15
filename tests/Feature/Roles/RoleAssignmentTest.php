@@ -26,6 +26,7 @@
  * session value to satisfy it (see actingWithConfirmedPassword()).
  */
 
+use App\Http\Controllers\UserController;
 use App\Models\Branch;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -228,7 +229,7 @@ test('clearing a role the actor could have assigned is allowed', function () {
 
     $response = updateRolesRequest($actor, [
         'user_id' => $target->id,
-        'role' => null,
+        'role' => UserController::REMOVE_ROLE,
     ]);
 
     $response->assertRedirect(route('users.roles.edit', ['user_id' => $target->id]));
@@ -378,7 +379,7 @@ test('a national_db_administrator cannot remove another national_db_administrato
     $actor = nationalAdmin();
     $target = nationalAdmin();
 
-    updateRolesRequest($actor, ['user_id' => $target->id, 'role' => null])->assertSessionHasErrors('role');
+    updateRolesRequest($actor, ['user_id' => $target->id, 'role' => UserController::REMOVE_ROLE])->assertSessionHasErrors('role');
 
     expect($target->fresh()->hasRole('national_db_administrator'))->toBeTrue();
 });
@@ -396,7 +397,7 @@ test('a super-admin can remove a national_db_administrator\'s role', function ()
     nationalAdmin(); // another one remains, so this is not the last
     $target = nationalAdmin();
 
-    updateRolesRequest(superAdmin(), ['user_id' => $target->id, 'role' => null])
+    updateRolesRequest(superAdmin(), ['user_id' => $target->id, 'role' => UserController::REMOVE_ROLE])
         ->assertRedirect(route('users.roles.edit', ['user_id' => $target->id]))
         ->assertSessionHasNoErrors();
 
@@ -407,7 +408,7 @@ test('a super-admin cannot remove a branch_secretary\'s role', function () {
     $target = User::factory()->inBranch($this->branchA)->create();
     $target->assignRole('branch_secretary');
 
-    updateRolesRequest(superAdmin(), ['user_id' => $target->id, 'role' => null])->assertSessionHasErrors('role');
+    updateRolesRequest(superAdmin(), ['user_id' => $target->id, 'role' => UserController::REMOVE_ROLE])->assertSessionHasErrors('role');
 
     expect($target->fresh()->hasRole('branch_secretary'))->toBeTrue();
 });
@@ -415,7 +416,7 @@ test('a super-admin cannot remove a branch_secretary\'s role', function () {
 test('the last national_db_administrator cannot be removed', function () {
     $target = nationalAdmin();
 
-    updateRolesRequest(superAdmin(), ['user_id' => $target->id, 'role' => null])
+    updateRolesRequest(superAdmin(), ['user_id' => $target->id, 'role' => UserController::REMOVE_ROLE])
         ->assertRedirect(route('users.roles.edit', ['user_id' => $target->id]))
         ->assertSessionHasErrors('role');
 
@@ -427,7 +428,7 @@ test('a direct POST with ?user_id= in the query string is refused the same way',
     $target = nationalAdmin();
 
     actingWithConfirmedPassword($actor)
-        ->post(route('users.roles.update', ['user_id' => $target->id]), ['role' => ''])
+        ->post(route('users.roles.update', ['user_id' => $target->id]), ['role' => UserController::REMOVE_ROLE])
         ->assertSessionHasErrors('role');
 
     expect($target->fresh()->hasRole('national_db_administrator'))->toBeTrue();
@@ -470,7 +471,7 @@ test('the Secretary General flow works end to end: open the roles page, find a p
     expect($person->fresh()->hasRole('national_db_administrator'))->toBeTrue();
 
     // Remove again.
-    updateRolesRequest($sg, ['user_id' => $person->id, 'role' => null])
+    updateRolesRequest($sg, ['user_id' => $person->id, 'role' => UserController::REMOVE_ROLE])
         ->assertSessionHasNoErrors();
     expect($person->fresh()->getRoleNames())->toBeEmpty();
 
@@ -555,7 +556,7 @@ test('a national_db_administrator can remove a branch or division database assis
     $target = User::factory()->inBranch($this->branchA)->create();
     $target->assignRole($role);
 
-    updateRolesRequest(nationalAdmin(), ['user_id' => $target->id, 'role' => null])
+    updateRolesRequest(nationalAdmin(), ['user_id' => $target->id, 'role' => UserController::REMOVE_ROLE])
         ->assertRedirect(route('users.roles.edit', ['user_id' => $target->id]))
         ->assertSessionHasNoErrors();
 
@@ -587,7 +588,7 @@ test('a refused removal names the role in the validation error', function () {
     $actor = nationalAdmin();
     $target = nationalAdmin();
 
-    updateRolesRequest($actor, ['user_id' => $target->id, 'role' => null])
+    updateRolesRequest($actor, ['user_id' => $target->id, 'role' => UserController::REMOVE_ROLE])
         ->assertRedirect(route('users.roles.edit', ['user_id' => $target->id]))
         ->assertSessionHasErrors(['role' => 'You are not authorized to remove the role "National Db Administrator".']);
 });
@@ -643,7 +644,7 @@ test('nobody can change another super-admin\'s role', function (string $role) {
         ->assertSessionHasErrors('user_id');
 
     expect($target->fresh()->getRoleNames()->all())->toBe(['super-admin']);
-})->with(['', 'national_db_administrator']);
+})->with([UserController::REMOVE_ROLE, 'national_db_administrator']);
 
 test('the self-target guard runs before the role checks for national admins and super-admins', function () {
     foreach ([nationalAdmin(), superAdmin()] as $actor) {
@@ -659,7 +660,7 @@ test('a branch_db_administrator still cannot remove a branch_db_administrator pe
     $target = User::factory()->inBranch($this->branchA)->create();
     $target->assignRole('branch_db_administrator');
 
-    updateRolesRequest($actor, ['user_id' => $target->id, 'role' => null])
+    updateRolesRequest($actor, ['user_id' => $target->id, 'role' => UserController::REMOVE_ROLE])
         ->assertSessionHasErrors('user_id');
 
     expect($target->fresh()->hasRole('branch_db_administrator'))->toBeTrue();
@@ -671,7 +672,7 @@ test('a branch_db_administrator still cannot remove a branch_db_administrator pe
 |--------------------------------------------------------------------------
 */
 
-const NO_ROLE_OPTION = '<option value="">-- No Role --</option>';
+const NO_ROLE_OPTION = '<option value="'.UserController::REMOVE_ROLE.'">-- No Role --</option>';
 const REMOVE_HINT = 'To remove (deauthorize) this person\'s role';
 
 function rolesPageFor(User $actor, User $target)
@@ -755,7 +756,7 @@ test('a refused change shows its validation error next to the dropdown', functio
     $sg = superAdmin();
 
     actingWithConfirmedPassword($sg)->followingRedirects()
-        ->post(route('users.roles.update'), ['user_id' => $target->id, 'role' => null])
+        ->post(route('users.roles.update'), ['user_id' => $target->id, 'role' => UserController::REMOVE_ROLE])
         ->assertOk()
         ->assertSee('You are not authorized to remove the role &quot;Branch Secretary&quot;.', false);
 });
@@ -764,7 +765,88 @@ test('a refused target shows its validation error under the search', function ()
     $actor = nationalAdmin();
 
     actingWithConfirmedPassword($actor)->followingRedirects()
-        ->post(route('users.roles.update'), ['user_id' => $actor->id, 'role' => null])
+        ->post(route('users.roles.update'), ['user_id' => $actor->id, 'role' => UserController::REMOVE_ROLE])
         ->assertOk()
         ->assertSee('You cannot modify your own role or permissions.');
+});
+
+/*
+|--------------------------------------------------------------------------
+| PART 8 — only REMOVE_ROLE removes; an empty or missing role is "no change"
+|--------------------------------------------------------------------------
+*/
+
+/**
+ * [actor, target, the target's role] for each kind of actor. The target's role is one
+ * the actor may remove (national admin, assistant) or may not (super-admin, branch peer).
+ */
+function noChangeScenario(string $kind): array
+{
+    $branch = test()->branchA;
+
+    [$actor, $targetRole] = match ($kind) {
+        'national admin, division assistant' => [nationalAdmin(), 'division_db_assistant_operations'],
+        'super-admin, branch secretary' => [superAdmin(), 'branch_secretary'],
+        'branch admin, branch admin peer' => [tap(User::factory()->inBranch($branch)->create())->assignRole('branch_db_administrator'), 'branch_db_administrator'],
+        'branch secretary, branch assistant' => [tap(User::factory()->inBranch($branch)->create())->assignRole('branch_secretary'), 'branch_db_assistant'],
+    };
+
+    $target = User::factory()->inBranch($branch)->create();
+    $target->assignRole($targetRole);
+
+    return [$actor, $target, $targetRole];
+}
+
+test('an empty or missing role changes nothing', function (string $kind, array $payload) {
+    Permission::findOrCreate('print_idcards', 'web');
+    [$actor, $target, $targetRole] = noChangeScenario($kind);
+    $target->givePermissionTo('print_idcards');
+
+    updateRolesRequest($actor, ['user_id' => $target->id] + $payload)
+        ->assertRedirect(route('users.roles.edit', ['user_id' => $target->id]))
+        ->assertSessionHasNoErrors()
+        ->assertSessionHas('info', 'No change made.');
+
+    $target = $target->fresh();
+    expect($target->getRoleNames()->all())->toBe([$targetRole])
+        ->and($target->getDirectPermissions()->pluck('name')->all())->toBe(['print_idcards'])
+        ->and(userRolesAuditCount($target))->toBe(0);
+})->with([
+    'national admin, division assistant',
+    'super-admin, branch secretary',
+    'branch admin, branch admin peer',
+    'branch secretary, branch assistant',
+])->with([
+    'no role field' => [[]],
+    'empty role' => [['role' => '']],
+    'null role' => [['role' => null]],
+]);
+
+test('REMOVE_ROLE removes the role only when the actor may remove it', function (string $kind, bool $removed) {
+    [$actor, $target, $targetRole] = noChangeScenario($kind);
+
+    $response = updateRolesRequest($actor, ['user_id' => $target->id, 'role' => UserController::REMOVE_ROLE]);
+
+    if ($removed) {
+        $response->assertSessionHasNoErrors()->assertSessionHas('success');
+        expect($target->fresh()->getRoleNames())->toBeEmpty();
+    } else {
+        $response->assertSessionHasErrors();
+        expect($target->fresh()->getRoleNames()->all())->toBe([$targetRole]);
+    }
+})->with([
+    ['national admin, division assistant', true],
+    ['branch secretary, branch assistant', true],
+    ['super-admin, branch secretary', false],
+    ['branch admin, branch admin peer', false],
+]);
+
+test('a role value that is neither REMOVE_ROLE nor an existing role is a validation error', function () {
+    $target = User::factory()->inBranch($this->branchA)->create();
+    $target->assignRole('branch_db_assistant');
+
+    updateRolesRequest(nationalAdmin(), ['user_id' => $target->id, 'role' => 'no_such_role'])
+        ->assertSessionHasErrors('role');
+
+    expect($target->fresh()->getRoleNames()->all())->toBe(['branch_db_assistant']);
 });

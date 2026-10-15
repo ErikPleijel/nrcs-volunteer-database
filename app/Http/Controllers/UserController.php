@@ -43,6 +43,13 @@ class UserController extends Controller
      * The specific permissions that can be assigned directly to a user.
      * This is the authoritative whitelist for direct-permission assignment.
      */
+    /**
+     * The Authorizations form's "-- No Role --" value. Only this removes a role in
+     * updateRoles(); an empty or missing role means "no change", so a field the
+     * browser leaves out (e.g. the disabled "keep current" option) never removes one.
+     */
+    public const REMOVE_ROLE = '__remove__';
+
     private const DIRECT_PERMISSION_NAMES = [
         'print_idcards',
         'print_certificates',
@@ -1396,13 +1403,26 @@ class UserController extends Controller
 
         $validated = $request->validate([
             'user_id' => 'required|exists:users,id',
-            'role' => 'nullable|string|exists:roles,name',
+            'role' => ['nullable', 'string', function ($attribute, $value, $fail) {
+                if ($value !== self::REMOVE_ROLE
+                    && ! \Spatie\Permission\Models\Role::where('name', $value)->exists()) {
+                    $fail('The selected role is invalid.');
+                }
+            }],
             'permissions' => 'nullable|array',
             'permissions.*' => 'string|exists:permissions,name',
         ]);
 
         $user = User::findOrFail($validated['user_id']);
         $assigningUser = Auth::user();
+
+        // An empty or missing role is "no change" — nothing is touched, not even direct
+        // permissions. Only REMOVE_ROLE removes a role.
+        if (! $request->filled('role')) {
+            return redirect()
+                ->route('users.roles.edit', ['user_id' => $user->id])
+                ->with('info', 'No change made.');
+        }
 
         // Refusals below are validation errors on the form, not 403s. user_id errors
         // refuse the target outright (back to the search); role errors refuse the change.
@@ -1450,7 +1470,8 @@ class UserController extends Controller
             return $refuseTarget('Branch-level administrators cannot modify the role of another Branch Secretary or Branch DB Administrator. Contact a National DB Administrator.');
         }
 
-        $incomingRole = $validated['role'] ?? '';
+        // From here on '' means "remove the role" (the form's REMOVE_ROLE).
+        $incomingRole = $validated['role'] === self::REMOVE_ROLE ? '' : $validated['role'];
 
         // Never leave the system without a National DB Administrator.
         if ($user->hasRole('national_db_administrator')
