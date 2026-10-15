@@ -131,7 +131,7 @@ test('a branch_secretary cannot escalate an unprotected target to national_db_ad
         'role' => 'national_db_administrator',
     ]);
 
-    $response->assertForbidden();
+    $response->assertSessionHasErrors('role');
     expect($target->fresh()->hasRole('national_db_administrator'))->toBeFalse();
 });
 
@@ -146,7 +146,7 @@ test('a branch_secretary cannot escalate an unprotected target to super-admin', 
         'role' => 'super-admin',
     ]);
 
-    $response->assertForbidden();
+    $response->assertSessionHasErrors('role');
     expect($target->fresh()->hasRole('super-admin'))->toBeFalse();
 });
 
@@ -161,7 +161,7 @@ test('a branch_db_administrator cannot escalate an unprotected target to nationa
         'role' => 'national_db_administrator',
     ]);
 
-    $response->assertForbidden();
+    $response->assertSessionHasErrors('role');
     expect($target->fresh()->hasRole('national_db_administrator'))->toBeFalse();
 });
 
@@ -213,7 +213,7 @@ test('a national_db_administrator cannot assign super-admin — the fix is not s
         'role' => 'super-admin',
     ]);
 
-    $response->assertForbidden();
+    $response->assertSessionHasErrors('role');
     expect($target->fresh()->hasRole('super-admin'))->toBeFalse();
 });
 
@@ -255,7 +255,7 @@ test('a branch_secretary cannot modify another branch_secretary\'s role, even in
         'role' => 'branch_db_assistant',
     ]);
 
-    $response->assertForbidden();
+    $response->assertSessionHasErrors('user_id');
     expect($target->fresh()->hasRole('branch_secretary'))->toBeTrue();
 });
 
@@ -271,7 +271,7 @@ test('a branch_secretary cannot modify a national-role-holder\'s role', function
         'role' => 'branch_db_assistant',
     ]);
 
-    $response->assertForbidden();
+    $response->assertSessionHasErrors('user_id');
     expect($target->fresh()->hasRole('national_db_assistant'))->toBeTrue();
 });
 
@@ -378,7 +378,7 @@ test('a national_db_administrator cannot remove another national_db_administrato
     $actor = nationalAdmin();
     $target = nationalAdmin();
 
-    updateRolesRequest($actor, ['user_id' => $target->id, 'role' => null])->assertForbidden();
+    updateRolesRequest($actor, ['user_id' => $target->id, 'role' => null])->assertSessionHasErrors('role');
 
     expect($target->fresh()->hasRole('national_db_administrator'))->toBeTrue();
 });
@@ -387,7 +387,7 @@ test('a national_db_administrator cannot change another national_db_administrato
     $actor = nationalAdmin();
     $target = nationalAdmin();
 
-    updateRolesRequest($actor, ['user_id' => $target->id, 'role' => 'branch_secretary'])->assertForbidden();
+    updateRolesRequest($actor, ['user_id' => $target->id, 'role' => 'branch_secretary'])->assertSessionHasErrors('role');
 
     expect($target->fresh()->hasRole('national_db_administrator'))->toBeTrue();
 });
@@ -407,7 +407,7 @@ test('a super-admin cannot remove a branch_secretary\'s role', function () {
     $target = User::factory()->inBranch($this->branchA)->create();
     $target->assignRole('branch_secretary');
 
-    updateRolesRequest(superAdmin(), ['user_id' => $target->id, 'role' => null])->assertForbidden();
+    updateRolesRequest(superAdmin(), ['user_id' => $target->id, 'role' => null])->assertSessionHasErrors('role');
 
     expect($target->fresh()->hasRole('branch_secretary'))->toBeTrue();
 });
@@ -428,7 +428,7 @@ test('a direct POST with ?user_id= in the query string is refused the same way',
 
     actingWithConfirmedPassword($actor)
         ->post(route('users.roles.update', ['user_id' => $target->id]), ['role' => ''])
-        ->assertForbidden();
+        ->assertSessionHasErrors('role');
 
     expect($target->fresh()->hasRole('national_db_administrator'))->toBeTrue();
 });
@@ -438,7 +438,7 @@ test('a national_db_administrator cannot appoint branch or division database ass
     $target = User::factory()->inBranch($this->branchA)->create();
 
     updateRolesRequest(nationalAdmin(), ['user_id' => $target->id, 'role' => $role])
-        ->assertForbidden();
+        ->assertSessionHasErrors('role');
 
     expect($target->fresh()->hasRole($role))->toBeFalse();
 })->with(['branch_db_assistant', 'division_db_assistant_finance', 'division_db_assistant_operations']);
@@ -538,4 +538,129 @@ test('the revoke migration grants national_db_administrator the three revoke_* p
     expect($names)->toContain(...$revokes)
         ->and($names->filter(fn ($n) => str_starts_with($n, 'revoke_'))->count())->toBe(3)
         ->and($names)->toContain('authorize_branch_secretary'); // nothing else removed
+});
+
+/*
+|--------------------------------------------------------------------------
+| PART 6 — appoint vs remove are separate (updateRoles())
+|--------------------------------------------------------------------------
+*/
+
+function userRolesAuditCount(User $user): int
+{
+    return \App\Models\Log::where('action', 'user_roles_updated')->where('subject_id', $user->id)->count();
+}
+
+test('a national_db_administrator can remove a branch or division database assistant', function (string $role) {
+    $target = User::factory()->inBranch($this->branchA)->create();
+    $target->assignRole($role);
+
+    updateRolesRequest(nationalAdmin(), ['user_id' => $target->id, 'role' => null])
+        ->assertRedirect(route('users.roles.edit', ['user_id' => $target->id]))
+        ->assertSessionHasNoErrors();
+
+    expect($target->fresh()->getRoleNames())->toBeEmpty()
+        ->and(userRolesAuditCount($target))->toBe(1);
+})->with(['branch_db_assistant', 'division_db_assistant_finance', 'division_db_assistant_operations']);
+
+test('a national_db_administrator can change a division assistant to national_db_assistant', function () {
+    $target = User::factory()->inBranch($this->branchA)->create();
+    $target->assignRole('division_db_assistant_operations');
+
+    updateRolesRequest(nationalAdmin(), ['user_id' => $target->id, 'role' => 'national_db_assistant'])
+        ->assertSessionHasNoErrors();
+
+    expect($target->fresh()->getRoleNames()->all())->toBe(['national_db_assistant']);
+});
+
+test('a national_db_administrator cannot change one assistant role into another assistant role', function () {
+    $target = User::factory()->inBranch($this->branchA)->create();
+    $target->assignRole('division_db_assistant_operations');
+
+    updateRolesRequest(nationalAdmin(), ['user_id' => $target->id, 'role' => 'division_db_assistant_finance'])
+        ->assertSessionHasErrors(['role' => 'You are not authorized to assign the role "Division Db Assistant Finance".']);
+
+    expect($target->fresh()->getRoleNames()->all())->toBe(['division_db_assistant_operations']);
+});
+
+test('a refused removal names the role in the validation error', function () {
+    $actor = nationalAdmin();
+    $target = nationalAdmin();
+
+    updateRolesRequest($actor, ['user_id' => $target->id, 'role' => null])
+        ->assertRedirect(route('users.roles.edit', ['user_id' => $target->id]))
+        ->assertSessionHasErrors(['role' => 'You are not authorized to remove the role "National Db Administrator".']);
+});
+
+test('a super-admin can promote an existing role holder to national_db_administrator, replacing the role', function (string $role) {
+    Permission::findOrCreate('print_idcards', 'web');
+    $target = User::factory()->inBranch($this->branchA)->create();
+    $target->assignRole($role);
+    $target->givePermissionTo('print_idcards');
+
+    updateRolesRequest(superAdmin(), ['user_id' => $target->id, 'role' => 'national_db_administrator'])
+        ->assertRedirect(route('users.roles.edit', ['user_id' => $target->id]))
+        ->assertSessionHasNoErrors();
+
+    $target = $target->fresh();
+    expect($target->getRoleNames()->all())->toBe(['national_db_administrator'])
+        ->and($target->getDirectPermissions())->toBeEmpty()
+        ->and(userRolesAuditCount($target))->toBe(1);
+})->with([
+    'national_db_assistant',
+    'observer_national_level',
+    'branch_secretary',
+    'branch_db_administrator',
+    'division_db_assistant_finance',
+]);
+
+test('a super-admin cannot assign any role other than national_db_administrator', function () {
+    $target = User::factory()->inBranch($this->branchA)->create();
+
+    updateRolesRequest(superAdmin(), ['user_id' => $target->id, 'role' => 'national_db_assistant'])
+        ->assertSessionHasErrors('role');
+
+    expect($target->fresh()->getRoleNames())->toBeEmpty();
+});
+
+test('a super-admin cannot replace an existing national_db_administrator\'s role', function () {
+    nationalAdmin();
+    $target = nationalAdmin();
+
+    updateRolesRequest(superAdmin(), ['user_id' => $target->id, 'role' => 'branch_secretary'])
+        ->assertSessionHasErrors('role');
+
+    expect($target->fresh()->getRoleNames()->all())->toBe(['national_db_administrator']);
+});
+
+test('nobody can change another super-admin\'s role', function (string $role) {
+    $target = superAdmin();
+
+    updateRolesRequest(superAdmin(), ['user_id' => $target->id, 'role' => $role])
+        ->assertRedirect(route('users.roles.edit'))
+        ->assertSessionHasErrors('user_id');
+    updateRolesRequest(nationalAdmin(), ['user_id' => $target->id, 'role' => $role])
+        ->assertSessionHasErrors('user_id');
+
+    expect($target->fresh()->getRoleNames()->all())->toBe(['super-admin']);
+})->with(['', 'national_db_administrator']);
+
+test('the self-target guard runs before the role checks for national admins and super-admins', function () {
+    foreach ([nationalAdmin(), superAdmin()] as $actor) {
+        updateRolesRequest($actor, ['user_id' => $actor->id, 'role' => 'national_db_administrator'])
+            ->assertRedirect(route('users.roles.edit'))
+            ->assertSessionHasErrors(['user_id' => 'You cannot modify your own role or permissions.']);
+    }
+});
+
+test('a branch_db_administrator still cannot remove a branch_db_administrator peer', function () {
+    $actor = User::factory()->inBranch($this->branchA)->create();
+    $actor->assignRole('branch_db_administrator');
+    $target = User::factory()->inBranch($this->branchA)->create();
+    $target->assignRole('branch_db_administrator');
+
+    updateRolesRequest($actor, ['user_id' => $target->id, 'role' => null])
+        ->assertSessionHasErrors('user_id');
+
+    expect($target->fresh()->hasRole('branch_db_administrator'))->toBeTrue();
 });

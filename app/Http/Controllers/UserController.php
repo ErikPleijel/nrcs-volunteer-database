@@ -1393,9 +1393,18 @@ class UserController extends Controller
         $user = User::findOrFail($validated['user_id']);
         $assigningUser = Auth::user();
 
+        // Refusals below are validation errors on the form, not 403s. user_id errors
+        // refuse the target outright (back to the search); role errors refuse the change.
+        $refuseTarget = fn (string $message) => redirect()
+            ->route('users.roles.edit')
+            ->withErrors(['user_id' => $message]);
+        $refuseRole = fn (string $message) => redirect()
+            ->route('users.roles.edit', ['user_id' => $user->id])
+            ->withErrors(['role' => $message]);
+
         // Security check: Prevent branch-level admins from editing national-level users.
         if ($assigningUser->getAccessLevel() === 'branch' && $user->getAccessLevel() === 'national') {
-            abort(403, 'Branch-level administrators cannot modify the roles of national-level users.');
+            return $refuseTarget('Branch-level administrators cannot modify the roles of national-level users.');
         }
 
         // Security check: no admin may ever modify their own role or permissions
@@ -1409,6 +1418,14 @@ class UserController extends Controller
                 ->withErrors(['user_id' => 'You cannot modify your own role or permissions.']);
         }
 
+        // Security check: a super-admin's role is never changed here, by anyone. Before
+        // this guard it was refused only because no role holds authorize_super-admin;
+        // super-admins are also left out of searchUsersForRoles() (selectableForEntry).
+        // Their own account is caught by the self-guard above.
+        if ($user->is_super_admin || $user->hasRole('super-admin')) {
+            return $refuseTarget('A super-admin\'s role cannot be changed on this page.');
+        }
+
         // Security check: branch-level actors (branch_secretary, branch_db_administrator)
         // may never modify a target who currently holds branch_secretary or
         // branch_db_administrator — those two roles are only editable by a
@@ -1419,25 +1436,7 @@ class UserController extends Controller
         // permitted to assign.
         if ($assigningUser->getAccessLevel() === 'branch'
             && $user->hasAnyRole(['branch_secretary', 'branch_db_administrator'])) {
-            abort(403, 'Branch-level administrators cannot modify the role of another branch_secretary or branch_db_administrator. Contact a National DB Administrator.');
-        }
-
-        // Security check: the assigning user must be authorized to grant (per
-        // getAssignableRoles()) BOTH the incoming role and the target's CURRENT role.
-        // Incoming: a target not caught by either guard above (e.g. a plain
-        // branch_db_assistant) cannot be promoted to a role — such as
-        // national_db_administrator or super-admin — the actor holds no authorize_*
-        // permission for. Current: removing or changing a role you could not have
-        // granted is refused too, so super-admin can only remove
-        // national_db_administrator, and national admins cannot remove each other.
-        $assignableRoleNames = $assigningUser->getAssignableRoles()->pluck('name');
-        $rolesToAuthorize = $user->getRoleNames()
-            ->when($request->filled('role'), fn ($roles) => $roles->push($request->input('role')))
-            ->unique();
-        $unauthorizedRoles = $rolesToAuthorize->diff($assignableRoleNames);
-
-        if ($unauthorizedRoles->isNotEmpty()) {
-            abort(403, 'You are not authorized to assign or remove this role ('.$unauthorizedRoles->implode(', ').').');
+            return $refuseTarget('Branch-level administrators cannot modify the role of another Branch Secretary or Branch DB Administrator. Contact a National DB Administrator.');
         }
 
         $incomingRole = $validated['role'] ?? '';
@@ -1446,9 +1445,27 @@ class UserController extends Controller
         if ($user->hasRole('national_db_administrator')
             && $incomingRole !== 'national_db_administrator'
             && User::role('national_db_administrator')->count() <= 1) {
-            return redirect()
-                ->route('users.roles.edit', ['user_id' => $user->id])
-                ->withErrors(['role' => 'This is the last National DB Administrator. Appoint another one before removing or changing this role.']);
+            return $refuseRole('This is the last National DB Administrator. Appoint another one before removing or changing this role.');
+        }
+
+        // Security check: appointing and removing are separate. The incoming role must
+        // be one the actor may assign (authorize_*, getAssignableRoles()): a target not
+        // caught above (e.g. a plain branch_db_assistant) cannot be promoted to a role —
+        // such as national_db_administrator or super-admin — the actor holds no
+        // authorize_* permission for. Every current role being removed or replaced must
+        // be one the actor may remove (getRemovableRoles(), which adds revoke_*), apart
+        // from super-admin's promotion rule (see blockedRoleRemovals()).
+        if ($incomingRole !== '' && ! $assigningUser->getAssignableRoles()->contains('name', $incomingRole)) {
+            return $refuseRole(sprintf('You are not authorized to assign the role "%s".', $this->roleLabel($incomingRole)));
+        }
+
+        $blockedRoles = $this->blockedRoleRemovals($assigningUser, $user->getRoleNames(), $incomingRole);
+        if ($blockedRoles->isNotEmpty()) {
+            return $refuseRole(sprintf(
+                'You are not authorized to %s the role "%s".',
+                $incomingRole === '' ? 'remove' : 'change',
+                $blockedRoles->map(fn ($role) => $this->roleLabel($role))->implode('", "')
+            ));
         }
 
         // Whitelist: only the four direct permissions may be synced
@@ -1537,6 +1554,33 @@ class UserController extends Controller
 
         return redirect()->route('users.roles.edit', ['user_id' => $user->id])
             ->with('success', "Successfully updated roles and permissions for {$user->fullName}.");
+    }
+
+    /**
+     * The target's current roles that $actor may NOT remove when setting $incomingRole
+     * ('' = no role). A role kept unchanged is not removed. Removable means in
+     * getRemovableRoles(), or — super-admin promotion — the actor is a super-admin
+     * making the target a national_db_administrator and the role being replaced is
+     * neither super-admin nor national_db_administrator. Clearing to no role gets no
+     * such exception. Shared by updateRoles() and editRoles() so the form offers only
+     * what the server accepts.
+     */
+    private function blockedRoleRemovals(User $actor, \Illuminate\Support\Collection $currentRoles, string $incomingRole): \Illuminate\Support\Collection
+    {
+        $removableRoleNames = $actor->getRemovableRoles()->pluck('name');
+        $isSuperAdminPromotion = $actor->hasRole('super-admin') && $incomingRole === 'national_db_administrator';
+
+        return $currentRoles
+            ->reject(fn ($role) => $role === $incomingRole)
+            ->reject(fn ($role) => $removableRoleNames->contains($role))
+            ->reject(fn ($role) => $isSuperAdminPromotion
+                && ! in_array($role, ['super-admin', 'national_db_administrator'], true))
+            ->values();
+    }
+
+    private function roleLabel(string $role): string
+    {
+        return Str::title(str_replace('_', ' ', $role));
     }
 
     /**
