@@ -1162,6 +1162,28 @@ hid the button ("Edit by super-admin"); menu-hiding is not security.
 National admins cannot remove each other — that goes through a super-admin. A role the actor
 cannot assign also blocks editing that user's direct permissions.
 
+**Update 2026-10-15 — appointing and removing are now separate checks.** Requiring authority
+to *assign* the current role blocked two things that must work: a national admin removing a
+branch/division assistant (it may not appoint them), and the Secretary General promoting
+anyone who already held a role (super-admin may assign only `national_db_administrator`).
+Now, in `updateRoles()`:
+- the incoming role must be in `getAssignableRoles()` (`authorize_*`);
+- each current role being removed or replaced must be in `User::getRemovableRoles()` —
+  assignable roles plus those named by `revoke_*` permissions (never `super-admin` or
+  `national_db_administrator`); a role kept unchanged is not "removed";
+- exception: a super-admin making someone `national_db_administrator` may replace any current
+  role except `super-admin` or `national_db_administrator`. Clearing to "No Role" gets no such
+  exception, so super-admin still cannot simply remove a branch secretary;
+- a super-admin target is refused outright (before, only because no role holds
+  `authorize_super-admin`); the self-target and last-national-admin guards run first;
+- refusals are validation errors on the form (`user_id` for the target, `role` for the
+  change), not 403s. Route/gate 403s are unchanged.
+
+The Authorizations form uses the same rule (`blockedRoleRemovals()`): a current role the actor
+cannot assign shows as a disabled "(current — keep)" option that cannot be submitted, and
+"-- No Role --" appears only when the actor may remove the current role. National admins still
+cannot remove each other, and super-admin still removes only `national_db_administrator`.
+
 ## 2026-09-29 — Super-admin is granted only by SuperAdminSeeder; one email-list config
 
 **Decision:** `config/superadmin.php` (`superadmin.emails`, trimmed and lower-cased) is the
@@ -1217,7 +1239,16 @@ aa115c3 after an audit read the role description literally; reverted.)
 
 **Consequences:** the role description no longer says "database assistants at all levels".
 With the 2026-09-29 role-removal rule, national admins also cannot change or remove those
-three roles; that too goes through the branch.
+three roles; that too goes through the branch. *(Superseded 2026-10-15, below.)*
+
+**Update 2026-10-15 — national admins may remove or change them, still not appoint.**
+`national_db_administrator` holds `revoke_branch_db_assistant`,
+`revoke_division_db_assistant_finance` and `revoke_division_db_assistant_operations`
+(migration `2026_10_15_100000_add_revoke_assistant_role_permissions`, and
+`PermissionsTableSeeder`). It may clear those roles or change them to a role it can assign
+(e.g. division assistant → `national_db_assistant`), but not change one assistant role into
+another, since that would appoint it. Appointing stays with `branch_secretary` and
+`branch_db_administrator`. See the removal-rule entry above for how the check works.
 
 ## 2026-09-29 — SMS page counting and the projected SMS volume
 
