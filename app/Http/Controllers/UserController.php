@@ -1330,12 +1330,23 @@ class UserController extends Controller
         $selectedUser = null;
         $userRole = null;
         $userPermissions = [];
+        // What the role dropdown may offer for the selected user — the same rules
+        // updateRoles() enforces (blockedRoleRemovals()), so nothing shown is refused.
+        $roleOptions = collect();
+        $currentRoleAssignable = true;
+        $canRemoveCurrentRole = true;
 
         if ($request->filled('user_id')) {
             $selectedUser = User::with('roles', 'permissions')->find($request->user_id);
             if ($selectedUser) {
                 $userRole = $selectedUser->getRoleNames()->first();
                 $userPermissions = $selectedUser->getDirectPermissions()->pluck('name')->toArray();
+
+                $currentRoles = $selectedUser->getRoleNames();
+                $currentRoleAssignable = $userRole === null || $roles->contains('name', $userRole);
+                $canRemoveCurrentRole = $this->blockedRoleRemovals($assigningUser, $currentRoles, '')->isEmpty();
+                $roleOptions = $roles->filter(fn ($role) => $role->name === $userRole
+                    || $this->blockedRoleRemovals($assigningUser, $currentRoles, $role->name)->isEmpty())->values();
             }
         }
 
@@ -1371,7 +1382,7 @@ class UserController extends Controller
 
         $usersForTable = $usersForTableQuery->get();
 
-        return view('users.edit-roles', compact('roles', 'permissions', 'selectedUser', 'userRole', 'userPermissions', 'accessLevel', 'isSuperAdmin', 'usersForTable'));
+        return view('users.edit-roles', compact('roles', 'permissions', 'selectedUser', 'userRole', 'userPermissions', 'accessLevel', 'isSuperAdmin', 'usersForTable', 'roleOptions', 'currentRoleAssignable', 'canRemoveCurrentRole'));
     }
 
     /**

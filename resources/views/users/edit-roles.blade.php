@@ -188,6 +188,11 @@
                         <input type="text" id="user-search" class="w-full form-input" placeholder="Start typing to search by name, email, or ID...">
                         <div id="search-results" class="absolute z-10 w-full bg-white border border-gray-300 rounded-md mt-1 shadow-lg hidden"></div>
                     </div>
+                    @error('user_id')
+                        <p class="mt-2 rounded-md bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
+                            <i class="fas fa-circle-exclamation mr-1"></i>{{ $message }}
+                        </p>
+                    @enderror
                 </div>
 
                 @if ($selectedUser)
@@ -230,11 +235,16 @@
                                         <span class="text-gray-500 italic">No role assigned</span>
                                     @endif
                                 </p>
-                                @if($userRole)
+                                @if($userRole && $canRemoveCurrentRole)
                                     <p class="mt-2 text-gray-600">
                                         To remove (deauthorize) this person's role, select
                                         <span class="font-medium">“-- No Role --”</span> in the dropdown below and save.
                                         They will keep their account but lose this role's access.
+                                    </p>
+                                @endif
+                                @if($userRole && $roleOptions->isEmpty() && ! $canRemoveCurrentRole)
+                                    <p class="mt-2 text-gray-600">
+                                        You are not authorized to change or remove this person's role.
                                     </p>
                                 @endif
                             </div>
@@ -242,14 +252,31 @@
                             <!-- Role Assignment -->
                             <div class="mb-6">
                                 <label for="role" class="block font-medium text-sm text-gray-700 mb-2">Assign Role</label>
-                                <select name="role" id="role" class="form-select w-full rounded-md shadow-sm border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
-                                    <option value="">-- No Role --</option>
-                                    @foreach ($roles as $role)
-                                        <option value="{{ $role->name }}" @if ($userRole == $role->name) selected @endif>
+                                {{-- A current role the actor cannot assign is shown as a disabled, selected
+                                     "keep current" first option with an empty value: with `required`, the
+                                     browser will not submit the form until another option is chosen (a
+                                     disabled option is never submitted, so it would otherwise clear the role). --}}
+                                <select name="role" id="role" @required(! $currentRoleAssignable) class="form-select w-full rounded-md shadow-sm border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                                    @if (! $currentRoleAssignable)
+                                        <option value="" disabled selected>
+                                            {{ Str::title(str_replace('_', ' ', $userRole)) }} (current — keep)
+                                        </option>
+                                    @endif
+                                    @if (! $userRole || $canRemoveCurrentRole)
+                                        <option value="">-- No Role --</option>
+                                    @endif
+                                    @foreach ($roleOptions as $role)
+                                        <option value="{{ $role->name }}" @selected($userRole == $role->name)>
                                             {{ Str::title(str_replace('_', ' ', $role->name)) }}
                                         </option>
                                     @endforeach
                                 </select>
+                                @error('role')
+                                    <p class="mt-2 text-sm text-red-600"><i class="fas fa-circle-exclamation mr-1"></i>{{ $message }}</p>
+                                @enderror
+                                @error('permissions')
+                                    <p class="mt-2 text-sm text-red-600"><i class="fas fa-circle-exclamation mr-1"></i>{{ $message }}</p>
+                                @enderror
                             </div>
 
                             <!-- Direct Permissions -->

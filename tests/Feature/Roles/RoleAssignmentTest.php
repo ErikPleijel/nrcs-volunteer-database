@@ -664,3 +664,107 @@ test('a branch_db_administrator still cannot remove a branch_db_administrator pe
 
     expect($target->fresh()->hasRole('branch_db_administrator'))->toBeTrue();
 });
+
+/*
+|--------------------------------------------------------------------------
+| PART 7 — the role dropdown offers only what updateRoles() accepts
+|--------------------------------------------------------------------------
+*/
+
+const NO_ROLE_OPTION = '<option value="">-- No Role --</option>';
+const REMOVE_HINT = 'To remove (deauthorize) this person\'s role';
+
+function rolesPageFor(User $actor, User $target)
+{
+    return actingWithConfirmedPassword($actor)->get(route('users.roles.edit', ['user_id' => $target->id]))->assertOk();
+}
+
+test('a national admin viewing a division assistant sees it as keep-current, with No Role and its own roles', function () {
+    $target = User::factory()->inBranch($this->branchA)->create();
+    $target->assignRole('division_db_assistant_operations');
+
+    rolesPageFor(nationalAdmin(), $target)
+        ->assertSee('Division Db Assistant Operations (current — keep)')
+        ->assertSee('name="role" id="role" required', false)
+        ->assertSee(NO_ROLE_OPTION, false)
+        ->assertSee(REMOVE_HINT, false)
+        ->assertSee('<option value="national_db_assistant"', false)
+        ->assertDontSee('<option value="division_db_assistant_operations"', false);
+});
+
+test('a super-admin viewing a branch secretary may only promote: keep-current, no No Role, no remove hint', function () {
+    $target = User::factory()->inBranch($this->branchA)->create();
+    $target->assignRole('branch_secretary');
+
+    rolesPageFor(superAdmin(), $target)
+        ->assertSee('Branch Secretary (current — keep)')
+        ->assertSee('<option value="national_db_administrator"', false)
+        ->assertDontSee(NO_ROLE_OPTION, false)
+        ->assertDontSee(REMOVE_HINT, false);
+});
+
+test('a super-admin viewing a national admin sees the current role selected and No Role', function () {
+    nationalAdmin();
+    $target = nationalAdmin();
+
+    rolesPageFor(superAdmin(), $target)
+        ->assertSee(NO_ROLE_OPTION, false)
+        ->assertSee(REMOVE_HINT, false)
+        ->assertSee('<option value="national_db_administrator" selected', false)
+        ->assertDontSee('(current — keep)')
+        ->assertDontSee('name="role" id="role" required', false);
+});
+
+test('a national admin viewing another national admin can neither change nor remove the role', function () {
+    $target = nationalAdmin();
+
+    rolesPageFor(nationalAdmin(), $target)
+        ->assertSee('National Db Administrator (current — keep)')
+        ->assertSee('You are not authorized to change or remove this person\'s role.', false)
+        ->assertDontSee(NO_ROLE_OPTION, false)
+        ->assertDontSee(REMOVE_HINT, false)
+        ->assertDontSee('<option value="branch_secretary"', false);
+});
+
+test('a person without a role is offered No Role and the assignable roles, no keep-current', function () {
+    $target = User::factory()->inBranch($this->branchA)->create();
+
+    rolesPageFor(superAdmin(), $target)
+        ->assertSee('No role assigned')
+        ->assertSee(NO_ROLE_OPTION, false)
+        ->assertSee('<option value="national_db_administrator"', false)
+        ->assertDontSee('(current — keep)')
+        ->assertDontSee(REMOVE_HINT, false);
+});
+
+test('a branch secretary viewing an assistant it appointed sees the current role selected', function () {
+    $actor = User::factory()->inBranch($this->branchA)->create();
+    $actor->assignRole('branch_secretary');
+    $target = User::factory()->inBranch($this->branchA)->create();
+    $target->assignRole('branch_db_assistant');
+
+    rolesPageFor($actor, $target)
+        ->assertSee('<option value="branch_db_assistant" selected', false)
+        ->assertSee(NO_ROLE_OPTION, false)
+        ->assertDontSee('(current — keep)');
+});
+
+test('a refused change shows its validation error next to the dropdown', function () {
+    $target = User::factory()->inBranch($this->branchA)->create();
+    $target->assignRole('branch_secretary');
+    $sg = superAdmin();
+
+    actingWithConfirmedPassword($sg)->followingRedirects()
+        ->post(route('users.roles.update'), ['user_id' => $target->id, 'role' => null])
+        ->assertOk()
+        ->assertSee('You are not authorized to remove the role &quot;Branch Secretary&quot;.', false);
+});
+
+test('a refused target shows its validation error under the search', function () {
+    $actor = nationalAdmin();
+
+    actingWithConfirmedPassword($actor)->followingRedirects()
+        ->post(route('users.roles.update'), ['user_id' => $actor->id, 'role' => null])
+        ->assertOk()
+        ->assertSee('You cannot modify your own role or permissions.');
+});
