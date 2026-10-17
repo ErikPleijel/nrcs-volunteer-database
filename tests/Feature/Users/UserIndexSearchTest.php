@@ -224,3 +224,26 @@ test('phone and NIN terms are masked and stored encrypted; DB codes and names ar
         ->and(SearchTerm::from($stored))->toBe('+2348031234567')
         ->and(SearchTerm::forStorage(['search' => 'DB-2246']))->toBe(['search' => 'DB-2246']);
 });
+
+test('a phone or NIN in the viewer\'s area but filtered out is "hidden by your filters"', function (string $viewer, string $status, string $term) {
+    User::factory()->inDivision($this->alphaOne)->create([
+        'first_name' => 'Hiddenphone', 'lifecycle_status' => $status,
+        'telephone1' => '08077770000', 'national_id_number' => '11122233344',
+    ]);
+
+    searchUsers($this, $this->{$viewer}, $term)
+        ->assertSee('Found 0 results')
+        ->assertSee('This person exists but is hidden by your filters.')
+        ->assertDontSee('No match in your area')
+        ->assertDontSee('Hiddenphone');
+})->with(['national', 'branchAdmin', 'divisionAdmin'])
+    ->with(['pending_engagement', 'archived'])
+    ->with(['phone' => '+2348077770000', 'NIN' => '111 2223 3344']);
+
+test('a hidden phone outside the viewer\'s area still gets the neutral line', function (string $viewer) {
+    $this->target->update(['lifecycle_status' => 'archived']);
+
+    searchUsers($this, $this->{$viewer}, '08031234567')
+        ->assertSee('No match in your area')
+        ->assertDontSee('hidden by your filters');
+})->with(['branchAdmin', 'divisionAdmin']);
