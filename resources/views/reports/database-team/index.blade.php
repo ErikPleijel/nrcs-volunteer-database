@@ -86,7 +86,7 @@
                                                                      rounded text-xs font-semibold
                                                                      bg-red-100 text-red-700 border border-red-300">
                                                             <i class="fas fa-key text-[10px]"></i>
-                                                            {{ str_replace('_', ' ', $perm->name) }}
+                                                            {{ \App\Support\SpecialPermissions::tagLabel($perm->name) }}
                                                         </span>
                                                     @endforeach
                                                 </div>

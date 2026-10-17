@@ -665,7 +665,7 @@
                                 @if($directPerms->isNotEmpty())
                                     <div class="mt-1 text-sm text-gray-600">
                                         <span class="font-medium">Special permissions:</span>
-                                        {{ $directPerms->pluck('name')->map(fn($n) => str_replace('_', ' ', $n))->join(', ') }}
+                                        {{ $directPerms->pluck('name')->map(fn($n) => \App\Support\SpecialPermissions::tagLabel($n))->join(', ') }}
                                     </div>
                                 @endif
                             </td>

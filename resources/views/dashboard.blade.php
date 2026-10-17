@@ -1833,6 +1833,7 @@
             'print_idcards' => 'Print ID Cards',
             'print_certificates' => 'Print Certificates',
             'campaign_request_approve' => 'Campaign Request Approve',
+            'add_user' => \App\Support\SpecialPermissions::tagLabel('add_user'), // "Register persons"
         ];
     @endphp
 

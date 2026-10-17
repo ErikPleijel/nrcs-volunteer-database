@@ -271,3 +271,32 @@ test('registration by a division assistant ignores a posted photo unless they al
     'register only' => [['add_user'], false],
     'register and upload' => [['add_user', 'upload_user_images'], true],
 ]);
+
+/*
+|--------------------------------------------------------------------------
+| Tag wording: "Register persons" (not "add user")
+|--------------------------------------------------------------------------
+*/
+
+test('users/show lists the register permission as "Register persons"', function () {
+    $assistant = daAssistant($this->divisionA, ['add_user']);
+    $secretary = User::factory()->inBranch($this->branchA)->create();
+    $secretary->assignRole('branch_secretary');
+
+    $this->actingAs($secretary)->get(route('users.show', $assistant))
+        ->assertOk()
+        ->assertSee('Register persons')
+        ->assertDontSee('add user');
+});
+
+test('the dashboard "Your place in the team" tags the register permission as "Register persons"', function () {
+    // Division assistants hold view_reports through their role (PermissionsTableSeeder).
+    Role::findByName('division_db_assistant_finance', 'web')->givePermissionTo(Permission::findOrCreate('view_reports', 'web'));
+    $assistant = daAssistant($this->divisionA, ['add_user']);
+
+    $this->actingAs($assistant)->get(route('reports.dashboard'))
+        ->assertOk()
+        ->assertSee('Your place in the team')
+        ->assertSee('Register persons')
+        ->assertDontSee('Add User');
+});
