@@ -15,6 +15,7 @@ function setupLocationCascade(root) {
     const initialBranch   = root.dataset.selectedBranch || '';
     const initialDivision = root.dataset.selectedDivision || '';
     const initialUnit     = root.dataset.selectedUnit || '';
+    const divisionLocked  = 'divisionLocked' in root.dataset;
 
     // 👇 NEW: figure out the "real" branch, even if the select is disabled
     const resolvedInitialBranch =
@@ -34,9 +35,10 @@ function setupLocationCascade(root) {
             return;
         }
 
-        // If division is locked (branch/division access), let backend-defined
-        // division + unit options stand. Do NOT touch units here.
-        if (divisionSelect.disabled && !divisionSelect.dataset.forceEnable) {
+        // Division fixed by access level (division staff): keep the server's
+        // division + unit options. A select that is merely disabled because
+        // no branch was chosen yet must still be filled here.
+        if (divisionLocked) {
             return;
         }
 
@@ -84,10 +86,6 @@ function setupLocationCascade(root) {
     async function populateUnits(divisionId, selectedUnitId = '') {
         if (!divisionId) {
             resetAndDisable(unitSelect, 'Select Division First');
-            return;
-        }
-
-        if (unitSelect.disabled && !unitSelect.dataset.forceEnable) {
             return;
         }
 

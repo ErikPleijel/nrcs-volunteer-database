@@ -26,6 +26,8 @@ data-location-cascade
     data-selected-branch="{{ $branchId }}"
     data-selected-division="{{ $divisionId }}"
     data-selected-unit="{{ $unitId }}"
+    {{-- Division fixed by access level (not merely "no branch chosen yet") --}}
+    @if($isDivisionDisabled) data-division-locked @endif
 >
     {{-- Branch --}}
     <div class="flex flex-col space-y-0.5">
