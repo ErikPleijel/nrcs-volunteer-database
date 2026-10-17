@@ -1482,22 +1482,42 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
-     * Default ID card validity in months: the paid fee's duration
-     * (validity_years × 12) for a user with a current personal membership
-     * payment, otherwise 12 (e.g. volunteers, who pay no fee).
+     * The validity in years of the user's paid ID card, or null when the
+     * card shows "ID NOT PAID". Same rule as that badge on the bulk print
+     * page: the current personal membership payment (currentMembershipPayment)
+     * must include an ID card; the years are its fee's validity_years. The
+     * bulk print "Card validity" filter mirrors this in SQL
+     * (IdCardController::whereCardValidityYears()).
      *
      * Uses the eager-loaded currentMembershipPayment when present — callers
      * load it with ->personal() — and queries it the same way otherwise.
      */
-    public function defaultIdCardValidityMonths(): int
+    public function paidIdCardValidityYears(): ?int
     {
         $payment = $this->relationLoaded('currentMembershipPayment')
             ? $this->currentMembershipPayment
             : $this->currentMembershipPayment()->personal()->with('membershipFee')->first();
 
-        $years = (int) ($payment?->membershipFee?->validity_years ?? 0);
+        if (! $payment?->id_card_included) {
+            return null;
+        }
 
-        return $years > 0 ? $years * 12 : 12;
+        $years = (int) ($payment->membershipFee?->validity_years ?? 0);
+
+        return $years > 0 ? $years : null;
+    }
+
+    /**
+     * Default ID card validity in months: the paid ID card's duration
+     * (paidIdCardValidityYears() × 12), otherwise 12 — e.g. volunteers, who
+     * pay no fee, or a card showing "ID NOT PAID". The printer can still
+     * type another value on the card.
+     */
+    public function defaultIdCardValidityMonths(): int
+    {
+        $years = $this->paidIdCardValidityYears();
+
+        return $years ? $years * 12 : 12;
     }
 
     public function getTotalVolunteeringHoursAttribute(): float

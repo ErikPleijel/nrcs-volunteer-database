@@ -119,8 +119,8 @@ class IdCardController extends Controller
             $query->withImageRejection();
         }
 
-        // Filter: card validity in years, the same value the card's validity
-        // box defaults to (User::defaultIdCardValidityMonths()).
+        // Filter: validity in years of the paid ID card (User::paidIdCardValidityYears(),
+        // which also feeds the card's validity box). "ID NOT PAID" cards only show under All.
         $validityOptions = $this->cardValidityOptions();
         $cardValidity = (int) $request->input('card_validity');
         if (array_key_exists($cardValidity, $validityOptions)) {
@@ -249,9 +249,8 @@ class IdCardController extends Controller
     /**
      * "Card validity" filter options, years => label ("1 year", "3 years"):
      * the distinct validity_years of fees that carry an ID card fee (inactive
-     * fees too — old payments still use them), plus 1 year, the default for
-     * someone with no current payment. A fee with a new duration shows up
-     * here automatically. validity_years is whole years, so no months.
+     * fees too — old payments still use them). A fee with a new duration
+     * shows up here automatically. validity_years is whole years, so no months.
      *
      * @return array<int, string>
      */
@@ -262,7 +261,6 @@ class IdCardController extends Controller
             ->pluck('validity_years')
             ->map(fn ($y) => (int) $y)
             ->filter(fn (int $y) => $y > 0)
-            ->push(1)
             ->unique()
             ->sort()
             ->values();
@@ -271,15 +269,16 @@ class IdCardController extends Controller
     }
 
     /**
-     * Limit to users whose card validity is $years — in SQL, mirroring
-     * User::defaultIdCardValidityMonths(): the fee of the current personal
+     * Limit to users whose paid ID card is valid for $years — in SQL,
+     * mirroring User::paidIdCardValidityYears(): take the current personal
      * payment (approved, not deleted, not expired; latest expiry, then
-     * highest id — the currentMembershipPayment order), validity_years;
-     * 1 year when there is no such payment, or its fee is missing or 0.
+     * highest id — the currentMembershipPayment order); it counts only if it
+     * includes an ID card (the "ID NOT PAID" badge rule), and then its fee's
+     * validity_years. No such payment → NULL → never matches (only "All").
      */
     private function whereCardValidityYears($query, int $years): void
     {
-        $currentFeeYears = MembershipPayment::query() // ApprovedScope applies
+        $paidCardYears = MembershipPayment::query() // ApprovedScope applies
             ->personal()
             ->leftJoin('membership_fees', 'membership_fees.id', '=', 'membership_payments.membership_fee_id')
             ->whereColumn('membership_payments.user_id', 'users.id')
@@ -288,11 +287,13 @@ class IdCardController extends Controller
             ->orderByDesc('membership_payments.expiry_date')
             ->orderByDesc('membership_payments.id')
             ->limit(1)
-            ->select(DB::raw('NULLIF(membership_fees.validity_years, 0)'));
+            // CASE, not a WHERE on id_card_included: the current payment is
+            // picked first, exactly like the badge, and only then checked.
+            ->select(DB::raw('CASE WHEN membership_payments.id_card_included = 1 THEN membership_fees.validity_years END'));
 
         $query->whereRaw(
-            'COALESCE(('.$currentFeeYears->toSql().'), 1) = ?',
-            [...$currentFeeYears->getBindings(), $years]
+            '('.$paidCardYears->toSql().') = ?',
+            [...$paidCardYears->getBindings(), $years]
         );
     }
 

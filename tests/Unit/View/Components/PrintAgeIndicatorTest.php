@@ -140,6 +140,16 @@ test('compact prop stacks the text on two lines and keeps the full text as a too
         ->toContain('legacy system migration');
 });
 
+test('the compact badge (bulk print card) uses text-lg for "Printed this month" and "Not printed"', function () {
+    foreach ([renderPrintAgeIndicator(null, compact: true), renderPrintAgeIndicator(printAgeRecord(Carbon::now()), compact: true)] as $html) {
+        expect($html)->toContain('text-lg')->not->toContain('text-[10px]');
+    }
+    expect(renderPrintAgeIndicator(null, compact: true))->toContain('title="Not printed"')
+        ->and(renderPrintAgeIndicator(printAgeRecord(Carbon::now()), compact: true))->toContain('title="Printed this month"')
+        // the default (non-compact) pill is unchanged
+        ->and(renderPrintAgeIndicator(null))->toContain('text-[10px]');
+});
+
 test('does not mark prints recorded via "Mark as Printed" as legacy', function () {
     $html = renderPrintAgeIndicator(printAgeRecord(Carbon::now()->subMonths(3)));
 

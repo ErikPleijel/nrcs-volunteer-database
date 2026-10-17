@@ -60,7 +60,7 @@
                                 <li>Use <span class="font-semibold">Search</span> to find one specific person by name or User ID — handy if you just need to print for a single card.</li>
                                 <li>Use <span class="font-semibold">Branch → Division → Red Cross Unit</span> to bulk-select an entire group at once.</li>
                                 <li><span class="font-semibold">Expires In</span> narrows the list to cards expiring within a set number of months.</li>
-                                <li><span class="font-semibold">Card validity</span> shows only cards that will be valid for the chosen time — from the person's current membership fee, or 1 year if they have no current payment. It matches the card's <span class="font-semibold">Validity (months)</span> box.</li>
+                                <li><span class="font-semibold">Card validity</span> shows only cards whose ID card is paid and valid for the chosen time (from the fee on that payment). It matches the card's <span class="font-semibold">Validity (months)</span> box. Cards showing <span class="font-semibold">ID NOT PAID</span> only appear under <span class="font-semibold">All</span>.</li>
                                 <li>Tick <span class="font-semibold">Printable cards only</span> to hide anyone missing photo, signature, or National ID.</li>
                                 <li>Tick <span class="font-semibold">ID paid but not printed</span> to find people who've paid for a card but don't have one yet.</li>
                                 <li>Tick <span class="font-semibold">Marked for printing</span> to see the cards branch or division staff marked as ready to print (oldest first).</li>
@@ -469,6 +469,25 @@
                         // (volunteers pay no fee, so no payment is expected).
                         $categoryDataPresent = $isVolunteer ? $user->redCrossUnit !== null : (bool) $membershipType;
 
+                        // Membership line when there is no fee name to show. Same payment rule as the
+                        // "ID NOT PAID" badge and the Card validity filter: $payment is the current
+                        // personal payment (currentMembershipPayment). Without one: EXPIRED if the person
+                        // ever had an approved personal payment (membershipPayments is eager-loaded:
+                        // approved, not deleted), else NOT PAID. MISSING stays only for a current
+                        // payment whose fee is missing.
+                        $membershipMissingLabel = 'MISSING';
+                        if (! $payment) {
+                            $lastPersonalPayment = $user->membershipPayments
+                                ->filter(fn ($p) => $p->organisation_id === null && $p->red_cross_unit_id === null)
+                                ->sortByDesc(fn ($p) => $p->expiry_date?->timestamp ?? 0)
+                                ->first();
+                            $membershipMissingLabel = match (true) {
+                                $lastPersonalPayment === null => 'NOT PAID',
+                                $lastPersonalPayment->expiry_date !== null => 'EXPIRED ('.$lastPersonalPayment->expiry_date->format('M Y').')',
+                                default => 'EXPIRED',
+                            };
+                        }
+
                         $hasMissingData = !$user->picture || !$user->hasSignature() || !$user->national_id_number || !$categoryDataPresent || !$user->branch || !$user->division;
 
                         // A rejected photo or signature blocks printing until a
@@ -607,8 +626,9 @@
                                 @include('id-cards.partials.image-review', ['user' => $user, 'type' => 'signature'])
                             </div>
 
-                            {{-- Print age on top (pt-6 clears the absolute checkbox), View button centered below --}}
-                            <div class="flex-1 min-w-0 flex flex-col items-start h-28 pt-6">
+                            {{-- Print age on top (pt-6 clears the absolute checkbox), View button centered below;
+                                 min-h, not h: the text-lg badge may wrap to three lines on a narrow card --}}
+                            <div class="flex-1 min-w-0 flex flex-col items-start gap-2 min-h-28 pt-6">
                                 <x-print-age-indicator :print="$latestIdCardPrint" compact />
                                 <div class="flex-1 flex items-center">
                                     <a href="{{ route('users.show', $user) }}"
@@ -652,7 +672,7 @@
                                 @if($isVolunteer)
                                     <p><span class="text-gray-500">Red Cross unit:</span> <span class="font-semibold @if(!$categoryDataPresent) text-red-500 @endif">{{ $user->redCrossUnit ? strtoupper($user->redCrossUnit->name) : 'MISSING' }}</span></p>
                                 @else
-                                    <p><span class="text-gray-500">Membership:</span> <span class="font-semibold @if(!$categoryDataPresent) text-red-500 @endif">{{ $membershipType ? strtoupper($membershipType) : 'MISSING' }}</span></p>
+                                    <p><span class="text-gray-500">Membership:</span> <span class="font-semibold @if(!$categoryDataPresent) text-red-500 @endif">{{ $membershipType ? strtoupper($membershipType) : $membershipMissingLabel }}</span></p>
                                 @endif
                                 <p><span class="text-gray-500">Division:</span> <span class="font-semibold">{{ strtoupper($user->division->name ?? 'MISSING') }}</span></p>
                             </div>

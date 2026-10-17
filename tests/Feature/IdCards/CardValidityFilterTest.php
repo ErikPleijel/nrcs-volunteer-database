@@ -2,11 +2,12 @@
 
 /**
  * "Card validity" filter on the bulk ID card page:
- * - options come from the distinct validity_years of fees with an ID card
- *   fee (inactive too), plus 1 year; a new duration appears automatically
- * - the filter uses the same rule as the card's validity box
- *   (User::defaultIdCardValidityMonths()): the current personal payment's
- *   fee, or 1 year with no current payment — so filter and card agree
+ * - options come only from the distinct validity_years of fees with an ID
+ *   card fee (inactive too); a new duration appears automatically
+ * - the filter uses the "ID NOT PAID" badge rule (User::paidIdCardValidityYears()):
+ *   the current personal payment must include an ID card; validity is its
+ *   fee's years. "ID NOT PAID" cards only show under All, while their
+ *   validity box keeps the default of 12
  * - it runs in SQL (pagination counts stay right) and combines with the
  *   other filters
  */
@@ -110,6 +111,16 @@ test('the options come from the fees with an ID card fee, labelled in plain word
     expect($m[0])->not->toContain('selected'); // All is the default
 });
 
+test('there is no automatic "1 year" option: options come only from fees with an ID card fee', function () {
+    MembershipFee::query()->update(['id_card_fee' => 0]);
+    MembershipFeeFactory::new()->create(['validity_years' => 3, 'id_card_fee' => 500]);
+
+    preg_match('/<select id="card_validity".*?<\/select>/s', bulkPage(), $m);
+
+    expect($m[0])->toContain('3 years')
+        ->not->toContain('1 year');
+});
+
 test('a new fee duration shows up as a new option automatically', function () {
     expect(bulkPage())->not->toContain('>2 years<');
 
@@ -125,26 +136,50 @@ test('a new fee duration shows up as a new option automatically', function () {
     expect(listedUserIds(bulkPage(['card_validity' => 2]), $two, $three))->toBe([$two->id]);
 });
 
-test('1 year and 3 years list exactly the people whose card shows 12 or 36 months', function () {
+test('1 year and 3 years list exactly the paid cards showing 12 or 36 months; ID NOT PAID cards only under All', function () {
     $one = validityMember($this->oneYear);
     $three = validityMember($this->threeYear);
-    $noPayment = validityMember(); // default 12 months, like the card
-    $expired = validityMember($this->threeYear, ['expiry_date' => now()->subDay()]); // no current payment: 12
-
-    $all = [$one, $three, $noPayment, $expired];
+    // "ID NOT PAID": no payment, an expired payment, or a current payment without an ID card.
+    $noPayment = validityMember();
+    $expired = validityMember($this->threeYear, ['expiry_date' => now()->subDay()]);
+    $threeNotPaid = validityMember($this->threeYear, ['id_card_included' => false]);
+    $oneNotPaid = validityMember($this->oneYear, ['id_card_included' => false]);
+    $notPaid = [$noPayment, $expired, $threeNotPaid, $oneNotPaid];
+    $all = [$one, $three, ...$notPaid];
 
     $html = bulkPage(['card_validity' => 1]);
-    expect(listedUserIds($html, ...$all))->toEqualCanonicalizing([$one->id, $noPayment->id, $expired->id]);
-    foreach ([$one, $noPayment, $expired] as $user) {
-        expect($html)->toMatch('/data-user-id="'.$user->id.'"[^>]*?data-validity="12"/s'); // the card's own validity
-    }
+    expect(listedUserIds($html, ...$all))->toBe([$one->id])
+        ->and($html)->toMatch('/data-user-id="'.$one->id.'"[^>]*?data-validity="12"/s')
+        ->and($html)->toMatch('/id="validity-'.$one->id.'"[^>]*value="12"/s');
 
     $html = bulkPage(['card_validity' => 3]);
     expect(listedUserIds($html, ...$all))->toBe([$three->id])
         ->and($html)->toMatch('/data-user-id="'.$three->id.'"[^>]*?data-validity="36"/s')
         ->and($html)->toMatch('/id="validity-'.$three->id.'"[^>]*value="36"/s');
 
-    expect(listedUserIds(bulkPage(), ...$all))->toHaveCount(4); // All
+    // All shows everyone; the ID NOT PAID cards show the badge and keep the default of 12.
+    $html = bulkPage();
+    expect(listedUserIds($html, ...$all))->toHaveCount(6);
+    foreach ($notPaid as $user) {
+        expect($html)->toMatch('/data-user-id="'.$user->id.'"[^>]*?data-validity="12"/s');
+    }
+    // Each card's own HTML (up to the next card) carries the badge or not.
+    $card = fn (User $u) => preg_match('/id="card-'.$u->id.'".*?(?=id="card-|$)/s', $html, $m) ? $m[0] : '';
+    foreach ($notPaid as $user) {
+        expect($card($user))->toContain('ID NOT PAID</span>');
+    }
+    expect($card($one))->not->toContain('ID NOT PAID</span>')
+        ->and($card($three))->not->toContain('ID NOT PAID</span>');
+});
+
+test('a 3-year fee without an ID card defaults to 12 months; a paid 3-year card to 36', function () {
+    $threeNotPaid = validityMember($this->threeYear, ['id_card_included' => false]);
+    $three = validityMember($this->threeYear);
+
+    expect($threeNotPaid->paidIdCardValidityYears())->toBeNull()
+        ->and($threeNotPaid->defaultIdCardValidityMonths())->toBe(12)
+        ->and($three->paidIdCardValidityYears())->toBe(3)
+        ->and($three->defaultIdCardValidityMonths())->toBe(36);
 });
 
 test('it follows the same current payment as the card: personal, approved, not deleted, latest expiry', function () {
@@ -166,14 +201,23 @@ test('it follows the same current payment as the card: personal, approved, not d
     $tie = validityMember($this->oneYear, ['expiry_date' => now()->addYear()->toDateString()]);
     validityPayment($tie, $this->threeYear, ['expiry_date' => now()->addYear()->toDateString()]);
 
-    foreach ([$laterOneYear, $ignored] as $user) {
+    // The current payment decides, as for the badge: an older paid 3-year card
+    // does not count when the latest-expiring payment has no ID card.
+    $currentNotPaid = validityMember($this->threeYear, ['expiry_date' => now()->addMonths(6)]);
+    validityPayment($currentNotPaid, $this->oneYear, ['expiry_date' => now()->addMonths(11), 'id_card_included' => false]);
+
+    foreach ([$laterOneYear, $ignored, $currentNotPaid] as $user) {
         expect($user->fresh()->defaultIdCardValidityMonths())->toBe(12);
     }
-    expect($tie->fresh()->defaultIdCardValidityMonths())->toBe(36);
+    expect($tie->fresh()->defaultIdCardValidityMonths())->toBe(36)
+        ->and($currentNotPaid->fresh()->paidIdCardValidityYears())->toBeNull();
 
-    expect(listedUserIds(bulkPage(['card_validity' => 1]), $laterOneYear, $ignored, $tie))
+    $candidates = [$laterOneYear, $ignored, $tie, $currentNotPaid];
+    expect(listedUserIds(bulkPage(['card_validity' => 1]), ...$candidates))
         ->toEqualCanonicalizing([$laterOneYear->id, $ignored->id])
-        ->and(listedUserIds(bulkPage(['card_validity' => 3]), $laterOneYear, $ignored, $tie))->toBe([$tie->id]);
+        ->and(listedUserIds(bulkPage(['card_validity' => 3]), ...$candidates))->toBe([$tie->id]);
+
+    expect(bulkPage())->toMatch('/data-user-id="'.$currentNotPaid->id.'"[^>]*?data-validity="12"/s');
 });
 
 test('it combines with the other filters and keeps the pagination count right', function () {
@@ -204,4 +248,42 @@ test('an unknown card_validity value is ignored (All)', function () {
 
     expect(listedUserIds(bulkPage(['card_validity' => 7]), $one, $three))->toHaveCount(2)
         ->and(listedUserIds(bulkPage(['card_validity' => 'abc']), $one, $three))->toHaveCount(2);
+});
+
+/*
+|--------------------------------------------------------------------------
+| Membership line: NOT PAID / EXPIRED instead of MISSING
+|--------------------------------------------------------------------------
+*/
+
+test('the membership line says NOT PAID or EXPIRED (Mon YYYY) instead of MISSING, matching the ID NOT PAID badge', function () {
+    $never = validityMember();
+    $pendingOnly = validityMember();
+    MembershipPaymentFactory::new()->create([ // pending: not approved, so still "never paid"
+        'user_id' => $pendingOnly->id, 'membership_fee_id' => $this->oneYear->id,
+        'payment_date' => now(), 'expiry_date' => now()->addYear(),
+    ]);
+    $expired = validityMember($this->threeYear, ['payment_date' => now()->subYears(4), 'expiry_date' => now()->subYear()]);
+    validityPayment($expired, $this->oneYear, ['payment_date' => now()->subYears(3), 'expiry_date' => now()->subYears(2)]); // older
+    $orgOnly = validityMember();
+    $org = \App\Models\Organisation::forceCreate(['name' => 'Org B', 'branch_id' => $this->branch->id, 'division_id' => $this->division->id]);
+    validityPayment($orgOnly, $this->oneYear, ['organisation_id' => $org->id]); // not personal
+    $current = validityMember($this->oneYear);
+
+    $html = bulkPage();
+    $card = fn (User $u) => preg_match('/id="card-'.$u->id.'".*?(?=id="card-|$)/s', $html, $m) ? $m[0] : '';
+    $membership = fn (User $u) => preg_match('/Membership:<\/span>\s*<span class="([^"]*)">\s*([^<]+?)\s*<\/span>/', $card($u), $m)
+        ? ['class' => $m[1], 'text' => $m[2]] : null;
+
+    expect($membership($never)['text'])->toBe('NOT PAID')
+        ->and($membership($pendingOnly)['text'])->toBe('NOT PAID')
+        ->and($membership($orgOnly)['text'])->toBe('NOT PAID')
+        ->and($membership($expired)['text'])->toBe('EXPIRED ('.now()->subYear()->format('M Y').')') // latest expiry
+        ->and($membership($current)['text'])->toBe(strtoupper($this->oneYear->name));
+
+    foreach ([$never, $expired] as $user) {
+        expect($membership($user)['class'])->toContain('text-red-500') // same red style as MISSING
+            ->and($card($user))->toContain('ID NOT PAID</span>');       // and the badge agrees
+    }
+    expect($html)->not->toMatch('/Membership:<\/span>\s*<span[^>]*>\s*MISSING/');
 });
