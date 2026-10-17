@@ -111,8 +111,8 @@ test('self-archive records the date, the user themselves and a user_self_archive
 });
 
 test('the Archive Tool records the date, the admin and one user_archived entry per user', function () {
-    $a = archiveTarget(['lifecycle_status' => 'dormant']);
-    $b = archiveTarget(['lifecycle_status' => 'dormant']);
+    $a = archiveTarget(['lifecycle_status' => 'dormant', 'last_activity_at' => now()->subYears(5)]);
+    $b = archiveTarget(['lifecycle_status' => 'dormant', 'last_activity_at' => now()->subYears(5)]);
 
     $this->actingAs($this->admin)
         ->post(route('dormant-users.archive'), ['user_ids' => [$a->id, $b->id]])
@@ -215,8 +215,8 @@ test('users/edit refuses to archive someone who holds a role', function () {
 });
 
 test('the Archive Tool skips role holders and says how many it skipped', function () {
-    $plain = archiveTarget(['lifecycle_status' => 'dormant']);
-    $staff = archiveTarget(['lifecycle_status' => 'dormant']);
+    $plain = archiveTarget(['lifecycle_status' => 'dormant', 'last_activity_at' => now()->subYears(5)]);
+    $staff = archiveTarget(['lifecycle_status' => 'dormant', 'last_activity_at' => now()->subYears(5)]);
     $staff->assignRole('branch_db_assistant');
 
     $this->actingAs($this->admin)
@@ -230,7 +230,7 @@ test('the Archive Tool skips role holders and says how many it skipped', functio
 });
 
 test('the Archive Tool reports the skip when every selected user holds a role', function () {
-    $staff = archiveTarget(['lifecycle_status' => 'dormant']);
+    $staff = archiveTarget(['lifecycle_status' => 'dormant', 'last_activity_at' => now()->subYears(5)]);
     $staff->assignRole('branch_db_assistant');
 
     $this->actingAs($this->admin)

@@ -47,7 +47,7 @@
                         <div x-show="open === 'threshold'" x-collapse class="px-4 py-3 bg-white">
                             <ul class="space-y-1 text-gray-700 list-disc pl-4">
                                 <li>Use <span class="font-semibold">Inactivity Threshold</span> to choose how many years of no activity qualifies someone as dormant.</li>
-                                <li>National-level admins can also filter by <span class="font-semibold">Branch</span>; branch-level admins are automatically scoped to their own branch.</li>
+                                <li>Narrow the list by <span class="font-semibold">Branch</span>, <span class="font-semibold">Division</span> and <span class="font-semibold">RC Unit</span>. Branch-level admins are fixed to their own branch, division-level admins to their own division.</li>
                                 <li>Click <span class="font-semibold">Clear</span> to reset all filters back to default.</li>
                             </ul>
                         </div>
@@ -147,7 +147,7 @@
                             <label for="years" class="filter-label">Inactivity Threshold</label>
 
 
-                            <select name="years" id="years" class="filter-select {{ $years != 2 ? 'filter-active' : '' }}">
+                            <select name="years" id="years" class="filter-select {{ $years != 4 ? 'filter-active' : '' }}">
 
                                 @foreach([2, 3, 4, 5, 6, 7] as $y)
                                     <option value="{{ $y }}" {{ $years == $y ? 'selected' : '' }}>
@@ -157,23 +157,16 @@
                             </select>
                         </div>
 
-                        {{-- Branch filter (national only) --}}
-                        @if($accessLevel === 'national')
-                            <div>
-                                <label for="branch_id" class="filter-label">Branch</label>
-                                <select name="branch_id" id="branch_id" class="filter-select {{ request('branch_id') ? 'filter-active' : '' }}">
-                                    <option value="">All Branches</option>
-                                    @foreach($branches as $branch)
-                                        <option value="{{ $branch->id }}"
-                                            {{ request('branch_id') == $branch->id ? 'selected' : '' }}>
-                                            {{ $branch->name }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                            </div>
-                        @elseif($accessLevel === 'branch')
-                            <input type="hidden" name="branch_id" value="{{ $scopedId }}">
-                        @endif
+                        {{-- Branch → Division → RC Unit (shared cascade, same as users/index) --}}
+                        <x-filters.location-cascade
+                            :access-level="$accessLevel"
+                            :branches="$branches"
+                            :divisions="$divisions"
+                            :red-cross-units="$redCrossUnits"
+                            :branch-id="request('branch_id')"
+                            :division-id="request('division_id')"
+                            :unit-id="request('red_cross_unit_id')"
+                        />
                     </div>
 
                     <div class="filter-actions mt-4">
@@ -182,7 +175,7 @@
                                 <i class="fas fa-search mr-1"></i>Filter
                             </button>
                             <a href="{{ route('dormant-users.index') }}"
-                               class="filter-btn-secondary {{ request()->hasAny(['years', 'branch_id', 'type']) ? 'filter-btn-secondary-active' : 'filter-btn-disabled' }}">
+                               class="filter-btn-secondary {{ request()->hasAny(['years', 'branch_id', 'division_id', 'red_cross_unit_id', 'type']) ? 'filter-btn-secondary-active' : 'filter-btn-disabled' }}">
                                 <i class="fas fa-times mr-1"></i>Clear
                             </a>
                         </div>
@@ -208,11 +201,17 @@
             <div class="text-center py-16">
                 <i class="fas fa-user-clock text-5xl text-gray-300 mb-4"></i>
                 <h3 class="text-lg font-medium text-gray-900 mb-2">No dormant users found</h3>
-                <p class="text-gray-500">Try adjusting the inactivity threshold or branch filter.</p>
+                <p class="text-gray-500">Try adjusting the inactivity threshold or the location filters.</p>
             </div>
         @else
             <form method="POST" action="{{ route('dormant-users.archive') }}" id="archive-form">
                 @csrf
+                {{-- The list's filters: the server only archives users this same list shows --}}
+                <input type="hidden" name="type" value="{{ $type }}">
+                <input type="hidden" name="years" value="{{ $years }}">
+                @foreach(\Illuminate\Support\Arr::only($filterParams, ['branch_id', 'division_id', 'red_cross_unit_id']) as $name => $value)
+                    <input type="hidden" name="{{ $name }}" value="{{ $value }}">
+                @endforeach
 
                 {{-- Bulk controls --}}
                 <div class="flex flex-wrap items-center gap-3 mb-4 px-1">

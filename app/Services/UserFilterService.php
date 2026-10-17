@@ -27,24 +27,8 @@ class UserFilterService
         // who have no organisation access — UserController::index().)
         $orgRepresentatives = ($filters['org_representatives'] ?? null) == '1';
 
-        // ----------------------------
-        // Global access level scope FIRST
-        // ----------------------------
-        switch ($accessLevel) {
-            case 'branch':
-                if ($scopedId && ! $orgRepresentatives) {
-                    $query->where('branch_id', $scopedId);
-                }
-                break;
-
-            case 'division':
-                if ($scopedId && ! $orgRepresentatives) {
-                    $query->where('division_id', $scopedId);
-                }
-                break;
-
-                // 'national' sees all
-        }
+        // Access level scope FIRST, then branch / division / unit.
+        $this->applyScopeAndLocation($query, $filters, $accessLevel, $scopedId);
 
         // ----------------------------
         // Search
@@ -85,25 +69,6 @@ class UserFilterService
                     $q->orWhere('national_id_number_hash', NationalIdNumber::hash($nin));
                 }
             });
-        }
-
-        // ----------------------------
-        // Location filters
-        // ----------------------------
-
-        // Branch (only national)
-        if ($accessLevel === 'national' && ! empty($filters['branch_id']) && ! $orgRepresentatives) {
-            $query->where('branch_id', $filters['branch_id']);
-        }
-
-        // Division (national + branch)
-        if (in_array($accessLevel, ['national', 'branch'], true) && ! empty($filters['division_id']) && ! $orgRepresentatives) {
-            $query->where('division_id', $filters['division_id']);
-        }
-
-        // Unit (any)
-        if (! empty($filters['red_cross_unit_id'])) {
-            $query->where('red_cross_unit_id', $filters['red_cross_unit_id']);
         }
 
         // Task Force (any)
@@ -671,6 +636,54 @@ class UserFilterService
             default:
                 $query->orderBy('created_at', 'desc');
                 break;
+        }
+
+        return $query;
+    }
+
+    /**
+     * The access level scope plus the branch / division / unit filters, on
+     * their own — for pages with their own status rules and sort order
+     * (e.g. the Archive Tool) that only need the area part of apply().
+     *
+     * Branch staff are held to their branch and division staff to their
+     * division whatever the filters say: an out-of-area branch_id is
+     * ignored, an out-of-area division or unit simply matches nobody.
+     */
+    public function applyScopeAndLocation(Builder $query, array $filters, string $accessLevel, $scopedId): Builder
+    {
+        // Org representatives: scope and location move onto the organisation (see apply()).
+        $orgRepresentatives = ($filters['org_representatives'] ?? null) == '1';
+
+        switch ($accessLevel) {
+            case 'branch':
+                if ($scopedId && ! $orgRepresentatives) {
+                    $query->where('branch_id', $scopedId);
+                }
+                break;
+
+            case 'division':
+                if ($scopedId && ! $orgRepresentatives) {
+                    $query->where('division_id', $scopedId);
+                }
+                break;
+
+                // 'national' sees all
+        }
+
+        // Branch (only national)
+        if ($accessLevel === 'national' && ! empty($filters['branch_id']) && ! $orgRepresentatives) {
+            $query->where('branch_id', $filters['branch_id']);
+        }
+
+        // Division (national + branch)
+        if (in_array($accessLevel, ['national', 'branch'], true) && ! empty($filters['division_id']) && ! $orgRepresentatives) {
+            $query->where('division_id', $filters['division_id']);
+        }
+
+        // Unit (any)
+        if (! empty($filters['red_cross_unit_id'])) {
+            $query->where('red_cross_unit_id', $filters['red_cross_unit_id']);
         }
 
         return $query;
