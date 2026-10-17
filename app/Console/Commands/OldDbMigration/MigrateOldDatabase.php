@@ -107,6 +107,8 @@ class MigrateOldDatabase extends Command
         Artisan::call('migrate:users', $userOptions);
         $this->line(Artisan::output());
 
+        $this->fixPhoneLetterO();
+
         // ROLE ASSIGNMENT ORDER IS LOAD-BEARING â€” DO NOT REORDER:
         // 1. seed:legacy-roles            â†’ base role from legacy_role (syncRoles = replace)
         // 2. permissions:migrate-legacy-from-old â†’ upgrades assistants to division roles
@@ -300,6 +302,20 @@ class MigrateOldDatabase extends Command
         }
 
         Artisan::call('migrate:users', $options);
+        $this->line(Artisan::output());
+
+        $this->fixPhoneLetterO();
+    }
+
+    /**
+     * Letter O typed for 0 in the imported phone numbers ('O803…'). Right
+     * after the users import, so the phone-duplicate clean-up that follows
+     * the import (docs/migration.md step 5) sees the corrected numbers.
+     */
+    private function fixPhoneLetterO(): void
+    {
+        $this->info('Fixing letter O typed for 0 in phone numbers...');
+        Artisan::call('users:fix-phone-letter-o', ['--commit' => true]);
         $this->line(Artisan::output());
     }
 

@@ -34,7 +34,10 @@ then uploaded to the new server (DEPLOYMENT_CHECKLIST.md, "Upload DB to VPS").
     - When migrating users, check users in phpMyAdmin to see progress.
    It runs, in this order: RolesTableSeeder, branches, divisions (with the
    name corrections and merges), positions, signature titles, activity /
-   training / task force types, membership fees, users, legacy roles,
+   training / task force types, membership fees, users,
+   **users:fix-phone-letter-o --commit** (letter O typed for 0 in
+   telephone1/2; before step 5 so those numbers can join their
+   duplicate groups), legacy roles,
    ID card prints, public contacts, organisations, red cross units, task
    forces (+ members), activities, trainings, donations, membership
    payments, **db:seed** (the full DatabaseSeeder), permission:cache-reset,
