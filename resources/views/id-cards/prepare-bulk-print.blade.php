@@ -34,6 +34,12 @@
                                     <li>A card with a <span class="font-semibold">red border</span> is missing something — usually a photo, signature, or National ID number.</li>
                                     <li>A card with a <span class="font-semibold">blue border</span> is complete and ready to print.</li>
                                     <li>Use the filters below to narrow down to your <span class="font-semibold">Division</span> or <span class="font-semibold">Red Cross Unit</span>, then fix any missing data before requesting a print run.</li>
+                                    @can('reject_images')
+                                        <li>If a photo or signature is not good enough, click <span class="font-semibold">Reject photo</span> or <span class="font-semibold">Reject signature</span> and choose a reason. The person sees "Upload again" with your reason on My Profile, and the card cannot be printed until a new image is uploaded.</li>
+                                    @endcan
+                                    @can('request_idcard_print')
+                                        <li>Tick the complete cards and click <span class="font-semibold">Mark as ready to print</span>. HQ finds them with the <span class="font-semibold">Marked for printing</span> filter.</li>
+                                    @endcan
                                     <li>Only ask HQ to print for a Division or RC Unit once <span class="font-semibold">all its cards</span> are ready — this avoids partial, repeated print requests.</li>
                                 </ul>
                             </div>
@@ -56,6 +62,8 @@
                                 <li><span class="font-semibold">Expires In</span> narrows the list to cards expiring within a set number of months.</li>
                                 <li>Tick <span class="font-semibold">Printable cards only</span> to hide anyone missing photo, signature, or National ID.</li>
                                 <li>Tick <span class="font-semibold">ID paid but not printed</span> to find people who've paid for a card but don't have one yet.</li>
+                                <li>Tick <span class="font-semibold">Marked for printing</span> to see the cards branch or division staff marked as ready to print (oldest first).</li>
+                                <li>Tick <span class="font-semibold">Has rejection</span> to see people whose photo or signature must be uploaded again.</li>
                             </ul>
                         </div>
                     </div>
@@ -73,6 +81,7 @@
                             <div x-show="open === 'select'" x-collapse class="px-4 py-3 bg-white">
                                 <ul class="space-y-1 text-gray-700 list-disc pl-4">
                                     <li>Tick the checkbox on a card to select it — only cards that are <span class="font-semibold">complete</span> (photo, signature, National ID, membership) can be selected.</li>
+                                <li>A card showing <span class="font-semibold">Upload again</span> has a rejected photo or signature and cannot be selected. If you disagree with the rejection, click <span class="font-semibold">Undo</span>.</li>
                                     <li>Click <span class="font-semibold">Select All</span> to select every printable card on the page, or <span class="font-semibold">Deselect All</span> to clear your selection.</li>
                                     <li>The counter at the top shows how many users are currently selected.</li>
                                 </ul>
@@ -279,6 +288,30 @@
                                 </label>
                             </div>
 
+                            <div class="flex items-center gap-2 mt-1">
+                                <input id="ready_to_print"
+                                       name="ready_to_print"
+                                       type="checkbox"
+                                       value="1"
+                                       {{ request('ready_to_print') ? 'checked' : '' }}
+                                       class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                                <label for="ready_to_print" class="text-sm text-gray-700 {{ request('ready_to_print') ? 'filter-active' : '' }}">
+                                    Marked for printing
+                                </label>
+                            </div>
+
+                            <div class="flex items-center gap-2 mt-1">
+                                <input id="has_rejection"
+                                       name="has_rejection"
+                                       type="checkbox"
+                                       value="1"
+                                       {{ request('has_rejection') ? 'checked' : '' }}
+                                       class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                                <label for="has_rejection" class="text-sm text-gray-700 {{ request('has_rejection') ? 'filter-active' : '' }}">
+                                    Has rejection
+                                </label>
+                            </div>
+
                         </div>
                     </div>
 
@@ -311,8 +344,25 @@
             </p>
         @endif
 
+        @php
+            // Printers tick cards to print; staff who cannot print tick cards
+            // to mark them ready for the printers (never both).
+            $canPrint = auth()->user()->can('print_idcards');
+            $canMarkReady = ! $canPrint && auth()->user()->can('request_idcard_print');
+            $canSelect = $canPrint || $canMarkReady;
+            $canUnmarkReady = $canPrint || auth()->user()->can('request_idcard_print');
+        @endphp
+
+        @include('approvals._flash')
+        @if ($errors->any())
+            <div class="mb-5 flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+                <i class="fas fa-circle-exclamation text-red-500"></i>
+                {{ $errors->first() }}
+            </div>
+        @endif
+
         <div class="flex justify-between items-center mb-4">
-            @can('print_idcards')
+            @if($canSelect)
                 <div class="flex items-center space-x-4">
                     <button type="button" id="select-all" class="btn-bulk-select">Select All</button>
                     <button type="button" id="deselect-all" class="btn-bulk-select">Deselect All</button>
@@ -320,7 +370,7 @@
                 </div>
             @else
                 <div></div>
-            @endcan
+            @endif
 
             <div class="flex items-end gap-3 flex-wrap">
 
@@ -328,6 +378,20 @@
                    class="inline-flex items-center px-4 py-2 bg-white border border-gray-300 text-gray-700 text-sm font-semibold rounded-md hover:bg-gray-50 transition">
                     <i class="fas fa-file-alt mr-2"></i> View Print History
                 </a>
+
+                @if($canMarkReady)
+                    <form id="mark-ready-form" method="POST" action="{{ route('id-cards.mark-ready') }}"
+                          onsubmit="return confirm('Mark the selected cards as ready to print? HQ will see them under “Marked for printing”.');">
+                        @csrf
+                        <input type="hidden" name="user_ids" id="mark-ready-user-ids">
+                        <button type="submit"
+                                id="mark-ready-btn"
+                                class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-md hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                disabled>
+                            <i class="fas fa-clipboard-check mr-2"></i>Mark as ready to print
+                        </button>
+                    </form>
+                @endif
 
                 @can('print_idcards')
                     <form id="print-form" method="POST" action="{{ route('id-cards.print-bulk') }}" target="_blank">
@@ -367,7 +431,7 @@
         </div>
 
         @if($users->count() > 0)
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div x-data class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 @foreach($users as $user)
                     @php
                         $payment = $user->currentMembershipPayment;
@@ -389,6 +453,15 @@
                         $categoryDataPresent = $isVolunteer ? $user->redCrossUnit !== null : (bool) $membershipType;
 
                         $hasMissingData = !$user->picture || !$user->hasSignature() || !$user->national_id_number || !$categoryDataPresent || !$user->branch || !$user->division;
+
+                        // A rejected photo or signature blocks printing until a
+                        // new one is uploaded (same rule as User::scopeIdCardPrintable()).
+                        $photoRejected = $user->needsPictureReupload();
+                        $signatureRejected = $user->needsSignatureReupload();
+                        $hasRejection = $photoRejected || $signatureRejected;
+                        $isPrintable = !$hasMissingData && !$hasRejection;
+
+                        $readyRequest = $user->pendingIdCardPrintRequest;
 
                         $latestIdCardPrint = $user->idCardPrints->sortByDesc('printed_at')->first();
                         $lastPrintedDate = $latestIdCardPrint?->printed_at;
@@ -429,12 +502,9 @@
                                 : $lastIdCardPaymentDate->format('M Y') . " ({$monthsAgoPayment} mo ago)";
                         }
 
-                        // Membership status (combined)
-                        $latestPaymentForStatus = \App\Models\MembershipPayment::where('user_id', $user->id)
-                            ->where('is_deleted', false)
-                            ->with('membershipFee')
-                            ->latest('payment_date')
-                            ->first();
+                        // Membership status (combined) — newest payment, eager
+                        // loaded by the controller (no query per card).
+                        $latestPaymentForStatus = $user->membershipPayments->first();
 
                         if (!$latestPaymentForStatus) {
                             $membershipCombinedStatus = 'No membership';
@@ -461,23 +531,51 @@
                     @endphp
 
                     <div class="user-card-container shadow border rounded-lg p-3 transition-all
-                        @if($hasMissingData) border-red-500 border-2 bg-white @else border-blue-500 border-2 hover:shadow-md bg-blue-50 @endif">
+                        @if($hasMissingData) border-red-500 border-2 bg-white
+                        @elseif($hasRejection) border-amber-400 border-2 bg-amber-50/40
+                        @else border-blue-500 border-2 hover:shadow-md bg-blue-50 @endif">
+
+                        {{-- "Upload again" / "Ready to print" banners --}}
+                        @if($hasRejection)
+                            <p class="mb-2 rounded bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-900">
+                                <i class="fas fa-rotate-right mr-1"></i>Upload again: {{ collect([$photoRejected ? 'photo' : null, $signatureRejected ? 'signature' : null])->filter()->implode(' and ') }}
+                                <span class="font-normal">— cannot be printed until a new image is uploaded</span>
+                            </p>
+                        @endif
+                        @if($readyRequest)
+                            <div class="mb-2 flex items-center justify-between gap-2 rounded bg-indigo-100 px-2 py-1 text-xs text-indigo-900"
+                                 data-ready-to-print="{{ $user->id }}">
+                                <span>
+                                    <i class="fas fa-clipboard-check mr-1"></i><span class="font-semibold">Ready to print</span>
+                                    · {{ $readyRequest->requested_at->format('d M Y') }}{{ $readyRequest->requestedBy ? ' by '.$readyRequest->requestedBy->full_name : '' }}
+                                </span>
+                                @if($canUnmarkReady)
+                                    <form method="POST" action="{{ route('id-cards.unmark-ready', $user) }}"
+                                          onsubmit="return confirm({{ \Illuminate\Support\Js::from('Remove the ready-to-print mark for '.$user->full_name.'?') }});">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="underline hover:text-indigo-700">Remove</button>
+                                    </form>
+                                @endif
+                            </div>
+                        @endif
 
                         {{-- TOP ROW: photo + signature + checkbox --}}
                         <div class="flex items-start gap-2 mb-2 relative">
 
-                            {{-- Profile photo + photo-age indicator (same as users/index) --}}
+                            {{-- Profile photo + photo-age indicator (same as users/index); reject control below --}}
                             <div class="w-24 flex-shrink-0 flex flex-col items-center">
                                 <img src="{{ $user->profile_photo_url }}" alt="Profile Photo"
-                                     class="w-24 h-28 rounded-md object-cover @if(!$user->picture) border-2 border-red-500 @endif">
+                                     id="photo-box-{{ $user->id }}"
+                                     class="w-24 h-28 rounded-md object-cover @if(!$user->picture) border-2 border-red-500 @elseif($photoRejected) border-2 border-amber-500 @endif">
                                 <x-photo-age-indicator :user="$user" compact />
+                                @include('id-cards.partials.image-review', ['user' => $user, 'type' => 'photo'])
                             </div>
 
-                            {{-- Signature — fixed width, does not stretch; reject strip below (warn-only, doesn't block printing) --}}
-                            @php $signatureRejected = $user->needsSignatureReupload(); @endphp
+                            {{-- Signature — fixed width, does not stretch; reject control below --}}
                             <div class="w-32 flex-shrink-0 flex flex-col items-center">
                                 <div id="signature-box-{{ $user->id }}"
-                                     class="w-32 h-28 flex items-center justify-center rounded bg-white {{ $signatureRejected ? 'border-2 border-red-500' : 'border border-gray-200' }}">
+                                     class="w-32 h-28 flex items-center justify-center rounded bg-white {{ $signatureRejected ? 'border-2 border-amber-500' : 'border border-gray-200' }}">
                                     @if($user->hasSignature())
                                         <img src="{{ $user->getSignatureUrlAttribute() }}" alt="Signature"
                                              class="max-h-20 max-w-full object-contain">
@@ -485,25 +583,7 @@
                                         <span class="text-red-400 text-xs text-center">No<br>signature</span>
                                     @endif
                                 </div>
-
-                                @can('print_idcards')
-                                    @if($user->hasSignature())
-                                        <div class="signature-review text-[10px] text-center leading-tight mt-0.5"
-                                             data-user-id="{{ $user->id }}"
-                                             data-url="{{ route('id-cards.reject-signature', $user) }}">
-                                            <button type="button"
-                                                    class="sig-reject-btn text-[10px] text-gray-500 hover:text-red-600 {{ $signatureRejected ? 'hidden' : '' }}">
-                                                ✕ Reject signature
-                                            </button>
-                                            <span class="sig-rejected text-red-600 font-semibold {{ $signatureRejected ? '' : 'hidden' }}">
-                                                Rejected <span class="sig-rejected-date">{{ $user->signature_rejected_at?->format('d M') }}</span>
-                                                · <button type="button" class="sig-undo-btn font-normal text-gray-500 underline hover:text-gray-800">Undo</button>
-                                            </span>
-                                            <i class="sig-spinner fas fa-spinner fa-spin text-gray-400 hidden"></i>
-                                            <p class="sig-error text-red-600 hidden"></p>
-                                        </div>
-                                    @endif
-                                @endcan
+                                @include('id-cards.partials.image-review', ['user' => $user, 'type' => 'signature'])
                             </div>
 
                             {{-- Print age on top (pt-6 clears the absolute checkbox), View button centered below --}}
@@ -518,15 +598,13 @@
                                 </div>
                             </div>
 
-                            {{-- Checkbox top-right --}}
-                            @can('print_idcards')
-                                @if(!$hasMissingData)
-                                    <input type="checkbox"
-                                           id="user-{{ $user->id }}"
-                                           class="user-checkbox absolute top-0 right-0 h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                                           value="{{ $user->id }}">
-                                @endif
-                            @endcan
+                            {{-- Checkbox top-right: printers tick printable cards; markers tick printable, unmarked cards --}}
+                            @if($isPrintable && ($canPrint || ($canMarkReady && !$readyRequest)))
+                                <input type="checkbox"
+                                       id="user-{{ $user->id }}"
+                                       class="user-checkbox absolute top-0 right-0 h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                       value="{{ $user->id }}">
+                            @endif
                         </div>
 
                         {{-- DB reference --}}
@@ -563,14 +641,14 @@
                              data-id-start="{{ $lastPrintedDate?->timestamp ?? '' }}"
                              data-id-end="{{ $idCardExpiryDate?->timestamp ?? '' }}"
                              data-validity="{{ $defaultValidityMonths }}"
-                             data-show-validity="{{ $hasMissingData ? 'false' : 'true' }}">
+                             data-show-validity="{{ $isPrintable ? 'true' : 'false' }}">
                             <svg class="timeline-svg w-full" height="70" xmlns="http://www.w3.org/2000/svg"
                                  style="overflow:visible"></svg>
                         </div>
 
                         <div class="mt-2 border-t border-gray-200 pt-2">
                             <div class="flex gap-4">
-                                @if(!$hasMissingData)
+                                @if($isPrintable)
                                     @can('print_idcards')
                                     {{-- Left: expiry input (printable cards only) --}}
                                     <div class="flex-shrink-0">
@@ -642,6 +720,53 @@
             <div class="mt-6">
                 {{ $users->links('vendor.pagination.tailwind-no-summary') }}
             </div>
+
+            @can('reject_images')
+                {{-- Shared reject modal, opened by each card's Reject photo / Reject signature button --}}
+                <div x-data="rejectModal(@js($rejectionReasons))"
+                     @open-reject.window="show($event.detail)"
+                     @keydown.escape.window="open = false"
+                     x-show="open" x-cloak
+                     class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+                    <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6" @click.outside="open = false">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-1">
+                            Reject <span x-text="type === 'photo' ? 'photo' : 'signature'"></span>
+                        </h3>
+                        <p class="text-sm text-gray-600 mb-4">
+                            <span class="font-semibold" x-text="name"></span> will see "Upload again" and your reason on
+                            My Profile. The card cannot be printed until a new image is uploaded.
+                        </p>
+                        <form method="POST" :action="url" id="reject-image-form">
+                            @csrf
+                            <fieldset class="space-y-2">
+                                <legend class="text-sm font-medium text-gray-700 mb-1">Reason</legend>
+                                <template x-for="(label, key) in reasons[type] || {}" :key="key">
+                                    <label class="flex items-center gap-2 text-sm text-gray-800 cursor-pointer">
+                                        <input type="radio" name="reason" :value="key" x-model="reason" required
+                                               class="h-4 w-4 text-red-600 border-gray-300 focus:ring-red-500">
+                                        <span x-text="label"></span>
+                                    </label>
+                                </template>
+                            </fieldset>
+                            <label for="reject-note" class="block mt-4 text-sm font-medium text-gray-700">
+                                Note <span class="font-normal text-gray-500" x-text="reason === 'other' ? '(required)' : '(optional)'"></span>
+                            </label>
+                            <textarea id="reject-note" name="note" rows="2" maxlength="{{ \App\Support\ImageRejection::NOTE_MAX }}"
+                                      x-model="note" :required="reason === 'other'"
+                                      placeholder="e.g. wearing sunglasses"
+                                      class="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500"></textarea>
+                            <div class="mt-4 flex justify-end gap-2">
+                                <button type="button" @click="open = false"
+                                        class="px-4 py-2 text-sm font-medium rounded-md text-gray-700 bg-gray-100 hover:bg-gray-200">Cancel</button>
+                                <button type="submit"
+                                        class="px-4 py-2 text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700">
+                                    <i class="fas fa-xmark mr-1"></i>Confirm rejection
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            @endcan
         @else
             <div class="text-center py-12">
                 <i class="fas fa-users text-4xl text-gray-400 mb-4"></i>
@@ -652,6 +777,17 @@
     </div>
 
     <script>
+        // Reject modal state (Alpine). One modal serves every card; the card's
+        // button sends { url, type, name } via the open-reject event.
+        function rejectModal(reasons) {
+            return {
+                reasons, open: false, url: '', type: 'photo', name: '', reason: '', note: '',
+                show(detail) {
+                    Object.assign(this, { url: detail.url, type: detail.type, name: detail.name, reason: '', note: '', open: true });
+                },
+            };
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
 
             // ── TIMELINE DRAWING ─────────────────────────────────────────────
@@ -847,9 +983,13 @@
             const recordPrintsBtn = document.getElementById('record-prints-btn');
             const printUserIdsInput = document.getElementById('print-user-ids');
             const recordUserIdsInput = document.getElementById('record-user-ids');
+            const markReadyBtn = document.getElementById('mark-ready-btn');
+            const markReadyUserIdsInput = document.getElementById('mark-ready-user-ids');
 
             let selectedUsersData = new Map();
 
+            // Printers get the print + record forms, markers the mark-ready
+            // form; whichever is on the page is kept in step.
             function updateSelectionState() {
                 selectedUsersData.clear();
                 userCheckboxes.forEach(cb => {
@@ -861,11 +1001,14 @@
                 });
                 const arr = Array.from(selectedUsersData.values());
                 const any = arr.length > 0;
-                selectionCounter.textContent = `${arr.length} users selected`;
-                printUserIdsInput.value = JSON.stringify(arr);
-                recordUserIdsInput.value = JSON.stringify(arr);
-                printSelectedBtn.disabled = !any;
-                recordPrintsBtn.disabled = !any;
+                const json = JSON.stringify(arr);
+                if (selectionCounter) selectionCounter.textContent = `${arr.length} users selected`;
+                if (printUserIdsInput) printUserIdsInput.value = json;
+                if (recordUserIdsInput) recordUserIdsInput.value = json;
+                if (markReadyUserIdsInput) markReadyUserIdsInput.value = json;
+                if (printSelectedBtn) printSelectedBtn.disabled = !any;
+                if (recordPrintsBtn) recordPrintsBtn.disabled = !any;
+                if (markReadyBtn) markReadyBtn.disabled = !any;
             }
 
             function updateExpiryDisplay(userId, months) {
@@ -896,61 +1039,6 @@
                     if (checkbox?.checked) selectedUsersData.set(userId, { id: userId, validity: this.value });
                     updateSelectionState();
                 });
-            });
-
-            // ── SIGNATURE REJECT / UNDO (warn-only) ──────────────────────────
-            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
-
-            function setSignatureRejected(strip, rejected, dateLabel) {
-                const box = document.getElementById(`signature-box-${strip.dataset.userId}`);
-                box.classList.toggle('border-2', rejected);
-                box.classList.toggle('border-red-500', rejected);
-                box.classList.toggle('border', !rejected);
-                box.classList.toggle('border-gray-200', !rejected);
-                strip.querySelector('.sig-reject-btn').classList.toggle('hidden', rejected);
-                strip.querySelector('.sig-rejected').classList.toggle('hidden', !rejected);
-                if (dateLabel) strip.querySelector('.sig-rejected-date').textContent = dateLabel;
-            }
-
-            async function sendSignatureReview(strip, method) {
-                const buttons = strip.querySelectorAll('button');
-                const spinner = strip.querySelector('.sig-spinner');
-                const error = strip.querySelector('.sig-error');
-
-                buttons.forEach(b => (b.disabled = true));
-                spinner.classList.remove('hidden');
-                error.classList.add('hidden');
-
-                try {
-                    const res = await fetch(strip.dataset.url, {
-                        method,
-                        headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
-                    });
-                    const data = await res.json().catch(() => ({}));
-                    if (!res.ok) throw new Error(data.message || `Request failed (${res.status})`);
-
-                    // "24 Sep 2026" → "24 Sep"
-                    const shortDate = data.rejected_at ? data.rejected_at.split(' ').slice(0, 2).join(' ') : null;
-                    setSignatureRejected(strip, data.rejected, shortDate);
-
-                    // Keep a just-rejected signature out of the current print batch.
-                    const checkbox = document.getElementById(`user-${strip.dataset.userId}`);
-                    if (data.rejected && checkbox?.checked) {
-                        checkbox.checked = false;
-                        updateSelectionState();
-                    }
-                } catch (e) {
-                    error.textContent = e.message || 'Could not save — try again.';
-                    error.classList.remove('hidden');
-                } finally {
-                    buttons.forEach(b => (b.disabled = false));
-                    spinner.classList.add('hidden');
-                }
-            }
-
-            document.querySelectorAll('.signature-review').forEach(strip => {
-                strip.querySelector('.sig-reject-btn').addEventListener('click', () => sendSignatureReview(strip, 'POST'));
-                strip.querySelector('.sig-undo-btn').addEventListener('click', () => sendSignatureReview(strip, 'DELETE'));
             });
 
             // ── PULSE REMINDER ────────────────────────────────────────────────

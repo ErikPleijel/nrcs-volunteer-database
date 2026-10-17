@@ -24,7 +24,7 @@ uses(TestCase::class, RefreshDatabase::class);
 beforeEach(function () {
     $this->withoutVite();
 
-    $permissions = ['manage-admin-panel', 'view_user', 'view_idcards', 'print_idcards'];
+    $permissions = ['manage-admin-panel', 'view_user', 'view_idcards', 'print_idcards', 'reject_images'];
     foreach ($permissions as $permission) {
         Permission::findOrCreate($permission, 'web');
     }
@@ -98,7 +98,7 @@ test('the same filter works for campaign audiences built via UserFilterService',
 
 test('rejecting a user who has no signature returns 422 and sets nothing', function () {
     $this->actingAs($this->admin)
-        ->postJson(route('id-cards.reject-signature', $this->unsigned))
+        ->postJson(route('id-cards.reject-image', [$this->unsigned, 'signature']), ['reason' => 'not_readable'])
         ->assertStatus(422);
 
     expect($this->unsigned->fresh()->signature_rejected_at)->toBeNull();

@@ -87,6 +87,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'last_admin_activity_at' => 'datetime',
         'image_upload_date' => 'datetime',
         'signature_rejected_at' => 'datetime',
+        'picture_rejected_at' => 'datetime',
         'is_inactive' => 'boolean',
         'email_opt_out' => 'boolean',
         'email_opt_out_at' => 'datetime',
@@ -148,11 +149,12 @@ class User extends Authenticatable implements MustVerifyEmail
                 }
             }
 
-            // A new signature supersedes an admin's "needs re-upload" flag,
-            // whichever upload path saved it.
-            if ($user->isDirty('signature')) {
-                $user->signature_rejected_at = null;
-                $user->signature_rejected_by_id = null;
+            // A new signature or photo supersedes an admin's "upload again"
+            // flag and its reason, whichever upload path saved it.
+            foreach (['signature', 'picture'] as $image) {
+                if ($user->isDirty($image)) {
+                    $user->clearImageRejection($image);
+                }
             }
         });
 
@@ -630,11 +632,38 @@ class User extends Authenticatable implements MustVerifyEmail
 
     /**
      * Whether an admin has rejected this user's signature and a new one is
-     * awaited. Warn-only: does not block ID card printing.
+     * awaited. Blocks ID card printing until a new one is uploaded.
      */
     public function needsSignatureReupload(): bool
     {
         return $this->signature_rejected_at !== null;
+    }
+
+    /**
+     * Whether an admin has rejected this user's photo and a new one is
+     * awaited. Blocks ID card printing until a new one is uploaded.
+     */
+    public function needsPictureReupload(): bool
+    {
+        return $this->picture_rejected_at !== null;
+    }
+
+    /** A rejected photo or signature — the card cannot be printed. */
+    public function hasImageRejection(): bool
+    {
+        return $this->needsPictureReupload() || $this->needsSignatureReupload();
+    }
+
+    /**
+     * Clear the rejection fields for one image column ('picture' or
+     * 'signature') without saving.
+     */
+    public function clearImageRejection(string $column): void
+    {
+        $this->{$column.'_rejected_at'} = null;
+        $this->{$column.'_rejected_by_id'} = null;
+        $this->{$column.'_rejection_reason'} = null;
+        $this->{$column.'_rejection_note'} = null;
     }
 
     /**
@@ -643,6 +672,50 @@ class User extends Authenticatable implements MustVerifyEmail
     public function signatureRejectedBy()
     {
         return $this->belongsTo(User::class, 'signature_rejected_by_id');
+    }
+
+    /**
+     * The admin who rejected this user's photo.
+     */
+    public function pictureRejectedBy()
+    {
+        return $this->belongsTo(User::class, 'picture_rejected_by_id');
+    }
+
+    /** Users with a rejected photo or signature. */
+    public function scopeWithImageRejection(Builder $query): Builder
+    {
+        return $query->where(function (Builder $q) {
+            $q->whereNotNull('users.picture_rejected_at')
+                ->orWhereNotNull('users.signature_rejected_at');
+        });
+    }
+
+    /**
+     * Users whose ID card can be printed: every field the card needs, and no
+     * rejected photo or signature. Card-category data: a valid personal
+     * membership payment for members, a Red Cross unit for volunteers
+     * (volunteers pay no fee, so a missing payment must not block them).
+     * Mirrors User::isVolunteer() (red_cross_unit_id IS NOT NULL) and the
+     * per-card check on the bulk print page.
+     */
+    public function scopeIdCardPrintable(Builder $query): Builder
+    {
+        return $query->whereNotNull('picture')
+            ->whereNotNull('signature')
+            ->whereNotNull('first_name')
+            ->whereNotNull('last_name')
+            ->whereNotNull('national_id_number')
+            ->whereNotNull('branch_id')
+            ->whereNotNull('division_id')
+            ->whereNull('users.picture_rejected_at')
+            ->whereNull('users.signature_rejected_at')
+            ->where(function ($q) {
+                $q->whereNotNull('red_cross_unit_id')
+                    ->orWhereHas('currentMembershipPayment', function ($pq) {
+                        $pq->personal()->whereHas('membershipFee');
+                    });
+            });
     }
 
     /**
@@ -1795,6 +1868,36 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasMany(IdCardPrint::class);
     }
 
+    public function idCardPrintRequests()
+    {
+        return $this->hasMany(IdCardPrintRequest::class);
+    }
+
+    /** The open "ready to print" mark, if any (at most one at a time). */
+    public function pendingIdCardPrintRequest()
+    {
+        return $this->hasOne(IdCardPrintRequest::class)
+            ->where('status', IdCardPrintRequest::STATUS_PENDING)
+            ->latest('requested_at');
+    }
+
+    /**
+     * Close any open "ready to print" mark as cancelled, e.g. when the
+     * photo or signature is rejected.
+     */
+    public function cancelPendingIdCardPrintRequests(string $reason, ?int $closedById): int
+    {
+        return $this->idCardPrintRequests()
+            ->where('status', IdCardPrintRequest::STATUS_PENDING)
+            ->update([
+                'status' => IdCardPrintRequest::STATUS_CANCELLED,
+                'cancel_reason' => $reason,
+                'closed_by_user_id' => $closedById,
+                'closed_at' => now(),
+                'updated_at' => now(),
+            ]);
+    }
+
     // Accessor for the latest ID card's expiry date
     public function getLatestIdCardExpiryDateAttribute()
     {
@@ -1853,7 +1956,9 @@ class User extends Authenticatable implements MustVerifyEmail
             return null; // No payment, no lag.
         }
 
-        $lastPrintDate = $this->idCardPrints()->latest('printed_at')->value('printed_at');
+        $lastPrintDate = $this->relationLoaded('idCardPrints')
+            ? $this->idCardPrints->max('printed_at')
+            : $this->idCardPrints()->latest('printed_at')->value('printed_at');
 
         if (! $lastPrintDate) {
             return -999; // Payment exists, but no print. High lag to prioritize.
@@ -1943,6 +2048,14 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     public function getLastIdCardPaymentDateAttribute()
     {
+        // The bulk print page selects this as a computed column (same rule as
+        // below); use it rather than querying again per card.
+        if (array_key_exists('last_id_card_payment_date', $this->attributes)) {
+            $value = $this->attributes['last_id_card_payment_date'];
+
+            return $value ? Carbon::parse($value) : null;
+        }
+
         // Get the latest membership payment where 'id_card_included' is true
         $latestIdCardPayment = $this->membershipPayments()
             ->where('id_card_included', true)

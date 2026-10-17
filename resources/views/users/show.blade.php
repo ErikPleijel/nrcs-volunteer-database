@@ -96,28 +96,36 @@
             </div>
         @endif
 
-        @if($user->needsSignatureReupload())
+        @foreach([
+            'photo' => [$user->needsPictureReupload(), 'Photo', $user->picture_rejected_at, $user->pictureRejectedBy],
+            'signature' => [$user->needsSignatureReupload(), 'Signature', $user->signature_rejected_at, $user->signatureRejectedBy],
+        ] as $imageType => [$isRejected, $imageLabel, $rejectedAt, $rejectedBy])
+            @continue(! $isRejected)
+            @php $rejectionReason = \App\Support\ImageRejection::describe($user, $imageType); @endphp
             <div class="max-w-2xl mx-auto mb-6">
                 <div class="bg-amber-50 border-2 border-amber-300 rounded-lg py-4 px-6 text-center">
                     <div class="flex items-center justify-center gap-3">
                         <i class="fas fa-triangle-exclamation text-amber-500 text-2xl"></i>
                         <span class="text-lg text-amber-800">
-                            <strong class="font-bold">Signature Rejected</strong>
+                            <strong class="font-bold">{{ $imageLabel }} Rejected</strong>
                         </span>
                     </div>
                     <p class="mt-2 text-sm text-amber-800">
-                        Rejected {{ $user->signature_rejected_at->format('d M Y') }}
-                        by {{ $user->signatureRejectedBy?->full_name ?? 'an administrator' }}.
-                        A new signature should be uploaded.
+                        Rejected {{ $rejectedAt->format('d M Y') }}
+                        by {{ $rejectedBy?->full_name ?? 'an administrator' }}.
+                        A new {{ strtolower($imageLabel) }} should be uploaded; the ID card cannot be printed until then.
                     </p>
+                    @if($rejectionReason)
+                        <p class="mt-1 text-sm text-amber-800"><span class="font-semibold">Reason:</span> {{ $rejectionReason }}</p>
+                    @endif
                     @can('edit_user')
                         <p class="mt-1 text-sm text-amber-800">
-                            <a href="{{ route('users.edit', $user) }}" class="underline font-semibold">Upload a new signature</a>
+                            <a href="{{ route('users.edit', $user) }}" class="underline font-semibold">Upload a new {{ strtolower($imageLabel) }}</a>
                         </p>
                     @endcan
                 </div>
             </div>
-        @endif
+        @endforeach
 
         {{-- Detail table --}}
         <div class="bg-white rounded-lg shadow p-6 mt-6">

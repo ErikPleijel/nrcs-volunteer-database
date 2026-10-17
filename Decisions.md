@@ -1883,3 +1883,41 @@ organisations on purpose, and hiding the organisation money keeps that consisten
   the standard percentages now changes it.
 - Division staff no longer see organisation figures that branch staff see for the same area, so
   their totals can be lower (the pages say so).
+
+## 2026-10-17 — Photo and signature rejection block printing; "Mark as ready to print"
+
+**Decision:**
+- Photos can be rejected like signatures. Both need a reason from a short pick list
+  (`App\Support\ImageRejection`), plus a note that is required for "Other". The reason, note,
+  who and when are stored on `users` (`picture_*` / `signature_*` columns). A new upload clears
+  them (`User::booted()`), and an admin can undo. Still not written to the Audit Log (see
+  2026-10-02).
+- A rejection now **blocks printing** (it used to only warn): no tick box, excluded from
+  "Printable cards only", skipped by Print Selected / Mark as Printed, and the single-card print
+  returns 422. The wording is "Upload again", not "Rejected", on the cards, the report and My
+  Profile. A printer who disagrees uses Undo.
+- New permission `reject_images` for national DB administrators and assistants, branch
+  secretaries, branch DB administrators and assistants, and both division assistants. They act
+  only inside their own branch or division. Observers and super-admin cannot reject.
+- New permission `request_idcard_print` (the same roles, except national DB administrators).
+  Staff who cannot print tick complete cards and click "Mark as ready to print". The printers
+  find them with the "Marked for printing" filter, oldest first. Users who can print see only
+  the print buttons.
+- Marks live in a separate `id_card_print_requests` table, not in `id_card_prints`. Every row
+  in `id_card_prints` is read as a printed card (expiry, "needs print", reports, dashboard), so
+  "ready" rows there would be counted as prints. One pending mark per person. Mark as Printed
+  closes it as `printed` (linked to the print row). Rejecting an image cancels it
+  (`image_rejected`). Markers and printers can remove it (`removed`), inside their own scope.
+- `/my-unit/report` counts people with a rejected image ("Upload again" tile) and no longer
+  counts them as complete. The reason is shown only to users with `reject_images`; members of
+  the unit see just "Upload again". The report shows 100 cards per page; the other unit pages
+  stay at 24.
+
+**Why:** branch training showed poor photos reaching print, and branch and division staff had no
+way to tell HQ which cards were ready.
+
+**Accepted consequences:**
+- Existing signature rejections have no reason. They show "Upload again" without one.
+- Users are not notified by email or SMS; they see the banner on My Profile.
+- A cancelled mark is not restored when a rejection is undone or a new image is uploaded; it
+  must be marked again.

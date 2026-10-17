@@ -20,13 +20,13 @@ trait PaginatesMembers
     /**
      * @param  \Illuminate\Database\Eloquent\Builder|\Illuminate\Database\Eloquent\Relations\Relation  $query
      */
-    protected function paginateMembers($query): LengthAwarePaginator
+    protected function paginateMembers($query, int $perPage = self::MEMBERS_PER_PAGE): LengthAwarePaginator
     {
         return $query
             ->orderBy('first_name')
             ->orderBy('last_name')
             ->orderBy('users.id') // tie-break: stable pages when names repeat
-            ->paginate(self::MEMBERS_PER_PAGE, ['users.*'], 'members_page')
+            ->paginate($perPage, ['users.*'], 'members_page')
             ->withQueryString()
             ->fragment('unit-members');
     }

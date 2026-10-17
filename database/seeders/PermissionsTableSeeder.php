@@ -96,6 +96,7 @@ class PermissionsTableSeeder extends Seeder
                     'campaign_request_approve',
                     'print_idcards',
                     'view_idcards',
+                    'reject_images', // photo/signature "upload again", own scope
                     'print_certificates',
                     'view_certificates',
 
@@ -133,6 +134,8 @@ class PermissionsTableSeeder extends Seeder
                 [
                     'manage-admin-panel',
                     'view_idcards',
+                    'reject_images',
+                    'request_idcard_print', // "Mark as ready to print"; unused once print_idcards is granted
                     'view_certificates',
                     'use_archive_tool',
                 ],
@@ -143,6 +146,8 @@ class PermissionsTableSeeder extends Seeder
                 [
                     'manage-admin-panel',
                     'view_idcards',
+                    'reject_images',
+                    'request_idcard_print',
                     'view_certificates',
                     'print_certificates',
                     'use_archive_tool',
@@ -176,6 +181,8 @@ class PermissionsTableSeeder extends Seeder
                 [
                     'manage-admin-panel',
                     'view_idcards',
+                    'reject_images',
+                    'request_idcard_print',
                     'view_certificates',
                     'print_certificates',
                     'use_archive_tool',
@@ -208,6 +215,8 @@ class PermissionsTableSeeder extends Seeder
             'branch_db_assistant' => [
                 'manage-admin-panel',
                 'view_idcards',
+                'reject_images',
+                'request_idcard_print',
                 'view_certificates',
 
                 'add_user',
@@ -243,6 +252,8 @@ class PermissionsTableSeeder extends Seeder
             'division_db_assistant_operations' => [
                 'manage-admin-panel',
                 'view_idcards',
+                'reject_images',
+                'request_idcard_print',
                 'view_certificates',
 
                 'view_user',
@@ -265,6 +276,8 @@ class PermissionsTableSeeder extends Seeder
             'division_db_assistant_finance' => [
                 'manage-admin-panel',
                 'view_idcards',
+                'reject_images',
+                'request_idcard_print',
                 'view_certificates',
 
                 'view_user',

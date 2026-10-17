@@ -40,6 +40,10 @@
                 <span class="text-red-500 font-bold text-base">MISSING</span>
                 <span class="text-gray-700">Field needs to be provided</span>
             </div>
+            <div class="flex items-center gap-2">
+                <span class="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-semibold text-amber-900"><i class="fas fa-rotate-right mr-1"></i>Upload again</span>
+                <span class="text-gray-700">Photo or signature must be uploaded again — card cannot be printed</span>
+            </div>
         </div>
 
         {{-- Summary (whole unit, computed in the controller — the cards below are one page) --}}
@@ -48,6 +52,9 @@
             $complete = $summary['complete'];
             $incomplete = $total - $complete;
             $oldPhoto = $summary['oldPhoto'];
+            $uploadAgain = $summary['uploadAgain'];
+            // The reason text is for admins; members see only "Upload again".
+            $showRejectionReason = auth()->user()->can('reject_images');
         @endphp
 
         <div class="mb-6 flex flex-wrap gap-4 text-sm">
@@ -79,6 +86,13 @@
                     <p class="font-bold text-orange-700 text-lg">{{ $oldPhoto }}</p>
                 </div>
             </div>
+            <div class="bg-white rounded-lg shadow-sm border border-amber-300 px-4 py-3 flex items-center gap-3" data-stat="upload-again">
+                <i class="fas fa-rotate-right text-amber-500 text-lg"></i>
+                <div>
+                    <p class="text-gray-500">Upload again</p>
+                    <p class="font-bold text-amber-700 text-lg">{{ $uploadAgain }}</p>
+                </div>
+            </div>
         </div>
 
         {{-- Cards grid --}}
@@ -92,10 +106,18 @@
                         || !$membershipType
                         || !$user->last_name
                         || !$user->first_name;
+
+                    // A rejected photo/signature blocks printing: "Upload again".
+                    $photoRejected = $user->needsPictureReupload();
+                    $signatureRejected = $user->needsSignatureReupload();
+                    $uploadAgainItems = collect([
+                        $photoRejected ? ['Photo', \App\Support\ImageRejection::describe($user, 'photo')] : null,
+                        $signatureRejected ? ['Signature', \App\Support\ImageRejection::describe($user, 'signature')] : null,
+                    ])->filter();
                 @endphp
 
                 <div class="shadow border-2 rounded-lg p-3
-                    {{ $hasMissingData ? 'border-red-500 bg-white' : 'border-blue-500 bg-blue-50' }}">
+                    {{ $hasMissingData ? 'border-red-500 bg-white' : ($uploadAgainItems->isNotEmpty() ? 'border-amber-400 bg-amber-50/40' : 'border-blue-500 bg-blue-50') }}">
 
                     {{-- TOP ROW: photo + signature --}}
                     <div class="flex items-start gap-2 mb-2">
@@ -103,7 +125,7 @@
                         {{-- Profile photo --}}
                         <div class="flex-shrink-0">
                             <div class="w-24 h-28 rounded-md overflow-hidden flex items-center justify-center
-                                border-2 {{ !$user->picture ? 'border-red-500' : 'border-gray-200' }}
+                                border-2 {{ !$user->picture ? 'border-red-500' : ($photoRejected ? 'border-amber-500' : 'border-gray-200') }}
                                 @if(($user->gender ?? 'male') === 'female') bg-gradient-to-br from-pink-400 to-purple-500
                                 @else bg-gradient-to-br from-blue-400 to-blue-600 @endif">
                                 @if($user->picture)
@@ -125,7 +147,13 @@
                         </div>
 
                         {{-- Signature --}}
-                        @if($user->hasSignature())
+                        @if($signatureRejected)
+                            <div class="w-32 h-28 flex-shrink-0 flex flex-col items-center
+                                        justify-center rounded border border-amber-400 bg-amber-50">
+                                <i class="fas fa-rotate-right text-amber-500 text-3xl"></i>
+                                <p class="text-amber-800 text-xs font-semibold mt-1">Signature: upload again</p>
+                            </div>
+                        @elseif($user->hasSignature())
                             <div class="w-32 h-28 flex-shrink-0 flex flex-col items-center
                                         justify-center rounded border border-green-300 bg-green-50">
                                 <i class="fas fa-circle-check text-green-500 text-3xl"></i>
@@ -206,6 +234,21 @@
                                     !$user->first_name ? 'First name' : null,
                                 ])->filter()->implode(', ') }}
                             </p>
+                        </div>
+                    @endif
+
+                    {{-- Upload again (rejected photo/signature); reason for admins only --}}
+                    @if($uploadAgainItems->isNotEmpty())
+                        <div class="mt-2 pt-2 border-t border-amber-200 space-y-0.5" data-upload-again="{{ $user->id }}">
+                            @foreach($uploadAgainItems as [$imageLabel, $reason])
+                                <p class="text-xs text-amber-800"
+                                   @if($showRejectionReason && $reason) title="{{ $reason }}" @endif>
+                                    <i class="fas fa-rotate-right mr-1"></i><span class="font-semibold">Upload again: {{ $imageLabel }}</span>
+                                    @if($showRejectionReason && $reason)
+                                        <span class="text-amber-700">— {{ $reason }}</span>
+                                    @endif
+                                </p>
+                            @endforeach
                         </div>
                     @endif
 

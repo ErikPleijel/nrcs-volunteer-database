@@ -5,12 +5,16 @@ namespace App\Http\Controllers;
 use App\Models\Branch;
 use App\Models\Division;
 use App\Models\IdCardPrint;
+use App\Models\IdCardPrintRequest;
 use App\Models\RedCrossUnit;
 use App\Models\Setting;
 use App\Models\User;
+use App\Support\ImageRejection;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Auth;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
@@ -96,29 +100,20 @@ class IdCardController extends Controller
             $query->where('red_cross_unit_id', $request->input('red_cross_unit_id'));
         }
 
-        // Filter: only users with all required data for printing
+        // Filter: only users with all required data for printing and no
+        // rejected photo/signature (see User::scopeIdCardPrintable()).
         if ($request->boolean('printable_only')) {
-            $query->whereNotNull('picture')
-                ->whereNotNull('signature')
-                ->whereNotNull('first_name')
-                ->whereNotNull('last_name')
-                ->whereNotNull('national_id_number')
-                ->whereNotNull('branch_id')
-                ->whereNotNull('division_id')
-                ->where(function ($q) {
-                    // Card-category data required to print (see printCard()'s
-                    // card_type_label/category_value): a valid personal
-                    // membership payment for members, a Red Cross unit
-                    // assignment for volunteers. Volunteers pay no fee, so a
-                    // missing payment must not block them here. Mirrors
-                    // User::isVolunteer() (red_cross_unit_id IS NOT NULL) —
-                    // if that predicate is later replaced by an independent
-                    // is_volunteer column, update this condition alongside it.
-                    $q->whereNotNull('red_cross_unit_id')
-                        ->orWhereHas('currentMembershipPayment', function ($pq) {
-                            $pq->personal()->whereHas('membershipFee');
-                        });
-                });
+            $query->idCardPrintable();
+        }
+
+        // Filter: cards branch/division staff marked "ready to print".
+        if ($request->boolean('ready_to_print')) {
+            $query->whereHas('pendingIdCardPrintRequest');
+        }
+
+        // Filter: a rejected photo or signature awaiting a new upload.
+        if ($request->boolean('has_rejection')) {
+            $query->withImageRejection();
         }
 
         if ($request->filled('expires_in_months')) {
@@ -169,15 +164,29 @@ class IdCardController extends Controller
         }
 
         // Eager load relationships for the view.
+        // membershipPayments (newest payment first) feeds the card's membership
+        // status line, so the view needs no query per card.
         $query->with([
             'branch', 'division', 'redCrossUnit', 'idCardPrints',
             'currentMembershipPayment' => fn ($q) => $q->personal(),
             'currentMembershipPayment.membershipFee',
+            'membershipPayments' => fn ($q) => $q->where('is_deleted', false)->latest('payment_date'),
+            'membershipPayments.membershipFee',
+            'pendingIdCardPrintRequest.requestedBy',
+            'pictureRejectedBy', 'signatureRejectedBy',
         ]);
 
         // Apply sorting. When filtering for "needs print", sort by the latest payment date as a proxy for urgency.
         if ($request->boolean('needs_id_card_printed')) {
             $query->orderBy('last_id_card_payment_date', 'desc');
+        } elseif ($request->boolean('ready_to_print')) {
+            // Oldest mark first, so the printers work through the queue in order.
+            $query->orderBy(
+                IdCardPrintRequest::select('requested_at')
+                    ->whereColumn('id_card_print_requests.user_id', 'users.id')
+                    ->where('status', IdCardPrintRequest::STATUS_PENDING)
+                    ->limit(1)
+            );
         } else {
             $query->latest(); // Default sort by user creation date.
         }
@@ -221,7 +230,9 @@ class IdCardController extends Controller
             $admin->touchLastAdminActivity();
         }
 
-        return view('id-cards.prepare-bulk-print', compact('users', 'branches', 'divisions', 'redCrossUnits', 'accessLevel', 'userBranchId', 'userDivisionId'));
+        $rejectionReasons = ImageRejection::REASONS;
+
+        return view('id-cards.prepare-bulk-print', compact('users', 'branches', 'divisions', 'redCrossUnits', 'accessLevel', 'userBranchId', 'userDivisionId', 'rejectionReasons'));
     }
 
     /**
@@ -231,6 +242,8 @@ class IdCardController extends Controller
      */
     public function printCard(User $user)
     {
+        abort_if($user->hasImageRejection(), 422, 'This card cannot be printed: the photo or signature needs to be uploaded again.');
+
         // Eager load relationships for efficiency
         $user->load([
             'branch', 'division', 'redCrossUnit',
@@ -298,7 +311,16 @@ class IdCardController extends Controller
             'branch', 'division', 'redCrossUnit',
             'currentMembershipPayment' => fn ($q) => $q->personal(),
             'currentMembershipPayment.membershipFee',
-        ])->whereIn('id', $userIds)->get();
+        ])->whereIn('id', $userIds)
+            // A rejected photo or signature blocks printing (the page hides its
+            // tick box; this covers a stale page or a hand-made request).
+            ->whereNull('picture_rejected_at')
+            ->whereNull('signature_rejected_at')
+            ->get();
+
+        if ($users->isEmpty()) {
+            return redirect()->back()->with('error', 'None of the selected cards can be printed: their photo or signature needs to be uploaded again.');
+        }
 
         $cardsData = [];
         foreach ($users as $user) {
@@ -364,6 +386,7 @@ class IdCardController extends Controller
 
         $printedBy = Auth::id();
         $printedAt = Carbon::now();
+        $skippedRejected = 0;
 
         foreach ($userIds as $userId) {
             $user = User::with([
@@ -376,11 +399,18 @@ class IdCardController extends Controller
                 continue;
             }
 
+            // A rejected photo or signature blocks printing.
+            if ($user->hasImageRejection()) {
+                $skippedRejected++;
+
+                continue;
+            }
+
             $validityMonthsToStore = $this->resolveValidityMonths($user, $validityMonthsMap[$user->id] ?? null);
             $expiryDate = $printedAt->copy()->addMonths($validityMonthsToStore);
 
             // Create the IdCardPrint record
-            IdCardPrint::create([
+            $print = IdCardPrint::create([
                 'user_id' => $userId,
                 'printed_by_user_id' => $printedBy,
                 'printed_at' => $printedAt,
@@ -389,44 +419,162 @@ class IdCardController extends Controller
                 'expiry_date' => $expiryDate,
                 'notes' => null, // As requested
             ]);
+
+            // A "ready to print" mark is done once the card is printed.
+            $user->idCardPrintRequests()->pending()->update([
+                'status' => IdCardPrintRequest::STATUS_PRINTED,
+                'id_card_print_id' => $print->id,
+                'closed_by_user_id' => $printedBy,
+                'closed_at' => $printedAt,
+                'updated_at' => $printedAt,
+            ]);
         }
 
-        return redirect()->back()->with('success', 'Selected ID cards marked as printed successfully and records saved.');
+        $message = 'Selected ID cards marked as printed successfully and records saved.';
+        if ($skippedRejected > 0) {
+            $message .= " {$skippedRejected} skipped: photo or signature needs to be uploaded again.";
+        }
+
+        return redirect()->back()->with('success', $message);
     }
 
     /**
-     * Flag a user's signature as rejected (needs re-upload). Warn-only: the
-     * card stays printable. Cleared automatically by User::booted() when a
-     * new signature is saved, or manually via restoreSignature().
+     * Reject a user's photo or signature ("upload again"), with a pick-list
+     * reason and an optional note (required for "Other"). Blocks printing and
+     * cancels an open "ready to print" mark. The image itself is kept.
+     * Cleared by User::booted() when a new image is saved, or via
+     * restoreImage(). Not written to the Audit Log (Decisions.md, 2026-10-02).
      */
-    public function rejectSignature(User $user): JsonResponse
+    public function rejectImage(Request $request, User $user, string $type): JsonResponse|RedirectResponse
     {
         $this->authorizeWithinScope($user);
-        abort_unless($user->hasSignature(), 422, 'This user has no signature to reject.');
 
-        $user->signature_rejected_at = now();
-        $user->signature_rejected_by_id = Auth::id();
-        $user->save();
+        $column = ImageRejection::column($type);
+        $label = $type === 'photo' ? 'photo' : 'signature';
+        abort_if(blank($user->{$column}), 422, "This user has no {$label} to reject.");
 
-        return response()->json([
-            'rejected' => true,
-            'rejected_at' => $user->signature_rejected_at->format('d M Y'),
-            'rejected_by' => Auth::user()->full_name,
+        $validated = $request->validate([
+            'reason' => ['required', Rule::in(array_keys(ImageRejection::reasons($type)))],
+            'note' => [
+                Rule::requiredIf($request->input('reason') === ImageRejection::OTHER),
+                'nullable', 'string', 'max:'.ImageRejection::NOTE_MAX,
+            ],
+        ], [
+            'note.required' => 'Please describe the problem when you choose "Other".',
         ]);
+
+        $user->{$column.'_rejected_at'} = now();
+        $user->{$column.'_rejected_by_id'} = Auth::id();
+        $user->{$column.'_rejection_reason'} = $validated['reason'];
+        $user->{$column.'_rejection_note'} = filled($validated['note'] ?? null) ? trim($validated['note']) : null;
+        $user->save();
+
+        $user->cancelPendingIdCardPrintRequests(IdCardPrintRequest::CANCEL_IMAGE_REJECTED, Auth::id());
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'rejected' => true,
+                'type' => $type,
+                'reason' => ImageRejection::describe($user, $type),
+                'rejected_at' => $user->{$column.'_rejected_at'}->format('d M Y'),
+                'rejected_by' => Auth::user()->full_name,
+            ]);
+        }
+
+        return redirect()->back()->with('success', "{$user->full_name}: {$label} marked \"upload again\".");
     }
 
     /**
-     * Undo a signature rejection (e.g. a mis-click during review).
+     * Undo a photo or signature rejection (a mis-click, or a printer who
+     * disagrees). A cancelled "ready to print" mark is not restored.
      */
-    public function restoreSignature(User $user): JsonResponse
+    public function restoreImage(Request $request, User $user, string $type): JsonResponse|RedirectResponse
     {
         $this->authorizeWithinScope($user);
 
-        $user->signature_rejected_at = null;
-        $user->signature_rejected_by_id = null;
+        $user->clearImageRejection(ImageRejection::column($type));
         $user->save();
 
-        return response()->json(['rejected' => false]);
+        if ($request->expectsJson()) {
+            return response()->json(['rejected' => false, 'type' => $type]);
+        }
+
+        $label = $type === 'photo' ? 'Photo' : 'Signature';
+
+        return redirect()->back()->with('success', "{$user->full_name}: {$label} rejection undone.");
+    }
+
+    /**
+     * "Mark as ready to print" for staff who cannot print. Takes the same
+     * user_ids JSON as Mark as Printed. Only complete, unrejected cards inside
+     * the actor's branch/division are marked; already-marked ones are left.
+     */
+    public function markReadyToPrint(Request $request): RedirectResponse
+    {
+        $selected = json_decode((string) $request->input('user_ids'), true);
+        $userIds = is_array($selected) ? array_filter(array_map('intval', array_column($selected, 'id'))) : [];
+
+        if (empty($userIds)) {
+            return redirect()->back()->with('error', 'No cards selected to mark as ready to print.');
+        }
+
+        $eligible = $this->scopedToActor(User::query())
+            ->whereIn('users.id', $userIds)
+            ->idCardPrintable()
+            ->whereDoesntHave('pendingIdCardPrintRequest')
+            ->pluck('users.id');
+
+        $now = now();
+        foreach ($eligible as $userId) {
+            IdCardPrintRequest::create([
+                'user_id' => $userId,
+                'requested_by_user_id' => Auth::id(),
+                'requested_at' => $now,
+                'status' => IdCardPrintRequest::STATUS_PENDING,
+            ]);
+        }
+
+        $marked = $eligible->count();
+        $skipped = count(array_unique($userIds)) - $marked;
+        $message = $marked === 1 ? '1 card marked as ready to print.' : "{$marked} cards marked as ready to print.";
+        if ($skipped > 0) {
+            $message .= " {$skipped} skipped (already marked, incomplete, or photo/signature needs to be uploaded again).";
+        }
+
+        return redirect()->back()->with($marked > 0 ? 'success' : 'error', $message);
+    }
+
+    /**
+     * Remove a "ready to print" mark. Allowed for anyone who can mark cards
+     * and for the printers, inside their own branch/division.
+     */
+    public function unmarkReadyToPrint(User $user): RedirectResponse
+    {
+        $actor = Auth::user();
+        abort_unless($actor->can('request_idcard_print') || $actor->can('print_idcards'), 403);
+        $this->authorizeWithinScope($user);
+
+        $user->cancelPendingIdCardPrintRequests(IdCardPrintRequest::CANCEL_REMOVED, $actor->id);
+
+        return redirect()->back()->with('success', "{$user->full_name}: ready-to-print mark removed.");
+    }
+
+    /**
+     * Limit a users query to the actor's branch/division (national: all) —
+     * the query form of authorizeWithinScope().
+     */
+    private function scopedToActor($query)
+    {
+        $actor = Auth::user();
+        $accessLevel = $actor->getAccessLevel();
+        $scopedId = $actor->getScopedId();
+
+        return match (true) {
+            $accessLevel === 'national' => $query,
+            $accessLevel === 'branch' && (bool) $scopedId => $query->where('users.branch_id', $scopedId),
+            $accessLevel === 'division' && (bool) $scopedId => $query->where('users.division_id', $scopedId),
+            default => $query->whereRaw('1 = 0'),
+        };
     }
 
     /**

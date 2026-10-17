@@ -390,15 +390,30 @@ Route::middleware(['auth', 'verified.or.absent'])->group(function () {
             Route::get('/id-cards/prepare-bulk-print', [IdCardController::class, 'showBulkPrintForm'])
                 ->name('id-cards.prepare-bulk-print');
             Route::get('/id-cards/prints-report', [IdCardController::class, 'showIdCardPrintsReport'])->name('id-cards.prints-report');
+
+            // Remove a "ready to print" mark: markers or printers (checked in the controller).
+            Route::delete('/id-cards/{user}/ready-to-print', [IdCardController::class, 'unmarkReadyToPrint'])->name('id-cards.unmark-ready');
         });
 
         Route::middleware(['can:print_idcards'])->group(function () {
             Route::get('/id-card/print/{user}', [IdCardController::class, 'printCard'])->name('id-card.print');
             Route::post('/id-cards/print-bulk', [IdCardController::class, 'printBulkCards'])->name('id-cards.print-bulk');
             Route::post('/id-cards/record-bulk-prints', [IdCardController::class, 'recordBulkIdCardPrints'])->name('id-cards.record-bulk-prints');
-            Route::post('/id-cards/{user}/reject-signature', [IdCardController::class, 'rejectSignature'])->name('id-cards.reject-signature');
-            Route::delete('/id-cards/{user}/reject-signature', [IdCardController::class, 'restoreSignature'])->name('id-cards.restore-signature');
         });
+
+        // Photo / signature "upload again" — any admin, inside their own branch/division.
+        Route::middleware(['can:reject_images'])->group(function () {
+            Route::post('/id-cards/{user}/reject-image/{type}', [IdCardController::class, 'rejectImage'])
+                ->whereIn('type', \App\Support\ImageRejection::TYPES)
+                ->name('id-cards.reject-image');
+            Route::delete('/id-cards/{user}/reject-image/{type}', [IdCardController::class, 'restoreImage'])
+                ->whereIn('type', \App\Support\ImageRejection::TYPES)
+                ->name('id-cards.restore-image');
+        });
+
+        Route::post('/id-cards/mark-ready', [IdCardController::class, 'markReadyToPrint'])
+            ->name('id-cards.mark-ready')
+            ->middleware('can:request_idcard_print');
 
         Route::delete('/id-cards/bulk-delete-prints', [IdCardController::class, 'bulkDeletePrints'])
             ->name('id-cards.bulk-delete-prints')

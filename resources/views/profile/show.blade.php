@@ -134,7 +134,36 @@
                             <p class="text-base text-gray-700 italic text-center leading-relaxed mt-2"><strong>Humanity</strong> · <strong>Impartiality</strong> · <strong>Neutrality</strong> · <strong>Independence</strong> · <strong>Voluntary Service</strong> · <strong>Unity</strong> · <strong>Universality</strong></p>
                         </div>
 
+                        @if($user->needsPictureReupload())
+                            @php $photoReason = \App\Support\ImageRejection::describe($user, 'photo'); @endphp
+                            <div class="mt-4 flex justify-center">
+                                <div class="w-full max-w-2xl rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-amber-900">
+                                    <div class="flex items-start gap-3">
+                                        <i class="fas fa-triangle-exclamation mt-0.5 text-amber-600"></i>
+                                        <div class="text-sm leading-relaxed">
+                                            <div class="font-semibold">
+                                                Please upload a new photo
+                                            </div>
+                                            <p class="mt-1">
+                                                Your current photo can't be used on your ID card. Please upload a
+                                                clear, passport-style photo of your face.
+                                            </p>
+                                            @if($photoReason)
+                                                <p class="mt-1"><span class="font-semibold">Reason:</span> {{ $photoReason }}</p>
+                                            @endif
+                                            <p class="mt-2">
+                                                <a href="{{ route('profile.edit-photo') }}" class="btn-primary">
+                                                    <i class="fas fa-camera mr-2"></i>Upload again
+                                                </a>
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        @endif
+
                         @if($user->needsSignatureReupload())
+                            @php $signatureReason = \App\Support\ImageRejection::describe($user, 'signature'); @endphp
                             <div class="mt-4 flex justify-center">
                                 <div class="w-full max-w-2xl rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-amber-900">
                                     <div class="flex items-start gap-3">
@@ -147,9 +176,12 @@
                                                 Your current signature image isn't clear enough to use on your
                                                 ID card. Please upload a new, clearer one.
                                             </p>
+                                            @if($signatureReason)
+                                                <p class="mt-1"><span class="font-semibold">Reason:</span> {{ $signatureReason }}</p>
+                                            @endif
                                             <p class="mt-2">
                                                 <a href="{{ route('profile.edit-signature') }}" class="btn-primary">
-                                                    <i class="fas fa-signature mr-2"></i>Update Signature
+                                                    <i class="fas fa-signature mr-2"></i>Upload again
                                                 </a>
                                             </p>
                                         </div>

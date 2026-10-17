@@ -18,6 +18,8 @@ class RedCrossUnitController extends Controller
 {
     use PaginatesMembers;
 
+    private const REPORT_MEMBERS_PER_PAGE = 100; // /my-unit/report: fewer pages for large units
+
     /**
      * Display the user's Red Cross Unit details (User-facing view)
      */
@@ -350,28 +352,34 @@ class RedCrossUnitController extends Controller
         // Summary tiles cover the whole unit, not just the current page.
         // Streamed in chunks over only the columns the checks read, so a
         // 5,000-member unit stays at a handful of queries and flat memory.
-        $summary = ['total' => 0, 'complete' => 0, 'oldPhoto' => 0];
+        $summary = ['total' => 0, 'complete' => 0, 'oldPhoto' => 0, 'uploadAgain' => 0];
         $redCrossUnit->activeUsers()
-            ->select(['id', 'first_name', 'last_name', 'picture', 'signature', 'national_id_number', 'image_upload_date'])
+            ->select(['id', 'first_name', 'last_name', 'picture', 'signature', 'national_id_number', 'image_upload_date',
+                'picture_rejected_at', 'signature_rejected_at'])
             ->with($membership)
             ->lazyById(1000)
             ->each(function (User $u) use (&$summary) {
                 $summary['total']++;
-                // Same completeness rule as the per-card check in the view
+                // Same completeness rule as the per-card check in the view; a
+                // rejected photo/signature blocks printing, so it is not complete.
                 if ($u->picture && $u->hasSignature() && $u->national_id_number
                     && $u->currentMembershipPayment?->membershipFee?->name
-                    && $u->last_name && $u->first_name) {
+                    && $u->last_name && $u->first_name && ! $u->hasImageRejection()) {
                     $summary['complete']++;
+                }
+                if ($u->hasImageRejection()) {
+                    $summary['uploadAgain']++;
                 }
                 if ($u->picture && ! is_null($u->image_age_in_years) && $u->image_age_in_years >= 5) {
                     $summary['oldPhoto']++;
                 }
             });
 
-        // One page of cards; branch/division/redCrossUnit feed user_id_reference.
+        // One page of cards (100 here, 24 on the other unit pages);
+        // branch/division/redCrossUnit feed user_id_reference.
         $users = $this->paginateMembers($redCrossUnit->activeUsers()->with([
             'branch', 'division', 'redCrossUnit', ...$membership,
-        ]));
+        ]), self::REPORT_MEMBERS_PER_PAGE);
 
         return view('red-cross-units.my-unit-report', compact('redCrossUnit', 'summary', 'users'));
     }

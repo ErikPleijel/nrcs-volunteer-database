@@ -917,7 +917,9 @@
                                         {{-- Line 5: Photo --}}
                                         <div class="leading-snug py-0.5">
                                             Photo:
-                                            @if($user->picture)
+                                            @if($user->needsPictureReupload())
+                                                <span class="text-red-600">Rejected {{ $user->picture_rejected_at->format('d M Y') }}</span>
+                                            @elseif($user->picture)
                                                 OK
                                             @else
                                                 <span class="text-red-600">Not uploaded</span>
