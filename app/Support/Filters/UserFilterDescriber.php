@@ -37,7 +37,7 @@ class UserFilterDescriber
         // --------------------------------------------------
         // Search
         // --------------------------------------------------
-        // An 11-digit term (NIN or phone) is shown masked (see SearchTerm).
+        // A phone or NIN term is shown masked (see SearchTerm).
         if (($search = SearchTerm::from($filters)) !== '') {
             $labels[] = SearchTerm::label($search);
         }

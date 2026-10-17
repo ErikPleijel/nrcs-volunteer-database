@@ -81,7 +81,7 @@ class MessagingCampaign extends Model
 
     protected static function booted(): void
     {
-        // Never store an 11-digit search (NIN or phone) in plain text, whichever form or wizard
+        // Never store a phone or NIN search in plain text, whichever form or wizard
         // step wrote filter_json (see SearchTerm).
         static::saving(function (MessagingCampaign $campaign) {
             if ($campaign->isDirty('filter_json') && is_array($campaign->filter_json)) {

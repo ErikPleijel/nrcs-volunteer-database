@@ -2,18 +2,17 @@
 
 namespace App\Support\Filters;
 
-use App\Support\NationalIdNumber;
 use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Support\Facades\Crypt;
 
 /**
- * The users-list search term, kept private when it may be a National ID
- * number.
+ * The users-list search term, kept private when it is a phone number or
+ * National ID number.
  *
- * Any 11-digit term (after stripping spaces, dashes and dots) is treated
- * alike, since a NIN and a Nigerian phone number (080…) can't be told
- * apart: on screen it is shown masked, with a generic label, and in a saved
- * campaign (filter_json) it is stored encrypted under ENCRYPTED_KEY in
+ * Every term ParsedSearch reads as a phone or NIN (10, 11 or 13 digits) is
+ * treated alike, since an 11-digit NIN and a phone number (080…) can't be
+ * told apart: on screen it is shown masked, with a generic label, and in a
+ * saved campaign (filter_json) it is stored encrypted under ENCRYPTED_KEY in
  * place of the plain 'search', so the audience can still be rebuilt with
  * the exact same search without the full number sitting in
  * messaging_campaigns.
@@ -46,38 +45,37 @@ class SearchTerm
     }
 
     /**
-     * 11 digits once separators are stripped — a NIN or a phone number.
-     * Same normalization and digit check as a NIN, but no claim that it is one.
+     * A phone number or NIN (see ParsedSearch::isSensitive()).
      */
-    public static function isElevenDigits(string $search): bool
+    public static function isSensitive(string $search): bool
     {
-        return NationalIdNumber::isValid(NationalIdNumber::normalize($search));
+        return ParsedSearch::parse($search)->isSensitive();
     }
 
     /**
-     * Label for the filter summary: 'Search: ●●●●●●●●901' for an
-     * 11-digit term, 'Search: "…"' otherwise.
+     * Label for the filter summary: 'Search: ●●●●●●●●901' for a phone or
+     * NIN term, 'Search: "…"' otherwise.
      */
     public static function label(string $search): string
     {
-        if (self::isElevenDigits($search)) {
-            $normalized = NationalIdNumber::normalize($search);
+        $parsed = ParsedSearch::parse($search);
 
-            return 'Search: '.str_repeat('●', 8).substr($normalized, -3);
+        if ($parsed->isSensitive()) {
+            return 'Search: '.str_repeat('●', 8).substr($parsed->value, -3);
         }
 
         return 'Search: "'.$search.'"';
     }
 
     /**
-     * Filters ready to be stored as campaign filter_json: an 11-digit
+     * Filters ready to be stored as campaign filter_json: a phone or NIN
      * 'search' is swapped for its encrypted copy.
      */
     public static function forStorage(array $filters): array
     {
         $search = trim((string) ($filters['search'] ?? ''));
 
-        if ($search === '' || ! self::isElevenDigits($search)) {
+        if ($search === '' || ! self::isSensitive($search)) {
             return $filters;
         }
 

@@ -96,7 +96,7 @@
 
                                 <li><span class="font-semibold">To find the account:</span>
                                     <ul class="list-circle pl-4 mt-1 space-y-0.5">
-                                        <li>Search by name or phone number.</li>
+                                        <li>Search by name or full phone number.</li>
                                         <li>Not found? <span class="font-semibold">Show all filters → Lifecycle → All</span>.</li>
                                         <li>Open the account with <span class="font-semibold">View</span>, then click <span class="font-semibold">Edit</span> to make changes.</li>
                                     </ul>
@@ -691,7 +691,7 @@
 
                             <form method="POST" action="{{ route('campaigns.wizard.start') }}" class="inline-block">
                                 @csrf
-                                {{-- An 11-digit search (NIN or phone) goes in encrypted, never as the plain number --}}
+                                {{-- A phone or NIN search goes in encrypted, never as the plain number --}}
                                 <input type="hidden" name="filter_json" value='@json(\App\Support\Filters\SearchTerm::forStorage(request()->except(["page"])))'>
 
                                 <button
@@ -729,7 +729,12 @@
                 {!! $filterDescriptionHtml !!}
             </div>
 
-            @if (request()->filled('search') && request('archived_filter', 'operational') === 'operational' && $users->total() === 0)
+            @if ($searchNotice)
+                <div class="mt-2 rounded-md bg-amber-50 border border-amber-200 px-3 py-2 text-lg text-amber-800" data-search-notice>
+                    <i class="text-amber-400 fas fa-lightbulb mr-1"></i>
+                    {{ $searchNotice }}
+                </div>
+            @elseif (request()->filled('search') && request('archived_filter', 'operational') === 'operational' && $users->total() === 0)
                 <div class="mt-2 rounded-md bg-amber-50 border border-amber-200 px-3 py-2 text-lg text-amber-800">
                     <i class="text-amber-400 fas fa-lightbulb mr-1"></i>
                     Don´t find person? Tip: Set <strong>Lifecycle → All</strong>.

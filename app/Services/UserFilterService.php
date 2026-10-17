@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\User;
+use App\Support\Filters\ParsedSearch;
 use App\Support\Filters\SearchTerm;
 use App\Support\NationalIdNumber;
 use Carbon\Carbon;
@@ -33,42 +34,12 @@ class UserFilterService
         // ----------------------------
         // Search
         // ----------------------------
-        // A saved campaign keeps a NIN search encrypted (see SearchTerm).
+        // A saved campaign keeps a phone/NIN search encrypted (see SearchTerm).
+        // The term's shape decides which fields it searches (see ParsedSearch).
         $search = SearchTerm::from($filters);
 
         if ($search !== '') {
-            $query->where(function ($q) use ($search) {
-
-                // If numeric → ID search
-                if (is_numeric($search)) {
-                    $q->where('id', $search);
-                }
-
-                // Split search into parts (for full names)
-                $parts = preg_split('/\s+/', $search) ?: [];
-
-                $q->orWhere(function ($nameQuery) use ($parts) {
-                    foreach ($parts as $part) {
-                        $nameQuery->where(function ($sub) use ($part) {
-                            $sub->where('first_name', 'like', "%{$part}%")
-                                ->orWhere('last_name', 'like', "%{$part}%");
-                        });
-                    }
-                });
-
-                // Other fields
-                $q->orWhere('email', 'like', "%{$search}%")
-                    ->orWhere('telephone1', 'like', "%{$search}%")
-                    ->orWhere('telephone2', 'like', "%{$search}%");
-
-                // NIN: the column is encrypted, so only an exact match on the
-                // keyed hash works — no partial NIN search. Skipped when
-                // NIN_HASH_KEY is unset rather than failing the whole list.
-                $nin = NationalIdNumber::normalize($search);
-                if (NationalIdNumber::isValid($nin) && (string) config('app.nin_hash_key') !== '') {
-                    $q->orWhere('national_id_number_hash', NationalIdNumber::hash($nin));
-                }
-            });
+            $this->applySearch($query, ParsedSearch::parse($search));
         }
 
         // Task Force (any)
@@ -639,6 +610,63 @@ class UserFilterService
         }
 
         return $query;
+    }
+
+    /**
+     * The search box: each kind of term searches only its own fields, all
+     * exact except names and email (see ParsedSearch).
+     */
+    private function applySearch(Builder $query, ParsedSearch $search): void
+    {
+        match ($search->type) {
+            ParsedSearch::DB_CODE => $query->where('id', (int) $search->value),
+
+            ParsedSearch::PHONE, ParsedSearch::PHONE_OR_NIN => $query->where(function ($q) use ($search) {
+                $forms = $search->phoneForms();
+                $placeholders = implode(', ', array_fill(0, count($forms), '?'));
+
+                $q->whereRaw($this->phoneDigitsSql('telephone1')." IN ({$placeholders})", $forms)
+                    ->orWhereRaw($this->phoneDigitsSql('telephone2')." IN ({$placeholders})", $forms);
+
+                // NIN: the column is encrypted, so only an exact match on the
+                // keyed hash works. Skipped when NIN_HASH_KEY is unset rather
+                // than failing the whole list.
+                if ($search->type === ParsedSearch::PHONE_OR_NIN && (string) config('app.nin_hash_key') !== '') {
+                    $q->orWhere('national_id_number_hash', NationalIdNumber::hash($search->value));
+                }
+            }),
+
+            ParsedSearch::BAD_NUMBER => $query->whereRaw('1 = 0'),
+
+            ParsedSearch::EMAIL => $query->where('email', 'like', "%{$search->value}%"),
+
+            ParsedSearch::TEXT => $query->where(function ($q) use ($search) {
+                // Every part of a full name must match a first or last name.
+                $q->where(function ($nameQuery) use ($search) {
+                    foreach (preg_split('/\s+/', $search->value) ?: [] as $part) {
+                        $nameQuery->where(function ($sub) use ($part) {
+                            $sub->where('first_name', 'like', "%{$part}%")
+                                ->orWhere('last_name', 'like', "%{$part}%");
+                        });
+                    }
+                })->orWhere('email', 'like', "%{$search->value}%");
+            }),
+        };
+    }
+
+    /**
+     * SQL for a stored phone column with the formatting people type around
+     * the digits removed (spaces, dashes, dots, '+', commas, brackets), so it
+     * can be compared exactly with ParsedSearch::phoneForms().
+     */
+    private function phoneDigitsSql(string $column): string
+    {
+        $sql = $column;
+        foreach ([' ', '-', '.', '+', ',', '(', ')'] as $char) {
+            $sql = "REPLACE({$sql}, '{$char}', '')";
+        }
+
+        return $sql;
     }
 
     /**

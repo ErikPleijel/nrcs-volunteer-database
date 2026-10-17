@@ -21,6 +21,7 @@ use App\Support\PhoneNumber;
 use App\Support\SpecialPermissions;
 use App\Services\UserAnonymizer;
 use App\Services\UserFilterService;
+use App\Services\UserSearchNotice;
 use App\Support\Filters\UserFilterDescriber;
 use App\Traits\HandlesImageUploads;
 use Carbon\Carbon; // Ensure Log facade is imported
@@ -50,7 +51,7 @@ class UserController extends Controller
     /**
      * Display a listing of users.
      */
-    public function index(Request $request, UserFilterService $userFilterService): View
+    public function index(Request $request, UserFilterService $userFilterService, UserSearchNotice $userSearchNotice): View
     {
         $user = Auth::user();
         $accessLevel = $user->getAccessLevel();
@@ -282,7 +283,13 @@ class UserController extends Controller
         $campaignPurposes = CampaignPurpose::active()->orderBy('sort_order')->get();
         $currentYear = now()->year;
 
+        // Why a search found nobody, where that is safe to say (see UserSearchNotice).
+        $searchNotice = $users->total() === 0 && $request->filled('search')
+            ? $userSearchNotice->for($user, $accessLevel, $scopedId, (string) $request->input('search'))
+            : null;
+
         return view('users.index', compact(
+            'searchNotice',
             'users',
             'branches',
             'divisions',
