@@ -4,7 +4,8 @@
  * migrate:old-db runs db:seed itself, and runs payments:backfill-manual-shares
  * last — after db:seed — so the Income Distribution shares on the imported
  * manual payments cannot be forgotten. The sub-commands are recorded, not
- * run (no legacy database in tests).
+ * run (no legacy database in tests). Also: the letter-O phone fix runs
+ * (with --commit) straight after the users import.
  */
 
 use App\Console\Commands\OldDbMigration\MigrateOldDatabase;
@@ -27,7 +28,11 @@ function recordedImportCalls(array $options): array
 
     Artisan::shouldReceive('call')->andReturnUsing(function (string $command, array $parameters = []) use (&$calls) {
         // "db:seed --class=RolesTableSeeder" vs the main "db:seed".
-        $calls[] = isset($parameters['--class']) ? "{$command} --class={$parameters['--class']}" : $command;
+        $calls[] = match (true) {
+            isset($parameters['--class']) => "{$command} --class={$parameters['--class']}",
+            ! empty($parameters['--commit']) => "{$command} --commit",
+            default => $command,
+        };
 
         return 0;
     });
@@ -62,3 +67,12 @@ test('re-importing membership payments on their own also fills their shares', fu
 
     expect($calls)->toBe(['migrate:membership-payments', 'payments:backfill-manual-shares']);
 });
+
+test('the letter-O phone fix runs with --commit straight after the users import', function (string $table) {
+    $calls = recordedImportCalls(['--table' => $table]);
+
+    $users = array_search('migrate:users', $calls, true);
+
+    expect($users)->not->toBeFalse()
+        ->and($calls[$users + 1] ?? null)->toBe('users:fix-phone-letter-o --commit');
+})->with(['all', 'users']);

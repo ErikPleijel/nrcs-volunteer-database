@@ -38,7 +38,8 @@ ADAPT procedure accordingly. This might need changes:
   1. time zone check (`+01:00`)
   2. `php artisan migrate:fresh`
   3. `php -d memory_limit=2048M artisan migrate:old-db --table=all` —
-     this runs **db:seed itself** and, last,
+     this runs **db:seed itself**, `users:fix-phone-letter-o --commit`
+     right after the users import, and, last,
      `payments:backfill-manual-shares` (Income Distribution Tab 2 shares on
      the imported manual payments; its report must list no payments that
      "could not be filled")
