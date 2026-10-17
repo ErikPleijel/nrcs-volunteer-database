@@ -7,6 +7,7 @@ use App\Models\Activity;
 use App\Models\TaskForce;
 use App\Models\TaskForceType;
 use App\Models\User;
+use App\Services\UserFilterService;
 use App\Models\Branch; // Import Branch model
 use App\Models\Division; // Import Division model
 use Illuminate\Http\Request;
@@ -496,7 +497,7 @@ class TaskForceController extends Controller
      * not all selectable persons, so this does NOT match the broader
      * selectableForEntry() search used by donations/payments/trainings.
      */
-    public function searchUsers(Request $request, TaskForce $taskForce)
+    public function searchUsers(Request $request, TaskForce $taskForce, UserFilterService $userFilterService)
     {
         $query = $request->input('query');
         $existingMemberIds = $taskForce->users->pluck('id')->toArray();
@@ -505,16 +506,8 @@ class TaskForceController extends Controller
             return response()->json([]);
         }
 
-        $users = User::selectableForEntry()
-            ->volunteers()
-            ->where(function ($q) use ($query) {
-                $q->where('first_name', 'like', "%{$query}%")
-                    ->orWhere('last_name', 'like', "%{$query}%")
-                    ->orWhere('email', 'like', "%{$query}%")
-                    ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ["%{$query}%"])
-                    ->orWhereRaw("CONCAT(first_name, ' ', IFNULL(middle_name, ''), ' ', last_name) LIKE ?", ["%{$query}%"])
-                    ->orWhere('id', is_numeric($query) ? (int) $query : -1); // Add search by user ID
-            })
+        // Same rules as the users list (UserFilterService::applySearch()).
+        $users = $userFilterService->applySearch(User::selectableForEntry()->volunteers(), (string) $query)
             ->whereNotIn('id', $existingMemberIds) // Exclude already assigned members
             ->orderBy('first_name')
             ->orderBy('last_name')

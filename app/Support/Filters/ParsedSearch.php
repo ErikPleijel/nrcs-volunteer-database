@@ -12,8 +12,8 @@ use App\Support\DbNumber;
  *              (13 digits) → telephone1/2, exact after normalising.
  * - Phone/NIN: 11 digits → NIN (keyed hash) and telephone1/2, exact.
  * - Bad number: any other run of digits → matches nobody.
- * - Email:     contains '@' → email LIKE.
- * - Text:      anything else → name parts, or email LIKE.
+ * - Email:     contains '@' → email, matching from the start.
+ * - Text:      anything else → name parts only, never email.
  *
  * Spaces, dashes, dots and brackets inside a number are ignored.
  */

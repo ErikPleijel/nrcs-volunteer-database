@@ -119,16 +119,38 @@ test('an 11-digit NIN matches by its hash, with spaces ignored', function () {
 
 // ---------------------------------------------------------------- Text
 
-test('a term with @ searches email only', function () {
-    searchUsers($this, $this->national, 'zebedee@')
+test('a term with @ searches email from the start of the address', function (string $term) {
+    searchUsers($this, $this->national, $term)
         ->assertSee('Found 1 result')
         ->assertSee('Zebedee');
+})->with(['zebedee@', 'Zebedee@Example.org', 'zebedee@example.org']);
+
+test('a term with @ does not match inside an email', function (string $term) {
+    searchUsers($this, $this->national, $term)
+        ->assertSee('Found 0 results')
+        ->assertDontSee('Zebedee')
+        ->assertDontSee('Emaildecoy');
+})->with(['@example.org', 'bedee@', '%@example.org', '_ebedee@']);
+
+test('a term with letters searches names only, never email', function () {
+    searchUsers($this, $this->national, 'zebe targ')->assertSee('Found 1 result')->assertSee('Zebedee');
+
+    // 'example' and 'org' are in every test email but in nobody's name.
+    searchUsers($this, $this->national, 'example')->assertSee('Found 0 results');
+    searchUsers($this, $this->national, 'example.org')->assertSee('Found 0 results');
 });
 
-test('a term with letters searches name parts and email', function () {
-    searchUsers($this, $this->national, 'zebe targ')->assertSee('Found 1 result')->assertSee('Zebedee');
-    searchUsers($this, $this->national, 'example.org')->assertSee('Zebedee')->assertSee('Emaildecoy');
+test('a middle name matches as a name part', function () {
+    $this->target->update(['middle_name' => 'Quillon']);
+
+    searchUsers($this, $this->national, 'zebedee quillon')->assertSee('Found 1 result')->assertSee('Zebedee');
 });
+
+test('digits never match an email, whatever their length', function (string $term) {
+    User::factory()->create(['first_name' => 'Digitmail', 'email' => 'samuelpat1234567892468@example.org']);
+
+    searchUsers($this, $this->national, $term)->assertDontSee('Digitmail');
+})->with(['12345', '1234567', '123456789', '1234567892468', '92468']);
 
 // ---------------------------------------------------------------- Notices
 

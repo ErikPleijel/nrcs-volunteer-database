@@ -1615,7 +1615,7 @@ class UserController extends Controller
      *
      * @return \Illuminate\Http\JsonResponse
      */
-    public function searchUsersForRoles(Request $request)
+    public function searchUsersForRoles(Request $request, UserFilterService $userFilterService)
     {
         $this->authorize('manage_roles_and_permissions');
 
@@ -1658,16 +1658,9 @@ class UserController extends Controller
             });
         }
 
-        $users = $query->where(function ($query) use ($search) {
-            $query->where('first_name', 'like', "%{$search}%")
-                ->orWhere('last_name', 'like', "%{$search}%")
-                ->orWhere('email', 'like', "%{$search}%")
-                ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ["%{$search}%"])
-                ->orWhereRaw("CONCAT(first_name, ' ', IFNULL(middle_name, ''), ' ', last_name) LIKE ?", ["%{$search}%"]);
-            if (is_numeric($search)) {
-                $query->orWhere('id', $search);
-            }
-        })
+        // Same rules as the users list: a number is a DB code / phone / NIN,
+        // '@' searches email from the start, other text names only.
+        $users = $userFilterService->applySearch($query, (string) $search)
             ->take(10)
             ->get();
 

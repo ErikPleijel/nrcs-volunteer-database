@@ -112,7 +112,7 @@
                         </button>
                         <div x-show="open === 'assign'" x-collapse class="px-4 py-3 bg-white">
                             <ul class="space-y-1 text-gray-700 list-disc pl-4">
-                                <li>Use <span class="font-semibold">Search for a User</span> to find the person by name, email, or ID.</li>
+                                <li>Use <span class="font-semibold">Search for a User</span> to find the person by name, DB number, phone, or email (from the start, e.g. <span class="font-semibold">samuelpat@</span>).</li>
                                 <li>Their <span class="font-semibold">current role</span> is shown at the top of the form once selected.</li>
                                 <li>Choose a new role from <span class="font-semibold">Assign Role</span> and click <span class="font-semibold">Update Roles &amp; Permissions</span> to save.</li>
                                 <li>Click <span class="font-semibold">Clear / Search for another user</span> to start over with someone else.</li>
@@ -186,7 +186,7 @@
                         @endif</h2>
 
                     <div class="relative">
-                        <input type="text" id="user-search" class="w-full form-input" placeholder="Start typing to search by name, email, or ID...">
+                        <input type="text" id="user-search" class="w-full form-input" placeholder="Name, DB number, phone, or email (from the start)...">
                         <div id="search-results" class="absolute z-10 w-full bg-white border border-gray-300 rounded-md mt-1 shadow-lg hidden"></div>
                     </div>
                     @error('user_id')

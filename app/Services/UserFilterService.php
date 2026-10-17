@@ -39,7 +39,7 @@ class UserFilterService
         $search = SearchTerm::from($filters);
 
         if ($search !== '') {
-            $this->applySearch($query, ParsedSearch::parse($search));
+            $this->applySearch($query, $search);
         }
 
         // Task Force (any)
@@ -613,11 +613,15 @@ class UserFilterService
     }
 
     /**
-     * The search box: each kind of term searches only its own fields, all
-     * exact except names and email (see ParsedSearch).
+     * A person search box: each kind of term searches only its own fields
+     * (see ParsedSearch). Shared by the users list and the other person
+     * pickers (role assignment, task force members), so a number never
+     * matches an email or name anywhere.
      */
-    private function applySearch(Builder $query, ParsedSearch $search): void
+    public function applySearch(Builder $query, ParsedSearch|string $search): Builder
     {
+        $search = is_string($search) ? ParsedSearch::parse($search) : $search;
+
         match ($search->type) {
             ParsedSearch::DB_CODE => $query->where('id', (int) $search->value),
 
@@ -638,20 +642,34 @@ class UserFilterService
 
             ParsedSearch::BAD_NUMBER => $query->whereRaw('1 = 0'),
 
-            ParsedSearch::EMAIL => $query->where('email', 'like', "%{$search->value}%"),
+            // From the start of the address only: 'samuelpat@' or the full
+            // address, never '@gmail.com' listing everyone at gmail.
+            ParsedSearch::EMAIL => $query->where('email', 'like', $this->escapeLike($search->value).'%'),
 
+            // Names only. Every part of a full name must match a first,
+            // middle or last name.
             ParsedSearch::TEXT => $query->where(function ($q) use ($search) {
-                // Every part of a full name must match a first or last name.
-                $q->where(function ($nameQuery) use ($search) {
-                    foreach (preg_split('/\s+/', $search->value) ?: [] as $part) {
-                        $nameQuery->where(function ($sub) use ($part) {
-                            $sub->where('first_name', 'like', "%{$part}%")
-                                ->orWhere('last_name', 'like', "%{$part}%");
-                        });
-                    }
-                })->orWhere('email', 'like', "%{$search->value}%");
+                foreach (preg_split('/\s+/', $search->value) ?: [] as $part) {
+                    $like = '%'.$this->escapeLike($part).'%';
+                    $q->where(function ($sub) use ($like) {
+                        $sub->where('first_name', 'like', $like)
+                            ->orWhere('middle_name', 'like', $like)
+                            ->orWhere('last_name', 'like', $like);
+                    });
+                }
             }),
         };
+
+        return $query;
+    }
+
+    /**
+     * A typed term made literal inside LIKE: '_' (common in emails) and '%'
+     * match only themselves.
+     */
+    private function escapeLike(string $value): string
+    {
+        return str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $value);
     }
 
     /**
