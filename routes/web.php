@@ -51,6 +51,7 @@ use App\Http\Controllers\TrainingController;
 use App\Http\Controllers\TrainingTypeController;
 use App\Http\Controllers\UnsubscribeController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\UserImageController;
 use App\Http\Controllers\PhotoController;
 use App\Http\Controllers\PolicyAcceptanceController;
 use App\Http\Controllers\WelcomeController;
@@ -349,9 +350,13 @@ Route::middleware(['auth', 'verified.or.absent'])->group(function () {
             Route::middleware('can:edit_user')->group(function () {
                 Route::get('/{user}/edit', [UserController::class, 'edit'])->name('edit');
                 Route::put('/{user}', [UserController::class, 'update'])->name('update');
-                Route::post('/{user}/profile-picture', [UserController::class, 'updateProfilePicture'])->name('update-profile-picture');
-                Route::post('/{user}/update-signature', [UserController::class, 'updateSignature'])->name('update-signature');
             });
+
+            // Photo & signature upload: its own page and check (UserPolicy::uploadImages —
+            // editors of the person, or division assistants with the tick box).
+            Route::get('/{user}/images', [UserImageController::class, 'edit'])->name('images.edit');
+            Route::post('/{user}/images/photo', [UserImageController::class, 'updatePhoto'])->name('images.photo');
+            Route::post('/{user}/images/signature', [UserImageController::class, 'updateSignature'])->name('images.signature');
 
             Route::middleware('can:remove_user')->group(function () {
                 Route::delete('/{user}', [UserController::class, 'destroy'])->name('destroy');

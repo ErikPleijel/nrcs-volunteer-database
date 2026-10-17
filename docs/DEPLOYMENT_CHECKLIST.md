@@ -183,6 +183,11 @@ For DB-273857: since it holds a finance role and would be the one archived, don'
   migrations newer than the import)
 - [ ] `php artisan db:seed --class=SuperAdminSeeder` (see above; the only
   seeder to run on the server)
+- [ ] If `PermissionsTableSeeder` is ever run on the server: always after
+  `php artisan migrate`. It stops with an error if migration
+  `2026_10_17_120000_move_branch_financial_approval_to_direct_permissions`
+  has not run (it would otherwise take financial approval away from every
+  branch DB administrator).
 - [ ] `php artisan payments:backfill-manual-shares --dry-run` → "Nothing to fill"
 - [ ] `php artisan divisions:check-coordinates` → the same list as on the
   migration machine

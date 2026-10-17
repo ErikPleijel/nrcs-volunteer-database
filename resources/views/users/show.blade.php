@@ -16,14 +16,23 @@
         </a>
     </x-slot>
 
-    @can('edit_user')
+    @php $canUploadImages = $user->anonymized_at === null && auth()->user()->can('uploadImages', $user); @endphp
+    @if(auth()->user()->can('edit_user') || $canUploadImages)
         <x-slot name="button2">
-            <a href="{{ route('users.edit', $user) }}"
-               class="btn-edit">
-                <i class="fas fa-edit mr-1"></i>Edit Person
-            </a>
+            @if($canUploadImages)
+                <a href="{{ route('users.images.edit', $user) }}"
+                   class="btn-edit">
+                    <i class="fas fa-camera mr-1"></i>Photo &amp; Signature
+                </a>
+            @endif
+            @can('edit_user')
+                <a href="{{ route('users.edit', $user) }}"
+                   class="btn-edit">
+                    <i class="fas fa-edit mr-1"></i>Edit Person
+                </a>
+            @endcan
         </x-slot>
-    @endcan
+    @endif
 
     @if($user->isArchived())
         <div class="max-w-4xl mx-auto mb-6">
@@ -118,11 +127,11 @@
                     @if($rejectionReason)
                         <p class="mt-1 text-sm text-amber-800"><span class="font-semibold">Reason:</span> {{ $rejectionReason }}</p>
                     @endif
-                    @can('edit_user')
+                    @if($canUploadImages)
                         <p class="mt-1 text-sm text-amber-800">
-                            <a href="{{ route('users.edit', $user) }}" class="underline font-semibold">Upload a new {{ strtolower($imageLabel) }}</a>
+                            <a href="{{ route('users.images.edit', $user) }}" class="underline font-semibold">Upload a new {{ strtolower($imageLabel) }}</a>
                         </p>
-                    @endcan
+                    @endif
                 </div>
             </div>
         @endforeach

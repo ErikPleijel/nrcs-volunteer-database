@@ -6,6 +6,7 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Collection;
 use App\Models\User;
+use App\Support\SpecialPermissions;
 use Spatie\Permission\Models\Role;
 
 class SeedLegacyRoles extends Command
@@ -106,6 +107,9 @@ class SeedLegacyRoles extends Command
                         // the old system, and replace semantics prevent role stacking.
                         if (!$dryRun) {
                             $user->syncRoles([$newRoleName]);
+                            // Tick boxes that are ON by default for the role, e.g. "Can approve
+                            // financial records" for branch_db_administrator (given directly).
+                            SpecialPermissions::grantDefaults($user);
                         }
 
                         $assignedCount++;

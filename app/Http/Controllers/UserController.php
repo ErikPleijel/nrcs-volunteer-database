@@ -18,6 +18,7 @@ use App\Models\User;
 use App\Rules\NationalIdNumberRule;
 use App\Rules\NigerianMobileNumber;
 use App\Support\PhoneNumber;
+use App\Support\SpecialPermissions;
 use App\Services\UserAnonymizer;
 use App\Services\UserFilterService;
 use App\Support\Filters\UserFilterDescriber;
@@ -40,21 +41,11 @@ class UserController extends Controller
     use AuthorizesRequests, HandlesImageUploads; // Use the trait
 
     /**
-     * The specific permissions that can be assigned directly to a user.
-     * This is the authoritative whitelist for direct-permission assignment.
-     */
-    /**
      * The Authorizations form's "-- No Role --" value. Only this removes a role in
      * updateRoles(); an empty or missing role means "no change", so a field the
      * browser leaves out (e.g. the disabled "keep current" option) never removes one.
      */
     public const REMOVE_ROLE = '__remove__';
-
-    private const DIRECT_PERMISSION_NAMES = [
-        'print_idcards',
-        'print_certificates',
-        'campaign_request_approve',
-    ];
 
     /**
      * Display a listing of users.
@@ -354,6 +345,12 @@ class UserController extends Controller
             $divisions = Division::where('branch_id', $oldBranchId)->orderBy('name')->get();
         }
 
+        // Division staff register people in their own division only (store() enforces it).
+        if ($accessLevel === 'division') {
+            $divisions = Division::whereKey($scopedId)->get();
+            $oldDivisionId = $oldDivisionId ?: $scopedId;
+        }
+
         if ($oldDivisionId) {
             $redCrossUnits = RedCrossUnit::active()
                 ->where('division_id', $oldDivisionId)
@@ -440,6 +437,29 @@ class UserController extends Controller
 
         $validated = $validator->validated();
 
+        // Staff register people only inside their own area. The form already limits
+        // the choices; a posted form must not get around that.
+        $registrar = Auth::user();
+        $scopeError = match ($registrar->getAccessLevel()) {
+            'branch' => (int) $validated['branch_id'] !== (int) $registrar->getScopedId()
+                ? ['branch_id' => 'You can only register people in your own branch.'] : null,
+            'division' => (int) $validated['division_id'] !== (int) $registrar->getScopedId()
+                ? ['division_id' => 'You can only register people in your own division.'] : null,
+            'national' => null,
+            default => ['branch_id' => 'You are not allowed to register people.'],
+        };
+        if ($scopeError === null && ! empty($validated['red_cross_unit_id'])
+            && (int) RedCrossUnit::whereKey($validated['red_cross_unit_id'])->value('division_id') !== (int) $validated['division_id']) {
+            $scopeError = ['red_cross_unit_id' => 'The selected Red Cross Unit does not belong to the selected division.'];
+        }
+        if ($scopeError !== null) {
+            return redirect()->back()->withErrors($scopeError)->withInput();
+        }
+
+        // Photos/signatures sent with the form are kept only from staff allowed to
+        // upload images (division assistants need their own tick box for that).
+        $mayUploadImages = $registrar->can('edit_user') || $registrar->can('upload_user_images');
+
         // Handle checkboxes (redundant with nullable|boolean, but keeping for safety if input is 'on'/'off')
         $validated['can_contribute_volunteering'] = $request->input('contribution_type') === 'volunteering';
         $validated['can_contribute_member'] = $request->input('contribution_type') === 'member';
@@ -454,17 +474,22 @@ class UserController extends Controller
             $validated['email_verified_at'] = now();
         }
 
-        // Handle photo upload (either file upload or captured photo) using the trait method
-        $pictureFilename = $this->processPhotoUpload($request, 'profile', 'picture', 'captured_photo');
-        if ($pictureFilename) {
-            $validated['picture'] = $pictureFilename;
-            $validated['image_upload_date'] = now();   // ⬅️ set initial photo timestamp
-        }
+        // Never store the raw upload fields; only the processed filenames below.
+        unset($validated['picture'], $validated['captured_photo'], $validated['signature_file'], $validated['captured_signature']);
 
-        // Handle signature upload
-        $signatureFilename = $this->processPhotoUpload($request, 'signatures', 'signature_file', 'captured_signature');
-        if ($signatureFilename) {
-            $validated['signature'] = $signatureFilename;
+        if ($mayUploadImages) {
+            // Handle photo upload (either file upload or captured photo) using the trait method
+            $pictureFilename = $this->processPhotoUpload($request, 'profile', 'picture', 'captured_photo');
+            if ($pictureFilename) {
+                $validated['picture'] = $pictureFilename;
+                $validated['image_upload_date'] = now();   // ⬅️ set initial photo timestamp
+            }
+
+            // Handle signature upload
+            $signatureFilename = $this->processPhotoUpload($request, 'signatures', 'signature_file', 'captured_signature');
+            if ($signatureFilename) {
+                $validated['signature'] = $signatureFilename;
+            }
         }
 
         // --- System flags: admin form registration ---
@@ -1247,74 +1272,6 @@ class UserController extends Controller
     }
 
     /**
-     * Update the user's profile picture.
-     * This method is specifically for updating *only* the profile picture.
-     */
-    public function updateProfilePicture(Request $request, User $user)
-    {
-        if ($user->anonymized_at !== null) {
-            return redirect()->route('users.show', $user);
-        }
-
-        $request->validate([
-            'picture' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif', 'max:2048'],
-            'captured_photo' => ['nullable', 'string'], // For base64 captured photos
-        ]);
-
-        // Use the trait's unified photo processing method
-        $pictureFilename = $this->processPhotoUpload($request, 'profile', 'picture', 'captured_photo');
-
-        if ($pictureFilename) {
-            // Delete old photo files if a new one is successfully uploaded/captured
-            if ($user->picture) {
-                $this->deleteUserImage($user->picture, 'profile');
-            }
-
-            $user->picture = $pictureFilename;
-            $user->image_upload_date = now();   // ⬅️ refresh timestamp on change
-            $user->save();
-
-            return back()->with('success', 'Profile picture updated successfully.');
-        }
-
-        // If no file was uploaded and no photo was captured, or if there was an error
-        return back()->with('error', 'Photo uploaded but could not be processed — please try a different image or contact support.');
-    }
-
-    /**
-     * Update the user's signature.
-     * This method is specifically for updating *only* the signature.
-     */
-    public function updateSignature(Request $request, User $user)
-    {
-        if ($user->anonymized_at !== null) {
-            return redirect()->route('users.show', $user);
-        }
-
-        $request->validate([
-            'signature_file' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif', 'max:1024'],
-            'captured_signature' => ['nullable', 'string'], // For base64 captured signatures
-        ]);
-
-        // Use the trait's unified photo processing method for signatures
-        // Pass 'signatures' as the category for storage and 'signature_file'/'captured_signature' as input names
-        $signatureFilename = $this->processPhotoUpload($request, 'signatures', 'signature_file', 'captured_signature');
-
-        if ($signatureFilename) {
-            // Delete old signature files if a new one is successfully uploaded/captured
-            if ($user->signature) {
-                $this->deleteUserImage($user->signature, 'signatures');
-            }
-            $user->signature = $signatureFilename;
-            $user->save();
-
-            return back()->with('success', 'Signature updated successfully.');
-        }
-
-        return back()->with('error', 'Signature uploaded but could not be processed — please try a different image or contact support.');
-    }
-
-    /**
      * Show the page for editing user roles and permissions.
      *
      * @return \Illuminate\View\View
@@ -1328,32 +1285,54 @@ class UserController extends Controller
         $accessLevel = $assigningUser->getAccessLevel();
         $isSuperAdmin = $assigningUser->hasRole('super-admin');
 
-        // Define the specific permissions that can be assigned directly
-        $directPermissionNames = self::DIRECT_PERMISSION_NAMES;
-        $permissions = Permission::whereIn('name', $directPermissionNames)
-            ->orderBy('name')
-            ->get();
-
         $selectedUser = null;
         $userRole = null;
-        $userPermissions = [];
         // What the role dropdown may offer for the selected user — the same rules
         // updateRoles() enforces (blockedRoleRemovals()), so nothing shown is refused.
         $roleOptions = collect();
         $currentRoleAssignable = true;
         $canRemoveCurrentRole = true;
+        // A current role the actor cannot assign may still be kept (submitted
+        // unchanged) when the actor may change its special permissions — e.g. a
+        // national admin setting a division assistant's tick boxes.
+        $canKeepCurrentRole = false;
+        // Special-permission tick boxes, per role the dropdown can end up on.
+        $specialSections = [];
+        $otherFinancialApprovers = null;
 
         if ($request->filled('user_id')) {
             $selectedUser = User::with('roles', 'permissions')->find($request->user_id);
             if ($selectedUser) {
                 $userRole = $selectedUser->getRoleNames()->first();
-                $userPermissions = $selectedUser->getDirectPermissions()->pluck('name')->toArray();
 
                 $currentRoles = $selectedUser->getRoleNames();
                 $currentRoleAssignable = $userRole === null || $roles->contains('name', $userRole);
                 $canRemoveCurrentRole = $this->blockedRoleRemovals($assigningUser, $currentRoles, '')->isEmpty();
                 $roleOptions = $roles->filter(fn ($role) => $role->name === $userRole
                     || $this->blockedRoleRemovals($assigningUser, $currentRoles, $role->name)->isEmpty())->values();
+                $canKeepCurrentRole = ! $currentRoleAssignable && SpecialPermissions::canSetAny($assigningUser, $userRole);
+
+                $previousKeys = array_keys(SpecialPermissions::forRole($userRole));
+                $heldKeys = SpecialPermissions::heldKeys($selectedUser, $userRole);
+                $sectionRoles = $roleOptions->pluck('name')->push($userRole)->filter()->unique();
+                foreach ($sectionRoles as $sectionRole) {
+                    $boxes = [];
+                    foreach (SpecialPermissions::forRole($sectionRole) as $key => $option) {
+                        $boxes[$key] = $option + [
+                            'checked' => in_array($key, $previousKeys, true)
+                                ? in_array($key, $heldKeys, true)
+                                : $option['default'],
+                            'editable' => SpecialPermissions::canSet($assigningUser, $sectionRole, $key),
+                        ];
+                    }
+                    if ($boxes !== []) {
+                        $specialSections[$sectionRole] = $boxes;
+                    }
+                }
+
+                if (isset($specialSections['branch_db_administrator'])) {
+                    $otherFinancialApprovers = SpecialPermissions::otherBranchFinancialApprovers($selectedUser);
+                }
             }
         }
 
@@ -1389,7 +1368,7 @@ class UserController extends Controller
 
         $usersForTable = $usersForTableQuery->get();
 
-        return view('users.edit-roles', compact('roles', 'permissions', 'selectedUser', 'userRole', 'userPermissions', 'accessLevel', 'isSuperAdmin', 'usersForTable', 'roleOptions', 'currentRoleAssignable', 'canRemoveCurrentRole'));
+        return view('users.edit-roles', compact('roles', 'selectedUser', 'userRole', 'accessLevel', 'isSuperAdmin', 'usersForTable', 'roleOptions', 'currentRoleAssignable', 'canRemoveCurrentRole', 'canKeepCurrentRole', 'specialSections', 'otherFinancialApprovers'));
     }
 
     /**
@@ -1409,8 +1388,11 @@ class UserController extends Controller
                     $fail('The selected role is invalid.');
                 }
             }],
+            // Special-permission tick box keys (SpecialPermissions), not raw permission names.
             'permissions' => 'nullable|array',
-            'permissions.*' => 'string|exists:permissions,name',
+            'permissions.*' => ['string', Rule::in(SpecialPermissions::allKeys())],
+            // Sent by the form with the tick boxes; without it, unticked = "not sent".
+            'special_permissions_shown' => 'nullable|boolean',
         ]);
 
         $user = User::findOrFail($validated['user_id']);
@@ -1436,6 +1418,14 @@ class UserController extends Controller
         // Security check: Prevent branch-level admins from editing national-level users.
         if ($assigningUser->getAccessLevel() === 'branch' && $user->getAccessLevel() === 'national') {
             return $refuseTarget('Branch-level administrators cannot modify the roles of national-level users.');
+        }
+
+        // Security check: branch-level admins only manage people in their own branch.
+        // searchUsersForRoles() already limits the search; the form is reachable
+        // directly via ?user_id=, so the change itself must refuse too.
+        if ($assigningUser->getAccessLevel() === 'branch'
+            && (int) $user->branch_id !== (int) $assigningUser->getScopedId()) {
+            return $refuseTarget('Branch-level administrators can only modify users in their own branch.');
         }
 
         // Security check: no admin may ever modify their own role or permissions
@@ -1487,7 +1477,12 @@ class UserController extends Controller
         // authorize_* permission for. Every current role being removed or replaced must
         // be one the actor may remove (getRemovableRoles(), which adds revoke_*), apart
         // from super-admin's promotion rule (see blockedRoleRemovals()).
-        if ($incomingRole !== '' && ! $assigningUser->getAssignableRoles()->contains('name', $incomingRole)) {
+        // Keeping the target's current role is not assigning it (e.g. a national admin
+        // changing a division assistant's tick boxes); blockedRoleRemovals() below
+        // still governs any role that would be removed.
+        $keepsCurrentRole = $incomingRole !== '' && $user->hasRole($incomingRole);
+        if ($incomingRole !== '' && ! $keepsCurrentRole
+            && ! $assigningUser->getAssignableRoles()->contains('name', $incomingRole)) {
             return $refuseRole(sprintf('You are not authorized to assign the role "%s".', $this->roleLabel($incomingRole)));
         }
 
@@ -1500,39 +1495,32 @@ class UserController extends Controller
             ));
         }
 
-        // Whitelist: only the four direct permissions may be synced
-        $incomingPermissions = collect($validated['permissions'] ?? [])
-            ->intersect(self::DIRECT_PERMISSION_NAMES)
-            ->values()
-            ->all();
-
-        // Rule A: direct permissions are only meaningful on a national-level role.
-        // The direct permissions (print_idcards, print_certificates,
-        // campaign_request_approve) are only shown in the form for non-branch
-        // admins, but enforce server-side regardless.
-        $nationalRoles = [
-            'national_db_assistant',
-        ];
-        if (! empty($incomingPermissions) && ! in_array($incomingRole, $nationalRoles, true)) {
+        // Special permissions (SpecialPermissions): a ticked box must belong to the
+        // incoming role. Which boxes the actor may change, defaults for a new role,
+        // and dropping boxes the new role does not offer (incl. "no role" = none)
+        // are all decided in SpecialPermissions::resolve().
+        $submittedKeys = array_values($validated['permissions'] ?? []);
+        $foreignKeys = array_diff($submittedKeys, array_keys(SpecialPermissions::forRole($incomingRole)));
+        if ($foreignKeys !== []) {
             return redirect()
                 ->route('users.roles.edit', ['user_id' => $user->id])
-                ->withErrors(['permissions' => 'Direct permissions can only be assigned to National DB Assistants. '.
-                    'Administrators and Observers receive permissions via their role and '.
-                    'do not need direct permissions assigned.',
-                ]);
+                ->withErrors(['permissions' => 'These special permissions do not belong to the selected role: '
+                    .implode(', ', $foreignKeys).'.']);
         }
 
-        // Rule B: clearing a role also clears all direct permissions —
-        // no orphaned permissions without a role.
-        if (empty($incomingRole)) {
-            $incomingPermissions = [];
-        }
+        $sentTickBoxes = $request->boolean('special_permissions_shown') || $submittedKeys !== [];
+        $incomingPermissions = SpecialPermissions::resolve(
+            $assigningUser,
+            $user,
+            $incomingRole,
+            $sentTickBoxes ? $submittedKeys : null
+        );
 
         $oldRoles = $user->getRoleNames()->sort()->values()->all();
         $oldPermissions = $user->getPermissionNames()->sort()->values()->all();
 
         $user->syncRoles(! empty($incomingRole) ? [$incomingRole] : []);
-        $user->syncPermissions($incomingPermissions);
+        $user->syncPermissions(array_map(fn (string $name) => Permission::findOrCreate($name, 'web'), $incomingPermissions));
 
         $newRoles = $user->getRoleNames()->sort()->values()->all();
         $newPermissions = $user->getPermissionNames()->sort()->values()->all();

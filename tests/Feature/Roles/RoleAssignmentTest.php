@@ -684,13 +684,16 @@ test('a national admin viewing a division assistant sees it as keep-current, wit
     $target = User::factory()->inBranch($this->branchA)->create();
     $target->assignRole('division_db_assistant_operations');
 
+    // The keep-current option carries the role itself (not ""), because national may
+    // change a division assistant's special-permission tick boxes without changing
+    // the role; so the dropdown is not `required`.
     rolesPageFor(nationalAdmin(), $target)
         ->assertSee('Division Db Assistant Operations (current — keep)')
-        ->assertSee('name="role" id="role" required', false)
+        ->assertSee('<option value="division_db_assistant_operations" selected>', false)
+        ->assertDontSee('name="role" id="role" required', false)
         ->assertSee(NO_ROLE_OPTION, false)
         ->assertSee(REMOVE_HINT, false)
-        ->assertSee('<option value="national_db_assistant"', false)
-        ->assertDontSee('<option value="division_db_assistant_operations"', false);
+        ->assertSee('<option value="national_db_assistant"', false);
 });
 
 test('a super-admin viewing a branch secretary may only promote: keep-current, no No Role, no remove hint', function () {

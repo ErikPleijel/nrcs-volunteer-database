@@ -744,7 +744,7 @@ Trigger: grey **?** icon. Only shown in extended mode, after **Show more statist
 
 | Type | Details |
 |---|---|
-| Buttons | **Add Payments** (subtitle "View Your Entries"; `add_payments`: NA, NAs, BS, BA, BAs, DF). **Add RCU Payment** (subtitle "Choose a unit"). **Filter & Sort** (shows an "Active" badge when filters are on). **Filter**. **Clear**. Per row: **View** / **View Details**. Tabs: **Records** \| **Approvals** (with a pending count; `approve_payments`: NA, BS, BA). |
+| Buttons | **Add Payments** (subtitle "View Your Entries"; `add_payments`: NA, NAs, BS, BA, BAs, DF). **Add RCU Payment** (subtitle "Choose a unit"). **Filter & Sort** (shows an "Active" badge when filters are on). **Filter**. **Clear**. Per row: **View** / **View Details**. Tabs: **Records** \| **Approvals** (with a pending count; `approve_payments`: NA, BS, and BA unless HQ unticked "Can approve financial records"). |
 | Search | **Search** (placeholder "Name, ID, Ref..."). Matches the **payment ID** (exact), the **person's ID** (exact), the **person's first / middle / last / full name** (partial), the **submitter's ID or name**, and the **reference** (partial). It does not match a full DB-code string or an organisation name. |
 | Filters | **Branch** → **Division** → **Red Cross Unit**. **Membership Type**. **Status** (All Memberships / Valid / Expiring Within 30 Days / Expired). **Type** (All / Person / Organisation / Red Cross Unit; division staff have no Organisation option — organisation payments are hidden from them). **Include deleted?** (Active / Deleted / All). **Entered by me** / **Entered by all**. |
 | Sort | **Sort By**: Payment Date (Newest First) [default] / Payment Date (Oldest First) / Expiry Date (Oldest First) / Expiry Date (Newest First). |
@@ -935,7 +935,7 @@ Trigger: grey **?** icon. Only shown in extended mode, after **Show more statist
 
 | Type | Details |
 |---|---|
-| Buttons | **Add Donation** (subtitle "View Your Entries"; `add_donations`: NA, NAs, BS, BA, BAs, DF). **Filter & Sort**. **Filter**. **Clear**. Per row: **View** / **View Details**. Tabs: **Records** \| **Approvals** (`approve_donations`: NA, BS, BA). |
+| Buttons | **Add Donation** (subtitle "View Your Entries"; `add_donations`: NA, NAs, BS, BA, BAs, DF). **Filter & Sort**. **Filter**. **Clear**. Per row: **View** / **View Details**. Tabs: **Records** \| **Approvals** (`approve_donations`: NA, BS, and BA unless HQ unticked "Can approve financial records"). |
 | Search | **Search** (placeholder "Name, ID, ref, purpose…"). Each word must match at least one of: **reference**, **purpose** or **donation item** (partial); the **donation ID** or **person ID** (numeric); **branch** name; **division** name; the **donor's** first / middle / last / full name; the donor's **Red Cross Unit** name; or the word **"anonymous"** (finds anonymous donations). The organisation name is not searched. |
 | Filters | **Branch** → **Division** → **Red Cross Unit**. **Type** (All / Person / Organisation; division staff have no Organisation option — organisation donations are hidden from them). **Include deleted?**. **Entered by me** / **Entered by all**. |
 | Sort | **Sort By**: Date (Newest First) [default] / Date (Oldest First) / Amount (Highest First) / Amount (Lowest First). |

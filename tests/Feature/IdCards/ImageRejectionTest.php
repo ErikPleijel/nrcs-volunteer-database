@@ -355,11 +355,11 @@ test('uploading a new signature on My Profile clears the rejection and its reaso
         ->and($member->signature_rejection_note)->toBeNull();
 });
 
-test('an admin uploading a new signature via users/edit clears the rejection', function () {
+test('an admin uploading a new signature via users/images clears the rejection', function () {
     $member = markImageRejected(makeSignedMember($this->branch, $this->division), $this->admin);
 
     $this->actingAs($this->admin)
-        ->post(route('users.update-signature', $member), ['signature_file' => UploadedFile::fake()->image('new-sig.png', 300, 100)])
+        ->post(route('users.images.signature', $member), ['signature_file' => UploadedFile::fake()->image('new-sig.png', 300, 100)])
         ->assertSessionHas('success');
 
     expect($member->fresh()->signature_rejected_at)->toBeNull();
@@ -549,5 +549,5 @@ test('users/show shows the Rejected banners with date, admin and reason, only wh
         ->assertSee('by Ada Admin')
         ->assertSee('Signature is too small')
         ->assertSee('Face not clearly visible')
-        ->assertSee(route('users.edit', $member), false);
+        ->assertSee(route('users.images.edit', $member), false);
 });

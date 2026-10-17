@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Support\SpecialPermissions;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -12,8 +13,25 @@ class PermissionsTableSeeder extends Seeder
 {
 
     // php artisan db:seed --class="Database\Seeders\PermissionsTableSeeder"
+    /**
+     * Moves approve_payments/approve_donations from the branch_db_administrator role
+     * to each branch DB administrator. This seeder no longer gives them to the role,
+     * so seeding before that migration would take approval away from every branch
+     * DB administrator, and the migration would then have nothing left to move.
+     */
+    private const REQUIRED_MIGRATION = '2026_10_17_120000_move_branch_financial_approval_to_direct_permissions';
+
     public function run(): void
     {
+        if (! DB::table('migrations')->where('migration', self::REQUIRED_MIGRATION)->exists()) {
+            $message = 'PermissionsTableSeeder stopped: run "php artisan migrate" first (migration '
+                .self::REQUIRED_MIGRATION.' has not run). Seeding before it would remove '
+                .'financial approval from every branch DB administrator. Nothing was changed.';
+            $this->command?->error($message);
+
+            throw new \RuntimeException($message);
+        }
+
         $this->command->info('🧹 Clearing old role permissions...');
         Schema::disableForeignKeyConstraints();
         DB::table('role_has_permissions')->truncate();
@@ -190,8 +208,9 @@ class PermissionsTableSeeder extends Seeder
                     'view_income_distribution_branch', // own branch's manual payments (Income Distribution Tab 2)
 
                     // approval (two-step workflow)
-                    'approve_donations',
-                    'approve_payments',
+                    // approve_donations + approve_payments are NOT on this role: they are the
+                    // per-person "Can approve financial records" tick box, given directly
+                    // (App\Support\SpecialPermissions; on by default, only HQ can change it).
                     'approve_volunteering',
                     'approve_training',
 
@@ -354,6 +373,8 @@ class PermissionsTableSeeder extends Seeder
         foreach ($rolePermissions as $roleName => $perms) {
             $allPermissionNames = array_merge($allPermissionNames, $perms);
         }
+        // Plus the permissions only ever given directly (special-permission tick boxes).
+        $allPermissionNames = array_merge($allPermissionNames, SpecialPermissions::allPermissionNames());
         $allPermissionNames = array_values(array_unique($allPermissionNames));
 
         foreach ($allPermissionNames as $permissionName) {

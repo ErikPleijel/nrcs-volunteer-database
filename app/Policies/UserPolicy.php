@@ -82,6 +82,30 @@ class UserPolicy
         return false;
     }
 
+    /**
+     * Upload someone's photo or signature (users/{user}/images). Allowed for
+     * anyone who may edit the person (edit_user + update()), and for division DB
+     * assistants holding the "Can upload photos and signatures" tick box
+     * (upload_user_images): own division only, and never a person with an admin
+     * role — the same limits update() puts on non-administrators.
+     */
+    public function uploadImages(User $actor, User $target): bool
+    {
+        if ($actor->can('edit_user')) {
+            try {
+                return $this->update($actor, $target);
+            } catch (AuthorizationException) {
+                return false;
+            }
+        }
+
+        return $actor->can('upload_user_images')
+            && $actor->getAccessLevel() === 'division'
+            && $actor->getScopedId() !== null
+            && (int) $target->division_id === (int) $actor->getScopedId()
+            && ! $target->roles()->exists();
+    }
+
     public function update(User $actor, User $target): bool
     {
         if ((int) $actor->id === (int) $target->id) {

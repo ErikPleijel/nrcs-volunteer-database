@@ -74,7 +74,8 @@
                                 <li><span class="font-semibold">Branch DB Assistant</span> — branch data entry.</li>
                                 <li><span class="font-semibold">Division Assistant — Finance</span> — handles Payments, Donations, Trainings &amp; Volunteering.</li>
                                 <li><span class="font-semibold">Division Assistant — Operations</span> — handles Trainings &amp; Volunteering.</li>
-                                <li>A <span class="font-semibold">Division Assistant</span> sees only their own division.</li>
+                                <li>A <span class="font-semibold">Division Assistant</span> sees only their own division. Tick boxes can add <span class="font-semibold">Can upload photos and signatures</span> and <span class="font-semibold">Can register new users</span> (both off by default, own division only).</li>
+                                <li>A <span class="font-semibold">Branch DB Administrator</span> can approve donations and fees unless HQ unticks <span class="font-semibold">Can approve financial records</span>. Only HQ can change it.</li>
                                 <li>Search for the person, then use the <span class="font-semibold">Assign Role</span> dropdown to give — or remove — a role.</li>
                                 <li>Select <span class="font-semibold">"-- No Role --"</span> to remove authorization entirely.</li>
                             </ul>
@@ -93,8 +94,8 @@
                         <div x-show="open === 'national'" x-collapse class="px-4 py-3 bg-white">
                             <ul class="space-y-1 text-gray-700 list-disc pl-4">
                                 <li><span class="font-semibold">National DB Administrator</span> — authorizes &amp; oversees the whole system.</li>
-                                <li><span class="font-semibold">National DB Assistant</span> — national data entry. Can be given any combination of extra <span class="font-semibold">Direct Permissions</span>: Approve Campaign Requests, Print Certificates, Print ID Cards.</li>
-                                <li>The Direct Permissions checkboxes only become enabled once <span class="font-semibold">National DB Assistant</span> is selected as the role.</li>
+                                <li><span class="font-semibold">National DB Assistant</span> — national data entry. Can be given any combination of extra <span class="font-semibold">Special Permissions</span>: Approve Campaign Requests, Print Certificates, Print ID Cards.</li>
+                                <li>The Special Permissions tick boxes shown are the ones for the role selected in <span class="font-semibold">Assign Role</span>.</li>
                                 <li><span class="font-semibold">Observer</span> — read-only reports; full access to statistics, but cannot change anything in the database.</li>
                             </ul>
                         </div>
@@ -131,7 +132,7 @@
                         <div x-show="open === 'review'" x-collapse class="px-4 py-3 bg-white">
                             <ul class="space-y-1 text-gray-700 list-disc pl-4">
                                 <li>The table below shows everyone currently authorized, grouped by role.</li>
-                                <li>Any extra <span class="font-semibold">Direct Permissions</span> a person holds are shown as red tags next to their name.</li>
+                                <li>Any extra <span class="font-semibold">Special Permissions</span> a person holds are shown as red tags next to their name.</li>
                                 <li>Click <span class="font-semibold">Edit</span> on any row to jump straight to that person's role form.</li>
                                 <li>National DB Administrators can only be edited by a super-admin.</li>
                             </ul>
@@ -218,7 +219,7 @@
                             </div>
                         @endif
 
-                        <form action="{{ route('users.roles.update') }}" method="POST"
+                        <form id="roles-form" action="{{ route('users.roles.update') }}" method="POST"
                               onsubmit="{{ $selectedUser->lifecycle_status === 'pending_engagement' ? 'return confirm(\'This person is still Pending Engagement. Assigning an admin role now may make them hard to find later. Continue anyway?\');' : '' }}">
                             @csrf
                             <input type="hidden" name="user_id" value="{{ $selectedUser->id }}">
@@ -257,11 +258,20 @@
                                      browser will not submit the form until another option is chosen. That is
                                      extra protection only: a missing or empty role is "no change" on the
                                      server, and only "-- No Role --" (REMOVE_ROLE) removes a role. --}}
-                                <select name="role" id="role" @required(! $currentRoleAssignable) class="form-select w-full rounded-md shadow-sm border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                                {{-- When the actor may change the current role's special permissions, the
+                                     keep-current option carries the role itself, so the form can be saved
+                                     with the role unchanged. --}}
+                                <select name="role" id="role" @required(! $currentRoleAssignable && ! $canKeepCurrentRole) class="form-select w-full rounded-md shadow-sm border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
                                     @if (! $currentRoleAssignable)
-                                        <option value="" disabled selected>
-                                            {{ Str::title(str_replace('_', ' ', $userRole)) }} (current — keep)
-                                        </option>
+                                        @if ($canKeepCurrentRole)
+                                            <option value="{{ $userRole }}" selected>
+                                                {{ Str::title(str_replace('_', ' ', $userRole)) }} (current — keep)
+                                            </option>
+                                        @else
+                                            <option value="" disabled selected>
+                                                {{ Str::title(str_replace('_', ' ', $userRole)) }} (current — keep)
+                                            </option>
+                                        @endif
                                     @endif
                                     @if (! $userRole || $canRemoveCurrentRole)
                                         <option value="{{ \App\Http\Controllers\UserController::REMOVE_ROLE }}">-- No Role --</option>
@@ -280,23 +290,62 @@
                                 @enderror
                             </div>
 
-                            <!-- Direct Permissions -->
-                            @if ($accessLevel !== 'branch')
-                                <div class="mb-6">
-                                    <h3 class="font-medium text-sm text-gray-700 mb-1">Direct Permissions</h3>
+                            <!-- Special Permissions: one section per role that offers tick boxes;
+                                 only the section of the role selected above is shown and submitted. -->
+                            @if ($specialSections !== [])
+                                <input type="hidden" name="special_permissions_shown" value="1">
+                                <div class="mb-6" id="special-permissions">
+                                    <h3 class="font-medium text-sm text-gray-700 mb-1">Special Permissions</h3>
                                     <p class="text-xs text-gray-500 mb-2 italic">
-                                        For National DB Assistants only. Checkboxes are enabled only when
-                                        that role is selected above.
+                                        Extra permissions for this person only, shown for the role selected above.
+                                        They are removed when the role is removed or changed.
                                     </p>
-                                    <div id="direct-permissions-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-4 border rounded-md bg-gray-50 max-h-96 overflow-y-auto">
-                                        @foreach ($permissions as $permission)
-                                            <label class="flex items-center space-x-3 p-2 rounded-md hover:bg-gray-100">
-                                                <input type="checkbox" name="permissions[]" value="{{ $permission->name }}" class="form-checkbox h-5 w-5 text-blue-600 rounded"
-                                                       @if (in_array($permission->name, $userPermissions)) checked @endif>
-                                                <span class="text-gray-700">{{ Str::title(str_replace('_', ' ', $permission->name)) }}</span>
-                                            </label>
-                                        @endforeach
-                                    </div>
+                                    @foreach ($specialSections as $sectionRole => $boxes)
+                                        @php $sectionShown = $sectionRole === $userRole; @endphp
+                                        <div data-special-role="{{ $sectionRole }}" @class(['p-4 border rounded-md bg-gray-50 space-y-2', 'hidden' => ! $sectionShown])>
+                                            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                                                {{ Str::title(str_replace('_', ' ', $sectionRole)) }}
+                                            </p>
+                                            @foreach ($boxes as $key => $box)
+                                                <label @class(['flex items-start gap-3 p-2 rounded-md',
+                                                               'hover:bg-gray-100 cursor-pointer' => $box['editable'],
+                                                               'opacity-60 cursor-not-allowed' => ! $box['editable']])>
+                                                    <input type="checkbox" name="permissions[]" value="{{ $key }}"
+                                                           data-special-key="{{ $key }}"
+                                                           data-editable="{{ $box['editable'] ? '1' : '0' }}"
+                                                           class="form-checkbox h-5 w-5 mt-0.5 text-blue-600 rounded"
+                                                           @checked($box['checked'])
+                                                           @disabled(! $sectionShown || ! $box['editable'])>
+                                                    <span>
+                                                        <span class="text-gray-700">{{ $box['label'] }}</span>
+                                                        @if ($box['help'])
+                                                            <span class="block text-xs text-gray-500">{{ $box['help'] }}</span>
+                                                        @endif
+                                                        @unless ($box['editable'])
+                                                            <span class="block text-xs text-gray-500 italic">Only HQ can change this. Contact a National DB Administrator.</span>
+                                                        @endunless
+                                                    </span>
+                                                </label>
+                                            @endforeach
+
+                                            @if ($sectionRole === 'branch_db_administrator' && ($boxes[\App\Support\SpecialPermissions::FINANCIAL_APPROVAL]['editable'] ?? false))
+                                                <div id="financial-approval-warning" class="hidden rounded-md bg-amber-50 border border-amber-300 p-3 text-sm text-amber-900">
+                                                    <p>
+                                                        <i class="fas fa-triangle-exclamation mr-1 text-amber-500"></i>
+                                                        <span class="font-semibold">Heads up:</span> Without this permission, this person cannot approve
+                                                        donations or fees. Records entered by the branch secretary will then need approval from HQ,
+                                                        which may increase HQ's workload. Consider asking the branch secretary to let others enter
+                                                        records, so the branch can still approve its own records.
+                                                    </p>
+                                                    @if ($otherFinancialApprovers === 0)
+                                                        <p class="mt-2 font-semibold text-red-700">
+                                                            No one in this branch will be able to approve financial records. All approvals will go to HQ.
+                                                        </p>
+                                                    @endif
+                                                </div>
+                                            @endif
+                                        </div>
+                                    @endforeach
                                 </div>
                             @endif
 
@@ -348,7 +397,26 @@
                             <tr class="bg-white">
                                 <td class="border px-3 py-1 text-sm text-gray-900 align-top">
                                 <div>{{ $user->fullName }}</div>
-                                @php $directPerms = $user->getDirectPermissions(); @endphp
+                                @php
+                                    $directPerms = $user->getDirectPermissions();
+                                    // For branch DB administrators financial approval is the normal case:
+                                    // tag only the exception (turned off), not the two permissions.
+                                    $financialOff = false;
+                                    if ($user->role_name === 'branch_db_administrator') {
+                                        $financialPerms = \App\Support\SpecialPermissions::FINANCIAL_APPROVAL_PERMISSIONS;
+                                        $financialOff = $directPerms->pluck('name')->intersect($financialPerms)->count() < count($financialPerms);
+                                        $directPerms = $directPerms->reject(fn ($perm) => in_array($perm->name, $financialPerms, true));
+                                    }
+                                @endphp
+                                @if($financialOff)
+                                    <div class="mt-1">
+                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold
+                                                     bg-amber-100 text-amber-800 border border-amber-300">
+                                            <i class="fas fa-ban text-[10px]"></i>
+                                            cannot approve financial records
+                                        </span>
+                                    </div>
+                                @endif
                                 @if($directPerms->isNotEmpty())
                                     <div class="mt-1 flex flex-wrap gap-1">
                                         @foreach($directPerms as $perm)
@@ -470,39 +538,54 @@
                     }
                 }
 
-                // ── Direct permissions: enable only for national_db_assistant ──
-                const roleSelect      = document.getElementById('role');
-                const permsGrid       = document.getElementById('direct-permissions-grid');
-                const permCheckboxes  = () => permsGrid
-                    ? permsGrid.querySelectorAll('input[type="checkbox"]')
-                    : [];
+                // ── Special permissions: show (and submit) only the selected role's tick boxes ──
+                const roleSelect = document.getElementById('role');
+                const rolesForm = document.getElementById('roles-form');
+                const sections = document.querySelectorAll('[data-special-role]');
+                const financialBox = document.querySelector(
+                    '[data-special-role="branch_db_administrator"] input[data-special-key="approve_financial_records"]');
+                const financialWarning = document.getElementById('financial-approval-warning');
 
-                function syncPermissionState() {
-                    const isAssistant = roleSelect &&
-                        roleSelect.value === 'national_db_assistant';
+                function financialApprovalOff() {
+                    return !!(roleSelect && financialWarning && financialBox
+                        && roleSelect.value === 'branch_db_administrator' && !financialBox.checked);
+                }
 
-                    permCheckboxes().forEach(cb => {
-                        cb.disabled = !isAssistant;
-                        // Visual feedback: dim the label when disabled
-                        const label = cb.closest('label');
-                        if (label) {
-                            label.classList.toggle('opacity-40', !isAssistant);
-                            label.classList.toggle('cursor-not-allowed', !isAssistant);
-                            label.classList.toggle('cursor-pointer', isAssistant);
-                        }
+                function syncSpecialPermissions() {
+                    const role = roleSelect ? roleSelect.value : '';
+                    sections.forEach(section => {
+                        const shown = section.dataset.specialRole === role;
+                        section.classList.toggle('hidden', !shown);
+                        section.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                            cb.disabled = !shown || cb.dataset.editable !== '1';
+                        });
                     });
-
-                    // Also dim the grid container slightly when disabled
-                    if (permsGrid) {
-                        permsGrid.classList.toggle('bg-gray-100', !isAssistant);
-                        permsGrid.classList.toggle('bg-gray-50',   isAssistant);
+                    if (financialWarning) {
+                        financialWarning.classList.toggle('hidden', !financialApprovalOff());
                     }
                 }
 
                 if (roleSelect) {
-                    roleSelect.addEventListener('change', syncPermissionState);
-                    // Run immediately on page load to reflect the current role value
-                    syncPermissionState();
+                    roleSelect.addEventListener('change', syncSpecialPermissions);
+                    syncSpecialPermissions();
+                }
+                if (financialBox) {
+                    financialBox.addEventListener('change', syncSpecialPermissions);
+                }
+
+                // Ask before saving a branch DB administrator without financial approval —
+                // only when that is a change (not on every save while it stays off).
+                const financialWasOff = financialApprovalOff();
+                if (rolesForm) {
+                    rolesForm.addEventListener('submit', function (event) {
+                        if (event.defaultPrevented || financialWasOff || !financialApprovalOff()) {
+                            return;
+                        }
+                        const text = financialWarning.innerText.replace(/\s+/g, ' ').trim();
+                        if (!confirm(text + '\n\nSave anyway?')) {
+                            event.preventDefault();
+                        }
+                    });
                 }
             });
         </script>

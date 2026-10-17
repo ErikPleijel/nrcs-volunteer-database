@@ -56,7 +56,7 @@ test('an upload that fails GD optimization is reported as a failure, not a succe
     $corruptFile = UploadedFile::fake()->create('corrupt.jpg', 5, 'image/jpeg');
 
     $response = $this->actingAs($admin)->post(
-        route('users.update-profile-picture', $target),
+        route('users.images.photo', $target),
         ['picture' => $corruptFile]
     );
 
@@ -74,7 +74,7 @@ test('a failed optimization does not update the user picture column', function (
     $corruptFile = UploadedFile::fake()->create('corrupt.jpg', 5, 'image/jpeg');
 
     $this->actingAs($admin)->post(
-        route('users.update-profile-picture', $target),
+        route('users.images.photo', $target),
         ['picture' => $corruptFile]
     );
 
@@ -92,7 +92,7 @@ test('a failed optimization leaves no orphaned file in storage', function () {
     $corruptFile = UploadedFile::fake()->create('corrupt.jpg', 5, 'image/jpeg');
 
     $this->actingAs($admin)->post(
-        route('users.update-profile-picture', $target),
+        route('users.images.photo', $target),
         ['picture' => $corruptFile]
     );
 
@@ -110,7 +110,7 @@ test('a genuinely valid image upload still succeeds after the fix', function () 
     $validFile = UploadedFile::fake()->image('avatar.jpg', 300, 300);
 
     $response = $this->actingAs($admin)->post(
-        route('users.update-profile-picture', $target),
+        route('users.images.photo', $target),
         ['picture' => $validFile]
     );
 

@@ -324,7 +324,7 @@
                                         @if(empty(old('branch_id')) && count($divisions) === 0) disabled @endif>
                                     <option value="">{{ (empty(old('branch_id')) && count($divisions) === 0) ? 'Select Branch First' : 'Select Division' }}</option>
                                     @foreach($divisions as $division)
-                                        <option value="{{ $division->id }}" {{ old('division_id') == $division->id ? 'selected' : '' }}>
+                                        <option value="{{ $division->id }}" {{ old('division_id', $accessLevel === 'division' ? $division->id : null) == $division->id ? 'selected' : '' }}>
                                             {{ $division->name }}
                                         </option>
                                     @endforeach
@@ -505,7 +505,7 @@
                                     <p>
                                         Uploading of the profile photo and signature is completed
                                         <span class="font-medium">after registration</span>,
-                                        by clicking <span class="font-semibold">“Edit Person”</span>
+                                        by clicking <span class="font-semibold">“Photo &amp; Signature”</span>
                                         on the next page.
                                     </p>
                                 </div>
