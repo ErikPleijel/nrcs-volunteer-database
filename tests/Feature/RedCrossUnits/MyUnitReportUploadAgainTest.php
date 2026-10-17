@@ -86,25 +86,57 @@ test('the Upload again tile counts each rejected person once and they are not co
         ->and(reportTile($html, 'Incomplete'))->toBe(2);
 });
 
-test('a member sees "Upload again" on the card but not the reason; an admin sees the reason', function () {
+/** The "Upload again" overlay element for one image, or null. */
+function uploadAgainOverlay(string $html, string $type, User $user): ?string
+{
+    return preg_match('/<div data-upload-again-overlay="'.$type.'-'.$user->id.'".*?<\/div>/s', $html, $m) ? $m[0] : null;
+}
+
+test('a rejected photo and signature show an "Upload again" overlay inside the image area', function () {
     $viewer = reportMember();
+    $clean = reportMember();
     $rejected = reportMember();
     $rejected->forceFill([
-        'picture_rejected_at' => now(),
-        'picture_rejection_reason' => 'wrong_person',
+        'picture_rejected_at' => now(), 'picture_rejection_reason' => 'dark_or_blurry',
+        'signature_rejected_at' => now(), 'signature_rejection_reason' => 'too_faint',
     ])->save();
 
     $html = reportHtml($viewer);
-    expect($html)->toContain('data-upload-again="'.$rejected->id.'"')
-        ->toContain('Upload again: Photo')
-        ->not->toContain('Wrong person')
-        ->not->toContain('Rejected');
+
+    expect(uploadAgainOverlay($html, 'photo', $rejected))->toContain('Upload again')
+        ->and(uploadAgainOverlay($html, 'signature', $rejected))->toContain('Upload again')
+        ->and(uploadAgainOverlay($html, 'photo', $clean))->toBeNull()
+        ->and(uploadAgainOverlay($html, 'signature', $clean))->toBeNull()
+        // the photo stays underneath (loaded by "Show photos"), so it can be seen faintly
+        ->and($html)->toContain('data-src="'.$rejected->profile_photo_url.'"')
+        // the old text line below the card is gone
+        ->and($html)->not->toContain('Upload again: Photo')
+        ->and($html)->not->toContain('Upload again: Signature');
+});
+
+test('a member sees only "Upload again"; an admin also sees the reason and the rejected signature', function () {
+    $viewer = reportMember();
+    $rejected = reportMember();
+    $rejected->forceFill([
+        'picture_rejected_at' => now(), 'picture_rejection_reason' => 'wrong_person', // retired reason
+        'signature_rejected_at' => now(), 'signature_rejection_reason' => 'background_not_white',
+    ])->save();
+
+    $html = reportHtml($viewer);
+    expect(uploadAgainOverlay($html, 'photo', $rejected))->not->toContain('Wrong person')
+        ->and(uploadAgainOverlay($html, 'signature', $rejected))->not->toContain('Background is not plain white')
+        ->and($html)->not->toContain('Wrong person')
+        ->and($html)->not->toContain('Rejected')
+        // members never load someone else's signature image
+        ->and($html)->not->toContain($rejected->signature_url);
 
     $admin = reportMember();
     $admin->assignRole('branch_db_administrator');
+    $html = reportHtml($admin);
 
-    expect(reportHtml($admin))->toContain('Upload again: Photo')
-        ->toContain('Wrong person');
+    expect(uploadAgainOverlay($html, 'photo', $rejected))->toContain('Wrong person')
+        ->and(uploadAgainOverlay($html, 'signature', $rejected))->toContain('Background is not plain white')
+        ->and($html)->toContain('data-src="'.$rejected->signature_url.'"');
 });
 
 test('the report shows 100 cards per page', function () {

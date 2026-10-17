@@ -108,19 +108,39 @@ test('rejecting a photo stores reason, note, who and when, writes no audit entry
     $this->freezeTime();
     $member = makeSignedMember($this->branch, $this->division);
 
-    $this->actingAs($this->admin)
+    $response = $this->actingAs($this->admin)
         ->postJson(route('id-cards.reject-image', [$member, 'photo']), [
             'reason' => 'dark_or_blurry',
             'note' => '  taken at night  ',
         ])
-        ->assertOk()
-        ->assertExactJson([
-            'rejected' => true,
-            'type' => 'photo',
-            'reason' => 'Too dark or blurry — taken at night',
-            'rejected_at' => now()->format('d M Y'),
-            'rejected_by' => 'Ada Admin',
-        ]);
+        ->assertOk();
+
+    // Everything the page needs to update the card in place.
+    expect(array_keys($response->json()))->toEqualCanonicalizing([
+        'rejected', 'type', 'reason', 'rejected_at', 'rejected_by', 'ready_mark_cancelled',
+        'message', 'photo_rejected', 'signature_rejected', 'html',
+    ]);
+    $response->assertJson([
+        'rejected' => true,
+        'type' => 'photo',
+        'reason' => 'Too dark or blurry — taken at night',
+        'rejected_at' => now()->format('d M Y'),
+        'rejected_by' => 'Ada Admin',
+        'ready_mark_cancelled' => false,
+        'photo_rejected' => true,
+        'signature_rejected' => false,
+    ]);
+    expect($response->json('message'))->toContain('photo marked "upload again"');
+
+    // The re-rendered review box: "Upload again", the reason, who/when, and Undo — no Reject button.
+    expect($response->json('html'))
+        ->toContain('data-image-review="photo-'.$member->id.'"')
+        ->toContain('Upload again')
+        ->toContain('Too dark or blurry — taken at night')
+        ->toContain(now()->format('d M').' · Ada Admin')
+        ->toContain('js-undo-form')
+        ->toContain(route('id-cards.restore-image', [$member, 'photo']))
+        ->not->toContain('js-reject-btn');
 
     $member->refresh();
     expect($member->picture_rejected_at->toDateTimeString())->toBe(now()->toDateTimeString())
@@ -139,12 +159,12 @@ test('rejecting a signature from the page form stores the reason and redirects b
 
     $this->actingAs($this->admin)
         ->from(route('id-cards.prepare-bulk-print'))
-        ->post(route('id-cards.reject-image', [$member, 'signature']), ['reason' => 'not_readable'])
+        ->post(route('id-cards.reject-image', [$member, 'signature']), ['reason' => 'too_faint'])
         ->assertRedirect(route('id-cards.prepare-bulk-print'))
         ->assertSessionHas('success');
 
     $member->refresh();
-    expect($member->signature_rejection_reason)->toBe('not_readable')
+    expect($member->signature_rejection_reason)->toBe('too_faint')
         ->and($member->signature_rejection_note)->toBeNull()
         ->and($member->signature_rejected_by_id)->toBe($this->admin->id);
 });
@@ -155,15 +175,53 @@ test('a reason is required, must come from the type\'s list, and "Other" needs a
 
     $this->actingAs($this->admin)->postJson($url, [])->assertJsonValidationErrors('reason');
     // A signature reason is not valid for a photo.
-    $this->actingAs($this->admin)->postJson($url, ['reason' => 'not_readable'])->assertJsonValidationErrors('reason');
+    $this->actingAs($this->admin)->postJson($url, ['reason' => 'too_faint'])->assertJsonValidationErrors('reason');
+    // Retired reasons can no longer be picked.
+    $this->actingAs($this->admin)->postJson($url, ['reason' => 'wrong_person'])->assertJsonValidationErrors('reason');
+    $this->actingAs($this->admin)
+        ->postJson(route('id-cards.reject-image', [$member, 'signature']), ['reason' => 'not_readable'])
+        ->assertJsonValidationErrors('reason');
     $this->actingAs($this->admin)->postJson($url, ['reason' => 'other'])->assertJsonValidationErrors('note');
     $this->actingAs($this->admin)->postJson($url, ['reason' => 'other', 'note' => str_repeat('x', 501)])->assertJsonValidationErrors('note');
 
-    expect($member->fresh()->picture_rejected_at)->toBeNull();
+    expect($member->fresh()->picture_rejected_at)->toBeNull()
+        ->and($member->fresh()->signature_rejected_at)->toBeNull();
 
     $this->actingAs($this->admin)->postJson($url, ['reason' => 'other', 'note' => 'Wearing sunglasses'])
         ->assertOk()
         ->assertJsonPath('reason', 'Wearing sunglasses');
+});
+
+test('a stored rejection with a retired or unknown reason still displays sensibly', function () {
+    $wrongPerson = markImageRejected(makeSignedMember($this->branch, $this->division), $this->admin, 'picture', 'wrong_person');
+    $oldSignature = markImageRejected(makeSignedMember($this->branch, $this->division), $this->admin, 'signature', 'too_small_or_cut_off', 'left edge missing');
+    $unknown = markImageRejected(makeSignedMember($this->branch, $this->division), $this->admin, 'signature', 'smudged_ink');
+
+    expect(\App\Support\ImageRejection::describe($wrongPerson, 'photo'))->toBe('Wrong person')
+        ->and(\App\Support\ImageRejection::describe($oldSignature, 'signature'))->toBe('Too small or cut off — left edge missing')
+        ->and(\App\Support\ImageRejection::describe($unknown, 'signature'))->toBe('Smudged ink')
+        ->and(\App\Support\ImageRejection::label('photo', null))->toBeNull();
+
+    $html = bulkPrintHtml($this->admin);
+    expect($html)->toContain('Wrong person')
+        ->toContain('Too small or cut off — left edge missing')
+        ->toContain('Smudged ink');
+
+    $this->actingAs($wrongPerson)->get(route('profile.show'))->assertOk()->assertSee('Wrong person');
+    $this->actingAs($this->admin)->get(route('users.show', $unknown))->assertOk()->assertSee('Smudged ink');
+});
+
+test('a refused reject (outside the area) returns a JSON error and changes nothing', function () {
+    $branchAdmin = User::factory()->create(['branch_id' => $this->otherBranch->id]);
+    $branchAdmin->assignRole('branch_db_administrator');
+    $member = makeSignedMember($this->branch, $this->division);
+
+    $response = $this->actingAs($branchAdmin)
+        ->postJson(route('id-cards.reject-image', [$member, 'photo']), ['reason' => 'face_not_visible'])
+        ->assertForbidden();
+
+    expect($response->json('message'))->toBe('This user is outside your branch or division.')
+        ->and($member->fresh()->picture_rejected_at)->toBeNull();
 });
 
 test('an unknown image type is a 404', function () {
@@ -179,7 +237,7 @@ test('rejecting an image the user does not have returns 422 and sets nothing', f
     $member->forceFill(['picture' => null])->save();
 
     $this->actingAs($this->admin)
-        ->postJson(route('id-cards.reject-image', [$member, 'photo']), ['reason' => 'wrong_person'])
+        ->postJson(route('id-cards.reject-image', [$member, 'photo']), ['reason' => 'face_not_visible'])
         ->assertStatus(422);
 
     expect($member->fresh()->picture_rejected_at)->toBeNull();
@@ -187,13 +245,23 @@ test('rejecting an image the user does not have returns 422 and sets nothing', f
 
 test('restoring clears all rejection fields for that image only', function () {
     $member = makeSignedMember($this->branch, $this->division);
-    $member = markImageRejected($member, $this->admin, 'picture', 'wrong_person', 'not them');
-    $member = markImageRejected($member, $this->admin, 'signature', 'not_readable');
+    $member = markImageRejected($member, $this->admin, 'picture', 'not_passport_style', 'cropped');
+    $member = markImageRejected($member, $this->admin, 'signature', 'too_faint');
 
-    $this->actingAs($this->admin)
+    $response = $this->actingAs($this->admin)
         ->deleteJson(route('id-cards.restore-image', [$member, 'photo']))
         ->assertOk()
-        ->assertExactJson(['rejected' => false, 'type' => 'photo']);
+        ->assertJson([
+            'rejected' => false,
+            'type' => 'photo',
+            'photo_rejected' => false,
+            'signature_rejected' => true, // the other image is still rejected
+        ]);
+    expect($response->json('message'))->toContain('Photo rejection undone')
+        // The review box is back to a Reject button.
+        ->and($response->json('html'))->toContain('js-reject-btn')
+        ->toContain('Reject photo')
+        ->not->toContain('Upload again');
 
     $member->refresh();
     expect($member->picture_rejected_at)->toBeNull()
@@ -216,7 +284,7 @@ test('a branch admin gets 403 on reject and restore for a user in another branch
     $member = makeSignedMember($this->branch, $this->division);
 
     $this->actingAs($branchAdmin)
-        ->postJson(route('id-cards.reject-image', [$member, 'photo']), ['reason' => 'wrong_person'])
+        ->postJson(route('id-cards.reject-image', [$member, 'photo']), ['reason' => 'face_not_visible'])
         ->assertForbidden();
     expect($member->fresh()->picture_rejected_at)->toBeNull();
 
@@ -245,10 +313,10 @@ test('a division assistant can reject only inside their own division', function 
     $outside = makeSignedMember($this->branch, $this->otherDivision);
 
     $this->actingAs($divisionAdmin)
-        ->postJson(route('id-cards.reject-image', [$inside, 'signature']), ['reason' => 'too_small_or_cut_off'])
+        ->postJson(route('id-cards.reject-image', [$inside, 'signature']), ['reason' => 'too_small'])
         ->assertOk();
     $this->actingAs($divisionAdmin)
-        ->postJson(route('id-cards.reject-image', [$outside, 'signature']), ['reason' => 'too_small_or_cut_off'])
+        ->postJson(route('id-cards.reject-image', [$outside, 'signature']), ['reason' => 'too_small'])
         ->assertForbidden();
 });
 
@@ -259,7 +327,7 @@ test('a role without reject_images (observer) cannot reject and sees no reject b
     $member = makeSignedMember($this->branch, $this->division);
 
     $this->actingAs($observer)
-        ->postJson(route('id-cards.reject-image', [$member, 'photo']), ['reason' => 'wrong_person'])
+        ->postJson(route('id-cards.reject-image', [$member, 'photo']), ['reason' => 'face_not_visible'])
         ->assertForbidden();
 
     expect(bulkPrintHtml($observer))->not->toContain(route('id-cards.reject-image', [$member, 'photo']))
@@ -298,7 +366,7 @@ test('an admin uploading a new signature via users/edit clears the rejection', f
 });
 
 test('uploading a new photo on My Profile clears the photo rejection', function () {
-    $member = markImageRejected(makeSignedMember($this->branch, $this->division), $this->admin, 'picture', 'wrong_person');
+    $member = markImageRejected(makeSignedMember($this->branch, $this->division), $this->admin, 'picture', 'not_passport_style');
 
     $this->actingAs($member)
         ->post(route('profile.update-profile-picture'), ['picture' => UploadedFile::fake()->image('me.jpg', 300, 300)])
@@ -311,7 +379,7 @@ test('uploading a new photo on My Profile clears the photo rejection', function 
 });
 
 test('saving other fields leaves the rejections in place', function () {
-    $member = markImageRejected(makeSignedMember($this->branch, $this->division), $this->admin, 'picture', 'wrong_person');
+    $member = markImageRejected(makeSignedMember($this->branch, $this->division), $this->admin, 'picture', 'not_passport_style');
     $member = markImageRejected($member, $this->admin);
 
     $member->update(['first_name' => 'Renamed']);
@@ -319,7 +387,7 @@ test('saving other fields leaves the rejections in place', function () {
     $member->refresh();
     expect($member->needsPictureReupload())->toBeTrue()
         ->and($member->needsSignatureReupload())->toBeTrue()
-        ->and($member->picture_rejection_reason)->toBe('wrong_person');
+        ->and($member->picture_rejection_reason)->toBe('not_passport_style');
 });
 
 /*
@@ -328,16 +396,29 @@ test('saving other fields leaves the rejections in place', function () {
 |--------------------------------------------------------------------------
 */
 
-test('a rejected photo or signature removes the tick box and fails printable_only', function () {
+/**
+ * The tick box's <input> tag for a user, or null. Rejected cards keep a
+ * disabled, hidden tick box so Undo can re-enable it without a reload.
+ */
+function tickBoxTag(string $html, User $user): ?string
+{
+    return preg_match('/<input type="checkbox"\s+id="user-'.$user->id.'"[^>]*>/', $html, $m) ? $m[0] : null;
+}
+
+test('a rejected photo or signature disables the tick box and fails printable_only', function () {
     $ok = makeSignedMember($this->branch, $this->division);
     $photo = markImageRejected(makeSignedMember($this->branch, $this->division), $this->admin, 'picture');
     $signature = markImageRejected(makeSignedMember($this->branch, $this->division), $this->admin);
 
     $html = bulkPrintHtml($this->admin);
-    expect($html)->toContain('id="user-'.$ok->id.'"')
-        ->and($html)->not->toContain('id="user-'.$photo->id.'"')
-        ->and($html)->not->toContain('id="user-'.$signature->id.'"')
-        ->and($html)->not->toContain('id="validity-'.$photo->id.'"');
+    expect(tickBoxTag($html, $ok))->not->toBeNull()->not->toContain('disabled')
+        ->and(tickBoxTag($html, $photo))->toContain('disabled')->toContain('hidden')
+        ->and(tickBoxTag($html, $signature))->toContain('disabled')->toContain('hidden')
+        // the validity input is there for Undo, but hidden
+        ->and($html)->toMatch('/class="flex-shrink-0 hidden" data-validity-block="'.$photo->id.'"/')
+        ->and($html)->toMatch('/class="flex-shrink-0 " data-validity-block="'.$ok->id.'"/')
+        // card state the page script reads
+        ->and($html)->toMatch('/id="card-'.$photo->id.'"\s+data-missing="0"\s+data-photo-rejected="1"\s+data-signature-rejected="0"/');
 
     $html = bulkPrintHtml($this->admin, ['printable_only' => 1]);
     expect($html)->toContain('id="user-'.$ok->id.'"')
@@ -373,7 +454,7 @@ test('print-bulk and record-bulk-prints skip rejected cards; single print is ref
 
 test('the bulk-print card shows visible reject buttons, or "Upload again" with reason and undo', function () {
     $fresh = makeSignedMember($this->branch, $this->division);
-    $rejected = markImageRejected(makeSignedMember($this->branch, $this->division), $this->admin, 'signature', 'not_a_signature');
+    $rejected = markImageRejected(makeSignedMember($this->branch, $this->division), $this->admin, 'signature', 'background_not_white');
 
     $html = bulkPrintHtml($this->admin);
 
@@ -382,11 +463,31 @@ test('the bulk-print card shows visible reject buttons, or "Upload again" with r
         ->and($html)->toContain('Reject photo')
         ->and($html)->toContain('Reject signature')
         ->and($html)->toMatch('/id="signature-box-'.$rejected->id.'"\s+class="[^"]*border-2 border-amber-500/')
-        ->and($html)->toContain('Upload again: signature')
-        ->and($html)->toContain('Not a signature')
+        ->and($html)->toContain('Upload again: <span data-upload-again-text>signature</span>')
+        ->and($html)->toContain('Background is not plain white')
         ->and($html)->toContain(route('id-cards.restore-image', [$rejected, 'signature']))
-        // the modal lists each type's reasons
-        ->and($html)->toContain('Face not clearly visible');
+        // the modal lists each type's current reasons, not the retired ones
+        ->and($html)->toContain('Face not clearly visible')
+        ->and($html)->toContain('Signature is too faint')
+        ->and($html)->not->toContain('Wrong person');
+});
+
+test('the photo age indicator sits below the Reject photo button', function () {
+    $member = makeSignedMember($this->branch, $this->division);
+    $member->forceFill(['image_upload_date' => now()->subYears(2)])->save();
+
+    $html = bulkPrintHtml($this->admin);
+
+    // Within the photo column: photo, then the review box, then the age indicator.
+    preg_match('/id="photo-box-'.$member->id.'".*?id="signature-box-'.$member->id.'"/s', $html, $m);
+    $column = $m[0] ?? '';
+    // <x-photo-age-indicator compact> renders a <p class="inline-flex items-center gap-1 ...">.
+    $indicator = '<p class="inline-flex items-center gap-1';
+    $reviewAt = strpos($column, 'data-image-review="photo-'.$member->id.'"');
+
+    expect($reviewAt)->not->toBeFalse()
+        ->and(substr_count($column, $indicator))->toBe(1)
+        ->and(strpos($column, $indicator))->toBeGreaterThan($reviewAt);
 });
 
 /*
@@ -403,12 +504,12 @@ test('My Profile shows the signature banner with its reason, only when rejected'
         ->assertOk()
         ->assertDontSee('Please upload a new signature');
 
-    markImageRejected($member, $this->admin, 'signature', 'too_small_or_cut_off');
+    markImageRejected($member, $this->admin, 'signature', 'too_faint');
 
     $this->actingAs($member->fresh())->get(route('profile.show'))
         ->assertOk()
         ->assertSee('Please upload a new signature')
-        ->assertSee('Too small or cut off')
+        ->assertSee('Signature is too faint')
         ->assertSee('Upload again')
         ->assertSee(route('profile.edit-signature'), false);
 });
@@ -437,7 +538,7 @@ test('users/show shows the Rejected banners with date, admin and reason, only wh
         ->assertDontSee('Signature Rejected')
         ->assertDontSee('Photo Rejected');
 
-    $member = markImageRejected($member, $this->admin, 'signature', 'not_readable');
+    $member = markImageRejected($member, $this->admin, 'signature', 'too_small');
     $member = markImageRejected($member, $this->admin, 'picture', 'face_not_visible');
 
     $this->actingAs($this->admin)->get(route('users.show', $member))
@@ -446,7 +547,7 @@ test('users/show shows the Rejected banners with date, admin and reason, only wh
         ->assertSee('Photo Rejected')
         ->assertSee('Rejected '.$member->signature_rejected_at->format('d M Y'))
         ->assertSee('by Ada Admin')
-        ->assertSee('Not readable')
+        ->assertSee('Signature is too small')
         ->assertSee('Face not clearly visible')
         ->assertSee(route('users.edit', $member), false);
 });

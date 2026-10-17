@@ -98,7 +98,7 @@ test('the same filter works for campaign audiences built via UserFilterService',
 
 test('rejecting a user who has no signature returns 422 and sets nothing', function () {
     $this->actingAs($this->admin)
-        ->postJson(route('id-cards.reject-image', [$this->unsigned, 'signature']), ['reason' => 'not_readable'])
+        ->postJson(route('id-cards.reject-image', [$this->unsigned, 'signature']), ['reason' => 'too_faint'])
         ->assertStatus(422);
 
     expect($this->unsigned->fresh()->signature_rejected_at)->toBeNull();

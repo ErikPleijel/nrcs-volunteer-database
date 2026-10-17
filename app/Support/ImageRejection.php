@@ -20,19 +20,35 @@ final class ImageRejection
 
     public const NOTE_MAX = 500;
 
+    /** The reasons an admin can pick today. */
     public const REASONS = [
         'photo' => [
             'face_not_visible' => 'Face not clearly visible',
             'dark_or_blurry' => 'Too dark or blurry',
             'not_passport_style' => 'Not a passport-style photo',
-            'wrong_person' => 'Wrong person',
             self::OTHER => 'Other',
+        ],
+        'signature' => [
+            'background_not_white' => 'Background is not plain white',
+            'too_faint' => 'Signature is too faint',
+            'too_small' => 'Signature is too small',
+            self::OTHER => 'Other',
+        ],
+    ];
+
+    /**
+     * Retired reasons: no longer offered, but rejections stored with them
+     * still show their original wording. A key in neither list falls back
+     * to a readable form of the key itself (see label()).
+     */
+    public const RETIRED_REASONS = [
+        'photo' => [
+            'wrong_person' => 'Wrong person',
         ],
         'signature' => [
             'not_readable' => 'Not readable',
             'not_a_signature' => 'Not a signature',
             'too_small_or_cut_off' => 'Too small or cut off',
-            self::OTHER => 'Other',
         ],
     ];
 
@@ -49,8 +65,24 @@ final class ImageRejection
     }
 
     /**
+     * Display label for a stored reason key: the current list, then the
+     * retired list, then the key made readable ("too_blurry" → "Too blurry").
+     * Never throws on an unknown key.
+     */
+    public static function label(string $type, ?string $key): ?string
+    {
+        if ($key === null || trim($key) === '') {
+            return null;
+        }
+
+        return self::REASONS[$type][$key]
+            ?? self::RETIRED_REASONS[$type][$key]
+            ?? ucfirst(trim(str_replace(['_', '-'], ' ', $key)));
+    }
+
+    /**
      * Readable reason for a user's rejected image, e.g. "Too dark or blurry"
-     * or "Other: wearing sunglasses". Null when the image is not rejected or
+     * or, for "Other", just the note. Null when the image is not rejected or
      * was rejected before reasons existed.
      */
     public static function describe(User $user, string $type): ?string
@@ -63,7 +95,7 @@ final class ImageRejection
 
         $key = $user->{$column.'_rejection_reason'};
         $note = trim((string) $user->{$column.'_rejection_note'});
-        $label = $key ? (self::REASONS[$type][$key] ?? null) : null;
+        $label = self::label($type, $key);
 
         if ($key === self::OTHER) {
             return $note !== '' ? $note : null;

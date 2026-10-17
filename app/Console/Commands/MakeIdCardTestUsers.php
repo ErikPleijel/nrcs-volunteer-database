@@ -7,6 +7,7 @@ use App\Models\IdCardPrint;
 use App\Models\IdCardPrintRequest;
 use App\Models\MembershipFee;
 use App\Models\MembershipPayment;
+use App\Models\RedCrossUnit;
 use App\Models\User;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;
@@ -29,6 +30,7 @@ class MakeIdCardTestUsers extends Command
                             {--branch=FCT : Branch name}
                             {--division=Abuja Municipal : Division for the "division" users}
                             {--other-division=Bwari : Another division in the same branch, for the "branch" users}
+                            {--unit= : Red Cross unit ID; test users in that unit\'s division join it (for /my-unit/report)}
                             {--remove : Delete the test users instead}';
 
     protected $description = 'Local/testing only: create or reset 4 printable test members for the bulk ID card page';
@@ -83,10 +85,22 @@ class MakeIdCardTestUsers extends Command
             return self::FAILURE;
         }
 
+        $unit = null;
+        if ($this->option('unit')) {
+            $unit = RedCrossUnit::find($this->option('unit'));
+            if (! $unit || ! in_array((int) $unit->division_id, [$division->id, $otherDivision->id], true)) {
+                $this->error("Red Cross unit {$this->option('unit')} not found in {$division->name} or {$otherDivision->name}.");
+
+                return self::FAILURE;
+            }
+        }
+
         $rows = [];
         foreach (self::USERS as $lastName => [$key, $divisionChoice, $rejection]) {
             $target = $divisionChoice === 'division' ? $division : $otherDivision;
-            $user = $this->resetUser($key, $lastName, $target, $fee, $rejectedBy);
+            // Only users in the unit's own division join it, so unit and division agree.
+            $userUnit = $unit && (int) $unit->division_id === $target->id ? $unit : null;
+            $user = $this->resetUser($key, $lastName, $target, $fee, $rejectedBy, $userUnit);
 
             if ($rejection) {
                 // Second save: User::booted() clears a rejection whenever the
@@ -94,15 +108,18 @@ class MakeIdCardTestUsers extends Command
                 $user->forceFill([
                     $rejection.'_rejected_at' => now(),
                     $rejection.'_rejected_by_id' => $rejectedBy->id,
-                    $rejection.'_rejection_reason' => $rejection === 'picture' ? 'dark_or_blurry' : 'not_readable',
+                    $rejection.'_rejection_reason' => $rejection === 'picture' ? 'dark_or_blurry' : 'too_faint',
                     $rejection.'_rejection_note' => 'Test rejection from idcards:make-test-users',
                 ])->save();
             }
 
-            $rows[] = [$user->id, $user->full_name, $user->email, $target->name, $rejection ? "{$rejection} rejected" : 'printable'];
+            $rows[] = [$user->id, $user->full_name, $user->email, $target->name, $userUnit?->name ?? '—', $rejection ? "{$rejection} rejected" : 'printable'];
         }
 
-        $this->table(['ID', 'Name', 'Email', 'Division', 'State'], $rows);
+        $this->table(['ID', 'Name', 'Email', 'Division', 'Unit', 'State'], $rows);
+        if ($unit) {
+            $this->line("Unit {$unit->name} (#{$unit->id}): view /my-unit/report as one of its members, or /red-cross-units/{$unit->id}.");
+        }
         $this->line("Branch: {$division->branch->name}. Search \"Printtest\" on /id-cards/prepare-bulk-print.");
         $this->line('Log in as a test member: php artisan users:reset-password <ID>');
         $this->line('Admins to test with (set a password the same way):');
@@ -114,7 +131,7 @@ class MakeIdCardTestUsers extends Command
         return self::SUCCESS;
     }
 
-    private function resetUser(string $key, string $lastName, Division $division, MembershipFee $fee, User $submittedBy): User
+    private function resetUser(string $key, string $lastName, Division $division, MembershipFee $fee, User $submittedBy, ?RedCrossUnit $unit = null): User
     {
         $email = "{$key}@".self::EMAIL_DOMAIN;
         $user = User::where('email', $email)->first() ?? new User(['email' => $email]);
@@ -125,7 +142,7 @@ class MakeIdCardTestUsers extends Command
             'gender' => 'female',
             'branch_id' => $division->branch_id,
             'division_id' => $division->id,
-            'red_cross_unit_id' => null,
+            'red_cross_unit_id' => $unit?->id,
             'national_id_number' => self::NINS[$key],
             'picture' => $this->writeImage('profile', "printtest-{$key}-photo.jpg", 300, 360, [200, 225, 245], 'TEST PHOTO'),
             'signature' => $this->writeImage('signatures', "printtest-{$key}-sig.png", 400, 150, [255, 255, 255], 'Test Signature'),

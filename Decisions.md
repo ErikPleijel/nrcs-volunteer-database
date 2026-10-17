@@ -1916,6 +1916,11 @@ organisations on purpose, and hiding the organisation money keeps that consisten
 **Why:** branch training showed poor photos reaching print, and branch and division staff had no
 way to tell HQ which cards were ready.
 
+- Reasons can be retired from the pick list. A rejection stored with a retired key still shows its
+  original wording (`ImageRejection::RETIRED_REASONS`), and an unknown key shows as readable
+  text, never an error. On 2026-10-17 "Wrong person" (photo) and the first three signature
+  reasons were retired.
+
 **Accepted consequences:**
 - Existing signature rejections have no reason. They show "Upload again" without one.
 - Users are not notified by email or SMS; they see the banner on My Profile.

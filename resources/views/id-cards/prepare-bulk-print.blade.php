@@ -60,6 +60,7 @@
                                 <li>Use <span class="font-semibold">Search</span> to find one specific person by name or User ID — handy if you just need to print for a single card.</li>
                                 <li>Use <span class="font-semibold">Branch → Division → Red Cross Unit</span> to bulk-select an entire group at once.</li>
                                 <li><span class="font-semibold">Expires In</span> narrows the list to cards expiring within a set number of months.</li>
+                                <li><span class="font-semibold">Card validity</span> shows only cards that will be valid for the chosen time — from the person's current membership fee, or 1 year if they have no current payment. It matches the card's <span class="font-semibold">Validity (months)</span> box.</li>
                                 <li>Tick <span class="font-semibold">Printable cards only</span> to hide anyone missing photo, signature, or National ID.</li>
                                 <li>Tick <span class="font-semibold">ID paid but not printed</span> to find people who've paid for a card but don't have one yet.</li>
                                 <li>Tick <span class="font-semibold">Marked for printing</span> to see the cards branch or division staff marked as ready to print (oldest first).</li>
@@ -171,7 +172,7 @@
         <!-- Filters -->
         <div class="filter-container">
             <div class="filter-form-content">
-                <form method="GET" action="{{ url()->current() }}" class="filter-form">
+                <form method="GET" action="{{ url()->current() }}" class="filter-form" id="bulk-filter-form">
 
                     <div class="filter-grid filter-grid-5">
                         <!-- Column 1: Search (and empty slot to keep consistent look) -->
@@ -264,6 +265,21 @@
                                 </select>
                             </div>
 
+                            @php $activeCardValidity = array_key_exists((int) request('card_validity'), $validityOptions) ? (int) request('card_validity') : null; @endphp
+                            <div>
+                                <label for="card_validity" class="filter-label-small">
+                                    Card validity
+                                </label>
+                                <select id="card_validity"
+                                        name="card_validity"
+                                        class="filter-select-small {{ $activeCardValidity ? 'filter-active' : '' }}">
+                                    <option value="">All</option>
+                                    @foreach($validityOptions as $years => $label)
+                                        <option value="{{ $years }}" @selected($activeCardValidity === $years)>{{ $label }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
                             <div class="flex items-center gap-2 mt-1">
                                 <input id="printable_only"
                                        name="printable_only"
@@ -317,8 +333,9 @@
 
                     <div class="filter-actions">
                         <div class="filter-button-group">
-                            <button type="submit" class="filter-btn-primary">
-                                <i class="fas fa-search mr-1"></i>Filter
+                            <button type="submit" class="filter-btn-primary disabled:opacity-60 disabled:cursor-wait" id="bulk-filter-btn">
+                                <span data-idle><i class="fas fa-search mr-1"></i>Filter</span>
+                                <span data-loading class="hidden"><i class="fas fa-spinner fa-spin mr-1"></i>Loading…</span>
                             </button>
 
                             <a href="{{ url()->current() }}"
@@ -530,18 +547,22 @@
                         }
                     @endphp
 
-                    <div class="user-card-container shadow border rounded-lg p-3 transition-all
+                    {{-- data-* state is read and updated by the reject/undo JS (applyCardState()) --}}
+                    <div id="card-{{ $user->id }}"
+                         data-missing="{{ $hasMissingData ? '1' : '0' }}"
+                         data-photo-rejected="{{ $photoRejected ? '1' : '0' }}"
+                         data-signature-rejected="{{ $signatureRejected ? '1' : '0' }}"
+                         data-ready-blocks-tick="{{ $canMarkReady && $readyRequest ? '1' : '0' }}"
+                         class="user-card-container shadow border rounded-lg p-3 transition-all
                         @if($hasMissingData) border-red-500 border-2 bg-white
                         @elseif($hasRejection) border-amber-400 border-2 bg-amber-50/40
                         @else border-blue-500 border-2 hover:shadow-md bg-blue-50 @endif">
 
-                        {{-- "Upload again" / "Ready to print" banners --}}
-                        @if($hasRejection)
-                            <p class="mb-2 rounded bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-900">
-                                <i class="fas fa-rotate-right mr-1"></i>Upload again: {{ collect([$photoRejected ? 'photo' : null, $signatureRejected ? 'signature' : null])->filter()->implode(' and ') }}
-                                <span class="font-normal">— cannot be printed until a new image is uploaded</span>
-                            </p>
-                        @endif
+                        {{-- "Upload again" / "Ready to print" banners (upload-again always rendered, hidden when not needed) --}}
+                        <p data-upload-again-banner class="mb-2 rounded bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-900 {{ $hasRejection ? '' : 'hidden' }}">
+                            <i class="fas fa-rotate-right mr-1"></i>Upload again: <span data-upload-again-text>{{ collect([$photoRejected ? 'photo' : null, $signatureRejected ? 'signature' : null])->filter()->implode(' and ') }}</span>
+                            <span class="font-normal">— cannot be printed until a new image is uploaded</span>
+                        </p>
                         @if($readyRequest)
                             <div class="mb-2 flex items-center justify-between gap-2 rounded bg-indigo-100 px-2 py-1 text-xs text-indigo-900"
                                  data-ready-to-print="{{ $user->id }}">
@@ -563,13 +584,13 @@
                         {{-- TOP ROW: photo + signature + checkbox --}}
                         <div class="flex items-start gap-2 mb-2 relative">
 
-                            {{-- Profile photo + photo-age indicator (same as users/index); reject control below --}}
+                            {{-- Profile photo, reject control, then photo-age indicator (same as users/index) --}}
                             <div class="w-24 flex-shrink-0 flex flex-col items-center">
                                 <img src="{{ $user->profile_photo_url }}" alt="Profile Photo"
                                      id="photo-box-{{ $user->id }}"
                                      class="w-24 h-28 rounded-md object-cover @if(!$user->picture) border-2 border-red-500 @elseif($photoRejected) border-2 border-amber-500 @endif">
-                                <x-photo-age-indicator :user="$user" compact />
                                 @include('id-cards.partials.image-review', ['user' => $user, 'type' => 'photo'])
+                                <x-photo-age-indicator :user="$user" compact />
                             </div>
 
                             {{-- Signature — fixed width, does not stretch; reject control below --}}
@@ -598,12 +619,16 @@
                                 </div>
                             </div>
 
-                            {{-- Checkbox top-right: printers tick printable cards; markers tick printable, unmarked cards --}}
-                            @if($isPrintable && ($canPrint || ($canMarkReady && !$readyRequest)))
+                            {{-- Checkbox top-right: printers tick printable cards; markers tick printable, unmarked
+                                 cards. Rendered for every complete card but disabled + hidden while a rejection (or,
+                                 for markers, an existing mark) blocks it, so reject/undo can toggle it in place. --}}
+                            @if(!$hasMissingData && $canSelect)
+                                @php $tickBlocked = $hasRejection || ($canMarkReady && $readyRequest); @endphp
                                 <input type="checkbox"
                                        id="user-{{ $user->id }}"
-                                       class="user-checkbox absolute top-0 right-0 h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                                       value="{{ $user->id }}">
+                                       class="user-checkbox absolute top-0 right-0 h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 {{ $tickBlocked ? 'hidden' : '' }}"
+                                       value="{{ $user->id }}"
+                                       @disabled($tickBlocked)>
                             @endif
                         </div>
 
@@ -648,10 +673,10 @@
 
                         <div class="mt-2 border-t border-gray-200 pt-2">
                             <div class="flex gap-4">
-                                @if($isPrintable)
+                                @if(!$hasMissingData)
                                     @can('print_idcards')
-                                    {{-- Left: expiry input (printable cards only) --}}
-                                    <div class="flex-shrink-0">
+                                    {{-- Left: expiry input (complete cards; hidden while a rejection blocks printing) --}}
+                                    <div class="flex-shrink-0 {{ $hasRejection ? 'hidden' : '' }}" data-validity-block="{{ $user->id }}">
                                         <p class="text-xs text-gray-600">
                                             New ID expiry: <span id="expiry-display-{{ $user->id }}" class="font-semibold text-gray-800">—</span>
                                         </p>
@@ -736,8 +761,10 @@
                             <span class="font-semibold" x-text="name"></span> will see "Upload again" and your reason on
                             My Profile. The card cannot be printed until a new image is uploaded.
                         </p>
-                        <form method="POST" :action="url" id="reject-image-form">
+                        <form method="POST" :action="url" id="reject-image-form" @submit.prevent="submit()">
                             @csrf
+                            <p x-show="error" x-cloak x-text="error"
+                               class="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800"></p>
                             <fieldset class="space-y-2">
                                 <legend class="text-sm font-medium text-gray-700 mb-1">Reason</legend>
                                 <template x-for="(label, key) in reasons[type] || {}" :key="key">
@@ -758,15 +785,19 @@
                             <div class="mt-4 flex justify-end gap-2">
                                 <button type="button" @click="open = false"
                                         class="px-4 py-2 text-sm font-medium rounded-md text-gray-700 bg-gray-100 hover:bg-gray-200">Cancel</button>
-                                <button type="submit"
-                                        class="px-4 py-2 text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700">
-                                    <i class="fas fa-xmark mr-1"></i>Confirm rejection
+                                <button type="submit" :disabled="busy"
+                                        class="px-4 py-2 text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 disabled:opacity-50">
+                                    <i class="fas mr-1" :class="busy ? 'fa-spinner fa-spin' : 'fa-xmark'"></i>Confirm rejection
                                 </button>
                             </div>
                         </form>
                     </div>
                 </div>
             @endcan
+
+            {{-- Short result message for reject / undo (no page reload) --}}
+            <div id="review-toast" role="status" aria-live="polite"
+                 class="hidden fixed bottom-4 right-4 z-50 max-w-sm rounded-lg border px-4 py-3 text-sm shadow-lg"></div>
         @else
             <div class="text-center py-12">
                 <i class="fas fa-users text-4xl text-gray-400 mb-4"></i>
@@ -777,13 +808,31 @@
     </div>
 
     <script>
-        // Reject modal state (Alpine). One modal serves every card; the card's
-        // button sends { url, type, name } via the open-reject event.
+        // Reject modal state (Alpine). One modal serves every card; a card's
+        // Reject button sends { url, type, userId, name } via the open-reject
+        // event. Submitting goes through window.idCardReview.reject() (plain
+        // JS, below), which updates the card in place; the modal only shows
+        // the busy state and any error, and stays open on failure.
         function rejectModal(reasons) {
             return {
-                reasons, open: false, url: '', type: 'photo', name: '', reason: '', note: '',
+                reasons, open: false, busy: false, error: '',
+                url: '', type: 'photo', userId: '', name: '', reason: '', note: '',
                 show(detail) {
-                    Object.assign(this, { url: detail.url, type: detail.type, name: detail.name, reason: '', note: '', open: true });
+                    Object.assign(this, {
+                        url: detail.url, type: detail.type, userId: detail.userId, name: detail.name,
+                        reason: '', note: '', error: '', busy: false, open: true,
+                    });
+                },
+                async submit() {
+                    this.busy = true;
+                    this.error = '';
+                    const result = await window.idCardReview.reject(this.url, this.userId, this.type, this.reason, this.note);
+                    this.busy = false;
+                    if (result.ok) {
+                        this.open = false;
+                    } else {
+                        this.error = result.message;
+                    }
                 },
             };
         }
@@ -927,6 +976,27 @@
             drawTimelines();
             window.addEventListener('resize', drawTimelines);
 
+            // ── FILTER LOADING STATE ──────────────────────────────────────────
+            // National queries can take a few seconds: show "Loading…" and
+            // block a second click. Only the button is disabled — disabled
+            // inputs would drop out of the GET request.
+            const filterForm = document.getElementById('bulk-filter-form');
+            const filterBtn = document.getElementById('bulk-filter-btn');
+
+            function setFilterLoading(loading) {
+                if (!filterBtn) return;
+                filterBtn.disabled = loading;
+                filterBtn.querySelector('[data-idle]').classList.toggle('hidden', loading);
+                filterBtn.querySelector('[data-loading]').classList.toggle('hidden', !loading);
+            }
+
+            filterForm?.addEventListener('submit', event => {
+                if (filterBtn?.disabled) { event.preventDefault(); return; } // already submitting (e.g. Enter twice)
+                setFilterLoading(true);
+            });
+            // Back/forward cache restores the page as it was left: reset the button.
+            window.addEventListener('pageshow', event => { if (event.persisted) setFilterLoading(false); });
+
             // ── CASCADING DROPDOWNS ───────────────────────────────────────────
             const branchSelect = document.getElementById('branch_id');
             const divisionSelect = document.getElementById('division_id');
@@ -1041,6 +1111,154 @@
                 });
             });
 
+            // ── PHOTO / SIGNATURE REJECT + UNDO (AJAX, no reload) ────────────
+            // The server checks permission and branch/division as before; on
+            // any refusal the card is left exactly as it was.
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+            const toast = document.getElementById('review-toast');
+            let toastTimer = null;
+
+            function showToast(message, ok) {
+                if (!toast) return;
+                toast.textContent = message;
+                toast.className = 'fixed bottom-4 right-4 z-50 max-w-sm rounded-lg border px-4 py-3 text-sm shadow-lg '
+                    + (ok ? 'border-green-200 bg-green-50 text-green-800' : 'border-red-200 bg-red-50 text-red-800');
+                clearTimeout(toastTimer);
+                toastTimer = setTimeout(() => toast.classList.add('hidden'), ok ? 3500 : 6000);
+            }
+
+            // Send a reject/undo request; resolves to { ok, data, message } and never throws.
+            async function sendReview(url, method, body) {
+                try {
+                    const res = await fetch(url, {
+                        method,
+                        headers: {
+                            'X-CSRF-TOKEN': csrfToken,
+                            'Accept': 'application/json',
+                            ...(body ? { 'Content-Type': 'application/json' } : {}),
+                        },
+                        body: body ? JSON.stringify(body) : undefined,
+                    });
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok) {
+                        // Validation: show the first field error; otherwise the server's message.
+                        const firstError = data.errors ? Object.values(data.errors)[0]?.[0] : null;
+                        const message = firstError || data.message
+                            || (res.status === 403 ? 'You are not allowed to do this for this person.' : `Could not save (error ${res.status}). Please try again.`);
+                        return { ok: false, message };
+                    }
+                    return { ok: true, data, message: data.message || 'Saved.' };
+                } catch (e) {
+                    return { ok: false, message: 'Could not reach the server. Check your connection and try again.' };
+                }
+            }
+
+            // Bring one card in line with the server's state after reject/undo.
+            function applyCardState(userId, data) {
+                const card = document.getElementById(`card-${userId}`);
+                if (!card) return;
+
+                card.dataset.photoRejected = data.photo_rejected ? '1' : '0';
+                card.dataset.signatureRejected = data.signature_rejected ? '1' : '0';
+                if (data.ready_mark_cancelled) {
+                    card.querySelector(`[data-ready-to-print="${userId}"]`)?.remove();
+                    card.dataset.readyBlocksTick = '0';
+                }
+
+                const rejected = data.photo_rejected || data.signature_rejected;
+                const missing = card.dataset.missing === '1';
+
+                // Swap in the server-rendered review box for the image that changed.
+                const box = card.querySelector(`[data-image-review="${data.type}-${userId}"]`);
+                if (box && data.html) box.outerHTML = data.html;
+
+                // Card border: missing data stays red; otherwise amber when rejected, blue when printable.
+                if (!missing) {
+                    card.classList.toggle('border-amber-400', rejected);
+                    card.classList.toggle('bg-amber-50/40', rejected);
+                    card.classList.toggle('border-blue-500', !rejected);
+                    card.classList.toggle('bg-blue-50', !rejected);
+                    card.classList.toggle('hover:shadow-md', !rejected);
+                }
+
+                const banner = card.querySelector('[data-upload-again-banner]');
+                if (banner) {
+                    banner.classList.toggle('hidden', !rejected);
+                    banner.querySelector('[data-upload-again-text]').textContent =
+                        [data.photo_rejected ? 'photo' : null, data.signature_rejected ? 'signature' : null].filter(Boolean).join(' and ');
+                }
+
+                const photo = document.getElementById(`photo-box-${userId}`);
+                if (photo && !photo.classList.contains('border-red-500')) {
+                    photo.classList.toggle('border-2', data.photo_rejected);
+                    photo.classList.toggle('border-amber-500', data.photo_rejected);
+                }
+                const signature = document.getElementById(`signature-box-${userId}`);
+                if (signature) {
+                    signature.classList.toggle('border-2', data.signature_rejected);
+                    signature.classList.toggle('border-amber-500', data.signature_rejected);
+                    signature.classList.toggle('border', !data.signature_rejected);
+                    signature.classList.toggle('border-gray-200', !data.signature_rejected);
+                }
+
+                // Tick box: blocked while rejected (and, for markers, while already marked).
+                const checkbox = document.getElementById(`user-${userId}`);
+                if (checkbox) {
+                    const blocked = rejected || card.dataset.readyBlocksTick === '1';
+                    if (blocked && checkbox.checked) checkbox.checked = false;
+                    checkbox.disabled = blocked;
+                    checkbox.classList.toggle('hidden', blocked);
+                    updateSelectionState();
+                }
+
+                // Printers: validity input and the timeline's expiry marker follow printability.
+                document.querySelector(`[data-validity-block="${userId}"]`)?.classList.toggle('hidden', rejected);
+                const timeline = document.querySelector(`.timeline-container[data-user-id="${userId}"]`);
+                if (timeline) {
+                    timeline.dataset.showValidity = (!missing && !rejected) ? 'true' : 'false';
+                    drawOneTimeline(timeline);
+                }
+            }
+
+            window.idCardReview = {
+                // Called by the reject modal (Alpine); the modal shows a failure message itself.
+                async reject(url, userId, type, reason, note) {
+                    const result = await sendReview(url, 'POST', { reason, note });
+                    if (result.ok) {
+                        applyCardState(userId, result.data);
+                        showToast(result.message, true);
+                    }
+                    return result;
+                },
+            };
+
+            // Reject buttons open the shared modal (delegated: the buttons are swapped in after undo).
+            document.addEventListener('click', event => {
+                const button = event.target.closest('.js-reject-btn');
+                if (!button) return;
+                window.dispatchEvent(new CustomEvent('open-reject', {
+                    detail: { url: button.dataset.url, type: button.dataset.type, userId: button.dataset.userId, name: button.dataset.name },
+                }));
+            });
+
+            // Undo: send the form with fetch instead of a page reload (the form still works without JS).
+            document.addEventListener('submit', async event => {
+                const form = event.target.closest('.js-undo-form');
+                if (!form) return;
+                event.preventDefault();
+
+                const button = form.querySelector('button');
+                if (button) button.disabled = true;
+                const result = await sendReview(form.action, 'DELETE');
+                if (result.ok) {
+                    applyCardState(form.dataset.userId, result.data);
+                    showToast(result.message, true);
+                } else {
+                    if (button) button.disabled = false;
+                    showToast(result.message, false);
+                }
+            });
+
             // ── PULSE REMINDER ────────────────────────────────────────────────
             const recordPrintsBtnEl = document.getElementById('record-prints-btn');
             const stopPulseBtnEl    = document.getElementById('stop-pulse-btn');
@@ -1070,10 +1288,8 @@
 
             if (selectAllBtn) {
                 selectAllBtn.addEventListener('click', () => {
-                    userCheckboxes.forEach(cb => {
-                        const card = cb.closest('.user-card-container');
-                        if (card && !card.classList.contains('border-red-500')) cb.checked = true;
-                    });
+                    // Disabled = blocked by a rejection or an existing mark.
+                    userCheckboxes.forEach(cb => { if (!cb.disabled) cb.checked = true; });
                     updateSelectionState();
                 });
 

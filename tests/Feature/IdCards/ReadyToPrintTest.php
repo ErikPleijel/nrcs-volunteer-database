@@ -169,7 +169,7 @@ test('a marker sees tick boxes and the Mark as ready button, but no print button
     expect($html)->toContain('id="mark-ready-btn"')
         ->toContain('Mark as ready to print')
         ->toContain('id="user-'.$member->id.'"')
-        ->not->toContain('id="user-'.$marked->id.'"') // already marked: badge instead of tick box
+        ->toMatch('/<input type="checkbox"\s+id="user-'.$marked->id.'"[^>]*disabled/') // already marked: badge, tick box disabled
         ->toContain('data-ready-to-print="'.$marked->id.'"')
         ->toContain('by Bea Branch')
         ->not->toContain('id="print-selected-btn"')
@@ -204,7 +204,8 @@ test('rejecting an image cancels the mark', function () {
 
     $this->actingAs($this->marker)
         ->postJson(route('id-cards.reject-image', [$member, 'photo']), ['reason' => 'dark_or_blurry'])
-        ->assertOk();
+        ->assertOk()
+        ->assertJson(['ready_mark_cancelled' => true, 'photo_rejected' => true]);
 
     $request->refresh();
     expect($request->status)->toBe('cancelled')

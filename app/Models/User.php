@@ -965,10 +965,14 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     public function currentMembershipPayment()
     {
+        // id breaks ties between equal expiry dates, so the "current" payment
+        // is always the same one (the bulk print card-validity filter in
+        // IdCardController mirrors this order in SQL).
         return $this->hasOne(MembershipPayment::class)
             ->where('is_deleted', false)
             ->where('expiry_date', '>=', now()->toDateString())
-            ->latest('expiry_date');
+            ->latest('expiry_date')
+            ->latest('id');
     }
 
     /**

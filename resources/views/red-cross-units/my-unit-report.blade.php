@@ -110,21 +110,20 @@
                     // A rejected photo/signature blocks printing: "Upload again".
                     $photoRejected = $user->needsPictureReupload();
                     $signatureRejected = $user->needsSignatureReupload();
-                    $uploadAgainItems = collect([
-                        $photoRejected ? ['Photo', \App\Support\ImageRejection::describe($user, 'photo')] : null,
-                        $signatureRejected ? ['Signature', \App\Support\ImageRejection::describe($user, 'signature')] : null,
-                    ])->filter();
+                    // Shown inside the image overlays, admins only (see upload-again-overlay).
+                    $photoReason = $photoRejected ? \App\Support\ImageRejection::describe($user, 'photo') : null;
+                    $signatureReason = $signatureRejected ? \App\Support\ImageRejection::describe($user, 'signature') : null;
                 @endphp
 
                 <div class="shadow border-2 rounded-lg p-3
-                    {{ $hasMissingData ? 'border-red-500 bg-white' : ($uploadAgainItems->isNotEmpty() ? 'border-amber-400 bg-amber-50/40' : 'border-blue-500 bg-blue-50') }}">
+                    {{ $hasMissingData ? 'border-red-500 bg-white' : ($photoRejected || $signatureRejected ? 'border-amber-400 bg-amber-50/40' : 'border-blue-500 bg-blue-50') }}">
 
                     {{-- TOP ROW: photo + signature --}}
                     <div class="flex items-start gap-2 mb-2">
 
                         {{-- Profile photo --}}
                         <div class="flex-shrink-0">
-                            <div class="w-24 h-28 rounded-md overflow-hidden flex items-center justify-center
+                            <div class="relative w-24 h-28 rounded-md overflow-hidden flex items-center justify-center
                                 border-2 {{ !$user->picture ? 'border-red-500' : ($photoRejected ? 'border-amber-500' : 'border-gray-200') }}
                                 @if(($user->gender ?? 'male') === 'female') bg-gradient-to-br from-pink-400 to-purple-500
                                 @else bg-gradient-to-br from-blue-400 to-blue-600 @endif">
@@ -141,6 +140,12 @@
                                         <i class="fas fa-circle-xmark text-red-300 text-sm"></i>
                                     </div>
                                 @endif
+                                @if($photoRejected)
+                                    @include('red-cross-units.partials.upload-again-overlay', [
+                                        'type' => 'photo', 'userId' => $user->id,
+                                        'reason' => $photoReason, 'showReason' => $showRejectionReason,
+                                    ])
+                                @endif
                             </div>
                             {{-- Photo age indicator --}}
                             <x-photo-age-indicator :user="$user" />
@@ -148,10 +153,22 @@
 
                         {{-- Signature --}}
                         @if($signatureRejected)
-                            <div class="w-32 h-28 flex-shrink-0 flex flex-col items-center
-                                        justify-center rounded border border-amber-400 bg-amber-50">
-                                <i class="fas fa-rotate-right text-amber-500 text-3xl"></i>
-                                <p class="text-amber-800 text-xs font-semibold mt-1">Signature: upload again</p>
+                            {{-- Admins can load the rejected signature (with "Show photos") to see what was wrong;
+                                 members get only the overlay — no one else's signature image. --}}
+                            <div class="relative w-32 h-28 flex-shrink-0 flex items-center justify-center
+                                        overflow-hidden rounded border-2 border-amber-500 bg-white">
+                                @if($showRejectionReason)
+                                    <img data-img data-src="{{ $user->signature_url }}"
+                                         src="" alt="Signature" loading="lazy"
+                                         class="max-h-20 max-w-full object-contain hidden">
+                                    <div data-img-placeholder><i class="fas fa-signature text-3xl text-gray-300"></i></div>
+                                @else
+                                    <i class="fas fa-signature text-3xl text-gray-300"></i>
+                                @endif
+                                @include('red-cross-units.partials.upload-again-overlay', [
+                                    'type' => 'signature', 'userId' => $user->id,
+                                    'reason' => $signatureReason, 'showReason' => $showRejectionReason,
+                                ])
                             </div>
                         @elseif($user->hasSignature())
                             <div class="w-32 h-28 flex-shrink-0 flex flex-col items-center
@@ -234,21 +251,6 @@
                                     !$user->first_name ? 'First name' : null,
                                 ])->filter()->implode(', ') }}
                             </p>
-                        </div>
-                    @endif
-
-                    {{-- Upload again (rejected photo/signature); reason for admins only --}}
-                    @if($uploadAgainItems->isNotEmpty())
-                        <div class="mt-2 pt-2 border-t border-amber-200 space-y-0.5" data-upload-again="{{ $user->id }}">
-                            @foreach($uploadAgainItems as [$imageLabel, $reason])
-                                <p class="text-xs text-amber-800"
-                                   @if($showRejectionReason && $reason) title="{{ $reason }}" @endif>
-                                    <i class="fas fa-rotate-right mr-1"></i><span class="font-semibold">Upload again: {{ $imageLabel }}</span>
-                                    @if($showRejectionReason && $reason)
-                                        <span class="text-amber-700">— {{ $reason }}</span>
-                                    @endif
-                                </p>
-                            @endforeach
                         </div>
                     @endif
 

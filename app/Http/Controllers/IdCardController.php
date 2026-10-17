@@ -6,6 +6,8 @@ use App\Models\Branch;
 use App\Models\Division;
 use App\Models\IdCardPrint;
 use App\Models\IdCardPrintRequest;
+use App\Models\MembershipFee;
+use App\Models\MembershipPayment;
 use App\Models\RedCrossUnit;
 use App\Models\Setting;
 use App\Models\User;
@@ -14,6 +16,7 @@ use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Auth;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
@@ -114,6 +117,14 @@ class IdCardController extends Controller
         // Filter: a rejected photo or signature awaiting a new upload.
         if ($request->boolean('has_rejection')) {
             $query->withImageRejection();
+        }
+
+        // Filter: card validity in years, the same value the card's validity
+        // box defaults to (User::defaultIdCardValidityMonths()).
+        $validityOptions = $this->cardValidityOptions();
+        $cardValidity = (int) $request->input('card_validity');
+        if (array_key_exists($cardValidity, $validityOptions)) {
+            $this->whereCardValidityYears($query, $cardValidity);
         }
 
         if ($request->filled('expires_in_months')) {
@@ -232,7 +243,57 @@ class IdCardController extends Controller
 
         $rejectionReasons = ImageRejection::REASONS;
 
-        return view('id-cards.prepare-bulk-print', compact('users', 'branches', 'divisions', 'redCrossUnits', 'accessLevel', 'userBranchId', 'userDivisionId', 'rejectionReasons'));
+        return view('id-cards.prepare-bulk-print', compact('users', 'branches', 'divisions', 'redCrossUnits', 'accessLevel', 'userBranchId', 'userDivisionId', 'rejectionReasons', 'validityOptions'));
+    }
+
+    /**
+     * "Card validity" filter options, years => label ("1 year", "3 years"):
+     * the distinct validity_years of fees that carry an ID card fee (inactive
+     * fees too — old payments still use them), plus 1 year, the default for
+     * someone with no current payment. A fee with a new duration shows up
+     * here automatically. validity_years is whole years, so no months.
+     *
+     * @return array<int, string>
+     */
+    private function cardValidityOptions(): array
+    {
+        $years = MembershipFee::where('id_card_fee', '>', 0)
+            ->distinct()
+            ->pluck('validity_years')
+            ->map(fn ($y) => (int) $y)
+            ->filter(fn (int $y) => $y > 0)
+            ->push(1)
+            ->unique()
+            ->sort()
+            ->values();
+
+        return $years->mapWithKeys(fn (int $y) => [$y => $y === 1 ? '1 year' : "{$y} years"])->all();
+    }
+
+    /**
+     * Limit to users whose card validity is $years — in SQL, mirroring
+     * User::defaultIdCardValidityMonths(): the fee of the current personal
+     * payment (approved, not deleted, not expired; latest expiry, then
+     * highest id — the currentMembershipPayment order), validity_years;
+     * 1 year when there is no such payment, or its fee is missing or 0.
+     */
+    private function whereCardValidityYears($query, int $years): void
+    {
+        $currentFeeYears = MembershipPayment::query() // ApprovedScope applies
+            ->personal()
+            ->leftJoin('membership_fees', 'membership_fees.id', '=', 'membership_payments.membership_fee_id')
+            ->whereColumn('membership_payments.user_id', 'users.id')
+            ->where('membership_payments.is_deleted', false)
+            ->where('membership_payments.expiry_date', '>=', now()->toDateString())
+            ->orderByDesc('membership_payments.expiry_date')
+            ->orderByDesc('membership_payments.id')
+            ->limit(1)
+            ->select(DB::raw('NULLIF(membership_fees.validity_years, 0)'));
+
+        $query->whereRaw(
+            'COALESCE(('.$currentFeeYears->toSql().'), 1) = ?',
+            [...$currentFeeYears->getBindings(), $years]
+        );
     }
 
     /**
@@ -469,7 +530,9 @@ class IdCardController extends Controller
         $user->{$column.'_rejection_note'} = filled($validated['note'] ?? null) ? trim($validated['note']) : null;
         $user->save();
 
-        $user->cancelPendingIdCardPrintRequests(IdCardPrintRequest::CANCEL_IMAGE_REJECTED, Auth::id());
+        $cancelledMarks = $user->cancelPendingIdCardPrintRequests(IdCardPrintRequest::CANCEL_IMAGE_REJECTED, Auth::id());
+
+        $message = "{$user->full_name}: {$label} marked \"upload again\".";
 
         if ($request->expectsJson()) {
             return response()->json([
@@ -478,10 +541,13 @@ class IdCardController extends Controller
                 'reason' => ImageRejection::describe($user, $type),
                 'rejected_at' => $user->{$column.'_rejected_at'}->format('d M Y'),
                 'rejected_by' => Auth::user()->full_name,
+                'ready_mark_cancelled' => $cancelledMarks > 0,
+                'message' => $message,
+                ...$this->reviewCardState($user, $type),
             ]);
         }
 
-        return redirect()->back()->with('success', "{$user->full_name}: {$label} marked \"upload again\".");
+        return redirect()->back()->with('success', $message);
     }
 
     /**
@@ -495,13 +561,37 @@ class IdCardController extends Controller
         $user->clearImageRejection(ImageRejection::column($type));
         $user->save();
 
+        $label = $type === 'photo' ? 'Photo' : 'Signature';
+        $message = "{$user->full_name}: {$label} rejection undone.";
+
         if ($request->expectsJson()) {
-            return response()->json(['rejected' => false, 'type' => $type]);
+            return response()->json([
+                'rejected' => false,
+                'type' => $type,
+                'message' => $message,
+                ...$this->reviewCardState($user, $type),
+            ]);
         }
 
-        $label = $type === 'photo' ? 'Photo' : 'Signature';
+        return redirect()->back()->with('success', $message);
+    }
 
-        return redirect()->back()->with('success', "{$user->full_name}: {$label} rejection undone.");
+    /**
+     * What the bulk print page needs to update one card in place after a
+     * reject/undo: both images' rejection state and the re-rendered review
+     * box (the same partial the page renders) for the image just changed.
+     *
+     * @return array{photo_rejected: bool, signature_rejected: bool, html: string}
+     */
+    private function reviewCardState(User $user, string $type): array
+    {
+        $user->load('pictureRejectedBy', 'signatureRejectedBy');
+
+        return [
+            'photo_rejected' => $user->needsPictureReupload(),
+            'signature_rejected' => $user->needsSignatureReupload(),
+            'html' => view('id-cards.partials.image-review', ['user' => $user, 'type' => $type])->render(),
+        ];
     }
 
     /**
