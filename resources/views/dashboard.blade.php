@@ -1834,7 +1834,19 @@
             'print_certificates' => 'Print Certificates',
             'campaign_request_approve' => 'Campaign Request Approve',
             'add_user' => \App\Support\SpecialPermissions::tagLabel('add_user'), // "Register persons"
+            'no_financial_approval' => 'Cannot approve financial records',
         ];
+
+        // Branch DB administrators: financial approval is the normal case, so tag only
+        // the exception (turned off by HQ), as on the roles page.
+        if ($myRole === 'branch_db_administrator') {
+            $financialPerms = \App\Support\SpecialPermissions::FINANCIAL_APPROVAL_PERMISSIONS;
+            $financialOff = $myExtraPermissions->intersect($financialPerms)->count() < count($financialPerms);
+            $myExtraPermissions = $myExtraPermissions->reject(fn ($perm) => in_array($perm, $financialPerms, true))->values();
+            if ($financialOff) {
+                $myExtraPermissions->push('no_financial_approval');
+            }
+        }
     @endphp
 
     <section class="mt-6 mb-20  px-4 sm:px-6 lg:px-8">

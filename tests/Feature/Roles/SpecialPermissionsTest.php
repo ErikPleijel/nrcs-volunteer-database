@@ -537,3 +537,17 @@ test('national DB assistant tick boxes still work as before', function () {
 
     expect(spDirect($target))->toBe(['print_idcards']);
 });
+
+test('the dashboard "Your place in the team" tags a branch DB administrator only when financial approval is off', function (bool $on) {
+    Role::findByName('branch_db_administrator', 'web')->givePermissionTo(Permission::findOrCreate('view_reports', 'web'));
+    $admin = $on ? spBranchAdmin($this->branchA) : spUser('branch_db_administrator', $this->branchA);
+
+    $page = $this->actingAs($admin)->get(route('reports.dashboard'))
+        ->assertOk()
+        ->assertSee('Your place in the team')
+        ->assertDontSee('Approve Payments')
+        ->assertDontSee('Approve Donations');
+
+    $on ? $page->assertDontSee('Cannot approve financial records')
+        : $page->assertSee('Cannot approve financial records');
+})->with(['on' => [true], 'off' => [false]]);
