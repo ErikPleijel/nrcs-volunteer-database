@@ -5,7 +5,7 @@
  *  - branch_db_administrator: "Can approve financial records" (approve_payments +
  *    approve_donations given directly; ON by default; only national may change it);
  *  - division DB assistants: "Can upload photos and signatures" (upload_user_images)
- *    and "Can register new users" (add_user); OFF by default; set by branch or national.
+ *    and "Can register persons" (add_user); OFF by default; set by branch or national.
  * Plus the approval queues / four-eyes rule with the tick box off, and the
  * migration that moved the two approve permissions off the role.
  *
@@ -357,13 +357,26 @@ test('a branch admin cannot change roles or tick boxes of someone in another bra
     expect(spDirect($target))->toBe([]);
 });
 
+test('the Users by Role table tags a division assistant\'s register permission as "Register persons"', function () {
+    $secretary = spUser('branch_secretary', $this->branchA);
+    $target = spUser('division_db_assistant_finance', $this->branchA, $this->divisionA);
+    $target->givePermissionTo('add_user');
+
+    test()->actingAs($secretary)
+        ->withSession(['auth.password_confirmed_at' => time()])
+        ->get(route('users.roles.edit'))
+        ->assertOk()
+        ->assertSee('Register persons')
+        ->assertDontSee('add user');
+});
+
 test('the roles page shows the division tick boxes for a division assistant', function () {
     $secretary = spUser('branch_secretary', $this->branchA);
     $target = spUser('division_db_assistant_finance', $this->branchA, $this->divisionA);
 
     spRolesPage($secretary, $target)
         ->assertSee('Can upload photos and signatures')
-        ->assertSee('Can register new users')
+        ->assertSee('Can register persons')
         ->assertDontSee('Only HQ can change this.');
 });
 

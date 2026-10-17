@@ -4,7 +4,7 @@
  * users/{user}/images (UserImageController, UserPolicy::uploadImages) and staff
  * registration (UserController::create/store), for division DB assistants with
  * and without their tick boxes ("Can upload photos and signatures" =
- * upload_user_images, "Can register new users" = add_user, both given directly),
+ * upload_user_images, "Can register persons" = add_user, both given directly),
  * plus the two closed gaps: uploading images outside your own area, and
  * registering someone in another branch/division, through the URL / a posted form.
  */

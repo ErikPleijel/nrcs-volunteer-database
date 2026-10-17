@@ -74,7 +74,7 @@
                                 <li><span class="font-semibold">Branch DB Assistant</span> — branch data entry.</li>
                                 <li><span class="font-semibold">Division Assistant — Finance</span> — handles Payments, Donations, Trainings &amp; Volunteering.</li>
                                 <li><span class="font-semibold">Division Assistant — Operations</span> — handles Trainings &amp; Volunteering.</li>
-                                <li>A <span class="font-semibold">Division Assistant</span> sees only their own division. Tick boxes can add <span class="font-semibold">Can upload photos and signatures</span> and <span class="font-semibold">Can register new users</span> (both off by default, own division only).</li>
+                                <li>A <span class="font-semibold">Division Assistant</span> sees only their own division. Tick boxes can add <span class="font-semibold">Can upload photos and signatures</span> and <span class="font-semibold">Can register persons</span> (both off by default, own division only).</li>
                                 <li>A <span class="font-semibold">Branch DB Administrator</span> can approve donations and fees unless HQ unticks <span class="font-semibold">Can approve financial records</span>. Only HQ can change it.</li>
                                 <li>Search for the person, then use the <span class="font-semibold">Assign Role</span> dropdown to give — or remove — a role.</li>
                                 <li>Select <span class="font-semibold">"-- No Role --"</span> to remove authorization entirely.</li>
@@ -424,7 +424,7 @@
                                                          rounded text-xs font-semibold
                                                          bg-red-100 text-red-700 border border-red-300">
                                                 <i class="fas fa-key text-[10px]"></i>
-                                                {{ str_replace('_', ' ', $perm->name) }}
+                                                {{ \App\Support\SpecialPermissions::tagLabel($perm->name) }}
                                             </span>
                                         @endforeach
                                     </div>

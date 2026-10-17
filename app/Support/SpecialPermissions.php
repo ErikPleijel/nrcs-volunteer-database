@@ -37,7 +37,7 @@ final class SpecialPermissions
             'set_by' => ['national', 'branch'],
         ],
         self::REGISTER_USERS => [
-            'label' => 'Can register new users',
+            'label' => 'Can register persons',
             'help' => 'Only in their own division.',
             'permissions' => ['add_user'],
             'default' => false,
@@ -82,6 +82,17 @@ final class SpecialPermissions
         'division_db_assistant_finance' => self::DIVISION_OPTIONS,
         'division_db_assistant_operations' => self::DIVISION_OPTIONS,
     ];
+
+    /** Tag text on the roles page's "Users by Role" table, where the permission name reads badly. */
+    private const TAG_LABELS = [
+        'add_user' => 'Register persons',
+    ];
+
+    /** The tag shown for a direct permission on the roles page's "Users by Role" table. */
+    public static function tagLabel(string $permission): string
+    {
+        return self::TAG_LABELS[$permission] ?? str_replace('_', ' ', $permission);
+    }
 
     /** @return array<string, array> the tick boxes a role offers (none for most roles) */
     public static function forRole(?string $role): array
