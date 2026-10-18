@@ -119,3 +119,20 @@ test('boundary years match User::image_age_status exactly (3 = aging, 5 = stale)
     expect($atThree)->toContain('fa-circle-exclamation')->toContain('text-yellow-600')
         ->and($atFive)->toContain('fa-triangle-exclamation')->toContain('text-red-600');
 });
+
+test('verbose prop writes a full sentence and asks for a new photo only when stale', function () {
+    $recent = renderPhotoAgeIndicator(photoAgeUser(Carbon::now()->subMonths(3)->toDateTimeString()), ['verbose' => true]);
+    $one = renderPhotoAgeIndicator(photoAgeUser(Carbon::now()->subYear()->toDateTimeString()), ['verbose' => true]);
+    $aging = renderPhotoAgeIndicator(photoAgeUser(Carbon::now()->subYears(4)->toDateTimeString()), ['verbose' => true]);
+    $stale = renderPhotoAgeIndicator(photoAgeUser(Carbon::now()->subYears(8)->toDateTimeString()), ['verbose' => true]);
+    $noDate = renderPhotoAgeIndicator(photoAgeUser(null), ['verbose' => true]);
+
+    expect($recent)->toContain('Photo uploaded less than a year ago')->toContain('text-green-600')
+        ->and($one)->toContain('Photo uploaded 1 year ago')
+        ->and($aging)->toContain('Photo uploaded 4 years ago')->toContain('text-yellow-600')
+        ->not->toContain('Please upload a new photo')
+        ->and($stale)->toContain('Photo uploaded 8 years ago')->toContain('text-red-600')
+        ->toContain('Please upload a new photo.')
+        ->not->toContain('yrs')
+        ->and($noDate)->toContain('Upload date unknown');
+});

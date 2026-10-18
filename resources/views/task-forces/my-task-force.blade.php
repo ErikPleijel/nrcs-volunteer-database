@@ -143,17 +143,7 @@
                                     </div>
                                     <div class="min-w-0 flex-1">
                                         <p class="font-semibold text-gray-900 truncate">{{ $member->full_name }}</p>
-                                        @if($member->telephone1)
-                                            <p class="text-sm text-gray-600 truncate flex items-center gap-1.5">
-                                                <span class="truncate">{{ $member->telephone1 }}</span>
-                                                <button type="button"
-                                                        class="copy-phone-btn text-gray-400 hover:text-blue-600 transition-colors flex-shrink-0"
-                                                        data-phone="{{ $member->telephone1 }}"
-                                                        title="Copy phone number">
-                                                    <i class="fas fa-copy text-xs"></i>
-                                                </button>
-                                            </p>
-                                        @endif
+                                        {{-- Members' phone numbers are never shown here; only the leaders' (above). --}}
                                         <p class="text-sm text-gray-600 truncate">{{ $member->user_id_reference_short }}</p>
                                     </div>
                                 </div>

@@ -1,10 +1,10 @@
 @if($state)
     @if($state === 'no_date')
-        <p class="{{ $compact ? 'inline-flex items-center gap-1' : 'text-center mt-0.5' }} text-[10px] text-gray-400">
+        <p class="{{ $compact ? 'inline-flex items-center gap-1' : 'text-center mt-0.5' }} {{ $verbose ? 'text-xs' : 'text-[10px]' }} text-gray-400">
             @if($label)
                 <span>{{ $label }}:</span>
             @endif
-            no date
+            {{ $verbose ? 'Upload date unknown' : 'no date' }}
         </p>
     @else
         <p class="{{ $compact ? 'inline-flex items-center gap-1' : 'text-center mt-0.5' }} {{ $sizeClass }} {{ $colorClass }} font-semibold">
@@ -13,5 +13,8 @@
             @endif
             <i class="fas {{ $icon }} mr-0.5"></i>{{ $text }}
         </p>
+        @if($hint)
+            <p class="text-center text-xs {{ $colorClass }}">{{ $hint }}</p>
+        @endif
     @endif
 @endif

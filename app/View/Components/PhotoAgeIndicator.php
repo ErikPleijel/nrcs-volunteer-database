@@ -31,10 +31,17 @@ class PhotoAgeIndicator extends Component
 
     public bool $compact;
 
-    public function __construct(User $user, ?string $label = null, bool $compact = false)
+    /** Full sentence ("Photo uploaded 8 years ago") instead of "8 yrs" — used on My Profile. */
+    public bool $verbose;
+
+    /** Shown under the text when verbose and the photo is stale. */
+    public ?string $hint = null;
+
+    public function __construct(User $user, ?string $label = null, bool $compact = false, bool $verbose = false)
     {
         $this->label = $label;
         $this->compact = $compact;
+        $this->verbose = $verbose;
 
         if (! $user->picture) {
             $this->state = null;
@@ -61,6 +68,17 @@ class PhotoAgeIndicator extends Component
         };
 
         $ageInYears = $user->image_age_in_years;
+
+        if ($verbose) {
+            $years = (int) $ageInYears;
+            $this->text = $ageInYears < 1 ? 'Photo uploaded less than a year ago'
+                : 'Photo uploaded '.$years.' '.($years === 1 ? 'year' : 'years').' ago';
+            $this->sizeClass = $status === 'stale' ? 'text-sm' : 'text-xs';
+            $this->hint = $status === 'stale' ? 'Please upload a new photo.' : null;
+
+            return;
+        }
+
         $this->text = $ageInYears < 1 ? '< 1 yr' : (int) $ageInYears.' yrs';
     }
 

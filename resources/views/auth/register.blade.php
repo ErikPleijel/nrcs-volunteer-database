@@ -125,6 +125,8 @@
                                     @endfor
                                 </select>
 
+                                <x-under-18-notice for="birth_year" />
+
                                 @error('birth_year')
                                 <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
                                 @enderror
@@ -318,7 +320,7 @@
                                     <div class="flex items-center h-5">
                                         <input id="contribution_volunteering" name="contribution_type" type="radio" value="volunteering"
                                                class="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300"
-                                               {{ old('contribution_type') === 'volunteering' ? 'checked' : '' }}>
+                                               {{ old('contribution_type', 'volunteering') === 'volunteering' ? 'checked' : '' }}>
                                     </div>
                                     <div class="ml-3 text-sm">
                                         <span class="font-medium text-gray-700">Volunteer Services</span>

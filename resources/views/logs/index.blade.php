@@ -350,13 +350,18 @@
                 </div>
             </div>
 
-            <div class="flex items-center gap-2 pt-1">
-                <button type="submit" class="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded shadow-sm">
-                    Apply filters
-                </button>
-                <a href="{{ route('logs.index') }}" class="px-4 py-2 bg-gray-100 text-gray-800 text-sm rounded">
-                    Reset
-                </a>
+            @php $hasFilters = collect(request()->only(['search', 'branch_id', 'division_id', 'action', 'from_date', 'to_date']))->contains(fn ($v) => filled($v)); @endphp
+            <div class="filter-actions pt-1">
+                <div class="filter-button-group">
+                    <button type="submit" class="filter-btn-primary">
+                        <i class="fas fa-search mr-1"></i>Filter
+                    </button>
+
+                    <a @if($hasFilters) href="{{ route('logs.index') }}" @endif
+                    class="filter-btn-secondary {{ $hasFilters ? 'filter-btn-secondary-active' : 'filter-btn-disabled' }}">
+                        <i class="fas fa-times mr-1"></i>Clear
+                    </a>
+                </div>
             </div>
         </div>
     </form>

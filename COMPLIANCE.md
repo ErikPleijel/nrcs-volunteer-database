@@ -89,6 +89,16 @@ address used for the payment.
   October 2026) have neither an email address nor a phone number, so these people cannot log in.
   Their consent therefore cannot be confirmed online. NRCS must decide how consent is handled for
   them, for example on paper at their next contact with their branch.
+- **Children under 18.** The system does not ask for or record a parent's or guardian's consent,
+  and anyone can register whatever their age. When a person picks a year of birth on the
+  registration form that means they are under 18, a short notice asks them to check with their
+  parent or guardian, who may need to give permission at the branch. Staff registering someone
+  see a similar notice. Only the year of birth is known, so a person born exactly 18 years ago
+  may still be 17; for that year the notice says "If you have not had your 18th birthday yet".
+  The notice is information only: it does not stop the registration and nothing is recorded.
+  NRCS must decide how guardian consent is obtained and recorded for children, including consent
+  for their photo (the Code of Conduct requires the consent of the child and their parent or
+  guardian before a child is photographed).
 
 ## 5. Who can see the data
 
@@ -97,7 +107,9 @@ address used for the payment.
   division.
 - **Members and volunteers** see their own record. Volunteers can also see the names of the other
   members of their own Red Cross unit (and their photos, if they choose to load them), and members
-  of a task force can see their teammates.
+  of a task force can see their teammates. On these pages only the phone numbers of the team
+  leader and assistant team leader are shown, so members can reach them; members' phone numbers
+  are not shown to anyone, the leaders included.
 - **Staff commitment.** Before they can use the system, every staff member with an administrative
   role must accept a data handling commitment: to access only what their role needs, not to share
   data outside NRCS channels, and to handle it under the NDPA.
@@ -174,6 +186,9 @@ is a draft and is marked as such on the page. The NRCS Legal department will pro
 - Archived accounts are anonymized after seven years, or earlier on request after consulting the
   DPO.
 - Phone numbers were removed from the "My unit" page, which every member of a unit can open.
+  Later in October the team leader's and assistant team leader's numbers were shown again on
+  "My unit" and on the task force page, and members' numbers were removed from the task force page.
+- Registration shows a notice to people who may be under 18 (see section 4).
 - The signature page now explains why the signature is needed and how it is protected.
 
 Technical details and open items are recorded in Decisions.md.
