@@ -1720,6 +1720,9 @@ updated after the 2026-10 legal review. Tick items here when they are done.
       volunteering hours to anyone with the QR code appropriate, or should it show less or
       require login? Record the decision here.
 - [ ] Decide whether a minimum age applies. Year of birth is required but nothing checks it.
+- [ ] Decide how guardian consent for under-18s is obtained and recorded (also for their photo).
+      Since 2026-10-18 registration and users/create only show an information notice
+      (`x-under-18-notice`); nothing is stored. See COMPLIANCE.md §4.
 
 **Technical / deployment**
 - [ ] Production deployment, in order:
@@ -1752,6 +1755,9 @@ contact; vetting).
 **Decided by NRCS's consultant on 8 Oct 2026:** the NIN stays printed on the ID card, which is
 the main reason it is collected; and staff keep seeing phone numbers on the staff unit page
 (`red-cross-units/show`), while only the members' "My unit" page hides them.
+**Changed 2026-10-18:** "My unit" and "My task force" show the team leader's and assistant team
+leader's numbers (with a copy button) to every viewer, and no member's number to anyone
+(`MyUnitNoPhoneNumbersTest`, `MyTaskForcePhoneNumbersTest`).
 
 ## 2026-10-08 — npm audit fixes
 

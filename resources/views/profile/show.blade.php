@@ -56,7 +56,9 @@
                                 @endif
                             </div>
 
-                            <x-photo-age-indicator :user="$user" />
+                            <div class="w-32">
+                                <x-photo-age-indicator :user="$user" verbose />
+                            </div>
 
                             @if(!$user->picture)
                                 <p class="text-sm text-gray-500 mt-2 text-center">No profile<br>photo uploaded</p>
@@ -90,6 +92,29 @@
                                         {{ $contributorLabel }}
                                     </span>
                                 </p>
+                            @endif
+
+                            {{-- Lifecycle status in plain words; colours and icons match UserLifecycleStatusBadge.
+                                 Archived users can't open this page, so they get no pill. --}}
+                            @php
+                                $lifecyclePill = match ($user->lifecycle_status) {
+                                    'pending_engagement' => ['Not yet active', 'bg-yellow-100 text-yellow-800', 'fa-hourglass-half',
+                                        'You become active when your first activity, training or membership payment is recorded.'],
+                                    'active' => ['Active', 'bg-green-100 text-green-800', 'fa-check-circle', null],
+                                    'dormant' => ['Inactive for a while', 'bg-gray-200 text-gray-800', 'fa-bed',
+                                        'Take part in an activity to become active again.'],
+                                    default => null,
+                                };
+                            @endphp
+                            @if($lifecyclePill)
+                                <p class="mt-1" data-lifecycle-pill>
+                                    <span class="inline-block {{ $lifecyclePill[1] }} px-2 py-0.5 rounded-full text-xs font-semibold">
+                                        <i class="fas {{ $lifecyclePill[2] }} mr-1"></i>{{ $lifecyclePill[0] }}
+                                    </span>
+                                </p>
+                                @if($lifecyclePill[3])
+                                    <p class="text-xs text-gray-500 mt-0.5">{{ $lifecyclePill[3] }}</p>
+                                @endif
                             @endif
 
                             <!-- Current Membership Status -->

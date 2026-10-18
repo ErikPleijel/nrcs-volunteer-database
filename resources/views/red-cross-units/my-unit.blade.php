@@ -96,6 +96,18 @@
                                     </div>
                                     <div>
                                         <p class="font-semibold text-gray-900">{{ $redCrossUnit->teamLeader->full_name }}</p>
+                                        {{-- Only the leaders' phone numbers are shown on this page, never the members'. --}}
+                                        @if($redCrossUnit->teamLeader->telephone1)
+                                            <p class="text-sm text-gray-600 flex items-center gap-1.5">
+                                                {{ $redCrossUnit->teamLeader->telephone1 }}
+                                                <button type="button"
+                                                        class="copy-phone-btn text-gray-400 hover:text-blue-600 transition-colors"
+                                                        data-phone="{{ $redCrossUnit->teamLeader->telephone1 }}"
+                                                        title="Copy phone number">
+                                                    <i class="fas fa-copy text-xs"></i>
+                                                </button>
+                                            </p>
+                                        @endif
                                         <p class="text-sm text-gray-600">{{ $redCrossUnit->teamLeader->user_id_reference_short }}</p>
                                     </div>
                                 </div>
@@ -125,6 +137,17 @@
                                     </div>
                                     <div>
                                         <p class="font-semibold text-gray-900">{{ $redCrossUnit->assistantTeamLeader->full_name }}</p>
+                                        @if($redCrossUnit->assistantTeamLeader->telephone1)
+                                            <p class="text-sm text-gray-600 flex items-center gap-1.5">
+                                                {{ $redCrossUnit->assistantTeamLeader->telephone1 }}
+                                                <button type="button"
+                                                        class="copy-phone-btn text-gray-400 hover:text-blue-600 transition-colors"
+                                                        data-phone="{{ $redCrossUnit->assistantTeamLeader->telephone1 }}"
+                                                        title="Copy phone number">
+                                                    <i class="fas fa-copy text-xs"></i>
+                                                </button>
+                                            </p>
+                                        @endif
                                         <p class="text-sm text-gray-600">{{ $redCrossUnit->assistantTeamLeader->user_id_reference_short }}</p>
                                     </div>
                                 </div>
@@ -223,5 +246,25 @@ function toggleImages(show) {
         placeholders.forEach(function(el) { el.classList.remove('hidden'); });
     }
 }
+
+document.addEventListener('click', function (e) {
+    const btn = e.target.closest('.copy-phone-btn');
+    if (!btn) return;
+
+    const phone = btn.dataset.phone;
+    if (!phone) return;
+
+    navigator.clipboard.writeText(phone).then(function () {
+        const icon = btn.querySelector('i');
+        const originalClass = icon.className;
+        icon.className = 'fas fa-check text-xs text-green-600';
+        setTimeout(function () {
+            icon.className = originalClass;
+        }, 1200);
+    }).catch(function () {
+        // Clipboard API unavailable or blocked — fail silently,
+        // the phone number is still visible and selectable manually.
+    });
+});
 </script>
 </x-layouts.app>

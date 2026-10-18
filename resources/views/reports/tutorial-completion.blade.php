@@ -102,13 +102,13 @@
                                 <tr class="table-body-row">
 
                                     <td class="table-body-cell">
-                                        <a href="{{ route('users.show', $row->id) }}" class="table-field-main text-indigo-600 hover:underline">
-                                            {{ $row->full_name }}
-                                        </a>
+                                        <div class="table-field-main">{{ $row->full_name }}</div>
                                     </td>
 
                                     <td class="table-body-cell">
-                                        <div class="table-field-main">{{ $row->id }}</div>
+                                        <a href="{{ route('users.show', $row->id) }}" class="table-field-main text-blue-600 underline hover:text-blue-800" data-user-link>
+                                            {{ $row->id }}
+                                        </a>
                                     </td>
 
                                     <td class="table-body-cell">

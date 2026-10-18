@@ -1,11 +1,12 @@
 <?php
 
 /**
- * /my-unit shows no telephone numbers (NDPA legal review, 2026-10-08).
+ * /my-unit shows only the leaders' telephone numbers (NDPA legal review,
+ * 2026-10-08; leaders' numbers restored 2026-10-18).
  *
- * Any unit member can open /my-unit, so the team leader, assistant team
- * leader and member cards show names and DB numbers only — no phone
- * numbers and no copy-phone buttons.
+ * Any unit member can open /my-unit, so member cards show names and DB
+ * numbers only. The team leader and assistant team leader cards show their
+ * phone number with a copy button, so members can reach them.
  */
 
 use App\Models\Branch;
@@ -43,19 +44,18 @@ beforeEach(function () {
     ]);
 });
 
-test('/my-unit shows the leaders and members but none of their phone numbers', function () {
-    $response = $this->actingAs($this->viewer)
+test('/my-unit shows the leaders\' phone numbers but not the members\'', function (string $viewer) {
+    $response = $this->actingAs($this->{$viewer})
         ->get(route('red-cross-units.my-unit'))
         ->assertOk();
 
     $response->assertSee('Tess Leader')
         ->assertSee('Abe Assistant')
-        ->assertSee('Mia Member');
+        ->assertSee('Mia Member')
+        ->assertSee('08031110001')
+        ->assertSee('08031110002')
+        ->assertSee('Copy phone number');
 
-    foreach (['08031110001', '08031110002', '08031110003', '08031110004'] as $phone) {
-        $response->assertDontSee($phone);
-    }
-
-    $response->assertDontSee('copy-phone-btn')
-        ->assertDontSee('Copy phone number');
-});
+    $response->assertDontSee('08031110003')
+        ->assertDontSee('08031110004');
+})->with(['an ordinary member' => 'viewer', 'the team leader' => 'leader']);
