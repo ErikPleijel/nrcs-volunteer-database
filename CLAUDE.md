@@ -37,7 +37,9 @@ Legacy password hash support exists for migrated users.
 ## When to run which tests
 - Small UI or text changes (Blade views, labels, colours, layout): run only the related tests, e.g. `php artisan test --filter=SomeTest` or one test folder. Do not run the full suite.
 - Changes to logic, models, migrations, payments, approvals, permissions/roles, or anything shared across many pages: run the full suite.
-- Before a deploy or when I ask for it: always run the full suite.
+- Before a deploy: run the full suite only if the changes since the last full run touch PHP logic (controllers, models, services, policies, migrations, commands). If the only changes are Blade views, CSS/JS, text or docs, the related tests are enough.
+- When I ask for it: always run the full suite.
 - If unsure which applies, run the related tests and say in your report that the full suite was not run.
+- Always tell me which tests you ran.
 
 **How to run them here:** tests must run on MySQL — the default SQLite setup fails (an old `membership_payments` migration uses `CURRENT_TIMESTAMP(6)`). Full suite: `php bin/test-mysql.php` (ignores path/filter args). Related tests only (Git Bash): `DB_CONNECTION=mysql DB_DATABASE=redcross_volunteers_testing DB_USERNAME=root DB_PASSWORD= php vendor/bin/pest --filter=SomeTest` (or a test folder path instead of `--filter`).
