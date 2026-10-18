@@ -207,6 +207,11 @@
                                         You can still change their email address, phone numbers, password, branch, division, unit and contribution type to help them.
                                         Photo and signature are on the <em>Upload photo or signature</em> page.
                                     </p>
+                                    @unless($correctionFields)
+                                        <p class="mt-1">
+                                            If the name, gender or birth year is wrong and the person cannot fix it themselves, contact HQ (National DB Administrator), who can correct it.
+                                        </p>
+                                    @endunless
                                     @if($correctionFields)
                                         <p class="mt-1">
                                             As a National DB Administrator you can correct their name, gender and birth year, but you must give a reason below.
