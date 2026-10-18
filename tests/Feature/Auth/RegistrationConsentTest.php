@@ -57,6 +57,13 @@ test('public registration stores the Code of Conduct acceptance and the consent'
         ->and($user->consent_obtained_by_id)->toBe($user->id);
 });
 
+test('self-registration marks the account self-managed', function () {
+    $this->post(route('register'), registrationPayload())
+        ->assertRedirect(route('registration.success'));
+
+    expect(User::where('email', 'rita@example.org')->firstOrFail()->isSelfManaged())->toBeTrue();
+});
+
 test('registration without all four commitments is rejected', function () {
     $this->post(route('register'), registrationPayload(['coc_commitment_4' => null]))
         ->assertSessionHasErrors('coc_commitment_4');

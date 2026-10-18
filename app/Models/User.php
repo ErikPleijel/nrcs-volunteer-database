@@ -82,6 +82,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'personal_info' => 'encrypted',
         'birth_year' => 'integer',
         'last_login_at' => 'datetime',
+        'self_managed_at' => 'datetime',
         'last_activity_at' => 'datetime',
         'last_first_aid_at' => 'date',
         'last_admin_activity_at' => 'datetime',
@@ -227,6 +228,67 @@ class User extends Authenticatable implements MustVerifyEmail
         $this->archived_by_id = $by?->id;
 
         return $this;
+    }
+
+    /**
+     * Personal details the person keeps up to date in My Profile. Once the
+     * account is self-managed, staff cannot change these on users/edit.
+     */
+    const SELF_MANAGED_FIELDS = [
+        'title', 'first_name', 'middle_name', 'last_name', 'gender', 'birth_year',
+        'marital_status', 'national_id_number', 'occupation', 'organisation',
+        'residential_address', 'workplace_address', 'disciplin', 'personal_info',
+    ];
+
+    /**
+     * The subset a national DB administrator may still correct on a
+     * self-managed account, with a reason that goes into the Audit Log.
+     */
+    const SELF_MANAGED_CORRECTABLE_FIELDS = [
+        'first_name', 'middle_name', 'last_name', 'gender', 'birth_year',
+    ];
+
+    /** True once the person has logged in (or registered) themselves. */
+    public function isSelfManaged(): bool
+    {
+        return $this->self_managed_at !== null;
+    }
+
+    /** Record the first own login. Sets the attribute only; the caller saves. */
+    public function markSelfManaged(): static
+    {
+        $this->self_managed_at ??= now();
+
+        return $this;
+    }
+
+    /**
+     * Fields $actor cannot change on users/edit: none until the account is
+     * self-managed, then all SELF_MANAGED_FIELDS except, for a national DB
+     * administrator, the correctable ones.
+     *
+     * @return string[]
+     */
+    public function staffLockedFields(User $actor): array
+    {
+        if (! $this->isSelfManaged()) {
+            return [];
+        }
+
+        return array_values(array_diff(self::SELF_MANAGED_FIELDS, $this->staffCorrectionFields($actor)));
+    }
+
+    /**
+     * Fields $actor may change on users/edit only with a reason: the
+     * correctable ones, for a national DB administrator on a self-managed account.
+     *
+     * @return string[]
+     */
+    public function staffCorrectionFields(User $actor): array
+    {
+        return $this->isSelfManaged() && $actor->hasRole('national_db_administrator')
+            ? self::SELF_MANAGED_CORRECTABLE_FIELDS
+            : [];
     }
 
     /** Who archived this account (null when the system did, or it is not archived). */
