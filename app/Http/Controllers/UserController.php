@@ -1334,13 +1334,15 @@ class UserController extends Controller
             }
         }
 
+        $noticeSentTo = null;
         if ($user->isSelfManaged() && ($contactNew || $passwordSet)) {
-            $this->notifyAccountDetailsChanged($user, $contactOld, $contactNew, $passwordSet);
+            $noticeSentTo = $this->notifyAccountDetailsChanged($user, $contactOld, $contactNew, $passwordSet);
         }
 
         return redirect()
             ->route('users.show', $user)
-            ->with('success', 'User updated successfully.');
+            ->with('success', 'User updated successfully.'
+                .($noticeSentTo ? ' A notice was sent to '.PhoneNumber::maskEmail($noticeSentTo).'.' : ''));
     }
 
     /**
@@ -1361,12 +1363,13 @@ class UserController extends Controller
      * to the old address when the email changed (so a wrong change is
      * noticed), otherwise to the current one. No email on file → nothing sent;
      * SMS notices wait for live SMS delivery. A mail failure is only logged.
+     * Returns the address the notice went to, or null if none was sent.
      */
-    private function notifyAccountDetailsChanged(User $user, array $contactOld, array $contactNew, bool $passwordSet): void
+    private function notifyAccountDetailsChanged(User $user, array $contactOld, array $contactNew, bool $passwordSet): ?string
     {
         $to = array_key_exists('email', $contactOld) ? ($contactOld['email'] ?: $user->email) : $user->email;
         if (! $to) {
-            return;
+            return null;
         }
 
         $labels = ['email' => 'Email address', 'telephone1' => 'Primary phone', 'telephone2' => 'Secondary phone'];
@@ -1387,7 +1390,11 @@ class UserController extends Controller
                 'user_id' => $user->id,
                 'error' => $e->getMessage(),
             ]);
+
+            return null;
         }
+
+        return $to;
     }
 
     /**

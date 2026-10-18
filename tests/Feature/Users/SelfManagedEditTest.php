@@ -252,6 +252,51 @@ test('staff can change email and phone; it is logged and the old address is told
             && in_array('Primary phone changed to 08039999999', $n->changes, true));
 });
 
+test('the success message names the masked address the notice went to', function () {
+    Notification::fake();
+
+    $this->actingAs($this->branchAdmin)
+        ->put(route('users.update', $this->person), selfManagedPayload($this->person, ['email' => 'ada.new@example.com']))
+        ->assertSessionHas('success', 'User updated successfully. A notice was sent to a***@example.com.');
+});
+
+test('the success message says nothing extra when no notice was sent', function () {
+    Notification::fake();
+
+    $this->actingAs($this->branchAdmin)
+        ->put(route('users.update', $this->person), selfManagedPayload($this->person, ['contribution_type' => 'member']))
+        ->assertSessionHas('success', 'User updated successfully.');
+});
+
+test('staff see the audit notes next to the login and correction fields', function () {
+    $this->actingAs($this->branchAdmin)
+        ->get(route('users.edit', $this->person))
+        ->assertSee('Changes here are recorded in the Audit Log, and the person will be notified by email.')
+        ->assertDontSee('Corrections need a reason and are recorded in the Audit Log.');
+
+    $this->actingAs($this->national)
+        ->get(route('users.edit', $this->person))
+        ->assertSee('Corrections need a reason and are recorded in the Audit Log.');
+});
+
+test('without an email address the note only mentions the Audit Log', function () {
+    $this->person->forceFill(['email' => null])->save();
+
+    $this->actingAs($this->branchAdmin)
+        ->get(route('users.edit', $this->person))
+        ->assertSee('Changes here are recorded in the Audit Log.')
+        ->assertDontSee('the person will be notified by email');
+});
+
+test('no audit notes on a not yet self-managed account', function () {
+    $this->person->forceFill(['self_managed_at' => null])->save();
+
+    $this->actingAs($this->national)
+        ->get(route('users.edit', $this->person))
+        ->assertDontSee('Changes here are recorded in the Audit Log')
+        ->assertDontSee('Corrections need a reason');
+});
+
 test('a phone change alone notifies the current email', function () {
     Notification::fake();
 

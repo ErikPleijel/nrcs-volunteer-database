@@ -186,6 +186,13 @@
                         @php
                             // Self-managed account: these are shown as text, not submitted (UserController::update refuses them).
                             $locked = fn (string $field) => in_array($field, $lockedFields, true);
+                            // Notes next to the fields staff may still change (UserController::update audits them
+                            // and emails a self-managed person about login-detail changes).
+                            $contactNote = ! $user->isSelfManaged() ? null
+                                : ($user->email
+                                    ? 'Changes here are recorded in the Audit Log, and the person will be notified by email.'
+                                    : 'Changes here are recorded in the Audit Log.');
+                            $correctionNote = $correctionFields ? 'Corrections need a reason and are recorded in the Audit Log.' : null;
                         @endphp
                         <div class="form-section">
                             <h3 class="form-section-header">Personal Information</h3>
@@ -238,6 +245,7 @@
                                     @error('first_name')
                                     <p class="form-error">{{ $message }}</p>
                                     @enderror
+                                    @include('users.partials.audit-note', ['note' => $correctionNote])
                                 </div>
 
                                 <!-- Middle Name -->
@@ -253,6 +261,7 @@
                                     @error('middle_name')
                                     <p class="form-error">{{ $message }}</p>
                                     @enderror
+                                    @include('users.partials.audit-note', ['note' => $correctionNote])
                                 </div>
 
                                 <!-- Last Name -->
@@ -269,6 +278,7 @@
                                     @error('last_name')
                                     <p class="form-error">{{ $message }}</p>
                                     @enderror
+                                    @include('users.partials.audit-note', ['note' => $correctionNote])
                                 </div>
                                 @endif
 
@@ -287,6 +297,7 @@
                                     @error('email')
                                     <p class="form-error">{{ $message }}</p>
                                     @enderror
+                                    @include('users.partials.audit-note', ['note' => $contactNote])
                                 </div>
 
                                 <!-- Gender -->
@@ -307,6 +318,7 @@
                                     @error('gender')
                                     <p class="form-error">{{ $message }}</p>
                                     @enderror
+                                    @include('users.partials.audit-note', ['note' => $correctionNote])
                                 </div>
 
                                 <!-- Birth Year -->
@@ -327,6 +339,7 @@
                                     @error('birth_year')
                                     <p class="form-error">{{ $message }}</p>
                                     @enderror
+                                    @include('users.partials.audit-note', ['note' => $correctionNote])
                                 </div>
                                 @endif
                             </div>
@@ -367,6 +380,7 @@
                                     @error('telephone1')
                                     <p class="form-error">{{ $message }}</p>
                                     @enderror
+                                    @include('users.partials.audit-note', ['note' => $contactNote])
                                 </div>
 
                                 <!-- Telephone 2 -->
@@ -382,6 +396,7 @@
                                     @error('telephone2')
                                     <p class="form-error">{{ $message }}</p>
                                     @enderror
+                                    @include('users.partials.audit-note', ['note' => $contactNote])
                                 </div>
                             </div>
 
@@ -671,6 +686,7 @@
                                     </div>
                                 </div>
                                 <p class="form-hint"><strong>Leave blank</strong> if you don't want to change the password.</p>
+                                @include('users.partials.audit-note', ['note' => $contactNote])
 
                             @else
                                 <div class="mb-4 rounded-lg bg-blue-50 border-l-4 border-blue-400 p-5 text-base text-blue-900">
