@@ -36,12 +36,12 @@ test('the notice is hidden for adults and shown for under-18s, from the current 
     $child = under18Notice($boundary + 1);
 
     expect($adult)->toContain('data-boundary-year="'.$boundary.'"')
-        ->toMatch('/data-under-18-notice[^>]*class="[^"]*\bhidden\b/');
+        ->toMatch('/data-age-notice data-boundary-year="\d+"\s*class="[^"]*\bhidden\b/');
 
-    expect($maybe)->not->toMatch('/data-under-18-notice[^>]*class="[^"]*\bhidden\b/')
-        ->toMatch('/data-under-18-text="maybe" class="">\s*If you have not had your 18th birthday yet/');
+    expect($maybe)->not->toMatch('/data-age-notice data-boundary-year="\d+"\s*class="[^"]*\bhidden\b/')
+        ->toMatch('/data-age-notice-text="maybe" class="">\s*If you have not had your 18th birthday yet/');
 
-    expect($child)->toMatch('/data-under-18-text="under" class="">\s*You are under 18\. Please ask your parent or guardian/');
+    expect($child)->toMatch('/data-age-notice-text="under" class="">\s*You are under 18\. Please ask your parent or guardian/');
 });
 
 test('staff see staff wording', function () {
@@ -52,7 +52,7 @@ test('staff see staff wording', function () {
 test('the registration form has the notice and defaults to volunteering', function () {
     $html = $this->get(route('register'))->assertOk()->getContent();
 
-    expect($html)->toContain('data-under-18-notice')
+    expect($html)->toContain('data-age-notice')
         ->toMatch('/id="contribution_volunteering"[^>]*checked/')
         ->not->toMatch('/id="contribution_member"[^>]*checked/');
 });
@@ -72,4 +72,33 @@ test('users/create has the staff notice and defaults to volunteering', function 
     expect($html)->toContain('This person may be under 18.')
         ->toMatch('/id="contribution_volunteering"[^>]*checked/s')
         ->not->toMatch('/id="contribution_member"[^>]*checked/s');
+});
+
+test('both message texts are always on the page, so the box can never show up empty', function () {
+    // Regression: the JS read the texts' key via dataset, which fails for "data-under-18-text"
+    // (the key becomes "under-18Text"), so every text was hidden and the blue box was empty.
+    $html = under18Notice(null);
+
+    expect($html)->toContain('data-age-notice-text="under"')
+        ->toContain('You are under 18. Please ask your parent or guardian if it is OK for you to join.')
+        ->toContain('data-age-notice-text="maybe"')
+        ->toContain('If you have not had your 18th birthday yet')
+        ->toContain("getAttribute('data-age-notice-text')")
+        ->not->toContain('dataset');
+
+    // The registration page itself carries the texts too.
+    $this->get(route('register'))->assertOk()
+        ->assertSee('You are under 18. Please ask your parent or guardian', false)
+        ->assertSee('If you have not had your 18th birthday yet', false);
+});
+
+test('after a failed submit the selected under-18 year shows its text straight away', function () {
+    $year = (int) date('Y') - 12;
+
+    $html = $this->withSession(['_old_input' => ['birth_year' => $year]])
+        ->get(route('register'))->assertOk()->getContent();
+
+    expect($html)->toMatch('/data-age-notice data-boundary-year="\d+"\s*class="(?![^"]*\bhidden\b)[^"]*"/')
+        ->toMatch('/data-age-notice-text="under" class="">\s*You are under 18/')
+        ->toMatch('/<option value="'.$year.'" selected>/');
 });
