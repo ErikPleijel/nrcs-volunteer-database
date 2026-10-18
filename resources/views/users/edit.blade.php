@@ -183,18 +183,55 @@
                         </div>
 
                         <!-- Personal Information Section -->
+                        @php
+                            // Self-managed account: these are shown as text, not submitted (UserController::update refuses them).
+                            $locked = fn (string $field) => in_array($field, $lockedFields, true);
+                            // Notes next to the fields staff may still change (UserController::update audits them
+                            // and emails a self-managed person about login-detail changes).
+                            $contactNote = ! $user->isSelfManaged() ? null
+                                : ($user->email
+                                    ? 'Changes here are recorded in the Audit Log, and the person will be notified by email.'
+                                    : 'Changes here are recorded in the Audit Log.');
+                            $correctionNote = $correctionFields ? 'Corrections need a reason and are recorded in the Audit Log.' : null;
+                        @endphp
                         <div class="form-section">
                             <h3 class="form-section-header">Personal Information</h3>
+
+                            @if($user->isSelfManaged())
+                                <div class="mb-6 rounded-md bg-blue-50 border border-blue-200 px-4 py-3 text-sm text-blue-900">
+                                    <p class="font-semibold">
+                                        <i class="fas fa-user-lock mr-1 text-blue-500"></i>
+                                        This person manages their own details in My Profile.
+                                    </p>
+                                    <p class="mt-1">
+                                        You can still change their email address, phone numbers, password, branch, division, unit and contribution type to help them.
+                                        Photo and signature are on the <em>Upload photo or signature</em> page.
+                                    </p>
+                                    @if($correctionFields)
+                                        <p class="mt-1">
+                                            As a National DB Administrator you can correct their name, gender and birth year, but you must give a reason below.
+                                        </p>
+                                    @endif
+                                </div>
+                            @endif
+
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
                                 {{-- Title (optional) --}}
+                                @if($locked('title'))
+                                    @include('users.partials.locked-field', ['label' => 'Title', 'value' => $user->title])
+                                @else
                                 <div>
                                     <x-select-titles :value="old('title', $user->title)" />
                                 </div>
-
-
+                                @endif
 
                                 <!-- First Name -->
+                                @if($locked('first_name'))
+                                    @include('users.partials.locked-field', ['label' => 'First Name', 'value' => $user->first_name])
+                                    @include('users.partials.locked-field', ['label' => 'Middle Name', 'value' => $user->middle_name])
+                                    @include('users.partials.locked-field', ['label' => 'Last Name', 'value' => $user->last_name])
+                                @else
                                 <div>
                                     <label for="first_name" class="form-label">
                                         First Name <span class="text-red-500">*</span>
@@ -208,6 +245,7 @@
                                     @error('first_name')
                                     <p class="form-error">{{ $message }}</p>
                                     @enderror
+                                    @include('users.partials.audit-note', ['note' => $correctionNote])
                                 </div>
 
                                 <!-- Middle Name -->
@@ -223,6 +261,7 @@
                                     @error('middle_name')
                                     <p class="form-error">{{ $message }}</p>
                                     @enderror
+                                    @include('users.partials.audit-note', ['note' => $correctionNote])
                                 </div>
 
                                 <!-- Last Name -->
@@ -239,7 +278,9 @@
                                     @error('last_name')
                                     <p class="form-error">{{ $message }}</p>
                                     @enderror
+                                    @include('users.partials.audit-note', ['note' => $correctionNote])
                                 </div>
+                                @endif
 
                                 <!-- Email -->
                                 <div>
@@ -256,9 +297,14 @@
                                     @error('email')
                                     <p class="form-error">{{ $message }}</p>
                                     @enderror
+                                    @include('users.partials.audit-note', ['note' => $contactNote])
                                 </div>
 
                                 <!-- Gender -->
+                                @if($locked('gender'))
+                                    @include('users.partials.locked-field', ['label' => 'Gender', 'value' => ucfirst((string) $user->gender)])
+                                    @include('users.partials.locked-field', ['label' => 'Birth Year', 'value' => $user->birth_year])
+                                @else
                                 <div>
                                     <label for="gender" class="form-label">
                                         Gender <span class="text-red-500">*</span>
@@ -272,6 +318,7 @@
                                     @error('gender')
                                     <p class="form-error">{{ $message }}</p>
                                     @enderror
+                                    @include('users.partials.audit-note', ['note' => $correctionNote])
                                 </div>
 
                                 <!-- Birth Year -->
@@ -292,8 +339,28 @@
                                     @error('birth_year')
                                     <p class="form-error">{{ $message }}</p>
                                     @enderror
+                                    @include('users.partials.audit-note', ['note' => $correctionNote])
                                 </div>
+                                @endif
                             </div>
+
+                            @if($correctionFields)
+                                <div class="mt-6">
+                                    <label for="correction_reason" class="form-label">
+                                        Reason for correcting name, gender or birth year
+                                    </label>
+                                    <input type="text"
+                                           id="correction_reason"
+                                           name="correction_reason"
+                                           maxlength="500"
+                                           value="{{ old('correction_reason') }}"
+                                           class="form-input @error('correction_reason') form-input-error @enderror">
+                                    <p class="text-gray-500 text-xs mt-1">Required only if you change one of these. It is saved in the Audit Log.</p>
+                                    @error('correction_reason')
+                                    <p class="form-error">{{ $message }}</p>
+                                    @enderror
+                                </div>
+                            @endif
                         </div>
 
                         <!-- Contact Information Section -->
@@ -313,6 +380,7 @@
                                     @error('telephone1')
                                     <p class="form-error">{{ $message }}</p>
                                     @enderror
+                                    @include('users.partials.audit-note', ['note' => $contactNote])
                                 </div>
 
                                 <!-- Telephone 2 -->
@@ -328,10 +396,18 @@
                                     @error('telephone2')
                                     <p class="form-error">{{ $message }}</p>
                                     @enderror
+                                    @include('users.partials.audit-note', ['note' => $contactNote])
                                 </div>
                             </div>
 
                             <!-- Residential Address -->
+                            @if($locked('residential_address'))
+                                <div class="mt-6 space-y-6">
+                                    @include('users.partials.locked-field', ['label' => 'Residential Address', 'value' => $user->residential_address])
+                                    @include('users.partials.locked-field', ['label' => 'Organization/Workplace', 'value' => $user->organisation])
+                                    @include('users.partials.locked-field', ['label' => 'Workplace Address', 'value' => $user->workplace_address])
+                                </div>
+                            @else
                             <div class="mt-6">
                                 <label for="residential_address" class="form-label">
                                     Residential Address
@@ -373,6 +449,7 @@
                                 <p class="form-error">{{ $message }}</p>
                                 @enderror
                             </div>
+                            @endif
                         </div>
 
 
@@ -382,6 +459,12 @@
                             <h3 class="form-section-header">Additional Information</h3>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <!-- Marital Status -->
+                                @if($locked('marital_status'))
+                                    @include('users.partials.locked-field', ['label' => 'Marital Status', 'value' => ucfirst((string) $user->marital_status)])
+                                    @include('users.partials.locked-field', ['label' => 'Occupation', 'value' => $user->occupation])
+                                    @include('users.partials.locked-field', ['label' => 'Education/Training', 'value' => $user->disciplin])
+                                    @include('users.partials.locked-field', ['label' => 'National ID number (NIN)', 'value' => $user->national_id_number])
+                                @else
                                 <div>
                                     <label for="marital_status" class="form-label">
                                         Marital Status
@@ -433,6 +516,7 @@
                                     <p class="form-error">{{ $message }}</p>
                                     @enderror
                                 </div>
+                                @endif
 
                                 <!-- Membership form number -->
                                 <div>
@@ -453,6 +537,11 @@
                             </div>
 
                             <!-- Personal Info -->
+                            @if($locked('personal_info'))
+                                <div class="mt-6">
+                                    @include('users.partials.locked-field', ['label' => 'Personal Information', 'value' => $user->personal_info])
+                                </div>
+                            @else
                             <div class="mt-6">
                                 <label for="personal_info" class="form-label">
                                     Personal Information
@@ -465,6 +554,7 @@
                                 <p class="form-error">{{ $message }}</p>
                                 @enderror
                             </div>
+                            @endif
                         </div>
 
                         <!-- Preferences Section -->
@@ -596,6 +686,7 @@
                                     </div>
                                 </div>
                                 <p class="form-hint"><strong>Leave blank</strong> if you don't want to change the password.</p>
+                                @include('users.partials.audit-note', ['note' => $contactNote])
 
                             @else
                                 <div class="mb-4 rounded-lg bg-blue-50 border-l-4 border-blue-400 p-5 text-base text-blue-900">

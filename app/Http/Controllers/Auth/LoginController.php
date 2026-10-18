@@ -592,7 +592,8 @@ class LoginController extends Controller
     }
 
     /**
-     * Update last_login_at for the authenticated user.
+     * Update last_login_at for the authenticated user, and mark the account
+     * self-managed on the first own login.
      */
     private function touchLastLogin(): void
     {
@@ -602,6 +603,7 @@ class LoginController extends Controller
         }
 
         $user->last_login_at = now();
+        $user->markSelfManaged();
         $user->save();
     }
 }

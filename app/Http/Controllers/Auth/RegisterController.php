@@ -269,6 +269,9 @@ class RegisterController extends Controller
         $user->consent_obtained_at = now();
         $user->consent_obtained_by_id = $user->id;
         $user->consent_notes = 'self-registered via public form, NDPA checkbox accepted';
+        // The person is logged in straight after registering (register()),
+        // which does not go through LoginController::touchLastLogin().
+        $user->markSelfManaged();
         $user->save();
 
         return $user;

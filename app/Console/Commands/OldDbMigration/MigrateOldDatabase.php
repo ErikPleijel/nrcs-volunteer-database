@@ -108,6 +108,7 @@ class MigrateOldDatabase extends Command
         $this->line(Artisan::output());
 
         $this->fixPhoneLetterO();
+        $this->backfillSelfManaged();
 
         // ROLE ASSIGNMENT ORDER IS LOAD-BEARING â€” DO NOT REORDER:
         // 1. seed:legacy-roles            â†’ base role from legacy_role (syncRoles = replace)
@@ -305,6 +306,7 @@ class MigrateOldDatabase extends Command
         $this->line(Artisan::output());
 
         $this->fixPhoneLetterO();
+        $this->backfillSelfManaged();
     }
 
     /**
@@ -316,6 +318,20 @@ class MigrateOldDatabase extends Command
     {
         $this->info('Fixing letter O typed for 0 in phone numbers...');
         Artisan::call('users:fix-phone-letter-o', ['--commit' => true]);
+        $this->line(Artisan::output());
+    }
+
+    /**
+     * self_managed_at from the imported Lastlogin (users/edit locks personal
+     * details of people who use the system themselves). The column's
+     * migration also back-fills, but on a fresh database it ran before any
+     * users existed. The old system has no consent data, so right after the
+     * users import is complete.
+     */
+    private function backfillSelfManaged(): void
+    {
+        $this->info('Marking accounts the person has logged in to as self-managed...');
+        Artisan::call('users:backfill-self-managed');
         $this->line(Artisan::output());
     }
 

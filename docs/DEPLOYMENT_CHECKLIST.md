@@ -39,7 +39,9 @@ ADAPT procedure accordingly. This might need changes:
   2. `php artisan migrate:fresh`
   3. `php -d memory_limit=2048M artisan migrate:old-db --table=all` —
      this runs **db:seed itself**, `users:fix-phone-letter-o --commit`
-     right after the users import, and, last,
+     and `users:backfill-self-managed` right after the users import
+     (its output must show a large "from last login" count, about 184,000
+     on the full import), and, last,
      `payments:backfill-manual-shares` (Income Distribution Tab 2 shares on
      the imported manual payments; its report must list no payments that
      "could not be filled")
@@ -50,7 +52,8 @@ ADAPT procedure accordingly. This might need changes:
   8. photos (`php artisan images:migrate`)
   9. `php artisan lifecycle:reconcile --apply`
   10. final checks: `php artisan payments:backfill-manual-shares --dry-run`
-      → "Nothing to fill"; `php artisan divisions:check-coordinates` →
+      → "Nothing to fill"; `php artisan users:backfill-self-managed` →
+      "0 from last login, 0 from own consent"; `php artisan divisions:check-coordinates` →
       review; encrypt check; the data integrity checks below
 - [ ] ⚠️ Never run `php artisan db:seed` without `--class` by hand — it is
   already part of migrate:old-db, and after go-live it would reset admin

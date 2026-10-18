@@ -37,7 +37,10 @@ then uploaded to the new server (DEPLOYMENT_CHECKLIST.md, "Upload DB to VPS").
    training / task force types, membership fees, users,
    **users:fix-phone-letter-o --commit** (letter O typed for 0 in
    telephone1/2; before step 5 so those numbers can join their
-   duplicate groups), legacy roles,
+   duplicate groups), **users:backfill-self-managed** (self_managed_at
+   from the imported Lastlogin, so users/edit locks the personal details
+   of people who have used the system; the column's migration in step 2
+   found no users yet), legacy roles,
    ID card prints, public contacts, organisations, red cross units, task
    forces (+ members), activities, trainings, donations, membership
    payments, **db:seed** (the full DatabaseSeeder), permission:cache-reset,

@@ -15,8 +15,10 @@ use App\Models\RedCrossUnit; // Import the trait
 use App\Models\TaskForce;
 use App\Models\TrainingType;
 use App\Models\User;
+use App\Notifications\AccountDetailsChanged;
 use App\Rules\NationalIdNumberRule;
 use App\Rules\NigerianMobileNumber;
+use App\Support\NationalIdNumber;
 use App\Support\PhoneNumber;
 use App\Support\SpecialPermissions;
 use App\Services\UserAnonymizer;
@@ -873,7 +875,10 @@ class UserController extends Controller
             }
         }
 
-        return view('users.edit', compact('user', 'branches', 'divisions', 'redCrossUnits'));
+        $lockedFields = $user->staffLockedFields($actingUser);
+        $correctionFields = $user->staffCorrectionFields($actingUser);
+
+        return view('users.edit', compact('user', 'branches', 'divisions', 'redCrossUnits', 'lockedFields', 'correctionFields'));
     }
 
     /**
@@ -896,7 +901,13 @@ class UserController extends Controller
 
         $request->merge(PhoneNumber::stripFormattingFields($request->all()));
 
-        $validator = Validator::make($request->all(), [
+        // Self-managed account: personal details belong to the person (My
+        // Profile). Locked fields are not on the form; a submitted value that
+        // differs from the stored one is refused, not ignored.
+        $lockedFields = $user->staffLockedFields(Auth::user());
+        $correctionFields = $user->staffCorrectionFields(Auth::user());
+
+        $rules = [
             'first_name' => 'required|string|max:255',
             'middle_name' => 'nullable|string|max:255',
             'last_name' => 'required|string|max:255',
@@ -963,7 +974,35 @@ class UserController extends Controller
             'is_inactive' => ['nullable', 'boolean'],
 
             'password' => 'nullable|string|min:8|confirmed',
-        ]);
+            'correction_reason' => 'nullable|string|max:500',
+        ];
+
+        foreach ($lockedFields as $field) {
+            unset($rules[$field]);
+        }
+
+        $validator = Validator::make($request->all(), $rules);
+
+        $correctedFields = [];
+
+        $validator->after(function ($validator) use ($request, $user, $lockedFields, $correctionFields, &$correctedFields) {
+            foreach ($lockedFields as $field) {
+                if ($request->exists($field) && $this->personalFieldChanged($user, $field, $request->input($field))) {
+                    $validator->errors()->add($field, Str::ucfirst(str_replace('_', ' ', $field))
+                        .' cannot be changed here. This person manages their own details in My Profile.');
+                }
+            }
+
+            $correctedFields = array_values(array_filter(
+                $correctionFields,
+                fn ($field) => $request->exists($field) && $this->personalFieldChanged($user, $field, $request->input($field))
+            ));
+
+            if ($correctedFields && blank($request->input('correction_reason'))) {
+                $validator->errors()->add('correction_reason',
+                    'Give a reason for correcting the name, gender or birth year of a person who manages their own details.');
+            }
+        });
 
         if ($validator->fails()) {
             Log::warning('UserController@update: Validation failed', [
@@ -1040,7 +1079,33 @@ class UserController extends Controller
 
         $validated['can_contribute_volunteering'] = $request->input('contribution_type') === 'volunteering';
         $validated['can_contribute_member'] = $request->input('contribution_type') === 'member';
-        $validated['title'] = $request->input('title');
+        if (! in_array('title', $lockedFields, true)) {
+            $validated['title'] = $request->input('title');
+        }
+
+        // Login details staff may always change — logged in the Audit Log, and
+        // a self-managed person is told by email (after the save, below).
+        $contactOld = [];
+        $contactNew = [];
+        foreach (['email', 'telephone1', 'telephone2'] as $field) {
+            if (array_key_exists($field, $validated)
+                && (string) ($validated[$field] ?? '') !== (string) ($user->$field ?? '')) {
+                $contactOld[$field] = $user->$field;
+                $contactNew[$field] = $validated[$field];
+            }
+        }
+        $passwordSet = $request->filled('password');
+
+        // A national DB administrator's correction of a self-managed person's
+        // name, gender or birth year (the reason was required above).
+        $correctionOld = [];
+        $correctionNew = [];
+        foreach ($correctedFields as $field) {
+            $correctionOld[$field] = $user->$field;
+            $correctionNew[$field] = $validated[$field] ?? null;
+        }
+        $correctionReason = trim((string) $request->input('correction_reason'));
+        unset($validated['correction_reason']);
 
         // -------------------------------
         // Red Cross Unit assignment logic
@@ -1184,6 +1249,42 @@ class UserController extends Controller
         }
         $user->save();
 
+        $logContext = ['branch_id' => $user->branch_id, 'division_id' => $user->division_id];
+
+        if ($contactNew) {
+            AuditLog::write(
+                'user_contact_changed',
+                $user,
+                $logContext,
+                $contactOld,
+                $contactNew,
+                "DB-{$user->id} login details changed on users/edit by DB-".Auth::id().' ('.implode(', ', array_keys($contactNew)).').'
+            );
+        }
+
+        if ($passwordSet) {
+            AuditLog::write(
+                'user_password_set_by_staff',
+                $user,
+                $logContext,
+                null,
+                null,
+                "DB-{$user->id} password set on users/edit by DB-".Auth::id().'.'
+            );
+        }
+
+        if ($correctionNew) {
+            AuditLog::write(
+                'personal_details_corrected',
+                $user,
+                $logContext,
+                $correctionOld,
+                $correctionNew + ['reason' => $correctionReason],
+                "DB-{$user->id} manages their own details; ".implode(', ', array_keys($correctionNew))
+                    .' corrected by DB-'.Auth::id().'. Reason: '.$correctionReason
+            );
+        }
+
         // Restores are audited by User's updating hook (user_unarchived).
         if ($lifecycleChanging && $wantsArchived) {
             AuditLog::write(
@@ -1233,9 +1334,67 @@ class UserController extends Controller
             }
         }
 
+        $noticeSentTo = null;
+        if ($user->isSelfManaged() && ($contactNew || $passwordSet)) {
+            $noticeSentTo = $this->notifyAccountDetailsChanged($user, $contactOld, $contactNew, $passwordSet);
+        }
+
         return redirect()
             ->route('users.show', $user)
-            ->with('success', 'User updated successfully.');
+            ->with('success', 'User updated successfully.'
+                .($noticeSentTo ? ' A notice was sent to '.PhoneNumber::maskEmail($noticeSentTo).'.' : ''));
+    }
+
+    /**
+     * Whether a submitted value for a personal field differs from the stored
+     * one, ignoring blank-vs-null, surrounding spaces and NIN formatting.
+     */
+    private function personalFieldChanged(User $user, string $field, mixed $submitted): bool
+    {
+        $normalize = fn ($value) => $field === 'national_id_number'
+            ? NationalIdNumber::normalize($value === null ? null : (string) $value)
+            : trim((string) ($value ?? ''));
+
+        return $normalize($submitted) !== $normalize($user->$field);
+    }
+
+    /**
+     * Email a self-managed person that staff changed their login details:
+     * to the old address when the email changed (so a wrong change is
+     * noticed), otherwise to the current one. No email on file → nothing sent;
+     * SMS notices wait for live SMS delivery. A mail failure is only logged.
+     * Returns the address the notice went to, or null if none was sent.
+     */
+    private function notifyAccountDetailsChanged(User $user, array $contactOld, array $contactNew, bool $passwordSet): ?string
+    {
+        $to = array_key_exists('email', $contactOld) ? ($contactOld['email'] ?: $user->email) : $user->email;
+        if (! $to) {
+            return null;
+        }
+
+        $labels = ['email' => 'Email address', 'telephone1' => 'Primary phone', 'telephone2' => 'Secondary phone'];
+        $changes = [];
+        foreach ($contactNew as $field => $value) {
+            $changes[] = blank($value)
+                ? "{$labels[$field]} removed"
+                : "{$labels[$field]} changed to {$value}";
+        }
+        if ($passwordSet) {
+            $changes[] = 'A new password was set';
+        }
+
+        try {
+            $user->notify(new AccountDetailsChanged($to, $changes));
+        } catch (\Throwable $e) {
+            Log::warning('UserController@update: account-details notice failed', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+
+        return $to;
     }
 
     /**

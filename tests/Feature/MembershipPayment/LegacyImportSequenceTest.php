@@ -5,7 +5,8 @@
  * last — after db:seed — so the Income Distribution shares on the imported
  * manual payments cannot be forgotten. The sub-commands are recorded, not
  * run (no legacy database in tests). Also: the letter-O phone fix runs
- * (with --commit) straight after the users import.
+ * (with --commit) straight after the users import, and the self_managed_at
+ * back-fill after it (the column's migration found no users on a fresh database).
  */
 
 use App\Console\Commands\OldDbMigration\MigrateOldDatabase;
@@ -75,4 +76,14 @@ test('the letter-O phone fix runs with --commit straight after the users import'
 
     expect($users)->not->toBeFalse()
         ->and($calls[$users + 1] ?? null)->toBe('users:fix-phone-letter-o --commit');
+})->with(['all', 'users']);
+
+test('the self-managed back-fill runs once, after the users import', function (string $table) {
+    $calls = recordedImportCalls(['--table' => $table]);
+
+    $users = array_search('migrate:users', $calls, true);
+    $backfill = array_search('users:backfill-self-managed', $calls, true);
+
+    expect(array_count_values($calls)['users:backfill-self-managed'] ?? 0)->toBe(1)
+        ->and($backfill)->toBeGreaterThan($users);
 })->with(['all', 'users']);
