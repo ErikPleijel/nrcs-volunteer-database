@@ -1698,8 +1698,6 @@ updated after the 2026-10 legal review. Tick items here when they are done.
 - [ ] File the annual Compliance Audit Return (CAR) with the NDPC by 31 March each year.
 - [ ] Write a 72-hour breach notification procedure naming who identifies breaches and who files
       with the NDPC.
-- [ ] Document the VPS server location. If it is outside Nigeria, confirm the legal basis for
-      cross-border transfer (adequacy decision or explicit informed consent).
 - [ ] Brief branch and division administrators on the data handling commitment they accept at
       first login, the consent attestation for registering people without email, and the DPO
       consultation required before anonymizing.
@@ -1744,6 +1742,9 @@ updated after the 2026-10 legal review. Tick items here when they are done.
       and remove `PhotoController`'s development fallback that fetches from it.
 - [ ] Delete the phone-duplicate CSV reports in `storage/app/reports/` (names, gender, phone,
       branch). They are gitignored but sit on disk.
+
+**Done and removed from the open list (2026-10-22):** documenting the VPS server location — it is
+in Denmark; see "2026-10-22 — Production server in Denmark (cross-border transfer)" below.
 
 **Done and removed from the old list:** "consider making NIN non-mandatory" (it is optional
 everywhere); DPO designation mechanism (now settings, 2026-10-08); historical consent for
@@ -2052,3 +2053,27 @@ had no notes at all.
   no email on file).
 - Unchanged: the verification email to a new address, and no notice at all for accounts that are
   not yet self-managed.
+
+## 2026-10-22 — Production server in Denmark (cross-border transfer)
+
+**Decision:** the production database runs on a one.com managed VPS in Denmark. All personal
+data (the database, photos, signatures, uploaded files, logs and server-side backups) is
+therefore stored outside Nigeria. NRCS Legal knows this and accepts it. What Legal still needs
+is a written justification and one.com's documentation.
+
+**Justification, in short:**
+- The NDPA allows personal data to leave Nigeria when the receiving country gives it adequate
+  protection. Denmark is in the EU, so the GDPR applies to the server and to one.com as the
+  hosting provider.
+- one.com only hosts the server. It does not use the data for its own purposes. The app, the
+  data and who can see it stay under NRCS's control (logins, roles, the Audit Log, encrypted
+  NIN and personal information).
+
+**Documents to give NRCS Legal (from one.com):**
+- their data processing agreement (DPA);
+- a statement of where the data centre is.
+
+**Consequences:**
+- Removed from "Open compliance items" (it was "Document the VPS server location…").
+- COMPLIANCE.md should name the country when it is next updated.
+- If the server ever moves to another country, this entry must be revisited first.
