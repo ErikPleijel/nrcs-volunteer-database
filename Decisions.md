@@ -71,7 +71,8 @@ retroactively). We accept the mismatch for now.
 **Planned fix:** A nightly cron/scheduler job writing to a `stats_snapshots`
 table (snapshot_date · scope_level · scope_id · metric · value). Once running,
 trends become snapshot-vs-snapshot under consistent definitions, and the
-point-in-time reconstruction methods can be retired. **Not yet built.**
+point-in-time reconstruction methods can be retired. **Built the same day** — see
+"2026-06-10 — Statistics snapshot system" below (`stats:snapshot`, daily at 02:00).
 
 ---
 
@@ -127,7 +128,10 @@ audits from saved prompt files:
 **Longer term:** thin feature-test layer asserting permission boundaries and
 definition consistency (e.g. "observer cannot POST payments.store",
 "super-admin sees exactly one assignable role"). To be built after the
-Nigeria mission.
+Nigeria mission. *(Status 2026-10-22: partly built — many focused tests now cover
+permission boundaries, e.g. `tests/Feature/Roles/*` and `DataAccessControlTest`; a test
+that walks every route is still to do. Re-running the authorization audit before go-live
+is a step in docs/DEPLOYMENT_CHECKLIST.md.)*
 
 **Practice:** when an audit finding is deliberately *not* fixed, record it here.
 
@@ -183,25 +187,36 @@ began firing on the test VPS), not just the one being deployed.
 4. Server timezone: scheduler times are server time (`timedatectl`). Decide
    once whether snapshots/sends key to UTC or Africa/Lagos
    (`config/app.php` timezone) — changing later shifts what "yesterday"
-   means in the data. **Status: not yet decided.**
+   means in the data. **Decided:** Africa/Lagos. `config/app.php` timezone is
+   `Africa/Lagos`, and the MySQL session time zone is `+01:00` (`DB_TIMEZONE`, see
+   docs/DEPLOYMENT_CHECKLIST.md). Check the server's own zone with `timedatectl` before
+   activating cron.
+
+**2026-10-22:** these checks are now steps in docs/DEPLOYMENT_CHECKLIST.md ("Before adding the
+cron line the first time"). In production, campaign emails with a log mailer now fail instead
+of counting as sent (see "2026-10-22 — Campaign email through Laravel mail").
 
 ---
 
 ## 2026-06-10 — Image migration: filesystem copy, dual storage
 
 **Decision:** Old-database photos/signatures are migrated by the
-`images:migrate` command. On the VPS the old image directory is on the same
-server, so the command copies via filesystem (source from
+`images:migrate` command, which copies via filesystem (source from
 `IMAGE_MIGRATION_SOURCE` env / `--source=`); HTTP mode exists only for local
-rehearsal. Web-optimized versions are generated with the same library and
+rehearsal. *(Updated 2026-10-22: the new one.com VPS is a different server from
+the old system, so the old `images/pictures/` folder is first copied from the
+one.com file manager to the VPS, file counts are compared, and the command then
+reads that copy — see "Copy the old photos and signatures" in
+docs/DEPLOYMENT_CHECKLIST.md.)* Web-optimized versions are generated with the same library and
 settings as the existing upload flow. Signatures get an `original/` archive
 copy in addition to `web/`, even though the current accessor reads only `web/`.
 Idempotent: existing files are skipped, so the command is safely resumable.
 
-**Parked follow-up:** once migration is verified on the VPS, remove the
-remote-URL fallback from the User model accessors (`profile_photo_url`,
-`original_profile_photo_url`, `signature_url`) so the app never reaches out
-to the old server.
+**Parked follow-up — done:** the User model accessors (`profile_photo_url`,
+`original_profile_photo_url`, `signature_url`) no longer point at the old server; they
+return the authenticated `photos.show` route. The remaining remote fetch in
+`PhotoController` runs only on a local/development machine since 2026-10-22 (see
+"2026-10-22 — Remote photo fallback only on local/development").
 
 ---
 
@@ -273,13 +288,6 @@ PAGES to /learn/* while keeping asset files under public/tutorials/. Route names
 stay tutorials.* (so route() calls and asset() paths were unchanged). Rule: never
 let an app route share a top-level path segment with a public/ directory. Do not
 "fix" this class of problem with .htaccess DirectorySlash/rewrite hacks.
-
-## Entry-form people search excludes super-admins (2026-06-13)
-All create-form user searches (payments, and later donations/trainings/volunteering)
-must exclude super-admins. Encoded as User::scopeSelectableForEntry() rather than
-repeated per controller, so the rule lives in one place. NOTE: when combined with an
-orWhere search group, the exclusion must be a top-level AND (outside the closure) —
-placing it inside the orWhere chain silently fails (OR precedence).
 
 ## Entry-form people search excludes super-admins (2026-06-13)
 All create-form user searches must exclude super-admins, via User::scopeSelectableForEntry()
@@ -475,6 +483,8 @@ Before VPS go-live, change in .env:
   Note: fatal errors/exceptions are always logged via Laravel's exception handler
   regardless of APP_DEBUG — this is about verbosity/exposure, not whether errors get
   captured at all.
+- **2026-10-22:** all three, plus `SESSION_SECURE_COOKIE=true` and the real `APP_URL`, are
+  steps in docs/DEPLOYMENT_CHECKLIST.md ("Set .env VPS"); recommended `LOG_LEVEL=warning`.
 
 ## Two-step approval workflow — donations / payments / volunteering / training (2026-06-22)
 
@@ -625,8 +635,6 @@ nothing is `active`/`dormant` yet at that point, since `fix:userdata` step
 removed, since a later change to the run order could make it meaningful
 again.
 
-Show the appended entry. Do not change anything else.
-
 NOTE: `dates:shift` (dev-only, shifted every date in every table) was **removed on
 2026-10-22**: it only made an old dev database look recent and is no longer needed, and
 deleting it means it can never be run on live data. Covered by `RemovedDevCommandsTest`.
@@ -651,13 +659,24 @@ from entry controllers is demote-only. lifecycle:reconcile --apply is
 bidirectional and is the scheduled nightly sweep (03:00) as well as the
 manual bulk correction tool.
 
-**Full transition map:**
-- pending → active:    lifecycle:reconcile --apply only (post-migration corrective)
+**Full transition map** (updated 2026-10-22 to match the code; methods named instead of
+line numbers, which go stale):
+- pending → active:    `lifecycle:reconcile --apply`; approval of an activity or a personal
+                       membership payment (Approvable, see the 2026-07-20 and 2026-07-28
+                       entries below); RCU assignment and organisation linking (below)
 - active → dormant:    nightly lifecycle:reconcile + recalculateLifecycle() on record removal
 - dormant → active:    record approval (Approvable) + lifecycle:reconcile --apply
-- * → archived:        manual admin action (UserController edit form)
-- archived → active:   manual admin action, or record approval with explicit flag
-- * → active:          RCU assignment (UserController:952, calls markActive())
+- * → archived:        `User::markArchived()` — users/edit, the Archive Tool, self-archive, the
+                       phone-duplicate merge (see "2026-10-08 — Archive date recorded")
+- archived → active:   manual admin action (users/edit), or record approval with the explicit
+                       `$allowArchivedReactivation` flag (never for an anonymized member;
+                       bulk approve never reactivates)
+- pending → active on RCU assignment: `UserController::update()` calls
+  `User::promoteFromPendingIfQualified()` only when a unit is assigned (not on unassignment).
+  It promotes only a `pending_engagement` user who is a volunteer or holds a current personal
+  fee; active and dormant users are left as they are.
+- pending → active on organisation linking: `OrganisationController::linkUser()` calls
+  `markActive()` for a `pending_engagement` user (see "2026-07-28 — Organisation linkage…").
 
 **Do not add a promotion path to recalculateLifecycle().** It is intentionally
 demote-only. Adding promotion there would cause dormant users to be silently
@@ -673,6 +692,12 @@ accepted gap that remains).
 ---
 
 ## 2026-07-20 — Closed two runtime gaps feeding Approvable's ungated pending_engagement promotion
+
+> **Partly superseded.** The fee/RCU check described here was exempted for organisation
+> payments on 2026-07-28 ("Organisational payments exempted…") and removed for personal
+> payments on 2026-10-09 ("One personal fee list on both payment pages…"); every personal fee
+> is now a valid choice. The unassignment fix (no promotion when a unit is removed) still
+> applies, now via `promoteFromPendingIfQualified()`.
 
 **Context:** `Approvable::approve()` (`app/Models/Concerns/Approvable.php:230-232`)
 unconditionally promotes a `pending_engagement` user to `active` when an
@@ -747,14 +772,15 @@ these two controllers.
 
 
 ### /idcheck public verification page — profile photo removed
-Date: [today]
+Date: 2026-07-15 (from git history; the date was never filled in)
 Decision: The public ID card verification page (/idcheck/{token}) no longer
 displays the volunteer's profile photo. Photos now require authentication
 (photos.show route, auth middleware group).
 Reason: NDPA compliance — biometric images must not be served to unauthenticated
 visitors. Name, branch, division, and membership status remain visible, which
 is sufficient for ID verification purposes.
-Reviewed by: [your name]
+Whether the page should show even less, or require login, is still an open NRCS decision
+(see "Open compliance items").
 
 
 ## Organisation-linked persons: membership not required, but encouraged
@@ -1286,7 +1312,9 @@ spending on SMS.
 **Consequences:** `LogEmailChannel` (dry-run email) still logs the full address and body —
 out of this SMS-only scope; left for a separate decision. *(2026-10-08: now resolved — the
 address is masked with `PhoneNumber::maskEmail()`, and only the subject and body length are
-logged, not the body.)*
+logged, not the body.)* *(2026-10-22: `LogEmailChannel` was replaced by `MailEmailChannel`,
+which sends real email and keeps the same masked log; see "2026-10-22 — Campaign email through
+Laravel mail".)*
 
 ## 2026-09-29 — SMSLive247 integration: dry run by default, sends never retried
 
@@ -1373,6 +1401,9 @@ them being serialised.
    team leader, assistant team leader or member cards, and the copy-phone buttons and their
    script are gone. Any unit member can open this page, so phone numbers there were visible to
    every unit member. Covered by `MyUnitNoPhoneNumbersTest`.
+   *(Changed 2026-10-18: "My unit" and "My task force" now show the team leader's and
+   assistant team leader's numbers again, with a copy button, to every viewer; members'
+   numbers stay hidden. See the end of "2026-10-08 — Open compliance items".)*
 3. `profile/edit-signature` now opens with "Why do we need your signature?" (printed on the ID
    card only) and "How is it kept safe?", followed by the photo guidance, the current
    signature and the upload form.
@@ -1590,9 +1621,9 @@ anonymized, role-free accounts, and only to holders of the new `anonymize_user` 
 
 **Outside this code** (to be stated in COMPLIANCE.md):
 - Database and file backups still hold the original data until they expire.
-- `PhotoController`'s development fallback can still fetch a legacy image from nrcsvdb.org by
-  its old path. The anonymized row no longer has that path, but the copy on the old server is
-  not deleted.
+- The copy of the photo on the old server (nrcsvdb.org) is not deleted. The anonymized row no
+  longer has its path. Since 2026-10-22 the app never fetches from the old server except on a
+  local/development machine.
 
 ## 2026-10-08 — Compliance technical history (moved from COMPLIANCE.md)
 
@@ -1609,13 +1640,20 @@ confirmation, DPO settings, privacy policy page, archive dates, anonymization).
 - `PhotoController` serves photos with `response()->file()`, behind auth and a
   `UserPolicy::view()` check. The route `GET /photos/{user}/{type}` is in the auth group.
 - The backward-compat fallback to `public/` in `PhotoController` is dead code after the
-  production image migration; remove it after deployment. The development fallback that
-  fetches from nrcsvdb.org is still in place.
+  production image migration; remove it after deployment. The fallback that fetches from
+  nrcsvdb.org ran on every server, not only in development, until 2026-10-22; it now runs only
+  on a local/development machine (see "2026-10-22 — Remote photo fallback only on
+  local/development").
 
 **Encryption at rest (FAIL → FIXED)**
 - `User`: `encrypted` cast on `national_id_number` and `personal_info`. The NIN column was
   widened to TEXT for the ciphertext, and uniqueness now uses the keyed
   `national_id_number_hash` (`NIN_HASH_KEY`).
+- ⚠️ **Open, contradicts docs/migration.md (noted 2026-10-22, not yet decided):** the next line
+  and step 2 of the production deployment list in "Open compliance items" say
+  `ndpa:encrypt-national-ids` must run on production; docs/migration.md step 8 says it is not
+  needed because the old database holds no NINs (`MigrateUsers` imports them as null). Decide
+  which is right and correct the other.
 - `php artisan ndpa:encrypt-national-ids` re-saves existing rows through the cast. It must be
   run once on production before go-live.
 - ⚠️ `APP_KEY` must never be rotated without first decrypting and re-encrypting every
@@ -1682,7 +1720,8 @@ confirmation, DPO settings, privacy policy page, archive dates, anonymization).
 
 **Automated tests (corrected 2026-10-08)**
 - The old "109 automated tests" figure is out of date. On 2026-10-08 the MySQL suite
-  (`php bin/test-mysql.php`) runs 829 tests and is green: 0 failures.
+  (`php bin/test-mysql.php`) runs 829 tests and is green: 0 failures. *(On 2026-10-22:
+  1,637 tests, 0 failures.)*
 - The 8 long-standing failures were outdated tests, not bugs, and were fixed on 2026-10-08:
   - the 4 approval "withdraw" tests now expect the confirmation page (since 2026-07-31);
   - the 4 financial overview report tests now use the full-year Payments tab (since
@@ -1729,8 +1768,12 @@ updated after the 2026-10 legal review. Tick items here when they are done.
       1. Run all pending migrations (including the 2026-10-08 ones: DPO settings, archive date
          columns and backfill, anonymization columns, `anonymize_user` permission).
       2. `php artisan ndpa:encrypt-national-ids --dry-run` (check the count), then without
-         `--dry-run`.
+         `--dry-run`. ⚠️ Open: docs/migration.md says this is not needed (the old database holds
+         no NINs); see "Encryption at rest" above.
       3. Continue with the normal migration sequence (`migrate:old-db`, `lifecycle:reconcile`).
+      *(2026-10-22: the order above is out of date. The authoritative order is in
+      docs/migration.md and docs/DEPLOYMENT_CHECKLIST.md — `migrate:fresh` → `migrate:old-db`
+      → … on the migration machine, then upload — and steps 4–5 are now checklist steps.)*
       4. Make sure the scheduler cron runs (`schedule:run` every minute), otherwise the 03:30
          anonymization job never runs. See "2026-06-10 — Activating the scheduler cron is a
          deployment event".
@@ -1738,10 +1781,13 @@ updated after the 2026-10 legal review. Tick items here when they are done.
          schedule.
 - [ ] Add a Privacy Policy link to the footer: Settings → `site.footer_quick_links_html`
       (no code change).
-- [ ] Delete the old nrcsvdb.org server's copies of photos and signatures when it is shut down,
-      and remove `PhotoController`'s development fallback that fetches from it.
+- [ ] Delete the old nrcsvdb.org server's copies of photos and signatures when it is shut down.
+      *(The `PhotoController` fetch from it runs only on a local/development machine since
+      2026-10-22, so it no longer matters on the server.)*
 - [ ] Delete the phone-duplicate CSV reports in `storage/app/reports/` (names, gender, phone,
-      branch). They are gitignored but sit on disk.
+      branch). They are gitignored but sit on disk. *(2026-10-22: the deployment checklist now
+      says to deploy with git only, so they cannot reach the server; deleting the local copies
+      is still to do.)*
 
 **Done and removed from the open list (2026-10-22):** documenting the VPS server location — it is
 in Denmark; see "2026-10-22 — Production server in Denmark (cross-border transfer)" below.
@@ -2075,5 +2121,54 @@ is a written justification and one.com's documentation.
 
 **Consequences:**
 - Removed from "Open compliance items" (it was "Document the VPS server location…").
-- COMPLIANCE.md should name the country when it is next updated.
+- COMPLIANCE.md names the country (section on how data is protected, "Server location").
 - If the server ever moves to another country, this entry must be revisited first.
+
+## 2026-10-22 — Campaign email through Laravel mail
+
+**Decision:** `MailEmailChannel` replaces `LogEmailChannel` (deleted). Campaign email goes
+through Laravel's mail system (`App\Mail\CampaignEmail`), so it works once SES or SMTP
+settings are in `.env`.
+- **A failed send is never "sent".** A mail error is a failed attempt: the recipient is marked
+  failed, and `email_fallback_sms` goes on to SMS.
+- **No pretending in production.** With `APP_ENV=production` and a mailer that does not deliver
+  (`log`, `array`), every email fails with "No real mailer is configured (MAIL_MAILER=…)".
+  Locally and in tests those mailers still count as sent.
+- **Dry runs** (`campaigns:send --dry-run`) never send.
+- **NDPA:** the `campaign_deliveries` log keeps the masked address, the subject and the body
+  length only, as before.
+
+**Why:** the log-only channel reported success. On the live site every email recipient would
+have been marked sent without receiving anything. The at-most-once rule (2026-09-29) means such
+rows can never be sent again, and with `email_fallback_sms` the fake success also stopped the
+SMS.
+
+**Consequences:** on the sandbox VPS (production mode, log mailer) email campaigns now show
+failed rows, and `email_fallback_sms` campaigns go on to the (log-only) SMS channel. Covered by
+`MailEmailChannelTest`.
+
+## 2026-10-22 — Remote photo fallback only on local/development
+
+**Decision:** `PhotoController` fetches a missing photo or signature from the old system
+(nrcsvdb.org) only when `APP_ENV` is `local` or `development`. On every other server a missing
+file shows the placeholder.
+
+**Why:** the fetch ran on every server, adding up to 5 seconds per missing photo. After the
+switch, nrcsvdb.org points at the new app, so the fetch would call itself. All old files are
+copied to the VPS before the switch instead (DEPLOYMENT_CHECKLIST.md "Copy the old photos and
+signatures").
+
+**Not changed:** the backward-compatible read from `public/` (a local file check, no outside
+request). Covered by `PhotoRemoteFallbackTest`.
+
+## 2026-10-22 — Staff membership payments record the submitter's name
+
+`MembershipPaymentController::store()` set `submission_name` from `auth()->user()->name`, which
+`User` does not have, so every staff-entered payment saved null (found in docs/paystack.md
+§3). It now uses `full_name`, as the Paystack flow does for the payer. Existing rows were not
+changed:
+- Locally only 5 app-entered payments (test entries, 17 Oct 2026) are affected. They could be
+  filled from `submitted_by_user_id`.
+- The 83,743 imported payments without a name were already empty in the old system.
+
+Covered by `SubmissionNameTest`.

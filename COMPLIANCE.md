@@ -115,6 +115,8 @@ address used for the payment.
   data outside NRCS channels, and to handle it under the NDPA.
 - **Encryption.** The NIN and the "personal information" text are stored encrypted. The NIN is
   printed on the ID card.
+- **Server location.** The system and all its data run on a one.com server in Denmark (EU, where
+  the GDPR applies); one.com only hosts the server.
 - **Photos and signatures** are kept in a protected area. Only logged-in users who are allowed to
   see that person can view them, and the system never places them on a public web page.
 - **Public ID card check.** Anyone who scans the QR code on an ID card can see the holder's name,

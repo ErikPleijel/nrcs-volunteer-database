@@ -249,8 +249,8 @@ These are decisions made to keep this piece of work scoped, not oversights:
   the list advise on the choice, and neither `initiate()` nor `store()`
   rejects a fee because of the person's unit. Organisation and RCU fee
   lists are separate and unchanged.
-- **Pre-existing `submission_name` bug found, not fixed.**
-  `MembershipPaymentController::store()` sets
+- **Pre-existing `submission_name` bug — fixed 2026-10-22** (now `full_name`;
+  see Decisions.md). Original note: `MembershipPaymentController::store()` set
   `'submission_name' => auth()->user()->name` — `User` has no `name`
   attribute or accessor (only `first_name`/`last_name`/`full_name`), so
   this silently writes `null` on every staff-entered membership payment.
