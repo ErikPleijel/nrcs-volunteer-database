@@ -7,7 +7,7 @@
 
 use App\Campaigns\Delivery\CampaignDeliveryService;
 use App\Campaigns\Delivery\DeliveryMessage;
-use App\Campaigns\Delivery\LogEmailChannel;
+use App\Campaigns\Delivery\MailEmailChannel;
 use App\Campaigns\Delivery\LogSmsChannel;
 use App\Models\Log as AuditLog;
 use App\Models\MessagingCampaign;
@@ -16,6 +16,7 @@ use App\Models\User;
 use App\Support\PhoneNumber;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -61,7 +62,8 @@ test('the SMS log channel and the delivery service log no full number, email or 
         ->and($all)->toContain('a***@example.org');
 });
 
-test('the dry-run email log channel logs a masked address, the subject and the body length only', function () {
+test('the email channel logs a masked address, the subject and the body length only', function () {
+    Mail::fake();
     $logger = Mockery::spy();
     Log::shouldReceive('channel')->with('campaign_deliveries')->andReturn($logger);
 
@@ -69,7 +71,7 @@ test('the dry-run email log channel logs a masked address, the subject and the b
     $recipient->id = 8;
     $secret = 'Dear Ada, your membership 12345 expires on 1 Oct.';
 
-    (new LogEmailChannel)->deliver($recipient, new DeliveryMessage(subject: 'Membership reminder', body: 'plain', emailBody: $secret));
+    (new MailEmailChannel)->deliver($recipient, new DeliveryMessage(subject: 'Membership reminder', body: 'plain', emailBody: $secret));
 
     $logged = [];
     $logger->shouldHaveReceived('info')->withArgs(function ($msg, $context = []) use (&$logged) {

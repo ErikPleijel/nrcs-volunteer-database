@@ -8,7 +8,7 @@
  */
 
 use App\Campaigns\Delivery\CampaignDeliveryService;
-use App\Campaigns\Delivery\LogEmailChannel;
+use App\Campaigns\Delivery\MailEmailChannel;
 use App\Campaigns\Sending\CampaignSendRunner;
 use App\Models\MessagingCampaign;
 use App\Models\MessagingRecipient;
@@ -46,7 +46,7 @@ beforeEach(function () {
         'status' => 'pending',
     ]));
 
-    $this->runner = new CampaignSendRunner(new CampaignDeliveryService([new LogEmailChannel]));
+    $this->runner = new CampaignSendRunner(new CampaignDeliveryService([new MailEmailChannel]));
 });
 
 function sentCount(MessagingCampaign $campaign): int

@@ -10,7 +10,7 @@ use App\Campaigns\Delivery\CampaignDeliveryService;
 use App\Campaigns\Delivery\DeliveryAttempt;
 use App\Campaigns\Delivery\DeliveryChannel;
 use App\Campaigns\Delivery\DeliveryMessage;
-use App\Campaigns\Delivery\LogEmailChannel;
+use App\Campaigns\Delivery\MailEmailChannel;
 use App\Campaigns\Delivery\LogSmsChannel;
 use App\Campaigns\Sending\CampaignSendRunner;
 use App\Models\MessagingCampaign;
@@ -60,7 +60,7 @@ beforeEach(function () {
         ]);
     };
 
-    $this->logRunner = new CampaignSendRunner(new CampaignDeliveryService([new LogEmailChannel, new LogSmsChannel]));
+    $this->logRunner = new CampaignSendRunner(new CampaignDeliveryService([new MailEmailChannel, new LogSmsChannel]));
 });
 
 test('a sent recipient records channel, provider and provider message id', function () {
@@ -72,8 +72,8 @@ test('a sent recipient records channel, provider and provider message id', funct
     $r->refresh();
     expect($r->status)->toBe('sent')
         ->and($r->channel_used)->toBe('email')
-        ->and($r->provider)->toBe('log-only')
-        ->and($r->provider_message_id)->toStartWith('log-email-');
+        ->and($r->provider)->toBe('mail:array')
+        ->and($r->provider_message_id)->not->toBeEmpty();
 });
 
 test('email_fallback_sms records the channel that actually delivered', function () {

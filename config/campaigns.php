@@ -2,9 +2,10 @@
 
 return [
     'delivery' => [
-        // later: swap the email one to a real channel (e.g. SendGrid) as well.
         'channels' => [
-            \App\Campaigns\Delivery\LogEmailChannel::class,
+            // Sends through Laravel's mail system (MAIL_MAILER). In production a log/array
+            // mailer makes every email fail instead of counting as sent.
+            \App\Campaigns\Delivery\MailEmailChannel::class,
 
             // CAMPAIGN_SMS_CHANNEL=log (default, log only) | smslive247 (see config/smslive247.php,
             // which itself stays in dry run until SMSLIVE247_DRY_RUN=false).

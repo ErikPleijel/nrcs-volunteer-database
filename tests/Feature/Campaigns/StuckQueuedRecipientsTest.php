@@ -7,7 +7,7 @@
  */
 
 use App\Campaigns\Delivery\CampaignDeliveryService;
-use App\Campaigns\Delivery\LogEmailChannel;
+use App\Campaigns\Delivery\MailEmailChannel;
 use App\Campaigns\Sending\CampaignSendRunner;
 use App\Models\Log as AuditLog;
 use App\Models\MessagingCampaign;
@@ -112,7 +112,7 @@ test('a campaign with only queued rows left completes instead of hanging in send
     $this->campaign->update(['status' => 'sending']);
     $this->failed->delete();
 
-    $runner = new CampaignSendRunner(new CampaignDeliveryService([new LogEmailChannel]));
+    $runner = new CampaignSendRunner(new CampaignDeliveryService([new MailEmailChannel]));
     $runner->runOneBatch($this->campaign->fresh(), batch: 50, force: true);
 
     expect($this->campaign->fresh()->status)->toBe('sent')

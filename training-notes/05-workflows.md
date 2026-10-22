@@ -345,11 +345,11 @@ People who opted out of every channel the campaign uses are skipped.
 
 | Channel | What is used | Actually delivered? |
 |---|---|---|
-| **Email** | `LogEmailChannel`, **hard-wired** in `config/campaigns.php:7`, whatever the environment or `MAIL_MAILER` | **No.** Each email is written to `storage/logs/campaign_deliveries-YYYY-MM-DD.log` with a fake id `log-email-<uuid>`, and counted as a **success**. |
+| **Email** | `MailEmailChannel` (`config/campaigns.php`), which sends through Laravel's mailer (`MAIL_MAILER`) | **Only with a real mailer** (SES/SMTP). With `MAIL_MAILER=log` or `array`: on a **production** server (`APP_ENV=production`, e.g. the sandbox VPS) every email **fails** with "No real mailer is configured", and `email_fallback_sms` campaigns go on to SMS; on a local machine the whole email is written to `storage/logs/laravel.log` and counted as a **success**. |
 | **SMS** | `LogSmsChannel` when `CAMPAIGN_SMS_CHANNEL=log` (the default in `.env.example` and locally). `SmsLive247Channel` only when `CAMPAIGN_SMS_CHANNEL=smslive247`, and even then it stays in **dry run** unless `SMSLIVE247_DRY_RUN=false`. | **No**, unless both settings are deliberately switched. |
 
 Consequences for training:
-- Every recipient row is marked **sent**. Those people count as "contacted" in the planning tools and appear in their **MESSAGES SENT** list. **Training campaigns will change the numbers in the planning tools.**
+- Every SMS recipient row (and every email row on a local machine) is marked **sent**. Those people count as "contacted" in the planning tools and appear in their **MESSAGES SENT** list. **Training campaigns will change the numbers in the planning tools.**
 - On a server where the scheduler cron is **not** running (for example a laptop), messages stay **Queued** until someone uses the manual **run once** action or runs `php artisan campaigns:send`.
 
 ---

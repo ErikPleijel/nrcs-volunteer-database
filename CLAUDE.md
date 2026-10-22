@@ -16,7 +16,7 @@ Uses `spatie/laravel-permission` with **no `Gate::before` bypass**. `super-admin
 
 ### Key Subsystems
 
-**Messaging Campaigns** — `MessagingCampaign` → `MessagingRecipient` flow. `BuildCampaignRecipients` command populates recipients. Delivery channels implement `DeliveryChannel` interface (`app/Campaigns/Delivery/`). Currently uses `LogEmailChannel`/`LogSmsChannel` (dry-run). See `docs/campaign_notes.md` for production readiness checklist.
+**Messaging Campaigns** — `MessagingCampaign` → `MessagingRecipient` flow. `BuildCampaignRecipients` command populates recipients. Delivery channels implement `DeliveryChannel` interface (`app/Campaigns/Delivery/`). Email goes through `MailEmailChannel` (Laravel mail; in production a log/array mailer fails instead of counting as sent). SMS uses `LogSmsChannel` (log only) unless `CAMPAIGN_SMS_CHANNEL=smslive247`. See `docs/campaign_notes.md` for production readiness checklist.
 
 **Credentials** — ID cards (`IdCardPrint`) and certificates (`CertificatePrint`) have dedicated print workflows with verification tokens. Multiple print formats supported (plain, branded, portrait).
 
