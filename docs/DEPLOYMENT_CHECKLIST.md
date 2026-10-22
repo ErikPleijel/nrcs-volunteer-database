@@ -245,6 +245,17 @@ Skip after a fresh import. Details: docs/migration.md, section C.
   - PHP (the php.ini used by PHP-FPM): `upload_max_filesize = 21M` and `post_max_size = 21M` or more. Check with `php-fpm -i | grep -E 'upload_max|post_max'` (or a phpinfo page), then restart PHP-FPM.
   - nginx: `client_max_body_size 21M;` (or more) in the site's `server` block, then `sudo nginx -t && sudo systemctl reload nginx`. Apache has no limit by default unless `LimitRequestBody` is set.
   - Test: upload a ~15 MB PDF on that Settings page and open it from My Profile.
+  - ⚠️ **NRCS production server (one.com) needs the same limits.** Use 25M, as on the
+    test VPS: nginx `client_max_body_size 25M;` in the site's HTTPS `server` block, and PHP-FPM
+    `upload_max_filesize` and `post_max_size` ≥ 25M. On a one.com managed plan these may be
+    set in its control panel rather than in config files — check what the plan allows.
+  - Gotcha: a PHP-FPM pool can override php.ini (`php_admin_value[...]` in
+    `/etc/php/<ver>/fpm/pool.d/*.conf`), and only the pool that owns the site's `fastcgi_pass`
+    socket counts. `php-fpm -i` shows php.ini, not the pool. Test VPS (dev.itacenmu.org,
+    2026-10-22): nginx was on the 1 MB default until `client_max_body_size 25M;` was added;
+    php.ini says 100M but the `[www]` pool sets upload 30M / post 32M, which is what applies.
+  - Check from the server: `head -c $((24*1024*1024)) /dev/zero | curl -s -o /dev/null -w "%{http_code}\n" -X POST --data-binary @- https://<domain>/login`
+    → anything but 413 (Laravel answers, e.g. 302 or 419); with 26 MB → 413 from nginx.
 - [ ] After `php artisan migrate`: Settings → Useful Links & Downloads shows the eight IFRC links; uploaded files go to `storage/app/private/profile-downloads/` (served only to logged-in users, no `storage:link` needed).
 - [ ] Check e.g. heat map and see if any division has missing coordinates
 
