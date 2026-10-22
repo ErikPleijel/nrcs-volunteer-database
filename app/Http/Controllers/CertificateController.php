@@ -159,8 +159,19 @@ class CertificateController extends Controller
         // Determine if the base query is directly on the User model
         $isUserQuery = in_array($certificateType, ['donation', 'volunteering']);
 
+        // Course filter. A course's organisers who print certificates see all
+        // of its certificates, also of participants from other branches: the
+        // organiser hands them out at the end of the course (Decisions.md
+        // 2026-10-23). guardPrintableIds() allows printing them.
+        $filterCourse = str_starts_with($certificateType, 'training_') && $request->filled('course_id')
+            ? Course::find($request->integer('course_id'))
+            : null;
+        $organisesFilterCourse = $filterCourse
+            && $user->can('print_certificates')
+            && $filterCourse->isManageableBy($user);
+
         // Scope query based on user access level
-        switch ($accessLevel) {
+        switch ($organisesFilterCourse ? 'national' : $accessLevel) {
             case 'branch':
                 if (isset($userBranchId)) {
                     $query->where('branch_id', $userBranchId);
@@ -223,8 +234,8 @@ class CertificateController extends Controller
             $query->where('training_type_id', $request->input('training_type_id'));
         }
 
-        // Course filter: the records a closed course issued. The area scope
-        // above still applies, so branch staff see their own branch's participants.
+        // Course filter: the records a closed course issued. For anyone but the
+        // course's organisers the area scope above still applies.
         if (str_starts_with($certificateType, 'training_') && $request->filled('course_id')) {
             $query->where('course_id', $request->integer('course_id'));
         }
@@ -286,10 +297,16 @@ class CertificateController extends Controller
 
         }
 
+        // A course's certificates are printed together, so the course filter
+        // shows them all on one page.
+        $perPage = $request->filled('course_id') && str_starts_with($certificateType, 'training_')
+            ? max(1, (clone $query)->count())
+            : 24;
+
         $records = $query
             ->with($withRelations)
             ->latest($dateColumn)
-            ->paginate(24)
+            ->paginate($perPage)
             ->withQueryString();
 
         // Build a set of already-printed item keys for this certificate type
@@ -905,7 +922,8 @@ class CertificateController extends Controller
     /**
      * Refuse the request (403) unless the viewer may print every selected
      * person certificate: the record must be in their own area (the same rule
-     * as index()), and a training certificate whose type is "HQ only" needs a
+     * as index()), or come from a course their branch organised, and a
+     * training certificate whose type is "HQ only" needs a
      * national viewer. The page never offers anything else, so a mismatch is a
      * stale page or a crafted request. Organisation and unit certificates have
      * their own scope checks.
@@ -929,11 +947,16 @@ class CertificateController extends Controller
         $scopedId = $viewer->getScopedId();
         $model = $query->getModel();
 
-        match ($viewer->getAccessLevel()) {
-            'national' => null,
-            'branch'   => $query->where($model->qualifyColumn('branch_id'), $scopedId ?? 0),
-            'division' => $query->where($model->qualifyColumn('division_id'), $scopedId ?? 0),
-            default    => $query->whereRaw('1 = 0'),
+        match (true) {
+            $viewer->getAccessLevel() === 'national' => null,
+            // A course's organisers (Course::isManageableBy) may also print the
+            // certificates of its participants from other branches.
+            $viewer->getAccessLevel() === 'branch' && $isTraining => $query->where(fn ($q) => $q
+                ->where($model->qualifyColumn('branch_id'), $scopedId ?? 0)
+                ->orWhereIn($model->qualifyColumn('course_id'), Course::where('branch_id', $scopedId ?? 0)->select('id'))),
+            $viewer->getAccessLevel() === 'branch' => $query->where($model->qualifyColumn('branch_id'), $scopedId ?? 0),
+            $viewer->getAccessLevel() === 'division' => $query->where($model->qualifyColumn('division_id'), $scopedId ?? 0),
+            default => $query->whereRaw('1 = 0'),
         };
 
         if ($isTraining && $viewer->getAccessLevel() !== 'national') {

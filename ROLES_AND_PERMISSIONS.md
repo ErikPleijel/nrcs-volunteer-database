@@ -215,7 +215,8 @@ re-entered.
   cannot be moved to another branch until the role is removed.
 - Branch campaigns can only reach people in that branch.
 - Certificates can only be printed for records in the printer's own area, and certificates for a
-  training type marked "HQ only" only by national roles. This is checked on the server when
+  training type marked "HQ only" only by national roles. Exception: a course's organisers can print all
+  certificates from their own course, also of participants from other branches. This is checked on the server when
   printing and when marking as printed (since 2026-10-23).
 - Only branch-wide totals (statistics) are shown across branches. Lists of named people stay within
   the viewer's area.

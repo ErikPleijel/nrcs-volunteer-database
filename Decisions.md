@@ -2300,3 +2300,19 @@ issued at least one approved record. A closed course's page links to it.
 **Area unchanged:** the filter only narrows the normal list, so branch staff see, and can print,
 only the certificates of their own branch's participants, also on a course their branch organised
 (the 2026-10-23 server-side print check applies). National staff print a whole course at once.
+
+## 2026-10-23 — Course organisers print all of their course's certificates (supersedes "Area unchanged" above)
+
+**Decision:** the organisers of a course (`Course::isManageableBy()`: national staff, or staff of
+the organising branch) who hold `print_certificates` can see, print and mark as printed all
+certificates from their own course, also those of participants from other branches.
+- On the certificates page this applies when the Course filter is set to their course; without
+  the filter, and for everyone else, the normal area scope stays.
+- `CertificateController::guardPrintableIds()` allows a branch viewer training records in their
+  branch **or** from a course their branch organised.
+- "HQ only" training types still need a national role, also on the organiser's own course.
+
+**Why:** certificates are handed out at the end of the course by the organiser.
+
+**Also:** with the Course filter set, the certificates page shows all of that course's
+certificates on one page (no 24-per-page split), so a course is printed in one go.

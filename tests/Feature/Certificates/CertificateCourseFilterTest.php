@@ -2,8 +2,11 @@
 
 /**
  * Courses step 6: the "Course" filter on the certificates page.
- * - training certificates (competence and attendance) narrow to one course's records
- * - the area scope still applies: branch staff see their own branch's participants
+ * - training certificates (competence and attendance) narrow to one course's records,
+ *   all on one page
+ * - the course's organisers who print certificates see, print and mark as
+ *   printed all its certificates, also of participants from other branches;
+ *   HQ-only types still need national roles; everyone else keeps the area scope
  * - the dropdown lists closed courses the viewer can see that issued approved records
  * - a closed course's page links to its certificates
  */
@@ -32,6 +35,8 @@ beforeEach(function () {
     foreach (['national_db_administrator', 'branch_db_administrator'] as $role) {
         Role::findOrCreate($role, 'web')->syncPermissions($permissions);
     }
+    // Views certificates but does not print them.
+    Role::findOrCreate('branch_db_assistant', 'web')->syncPermissions(['manage-admin-panel', 'view_certificates', 'view_courses', 'view_user']);
     app(PermissionRegistrar::class)->forgetCachedPermissions();
 
     $this->branchA = Branch::create(['name' => 'Alpha Branch', 'code' => 'ALP']);
@@ -43,6 +48,10 @@ beforeEach(function () {
     $this->national->assignRole('national_db_administrator');
     $this->branchAdmin = User::factory()->inBranch($this->branchA)->create();
     $this->branchAdmin->assignRole('branch_db_administrator');
+    $this->branchAdminB = User::factory()->inBranch($this->branchB)->create();
+    $this->branchAdminB->assignRole('branch_db_administrator');
+    $this->branchAssistant = User::factory()->inBranch($this->branchA)->create();
+    $this->branchAssistant->assignRole('branch_db_assistant');
 
     $this->type = TrainingType::factory()->create(['name' => 'Standard First Aid', 'certificate_hq_only' => false]);
 
@@ -98,11 +107,75 @@ it('narrows training certificates to one course', function (string $type) {
         ->toBe([$this->recordA->id, $this->recordB->id, $this->otherRecord->id]);
 })->with(['training_competence', 'training_attendance']);
 
-it('keeps the area scope: branch staff see their own branch\'s participants', function () {
+it('shows the organisers all of their course\'s certificates, also from other branches', function () {
     $response = $this->actingAs($this->branchAdmin)
         ->get(route('certificates.index', ['certificate_type' => 'training_competence', 'course_id' => $this->course->id]));
 
-    expect(listedRecordIds($response))->toBe([$this->recordA->id]);
+    expect(listedRecordIds($response))->toBe([$this->recordA->id, $this->recordB->id]);
+
+    // Without the course filter the normal area scope applies.
+    expect(listedRecordIds($this->actingAs($this->branchAdmin)->get(route('certificates.index', ['certificate_type' => 'training_competence']))))
+        ->toBe([$this->recordA->id, $this->otherRecord->id]);
+});
+
+it('keeps the area scope for staff who did not organise the course or do not print', function () {
+    $filter = ['certificate_type' => 'training_competence', 'course_id' => $this->course->id];
+
+    expect(listedRecordIds($this->actingAs($this->branchAdminB)->get(route('certificates.index', $filter))))
+        ->toBe([$this->recordB->id])
+        ->and(listedRecordIds($this->actingAs($this->branchAssistant)->get(route('certificates.index', $filter))))
+        ->toBe([$this->recordA->id]);
+});
+
+it('lets the organisers print and mark as printed all of their course\'s certificates', function (string $routeName) {
+    $this->actingAs($this->branchAdmin)
+        ->post(route($routeName), ['certificate_type' => 'training_attendance', 'training_ids' => [$this->recordA->id, $this->recordB->id]])
+        ->assertOk();
+})->with(['certificates.bulk.print.plain', 'certificates.bulk.print.branded', 'certificates.bulk_print_branded_portrait', 'certificates.mark-as-printed']);
+
+it('still refuses other branches\' records outside the organiser\'s courses, and course records to non-organisers', function () {
+    $foreign = courseRecord(null, $this->divisionB1);
+
+    $this->actingAs($this->branchAdmin)
+        ->post(route('certificates.bulk.print.branded'), ['certificate_type' => 'training_competence', 'training_ids' => [$foreign->id]])
+        ->assertForbidden();
+
+    $this->actingAs($this->branchAdminB)
+        ->postJson(route('certificates.mark-as-printed'), ['certificate_type' => 'training_competence', 'training_ids' => [$this->recordA->id]])
+        ->assertForbidden();
+});
+
+it('still needs a national role for HQ-only certificates from the organiser\'s course', function () {
+    $this->type->update(['certificate_hq_only' => true]);
+
+    $this->actingAs($this->branchAdmin)
+        ->post(route('certificates.bulk.print.branded'), ['certificate_type' => 'training_competence', 'training_ids' => [$this->recordB->id]])
+        ->assertForbidden();
+
+    $this->actingAs($this->branchAdmin)
+        ->get(route('certificates.index', ['certificate_type' => 'training_competence', 'course_id' => $this->course->id]))
+        ->assertSee('Printed<br>at HQ', false);
+
+    $this->actingAs($this->national)
+        ->post(route('certificates.bulk.print.branded'), ['certificate_type' => 'training_competence', 'training_ids' => [$this->recordB->id]])
+        ->assertOk();
+});
+
+it('shows all of a course\'s certificates on one page', function () {
+    foreach (range(1, 28) as $i) {
+        courseRecord($this->course, $this->divisionA1);
+    }
+
+    $filtered = $this->actingAs($this->national)
+        ->get(route('certificates.index', ['certificate_type' => 'training_competence', 'course_id' => $this->course->id]))
+        ->viewData('records');
+    $unfiltered = $this->actingAs($this->national)
+        ->get(route('certificates.index', ['certificate_type' => 'training_competence']))
+        ->viewData('records');
+
+    expect($filtered->count())->toBe(30)
+        ->and($filtered->lastPage())->toBe(1)
+        ->and($unfiltered->count())->toBe(24);
 });
 
 it('lists closed courses the viewer can see that issued approved records', function () {
