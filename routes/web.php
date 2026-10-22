@@ -475,7 +475,7 @@ Route::middleware(['auth', 'verified.or.absent'])->group(function () {
         Route::prefix('membership-payments')->name('membership-payments.')->group(function () {
             // AJAX and utility routes used in forms and filters
             Route::get('/search-users', [MembershipPaymentController::class, 'searchUsers'])->name('search-users')->middleware('can:add_payments');
-            Route::get('/user/{user}/current-membership', [MembershipPaymentController::class, 'getCurrentMembership'])->name('current-membership');
+            Route::get('/user/{user}/current-membership', [MembershipPaymentController::class, 'getCurrentMembership'])->name('current-membership')->middleware('can:add_payments');
             Route::get('/divisions/by-branch', [MembershipPaymentController::class, 'getDivisionsByBranch'])->name('divisions.by-branch')->middleware('can:view_payments');
 
             // Resourceful routes with permissions

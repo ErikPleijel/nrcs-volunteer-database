@@ -114,3 +114,36 @@ test('store refuses an ID card on a Red Cross Unit payment', function () {
 
     expect(MembershipPayment::withAnyApprovalStatus()->count())->toBe(0);
 });
+
+/*
+|--------------------------------------------------------------------------
+| The staff form's current-membership lookup is limited to payment staff
+|--------------------------------------------------------------------------
+*/
+
+test('the current-membership endpoint is limited to payment staff within their scope', function () {
+    $target = User::factory()->create(['branch_id' => $this->branch->id, 'division_id' => $this->division->id]);
+
+    // No add_payments permission.
+    $this->actingAs(User::factory()->create())
+        ->getJson(route('membership-payments.current-membership', $target))
+        ->assertForbidden();
+
+    // Branch staff of another branch.
+    Role::findOrCreate('branch_db_administrator', 'web')->syncPermissions(['manage-admin-panel', 'add_payments']);
+    app(PermissionRegistrar::class)->forgetCachedPermissions();
+    $otherBranch = Branch::create(['name' => 'Lagos', 'code' => 'LAG']);
+    $otherStaff = User::factory()->create(['branch_id' => $otherBranch->id]);
+    $otherStaff->assignRole('branch_db_administrator');
+
+    $this->actingAs($otherStaff)
+        ->getJson(route('membership-payments.current-membership', $target))
+        ->assertForbidden();
+
+    $ownStaff = User::factory()->create(['branch_id' => $this->branch->id]);
+    $ownStaff->assignRole('branch_db_administrator');
+
+    $this->actingAs($ownStaff)
+        ->getJson(route('membership-payments.current-membership', $target))
+        ->assertOk();
+});

@@ -437,6 +437,9 @@ class MembershipPaymentController extends Controller
      */
     public function getCurrentMembership(User $user)
     {
+        // The staff payment form's person lookup: same scope as create().
+        $this->authorize('view', $user);
+
         $payment = MembershipPayment::personal()
             ->where('user_id', $user->id)
             ->where('is_deleted', false)
