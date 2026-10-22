@@ -29,6 +29,7 @@ class Training extends Model
     protected $fillable = [
         'user_id',
         'training_type_id',
+        'course_id',
         'training_date',
         'duration',
         'valid_years',
@@ -51,6 +52,7 @@ class Training extends Model
     protected $casts = [
         'user_id' => 'integer',
         'training_type_id' => 'integer',
+        'course_id' => 'integer',
         'training_date' => 'date',
         'duration' => 'integer',
         'valid_years' => 'integer',
@@ -123,6 +125,14 @@ class Training extends Model
     public function trainingType()
     {
         return $this->belongsTo(TrainingType::class, 'training_type_id');
+    }
+
+    /**
+     * The course this record was issued from (null for records entered one by one).
+     */
+    public function course()
+    {
+        return $this->belongsTo(Course::class);
     }
 
     /**

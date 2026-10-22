@@ -1076,6 +1076,14 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
+     * The courses this user is on, as participant or facilitator.
+     */
+    public function courseParticipations()
+    {
+        return $this->hasMany(CourseParticipant::class);
+    }
+
+    /**
      * Get the trainings submitted by this user (as an admin/submitter).
      */
     public function submittedTrainings()

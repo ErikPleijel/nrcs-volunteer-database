@@ -2190,3 +2190,42 @@ stale request could print or record certificates from another branch.
 The certificates page now also shows "Printed at HQ" instead of a checkbox for HQ-only
 **attendance** certificates. Organisation and Red Cross Unit certificates already had their own
 area checks and are unchanged. Covered by `CertificatePrintScopeTest`.
+
+## 2026-10-23 — Courses and volunteer skills: design decisions
+
+Two features are being built in steps: courses (branch `feature/courses`) and volunteer skills
+(later, branch `feature/skills`). Decided before the build:
+
+**Naming.** `Course` / `courses` (a planned course people attend) and `CourseParticipant` /
+`course_participants`. `Training` / `trainings` stays one person's training record. Closing a
+course creates `trainings` rows linked by `trainings.course_id`. "Activity" and "TrainingEvent"
+were not used (volunteering already uses activities). Skills will be `Skill` / `user_skills`.
+
+**Courses**
+- A course has one training type (the existing list is reused), dates, a place and an
+  organising branch (NULL = national) with an optional division.
+- Status is planned / closed / cancelled only. "Ongoing" is worked out from the dates.
+- Creating, editing, cancelling and closing: national and branch administrator roles (NDA, NAs,
+  BS, BDA). Branch DB assistants and division assistants can add participants and facilitators
+  and record results only.
+- Participants may come from any branch. Facilitators are database users; others can be named
+  in the free-text `courses.external_facilitators`.
+- Results: passed / failed / absent. Only "passed" creates a training record; failed and absent
+  stay in `course_participants`.
+- "Close course" issues records only once: `courses.closed_at` plus `UNIQUE(course_id, user_id)`
+  on `trainings`. The records are created as pending and go through the normal training
+  approval. Each record keeps the participant's own branch and division (as records entered one
+  by one do, and as the training reports count them).
+- "Approve all from this course" may be used by anyone with approve rights for the course's
+  organising branch (or national), also for participants from other branches. The person who
+  closed the course can't approve them (four-eyes).
+- Campaigns to course participants use the normal wizard. Campaign approval stays national, also
+  in emergencies.
+
+**Skills (later)**
+- Automatic skills come from approved trainings and expire with the training's validity.
+- No free text on skills: `user_skills` has no note column.
+
+**Accepted consequences:** a branch approver may approve a course record for a participant from
+another branch, because their branch organised the course. That is the one exception to the
+"own area" approval rule.

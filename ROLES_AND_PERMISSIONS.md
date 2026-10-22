@@ -58,6 +58,9 @@ others submit · **—** = no access.
 | Branch and division details (contacts, map info) | — | Full | Full | — ⁸ | Own area | Own area | — ⁸ | View (own area) | View (own area) | — | View ⁹ |
 | Red Cross Units — create, edit, close | — | Full | Full | — | Own area | Own area | — | — | — | — | — |
 | Red Cross Units — view | View | Full | Full | View | Own area | Own area | View (own area) | View (own area) | View (own area) | Own record ¹⁰ | — |
+| Courses — create, edit, cancel, close ²³ | — | Full | Full | — | Own area | Own area | — | — | — | — | — |
+| Courses — add participants and facilitators, record results ²³ | — | Full | Full | — | Own area | Own area | Own area | Own area | Own area | — | — |
+| Courses — view ²³ | View | Full | Full | View | Own area | Own area | Own area | Own area | Own area | — | — |
 | Task forces — create, edit, manage members | — | Full | Full | — | Own area | Own area | — | — | — | — | — |
 | Task forces — view | View | Full | Full | View | Own area | Own area | View (own area) | View (own area) | View (own area) | Own record ¹¹ | — |
 | Organisations (corporate members) | — | Full | Full | View | Own branch | Own branch | Own branch (no archive/restore) | — | — | Own record ¹² | — |
@@ -107,6 +110,7 @@ others submit · **—** = no access.
 20. Changing settings needs the password to be re-entered.
 21. See section 4 for exactly who can appoint whom.
 22. The System Administrator sees the tutorials page, but all lessons are locked.
+23. Courses (being built, since 2026-10-23): permissions `add_courses`, `edit_courses`, `manage_course_participants`, `view_courses`. Participants may come from any branch. Closing a course creates a training record for each participant who passed; these go through the normal training approval (section 3.1). The pages and the exact "own area" rules follow in the next build steps.
 **Organisations** (since 2026-10-11): each organisation belongs to a branch and a division. Branch staff manage their own branch's organisations and may move one between its divisions; only national staff move one to another branch. Division staff have no organisation access, and organisation payments and donations are hidden from them in lists, pages, reports and the dashboard.
 
 ---

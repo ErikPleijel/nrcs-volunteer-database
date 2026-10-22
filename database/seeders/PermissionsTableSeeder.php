@@ -88,6 +88,11 @@ class PermissionsTableSeeder extends Seeder
             'edit_trainings',
             'view_trainings',
 
+            'add_courses',
+            'edit_courses',
+            'view_courses',
+            'manage_course_participants',
+
             'add_donations',
             'edit_donations',
             'view_donations',
@@ -262,6 +267,9 @@ class PermissionsTableSeeder extends Seeder
                 'edit_trainings',
                 'view_trainings',
 
+                'view_courses',
+                'manage_course_participants',
+
                 'add_donations',
                 'edit_donations',
                 'view_donations',
@@ -289,6 +297,9 @@ class PermissionsTableSeeder extends Seeder
                 'add_trainings',
                 'edit_trainings',
                 'view_trainings',
+
+                'view_courses',
+                'manage_course_participants',
             ],
 
             // ✅ New: Division finance (includes money + ops)
@@ -321,6 +332,9 @@ class PermissionsTableSeeder extends Seeder
                 'add_trainings',
                 'edit_trainings',
                 'view_trainings',
+
+                'view_courses',
+                'manage_course_participants',
             ],
 
             'observer_national_level' => [
@@ -336,6 +350,7 @@ class PermissionsTableSeeder extends Seeder
                 'view_log',
 
                 'view_trainings',
+                'view_courses',
                 'view_volunteering',
                 'view_payments',
                 'view_donations',
@@ -352,6 +367,7 @@ class PermissionsTableSeeder extends Seeder
                 'view_reports',
 
                 'view_trainings',
+                'view_courses',
                 'view_volunteering',
                 'view_payments',
                 'view_donations',

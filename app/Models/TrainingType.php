@@ -46,6 +46,14 @@ class TrainingType extends Model
     ];
 
     /**
+     * Get the courses of this training type.
+     */
+    public function courses()
+    {
+        return $this->hasMany(Course::class);
+    }
+
+    /**
      * Get the trainings for this training type.
      */
     public function trainings()
