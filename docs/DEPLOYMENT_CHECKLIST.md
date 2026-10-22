@@ -64,7 +64,14 @@ ADAPT procedure accordingly. This might need changes:
   (25/25/50; a payment without a division gives the division's share to
   the branch). If NRCS wants other percentages for the comparison
   quarters, decide that before the import — stored shares are never
-  recalculated.
+  recalculated. How: `migrate:fresh` creates the three settings with
+  25/25/50; change them after `migrate:fresh` and before `migrate:old-db`
+  (no admin can log in yet, so in SQL:
+  `UPDATE settings SET value = '…' WHERE \`key\` = 'fee_distribution.standard.hq';`
+  and the same for `.branch` and `.division`, adding up to 100).
+  `migrate:old-db`'s `db:seed` does not touch them, and its last step
+  (`payments:backfill-manual-shares`) prints the percentages it used —
+  check that line.
 
 
 ### Data integrity checks
@@ -307,10 +314,12 @@ show the placeholder), so every file must be copied across first.
 
 - [ ] Zero users with >1 role (check Database Team report, or query).
 - [ ] Set fees for Organisations.
-- [ ] **Before the first real payment** (staff-entered or online): check the HQ / branch /
-  division split percentages in Settings → Fee Distribution with NRCS finance. Each payment's
-  shares are stored when it is recorded and never recalculated, so a wrong percentage stays
-  wrong on every payment recorded before it is corrected.
+- [ ] **Before the first real payment is approved** (staff-entered) or paid (online): check
+  the HQ / branch / division split percentages in Settings → Fee Distribution with NRCS
+  finance. Each membership payment's shares are stored once, with the percentages of that
+  moment (a staff-entered payment when it is approved, an online one when Paystack confirms
+  it), and never recalculated, so a wrong percentage stays wrong on every payment stored
+  before it is corrected. Donations are not split.
 - [ ] What is the maximum upload file size for images on the VPS? (had problem with itacenmu.org treeplanting app, when user uploaded selfie)
 - [ ] Upload limits ≥ 21 MB, for Settings → Useful Links & Downloads (files up to 20 MB, plus the rest of the form):
   - PHP (the php.ini used by PHP-FPM): `upload_max_filesize = 21M` and `post_max_size = 21M` or more. Check with `php-fpm -i | grep -E 'upload_max|post_max'` (or a phpinfo page), then restart PHP-FPM.
