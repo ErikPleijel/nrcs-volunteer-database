@@ -58,6 +58,11 @@
                 </div>
             </div>
 
+            <div class="max-w-md mx-auto mt-8 flex gap-2 rounded-lg border border-amber-300 bg-amber-50 p-4 text-base text-amber-900">
+                <i class="fas fa-info-circle mt-1 flex-shrink-0"></i>
+                <p><strong>Please note:</strong> When you visit your branch to fill in the paper registration form, you will be asked to pay a one-time registration fee.</p>
+            </div>
+
             <div class="flex justify-center w-full mt-8">
                 <table class="max-w-md w-full mb-8 text-sm">
                     <thead>
