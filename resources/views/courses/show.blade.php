@@ -128,8 +128,23 @@
             @endif
 
             @foreach(['Facilitators' => $facilitators, 'Participants' => $participants] as $heading => $people)
+                @php
+                    $isParticipants = $heading === 'Participants';
+                    $editResults = $isParticipants && $canRecordResults && $course->resultsOpen();
+                    $resultLabels = ['passed' => 'Passed', 'failed' => 'Failed', 'absent' => 'Absent'];
+                @endphp
                 <div class="bg-white shadow-sm sm:rounded-lg p-6">
-                    <h3 class="text-base font-semibold text-gray-900 mb-4">{{ $heading }} ({{ $people->count() }})</h3>
+                    <h3 class="text-base font-semibold text-gray-900 {{ $isParticipants ? 'mb-1' : 'mb-4' }}">{{ $heading }} ({{ $people->count() }})</h3>
+
+                    @if($isParticipants && $people->isNotEmpty())
+                        <p class="text-sm text-gray-600 mb-4">
+                            Passed {{ $resultCounts['passed'] ?? 0 }} · Failed {{ $resultCounts['failed'] ?? 0 }} ·
+                            Absent {{ $resultCounts['absent'] ?? 0 }} · Not recorded {{ $resultCounts['none'] ?? 0 }}
+                            @if($canRecordResults && $course->isPlanned() && ! $course->resultsOpen())
+                                <span class="block text-xs text-gray-500 mt-1">Results can be recorded from {{ $course->start_date->format('j M Y') }}.</span>
+                            @endif
+                        </p>
+                    @endif
 
                     @if($people->isEmpty())
                         <p class="text-sm text-gray-500">None yet.</p>
@@ -140,6 +155,7 @@
                                 <th class="py-2 pr-4">Name</th>
                                 <th class="py-2 pr-4">Branch</th>
                                 <th class="py-2 pr-4">Division</th>
+                                @if($isParticipants)<th class="py-2 pr-4">Result</th>@endif
                                 @if($canChangePeople)<th class="py-2"></th>@endif
                             </tr>
                             </thead>
@@ -155,6 +171,22 @@
                                     </td>
                                     <td class="py-2 pr-4">{{ $entry->user->branch->name ?? '—' }}</td>
                                     <td class="py-2 pr-4">{{ $entry->user->division->name ?? '—' }}</td>
+                                    @if($isParticipants)
+                                        <td class="py-2 pr-4">
+                                            @if($editResults)
+                                                <select name="results[{{ $entry->id }}]" form="course-results-form"
+                                                        aria-label="Result for {{ $entry->user->full_name }}"
+                                                        class="result-select px-2 py-1 text-sm border border-gray-300 rounded-md">
+                                                    <option value="">—</option>
+                                                    @foreach($resultLabels as $value => $label)
+                                                        <option value="{{ $value }}" @selected($entry->result === $value)>{{ $label }}</option>
+                                                    @endforeach
+                                                </select>
+                                            @else
+                                                {{ $resultLabels[$entry->result] ?? '—' }}
+                                            @endif
+                                        </td>
+                                    @endif
                                     @if($canChangePeople)
                                         <td class="py-2 text-right">
                                             @if($course->canHandlePerson(auth()->user(), $entry->user))
@@ -171,6 +203,19 @@
                             @endforeach
                             </tbody>
                         </table>
+
+                        @if($editResults)
+                            <form id="course-results-form" method="POST" action="{{ route('courses.results.update', $course) }}"
+                                  class="mt-4 flex items-center justify-end gap-3">
+                                @csrf
+                                @method('PUT')
+                                <button type="button" class="btn-cancel text-sm"
+                                        onclick="document.querySelectorAll('.result-select').forEach(s => { if (!s.value) s.value = 'passed'; })">
+                                    Set empty results to Passed
+                                </button>
+                                <button type="submit" class="btn-primary"><i class="fas fa-save mr-1"></i>Save results</button>
+                            </form>
+                        @endif
                     @endif
                 </div>
             @endforeach

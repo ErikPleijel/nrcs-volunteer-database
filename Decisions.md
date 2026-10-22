@@ -2247,3 +2247,20 @@ remove people from their own branch or division only, e.g. a branch nominating i
 national course. Archived and anonymized people cannot be added. People can only be changed on a
 planned course. Audit log: `course_participant_added` / `course_participant_removed`, logged with
 the person's branch and division.
+
+## 2026-10-23 — Course results: only the organising side records them
+
+**Decision:** results (passed / failed / absent, or empty) are recorded by the organising side only
+(`Course::canRecordResults()`, with `manage_course_participants`): national staff on any course;
+for a branch course also the staff of that branch who can see it, branch and division assistants
+included. Staff who only nominated people for another branch's or a national course cannot set
+their results: the organisers are the ones who saw the course. National staff may record on
+branch courses too, as they may edit any course.
+
+**When:** from the course's start date, while the course is planned (`Course::resultsOpen()`).
+After closing or cancelling, results are read-only.
+
+**How:** one "Save results" form for all participants (facilitators have no result). Unchanged
+rows are left alone, so `result_recorded_by_user_id` / `result_recorded_at` show who last set
+each result. One audit entry per save, `course_results_recorded`, lists the changed results by
+user id (old and new), logged under the course's branch and division.

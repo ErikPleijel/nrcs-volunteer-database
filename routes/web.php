@@ -638,6 +638,7 @@ Route::middleware(['auth', 'verified.or.absent'])->group(function () {
 
             Route::post('/{course}/participants', [CourseParticipantController::class, 'store'])->name('participants.store')->middleware('can:manage_course_participants');
             Route::delete('/{course}/participants/{participant}', [CourseParticipantController::class, 'destroy'])->name('participants.destroy')->middleware('can:manage_course_participants');
+            Route::put('/{course}/results', [CourseParticipantController::class, 'updateResults'])->name('results.update')->middleware('can:manage_course_participants');
         });
 
         // Organisation Management

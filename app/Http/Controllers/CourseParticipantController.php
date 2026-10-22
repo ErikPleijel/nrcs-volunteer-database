@@ -90,6 +90,67 @@ class CourseParticipantController extends Controller
         return back()->with('success', "{$person->full_name} removed from the course.");
     }
 
+    /**
+     * Save the results of the course's participants in one go: results[entry id]
+     * = passed / failed / absent, or empty to clear. Only the organising side
+     * (Course::canRecordResults), from the start date while planned. Entries
+     * that did not change are left alone; one audit entry lists the changes.
+     */
+    public function updateResults(Request $request, Course $course): RedirectResponse
+    {
+        $viewer = Auth::user();
+        $this->authorizeCourse($viewer, $course);
+        abort_unless($course->canRecordResults($viewer), 403, 'Only the organisers of this course can record results.');
+
+        if (! $course->resultsOpen()) {
+            return back()->with('error', 'Results can be recorded from the start date of the course.');
+        }
+
+        $validated = $request->validate([
+            'results' => ['required', 'array'],
+            'results.*' => ['nullable', Rule::in(CourseParticipant::RESULTS)],
+        ]);
+
+        $entries = $course->courseParticipants()
+            ->where('role', CourseParticipant::ROLE_PARTICIPANT)
+            ->whereIn('id', array_keys($validated['results']))
+            ->get();
+
+        $old = [];
+        $new = [];
+        foreach ($entries as $entry) {
+            $result = $validated['results'][$entry->id] ?: null;
+            if ($result === $entry->result) {
+                continue;
+            }
+
+            $old[$entry->user_id] = $entry->result;
+            $new[$entry->user_id] = $result;
+
+            $entry->update([
+                'result' => $result,
+                'result_recorded_by_user_id' => $result === null ? null : $viewer->id,
+                'result_recorded_at' => $result === null ? null : now(),
+            ]);
+        }
+
+        if ($new === []) {
+            return back()->with('success', 'No results changed.');
+        }
+
+        Log::write(
+            'course_results_recorded',
+            $course,
+            $course->only(['branch_id', 'division_id']),
+            $old,
+            $new,
+            count($new).' result(s) recorded for course "'.$course->name.'"'
+        );
+        $viewer->touchLastAdminActivity();
+
+        return back()->with('success', count($new) === 1 ? '1 result saved.' : count($new).' results saved.');
+    }
+
     private function authorizeCourse(User $viewer, Course $course): void
     {
         abort_unless($course->isVisibleTo($viewer), 403, 'This course is outside your area.');

@@ -141,11 +141,16 @@ class CourseController extends Controller
                 ->get(['id', 'first_name', 'middle_name', 'last_name', 'title', 'branch_id', 'division_id']);
         }
 
+        $participants = $people->reject->isFacilitator()->values();
+        $resultCounts = $participants->countBy(fn (CourseParticipant $p) => $p->result ?? 'none');
+
         return view('courses.show', [
             'course' => $course,
             'canManage' => $viewer->can('edit_courses') && $course->isManageableBy($viewer),
             'facilitators' => $people->filter->isFacilitator()->values(),
-            'participants' => $people->reject->isFacilitator()->values(),
+            'participants' => $participants,
+            'resultCounts' => $resultCounts,
+            'canRecordResults' => $canChangePeople && $course->canRecordResults($viewer),
             'canChangePeople' => $canChangePeople,
             'canAddAnyone' => $course->isManageableBy($viewer),
             'search' => $search,

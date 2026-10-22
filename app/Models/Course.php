@@ -188,6 +188,28 @@ class Course extends Model
     }
 
     /**
+     * Whether $viewer is on the organising side and so may record results
+     * (manage_course_participants is checked by route middleware): national
+     * staff on any course; for a branch course also the staff of that branch,
+     * assistants included, who can see it. Staff who only nominated people
+     * for another branch's or a national course cannot.
+     */
+    public function canRecordResults(User $viewer): bool
+    {
+        if ($viewer->getAccessLevel() === 'national') {
+            return true;
+        }
+
+        return $this->branch_id !== null && $this->isVisibleTo($viewer);
+    }
+
+    /** Results can be recorded from the start date while the course is planned. */
+    public function resultsOpen(): bool
+    {
+        return $this->isPlanned() && ! $this->start_date->isAfter(today());
+    }
+
+    /**
      * People $viewer may add to this course (same rule as canHandlePerson()):
      * not archived or anonymized, not a System Administrator, not already on it.
      */
