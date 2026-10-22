@@ -79,14 +79,15 @@ class PhotoController extends Controller
             }
         }
 
-        // DEV FALLBACK: fetches from old production server (nrcsvdb.org).
+        // DEV FALLBACK, local/development only: fetches from the old system (nrcsvdb.org).
         // Both photos and signatures are stored under images/pictures/ on the
         // legacy server. Field values are relative paths e.g. images/pictures/abc.jpg
         // Base URL: https://nrcsvdb.org/nrcs/database/
-        // Remove after production migration when all files are in storage/app/private/photos/.
+        // Never on a server: after the switch nrcsvdb.org points at this app, so the
+        // fetch would call itself. There a missing file shows the placeholder.
         $rawField = $type === 'signature' ? $user->getRawOriginal('signature')
                                           : $user->getRawOriginal('picture');
-        if ($rawField) {
+        if ($rawField && app()->environment('local', 'development')) {
             $remoteUrl = 'https://nrcsvdb.org/nrcs/database/' . $rawField;
             $remoteResponse = Http::timeout(5)->get($remoteUrl);
             if ($remoteResponse->successful()) {
