@@ -715,9 +715,8 @@ class IdCardController extends Controller
         // Find the user by the verification token.
         $user = User::where('id_check_token', $token)->first();
 
-        // If no user is found, redirect to a 'not found' page or show an error.
+        // Unknown token (mistyped, replaced card, anonymised person): friendly page, 404.
         if (! $user) {
-            // You might want to create a dedicated 'not-found' view.
             return response()->view('id-cards.not-found', [], 404);
         }
 

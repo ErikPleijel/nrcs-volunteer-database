@@ -74,3 +74,12 @@ test('verify page shows Volunteer status and the Red Cross unit name for a volun
         ->not->toContain('Membership Status')
         ->not->toContain('Membership Type');
 });
+
+test('an unknown token shows the "could not be verified" page with a 404', function () {
+    User::factory()->create();
+
+    $this->get(route('id.verify', 'NoSuchTokenNoSuchTokenNoSuchTok'))
+        ->assertNotFound()
+        ->assertSee('This ID card could not be verified')
+        ->assertSee('images/id-card/NRCS_logo.jpg');
+});
