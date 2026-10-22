@@ -14,6 +14,7 @@ use App\Http\Controllers\CampaignAdminController;
 use App\Http\Controllers\CampaignWizardController;
 use App\Http\Controllers\CertificateController;
 use App\Http\Controllers\ConsentConfirmationController;
+use App\Http\Controllers\CourseController;
 use App\Http\Controllers\DivisionController;
 use App\Http\Controllers\DonationController;
 use App\Http\Controllers\DormantUserController;
@@ -623,6 +624,17 @@ Route::middleware(['auth', 'verified.or.absent'])->group(function () {
 
         // Task Force Type Management
         Route::resource('task-force-types', TaskForceTypeController::class);
+
+        // Courses (area checks in CourseController, see Course::visibleTo / isManageableBy)
+        Route::prefix('courses')->name('courses.')->group(function () {
+            Route::get('/', [CourseController::class, 'index'])->name('index')->middleware('can:view_courses');
+            Route::get('/create', [CourseController::class, 'create'])->name('create')->middleware('can:add_courses');
+            Route::post('/', [CourseController::class, 'store'])->name('store')->middleware('can:add_courses');
+            Route::get('/{course}', [CourseController::class, 'show'])->name('show')->middleware('can:view_courses');
+            Route::get('/{course}/edit', [CourseController::class, 'edit'])->name('edit')->middleware('can:edit_courses');
+            Route::put('/{course}', [CourseController::class, 'update'])->name('update')->middleware('can:edit_courses');
+            Route::post('/{course}/cancel', [CourseController::class, 'cancel'])->name('cancel')->middleware('can:edit_courses');
+        });
 
         // Organisation Management
         Route::middleware(['can:print_certificates'])->group(function () {

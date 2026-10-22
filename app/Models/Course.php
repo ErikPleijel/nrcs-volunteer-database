@@ -122,6 +122,49 @@ class Course extends Model
             ->whereDate('end_date', '>=', today());
     }
 
+    /**
+     * Courses $user may see: national staff all; branch staff their branch's
+     * courses; division staff their branch's courses that are not organised
+     * by another division. Everyone sees national courses, since participants
+     * may come from any branch.
+     */
+    public function scopeVisibleTo(Builder $query, User $user): Builder
+    {
+        $scopedId = $user->getScopedId();
+
+        return match ($user->getAccessLevel()) {
+            'national' => $query,
+            'branch' => $query->where(fn ($q) => $q
+                ->whereNull('branch_id')
+                ->orWhere('branch_id', $scopedId ?? 0)),
+            'division' => $query->where(fn ($q) => $q
+                ->whereNull('branch_id')
+                ->orWhere(fn ($q) => $q
+                    ->where('branch_id', $user->getScopedBranchId() ?? 0)
+                    ->where(fn ($q) => $q->whereNull('division_id')->orWhere('division_id', $scopedId ?? 0)))),
+            default => $query->whereRaw('1 = 0'),
+        };
+    }
+
+    public function isVisibleTo(User $user): bool
+    {
+        return static::query()->visibleTo($user)->whereKey($this->getKey())->exists();
+    }
+
+    /**
+     * Whether $user's area lets them edit, cancel or close this course (the
+     * permission itself is checked by route middleware): national staff any
+     * course, branch staff their own branch's courses, not national ones.
+     */
+    public function isManageableBy(User $user): bool
+    {
+        return match ($user->getAccessLevel()) {
+            'national' => true,
+            'branch' => $this->branch_id !== null && $this->branch_id === $user->getScopedId(),
+            default => false,
+        };
+    }
+
     // --- Status helpers ---
 
     public function isPlanned(): bool
@@ -149,5 +192,51 @@ class Course extends Model
     public function isNational(): bool
     {
         return $this->branch_id === null;
+    }
+
+    /** Status for display, with "ongoing" and "ended, not closed" worked out from the dates. */
+    public function getStatusLabelAttribute(): string
+    {
+        return match (true) {
+            $this->isCancelled() => 'Cancelled',
+            $this->isClosed() => 'Closed',
+            $this->isOngoing() => 'Ongoing',
+            $this->end_date?->isBefore(today()) => 'Ended, not closed',
+            default => 'Planned',
+        };
+    }
+
+    /** Tailwind classes for the status badge. */
+    public function getStatusBadgeClassAttribute(): string
+    {
+        return match ($this->status_label) {
+            'Cancelled' => 'bg-gray-100 text-gray-700',
+            'Closed' => 'bg-green-100 text-green-800',
+            'Ongoing' => 'bg-blue-100 text-blue-800',
+            'Ended, not closed' => 'bg-amber-100 text-amber-800',
+            default => 'bg-indigo-100 text-indigo-800',
+        };
+    }
+
+    /** "3 Mar 2027" or "3 – 5 Mar 2027" / "30 Mar – 2 Apr 2027". */
+    public function getDateRangeAttribute(): string
+    {
+        $start = $this->start_date;
+        $end = $this->end_date;
+
+        if (! $start) {
+            return '';
+        }
+        if (! $end || $start->isSameDay($end)) {
+            return $start->format('j M Y');
+        }
+        if ($start->isSameMonth($end)) {
+            return $start->format('j').' – '.$end->format('j M Y');
+        }
+        if ($start->isSameYear($end)) {
+            return $start->format('j M').' – '.$end->format('j M Y');
+        }
+
+        return $start->format('j M Y').' – '.$end->format('j M Y');
     }
 }

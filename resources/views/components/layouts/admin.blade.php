@@ -193,6 +193,16 @@
                         </li>
                     @endcan
 
+                    {{-- Courses --}}
+                    @can('view_courses')
+                        <li>
+                            <a href="{{ route('courses.index') }}"
+                               class="flex items-center px-6 py-3 text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors {{ request()->routeIs('courses.*') ? 'bg-red-50 text-red-600 border-r-4 border-red-600' : '' }}">
+                                <i class="fas fa-chalkboard-user mr-3"></i>Courses
+                            </a>
+                        </li>
+                    @endcan
+
                     {{-- Bulk Email / SMS --}}
                     @can('campaign_request_approve')
                         <li>
