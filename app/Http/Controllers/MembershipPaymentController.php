@@ -695,7 +695,7 @@ class MembershipPaymentController extends Controller
             'expiry_date' => $expiryDate,
             'membership_fee_id' => $request->membership_fee_id,
             'reference' => $request->reference,
-            'submission_name' => auth()->user()->name,
+            'submission_name' => auth()->user()->full_name,
             'submitted_by_user_id' => auth()->id(),
             'submitted_at' => now(),
             'branch_id' => $branchId,
