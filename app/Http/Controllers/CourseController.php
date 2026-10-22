@@ -157,6 +157,7 @@ class CourseController extends Controller
             'closeBlocker' => $canManage && $course->isPlanned() ? $course->closeBlocker() : null,
             'canApproveRecords' => $course->isClosed() && $course->canApproveRecords($viewer),
             'pendingRecords' => $course->isClosed() ? Training::pendingApproval()->where('course_id', $course->id)->count() : 0,
+            'hasApprovedRecords' => $course->isClosed() && $course->trainings()->exists(),
             'facilitators' => $people->filter->isFacilitator()->values(),
             'participants' => $participants,
             'resultCounts' => $resultCounts,

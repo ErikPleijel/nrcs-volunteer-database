@@ -2290,3 +2290,13 @@ user id (old and new), logged under the course's branch and division.
 the app (a rejection is final, see the 2026-06-22 approval workflow entry), so nothing was built
 for that. The course stays closed; a corrected record is entered by hand the normal way, without
 the course link. Accepted: such a record is not counted as "from this course".
+
+## 2026-10-23 — Certificates page: filter by course
+
+The certificates page has a "Course" filter for training certificates (competence and
+attendance). Its list holds the closed courses the viewer can see (`Course::visibleTo()`) that
+issued at least one approved record. A closed course's page links to it.
+
+**Area unchanged:** the filter only narrows the normal list, so branch staff see, and can print,
+only the certificates of their own branch's participants, also on a course their branch organised
+(the 2026-10-23 server-side print check applies). National staff print a whole course at once.

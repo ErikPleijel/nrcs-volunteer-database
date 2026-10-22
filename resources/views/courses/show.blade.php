@@ -17,6 +17,13 @@
                     <i class="fas fa-pen mr-1"></i> Edit
                 </a>
             @endif
+            @if($hasApprovedRecords)
+                @can('view_certificates')
+                    <a href="{{ route('certificates.index', ['certificate_type' => 'training_competence', 'course_id' => $course->id]) }}" class="btn-primary">
+                        <i class="fas fa-certificate mr-1"></i> Certificates
+                    </a>
+                @endcan
+            @endif
         </div>
     </x-slot>
 

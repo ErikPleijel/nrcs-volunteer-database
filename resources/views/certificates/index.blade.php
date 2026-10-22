@@ -292,6 +292,21 @@
                                         </option>
                                     @endforeach
                                 </select>
+
+                                <!-- Course (closed courses that issued records) -->
+                                <label for="course_id" class="filter-label-small mt-2">
+                                    Course
+                                </label>
+                                <select name="course_id"
+                                        id="course_id"
+                                        class="filter-select-small {{ request('course_id') ? 'filter-active' : '' }}">
+                                    <option value="">All Courses</option>
+                                    @foreach($courses as $course)
+                                        <option value="{{ $course->id }}" @selected((string) request('course_id') === (string) $course->id)>
+                                            {{ $course->name }} ({{ $course->date_range }})
+                                        </option>
+                                    @endforeach
+                                </select>
                             </div>
 
                             <!-- Print status filter -->

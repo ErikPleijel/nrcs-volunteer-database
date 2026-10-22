@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Activity;
 use App\Models\Branch;
 use App\Models\CertificatePrint;
+use App\Models\Course;
 use App\Models\Division;
 use App\Models\Donation;
 use App\Models\MembershipPayment;
@@ -222,6 +223,12 @@ class CertificateController extends Controller
             $query->where('training_type_id', $request->input('training_type_id'));
         }
 
+        // Course filter: the records a closed course issued. The area scope
+        // above still applies, so branch staff see their own branch's participants.
+        if (str_starts_with($certificateType, 'training_') && $request->filled('course_id')) {
+            $query->where('course_id', $request->integer('course_id'));
+        }
+
         // Print status filter
         if ($request->filled('print_status')) {
             $printStatus     = $request->input('print_status');
@@ -352,6 +359,14 @@ class CertificateController extends Controller
 
         $trainingTypes = TrainingType::orderBy('name')->get();
 
+        // Closed courses the viewer can see that issued at least one approved record.
+        $courses = Course::query()
+            ->visibleTo($user)
+            ->where('status', Course::STATUS_CLOSED)
+            ->whereHas('trainings')
+            ->orderByDesc('start_date')
+            ->get(['id', 'name', 'start_date', 'end_date']);
+
         // Signature titles for dropdowns
         $signatureTitles = SignatureTitle::includeInList()
             ->orderBy('name')
@@ -377,6 +392,7 @@ class CertificateController extends Controller
             'divisions',
             'redCrossUnits',
             'trainingTypes',
+            'courses',
             'accessLevel',
             'userBranchId',
             'userDivisionId',
