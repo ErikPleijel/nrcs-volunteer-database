@@ -20,6 +20,8 @@
 - [ ] **3. `MANUAL_GO_LIVE_DATE` in `.env`.** Not decided yet. It decides which quarters the
   Income Distribution report shows as estimates and which as real. Never change it
   afterwards.
+- [ ] **4. Backups.** No plan yet. Set up before go-live, once the VPS exists. Check what
+  backups the one.com managed plan includes, and keep at least one copy outside the server.
 
 ## Pre-flight Check 
 [ ] Check any outstanding issues in PRE_DEPLOYMENT.md
