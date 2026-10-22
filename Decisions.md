@@ -1649,13 +1649,12 @@ confirmation, DPO settings, privacy policy page, archive dates, anonymization).
 - `User`: `encrypted` cast on `national_id_number` and `personal_info`. The NIN column was
   widened to TEXT for the ciphertext, and uniqueness now uses the keyed
   `national_id_number_hash` (`NIN_HASH_KEY`).
-- ⚠️ **Open, contradicts docs/migration.md (noted 2026-10-22, not yet decided):** the next line
-  and step 2 of the production deployment list in "Open compliance items" say
-  `ndpa:encrypt-national-ids` must run on production; docs/migration.md step 8 says it is not
-  needed because the old database holds no NINs (`MigrateUsers` imports them as null). Decide
-  which is right and correct the other.
-- `php artisan ndpa:encrypt-national-ids` re-saves existing rows through the cast. It must be
-  run once on production before go-live.
+- `php artisan ndpa:encrypt-national-ids` re-saves existing rows through the cast.
+  **Decided 2026-10-22: not part of the production migration.** The old database never stored
+  NINs (`MigrateUsers` imports them as null), and the import already encrypts `personal_info`
+  (`Crypt::encryptString`). Every NIN entered in the new app is encrypted as it is saved. The
+  command stays for a database that ever holds unencrypted values; the "Encrypt check" query in
+  docs/migration.md confirms after the import that nothing is unencrypted.
 - ⚠️ `APP_KEY` must never be rotated without first decrypting and re-encrypting every
   `national_id_number` and `personal_info` value. Back up `APP_KEY` separately from `.env`.
 
@@ -1767,9 +1766,8 @@ updated after the 2026-10 legal review. Tick items here when they are done.
 - [ ] Production deployment, in order:
       1. Run all pending migrations (including the 2026-10-08 ones: DPO settings, archive date
          columns and backfill, anonymization columns, `anonymize_user` permission).
-      2. `php artisan ndpa:encrypt-national-ids --dry-run` (check the count), then without
-         `--dry-run`. ⚠️ Open: docs/migration.md says this is not needed (the old database holds
-         no NINs); see "Encryption at rest" above.
+      2. *(Removed 2026-10-22: `ndpa:encrypt-national-ids` is not needed — the old database
+         holds no NINs; see "Encryption at rest" above.)*
       3. Continue with the normal migration sequence (`migrate:old-db`, `lifecycle:reconcile`).
       *(2026-10-22: the order above is out of date. The authoritative order is in
       docs/migration.md and docs/DEPLOYMENT_CHECKLIST.md — `migrate:fresh` → `migrate:old-db`
