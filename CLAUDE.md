@@ -43,3 +43,10 @@ Legacy password hash support exists for migrated users.
 - Always tell me which tests you ran.
 
 **How to run them here:** tests must run on MySQL — the default SQLite setup fails (an old `membership_payments` migration uses `CURRENT_TIMESTAMP(6)`). Full suite: `php bin/test-mysql.php` (ignores path/filter args). Related tests only (Git Bash): `DB_CONNECTION=mysql DB_DATABASE=redcross_volunteers_testing DB_USERNAME=root DB_PASSWORD= php vendor/bin/pest --filter=SomeTest` (or a test folder path instead of `--filter`).
+
+## Git workflow
+- Small changes (text, styling, one-file fixes): commit directly on main after running the related test files.
+- Larger features, or anything touching payments, roles, permissions, settings or migrations: create a feature branch, one branch per feature.
+- Run the full suite (php bin/test-mysql.php) once at the end of a feature branch.
+- Merge with fast-forward. If main has not changed since the branch was created and the full suite passed on the branch's last commit, do NOT run the full suite again.
+- If main has changed, rebase the branch on main and run the full suite once before merging.
