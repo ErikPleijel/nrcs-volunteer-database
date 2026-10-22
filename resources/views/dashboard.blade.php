@@ -63,9 +63,9 @@
             </p>
         </div>
 
-        {{-- Tutorial Training --}}
+        {{-- Tutorials --}}
         <section class="mt-14">
-            <h2 class="dashboard-heading text-center block w-full">Training</h2>
+            <h2 class="dashboard-heading text-center block w-full">Tutorials</h2>
             <div class="mt-2 flex justify-center">
                 <a href="{{ route('tutorials.index') }}"
                    class="flex flex-col items-center gap-2 p-5 bg-white rounded-xl shadow-sm hover:shadow-md border border-gray-100 transition text-center min-w-[200px]">
