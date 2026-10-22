@@ -1,6 +1,6 @@
 # NRCS Laravel — Deployment Checklist
 
-## ⚠️ Open with NRCS Finance — must be settled before deployment
+## ⚠️ Open — must be settled before deployment
 
 - [ ] **1. Historical split percentages (HQ / branch / division) for the legacy payment
   import.** Many different splits have been mentioned over the years, and it is probably
