@@ -887,6 +887,51 @@ class CertificateController extends Controller
     }
 
     /**
+     * Refuse the request (403) unless the viewer may print every selected
+     * person certificate: the record must be in their own area (the same rule
+     * as index()), and a training certificate whose type is "HQ only" needs a
+     * national viewer. The page never offers anything else, so a mismatch is a
+     * stale page or a crafted request. Organisation and unit certificates have
+     * their own scope checks.
+     */
+    private function guardPrintableIds(?string $certificateType, array $itemIds): void
+    {
+        $isTraining = in_array($certificateType, ['training_competence', 'training_attendance'], true);
+
+        $query = match (true) {
+            $isTraining => Training::query(),
+            $certificateType === 'membership' => MembershipPayment::query()->personal(),
+            in_array($certificateType, ['volunteering', 'donation'], true) => User::query(),
+            default => null,
+        };
+
+        if ($query === null) {
+            return;
+        }
+
+        $viewer = Auth::user();
+        $scopedId = $viewer->getScopedId();
+        $model = $query->getModel();
+
+        match ($viewer->getAccessLevel()) {
+            'national' => null,
+            'branch'   => $query->where($model->qualifyColumn('branch_id'), $scopedId ?? 0),
+            'division' => $query->where($model->qualifyColumn('division_id'), $scopedId ?? 0),
+            default    => $query->whereRaw('1 = 0'),
+        };
+
+        if ($isTraining && $viewer->getAccessLevel() !== 'national') {
+            $query->whereDoesntHave('trainingType', fn ($q) => $q->where('certificate_hq_only', true));
+        }
+
+        $ids = array_values(array_unique(array_map('intval', $itemIds)));
+
+        if ($query->whereIn($model->getQualifiedKeyName(), $ids)->count() !== count($ids)) {
+            abort(403, 'Some of the selected certificates are outside your area or can only be printed at HQ.');
+        }
+    }
+
+    /**
      * Helper: default coords + font sizes for plain layout (pre-printed paper).
      */
     protected function buildPlainLayout(array $incoming = []): array
@@ -1008,6 +1053,8 @@ class CertificateController extends Controller
             return redirect()->back()->with('error', 'No certificates selected for printing.');
         }
 
+        $this->guardPrintableIds($certificateType, $itemIds);
+
         [$sign1Title, $sign2Title] = $this->resolveSignatureTitlesFromRequest($request);
         [$sign1ImageUrl, $sign1Name, $sign2ImageUrl, $sign2Name] = $this->resolveSignatureImagesFromRequest($request);
 
@@ -1037,6 +1084,8 @@ class CertificateController extends Controller
             return redirect()->back()->with('error', 'No certificates selected for printing.');
         }
 
+        $this->guardPrintableIds($certificateType, $itemIds);
+
         [$sign1Title, $sign2Title] = $this->resolveSignatureTitlesFromRequest($request);
         [$sign1ImageUrl, $sign1Name, $sign2ImageUrl, $sign2Name] = $this->resolveSignatureImagesFromRequest($request);
 
@@ -1064,6 +1113,8 @@ class CertificateController extends Controller
             return redirect()->back()->with('error', 'No certificates selected for printing.');
         }
 
+        $this->guardPrintableIds($certificateType, $itemIds);
+
         [$sign1Title, $sign2Title] = $this->resolveSignatureTitlesFromRequest($request);
         [$sign1ImageUrl, $sign1Name, $sign2ImageUrl, $sign2Name] = $this->resolveSignatureImagesFromRequest($request);
 
@@ -1086,6 +1137,8 @@ class CertificateController extends Controller
         if (!is_array($itemIds) || empty($itemIds)) {
             return response()->json(['message' => 'No items selected.'], 422);
         }
+
+        $this->guardPrintableIds($certificateType, $itemIds);
 
         $printedByUserId = Auth::id();
         $now = now();

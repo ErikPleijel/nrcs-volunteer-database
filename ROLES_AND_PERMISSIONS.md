@@ -210,6 +210,9 @@ re-entered.
 - Branch staff cannot move people out of their branch. People holding a branch or division role
   cannot be moved to another branch until the role is removed.
 - Branch campaigns can only reach people in that branch.
+- Certificates can only be printed for records in the printer's own area, and certificates for a
+  training type marked "HQ only" only by national roles. This is checked on the server when
+  printing and when marking as printed (since 2026-10-23).
 - Only branch-wide totals (statistics) are shown across branches. Lists of named people stay within
   the viewer's area.
 

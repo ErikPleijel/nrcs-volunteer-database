@@ -513,7 +513,7 @@
                             <div class="p-5">
                                 @can('print_certificates')
                                 <div class="absolute top-4 right-4">
-                                    @if($certificateType === 'training_competence' && !empty($item->trainingType->certificate_hq_only) && $accessLevel !== 'national')
+                                    @if(in_array($certificateType, ['training_competence', 'training_attendance'], true) && !empty($item->trainingType->certificate_hq_only) && $accessLevel !== 'national')
                                         <span class="text-xs font-semibold text-indigo-700 leading-tight text-right block">Printed<br>at HQ</span>
                                     @else
                                         <input type="checkbox"

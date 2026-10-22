@@ -2170,3 +2170,23 @@ changed:
 - The 83,743 imported payments without a name were already empty in the old system.
 
 Covered by `SubmissionNameTest`.
+
+## 2026-10-23 — Certificate printing checks area and "HQ only" on the server
+
+**Before:** the person certificate print routes (plain, branded, branded portrait) and Mark as
+printed accepted any posted IDs. The area and the training type's "HQ only" setting were only
+applied on the certificates page, and "HQ only" only for competence certificates. A crafted or
+stale request could print or record certificates from another branch.
+
+**Decision:** `CertificateController::guardPrintableIds()` runs on all four routes, for training
+(competence and attendance), membership, volunteering and donation certificates:
+- every selected record must be in the viewer's own area: the record's branch/division for
+  trainings and membership payments, the person's for volunteering and donations (the same rule
+  as the certificates page);
+- a training certificate whose type has `certificate_hq_only` needs a national viewer;
+- one disallowed, missing or pending ID refuses the whole request (403). Nothing is printed or
+  recorded, because the page never offers such an ID.
+
+The certificates page now also shows "Printed at HQ" instead of a checkbox for HQ-only
+**attendance** certificates. Organisation and Red Cross Unit certificates already had their own
+area checks and are unchanged. Covered by `CertificatePrintScopeTest`.
