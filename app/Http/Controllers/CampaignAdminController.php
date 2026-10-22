@@ -200,29 +200,46 @@ class CampaignAdminController extends Controller
         $user = Auth::user();
         abort_unless($user->can('campaign_request_approve'), 403);
 
-        abort_unless($campaign->status === 'proposed', 422);
-
         abort_if(
             $campaign->submitted_by === $user->id,
             403,
             'You cannot approve or reject a campaign you submitted yourself.'
         );
 
-        $contentErrors = app(CampaignContentValidator::class)->validate($campaign);
-        if (! empty($contentErrors)) {
-            return back()->with('error', 'Cannot approve: '.implode(' ', $contentErrors));
+        // Lock the row and re-check the status inside the transaction, so a
+        // double-click or a second reviewer on a stale page gets a message
+        // instead of deciding the campaign twice.
+        $error = DB::transaction(function () use ($campaign, $user) {
+            $locked = $this->lockCampaign($campaign);
+            if ($locked->status !== 'proposed') {
+                return $this->statusChangedMessage($locked, $user, 'approved');
+            }
+
+            $contentErrors = app(CampaignContentValidator::class)->validate($locked);
+            if (! empty($contentErrors)) {
+                return 'Cannot approve: '.implode(' ', $contentErrors);
+            }
+
+            $locked->update([
+                'status' => 'approved',
+                'approved_by' => $user->id,
+                'approved_at' => now(),
+
+                // clear any rejection history/note (optional)
+                'rejected_by' => null,
+                'rejected_at' => null,
+                'review_note' => null,
+            ]);
+
+            return null;
+        });
+
+        if ($error !== null) {
+            return back()->with('error', $error);
         }
 
-        $campaign->update([
-            'status' => 'approved',
-            'approved_by' => $user->id,
-            'approved_at' => now(),
-
-            // clear any rejection history/note (optional)
-            'rejected_by' => null,
-            'rejected_at' => null,
-            'review_note' => null,
-        ]);
+        // Notification and audit only once the approval is committed.
+        $campaign->refresh();
 
         if ($campaign->submitted_by && ($submitter = \App\Models\User::find($campaign->submitted_by))) {
             $submitter->notify(new CampaignDecided(
@@ -243,8 +260,6 @@ class CampaignAdminController extends Controller
         $user = Auth::user();
         abort_unless($user->can('campaign_request_approve'), 403);
 
-        abort_unless($campaign->status === 'proposed', 422);
-
         abort_if(
             $campaign->submitted_by === $user->id,
             403,
@@ -255,16 +270,31 @@ class CampaignAdminController extends Controller
             'review_note' => ['required','string','min:5','max:2000'],
         ]);
 
-        $campaign->update([
-            'status' => 'rejected',
-            'rejected_by' => $user->id,
-            'rejected_at' => now(),
-            'review_note' => $data['review_note'],
+        $error = DB::transaction(function () use ($campaign, $user, $data) {
+            $locked = $this->lockCampaign($campaign);
+            if ($locked->status !== 'proposed') {
+                return $this->statusChangedMessage($locked, $user, 'rejected');
+            }
 
-            // clear approval fields (optional)
-            'approved_by' => null,
-            'approved_at' => null,
-        ]);
+            $locked->update([
+                'status' => 'rejected',
+                'rejected_by' => $user->id,
+                'rejected_at' => now(),
+                'review_note' => $data['review_note'],
+
+                // clear approval fields (optional)
+                'approved_by' => null,
+                'approved_at' => null,
+            ]);
+
+            return null;
+        });
+
+        if ($error !== null) {
+            return back()->with('error', $error);
+        }
+
+        $campaign->refresh();
 
         if ($campaign->submitted_by && ($submitter = \App\Models\User::find($campaign->submitted_by))) {
             $submitter->notify(new CampaignDecided(
@@ -275,6 +305,10 @@ class CampaignAdminController extends Controller
             ));
         }
 
+        $this->auditCampaign('campaign_rejected', $campaign, [
+            'review_note' => $data['review_note'],
+        ], "Campaign #{$campaign->id} rejected.");
+
         return back()->with('success', 'Campaign rejected.');
     }
 
@@ -284,16 +318,27 @@ class CampaignAdminController extends Controller
         $user = Auth::user();
         abort_unless($user->can('campaign_request_approve'), 403);
 
-        abort_unless($campaign->status === 'approved', 422);
+        $error = DB::transaction(function () use ($campaign, $user) {
+            $locked = $this->lockCampaign($campaign);
+            if ($locked->status !== 'approved') {
+                return $this->statusChangedMessage($locked, $user, 'queued');
+            }
 
-        $contentErrors = app(CampaignContentValidator::class)->validate($campaign);
-        if (! empty($contentErrors)) {
-            return back()->with('error', 'Cannot queue: '.implode(' ', $contentErrors));
+            $contentErrors = app(CampaignContentValidator::class)->validate($locked);
+            if (! empty($contentErrors)) {
+                return 'Cannot queue: '.implode(' ', $contentErrors);
+            }
+
+            $locked->update([
+                'status' => 'queued',
+            ]);
+
+            return null;
+        });
+
+        if ($error !== null) {
+            return back()->with('error', $error);
         }
-
-        $campaign->update([
-            'status' => 'queued',
-        ]);
 
         return back()->with('success', 'Campaign queued.');
     }
@@ -424,17 +469,6 @@ class CampaignAdminController extends Controller
         $user = Auth::user();
         abort_unless($user->can('campaign_request_approve'), 403);
 
-        abort_unless($campaign->status === 'queued', 422);
-
-        $contentErrors = app(CampaignContentValidator::class)->validate($campaign);
-        if (! empty($contentErrors)) {
-            return back()->with('error', 'Cannot start sending: '.implode(' ', $contentErrors));
-        }
-
-        if ((int)$campaign->stats_total <= 0) {
-            return back()->with('error', 'No recipients exist yet. Build recipients first.');
-        }
-
         $data = $request->validate([
             'batch' => ['nullable', 'integer', 'min:1', 'max:500'],
         ]);
@@ -443,14 +477,39 @@ class CampaignAdminController extends Controller
         $batch = (int) ($data['batch'] ?? 50);
         $forceOutsideWindow = $request->boolean('force_outside_window', false);
 
-        $campaign->update([
-            'status' => 'sending',
-            'send_started_at' => $campaign->send_started_at ?? now(),
-            'send_completed_at' => null,
-            'last_send_run_at' => null,
-            'daily_sent_date' => now()->toDateString(),
-            'daily_sent_count' => 0,
-        ]);
+        // Locked status check, so a double-click cannot start sending twice.
+        $error = DB::transaction(function () use ($campaign, $user) {
+            $locked = $this->lockCampaign($campaign);
+            if ($locked->status !== 'queued') {
+                return $this->statusChangedMessage($locked, $user, 'started');
+            }
+
+            $contentErrors = app(CampaignContentValidator::class)->validate($locked);
+            if (! empty($contentErrors)) {
+                return 'Cannot start sending: '.implode(' ', $contentErrors);
+            }
+
+            if ((int) $locked->stats_total <= 0) {
+                return 'No recipients exist yet. Build recipients first.';
+            }
+
+            $locked->update([
+                'status' => 'sending',
+                'send_started_at' => $locked->send_started_at ?? now(),
+                'send_completed_at' => null,
+                'last_send_run_at' => null,
+                'daily_sent_date' => now()->toDateString(),
+                'daily_sent_count' => 0,
+            ]);
+
+            return null;
+        });
+
+        if ($error !== null) {
+            return back()->with('error', $error);
+        }
+
+        $campaign->refresh();
 
         // Audited before the first batch runs, so it is recorded even if that batch fails.
         $this->auditCampaign('campaign_send_started', $campaign, [
@@ -606,6 +665,43 @@ class CampaignAdminController extends Controller
      * Audit a send-related campaign action: who, which channel, how many recipients and the
      * projected SMS pages (see SmsProjection).
      */
+    /**
+     * Re-read the campaign with a row lock (call inside DB::transaction), so two
+     * requests deciding the same campaign run one after the other.
+     */
+    private function lockCampaign(MessagingCampaign $campaign): MessagingCampaign
+    {
+        return MessagingCampaign::whereKey($campaign->getKey())->lockForUpdate()->firstOrFail();
+    }
+
+    /**
+     * Friendly message when the campaign has moved on since the page was loaded
+     * (double-click, or another reviewer acted first). $attempted is the past
+     * participle of what this request tried: approved, rejected, queued, started.
+     */
+    private function statusChangedMessage(MessagingCampaign $campaign, User $viewer, string $attempted): string
+    {
+        $decided = fn (string $verb, ?int $byId, $at) => (
+            $byId !== null && $byId === $viewer->id
+                ? "You already {$verb} this campaign"
+                : "This campaign has already been {$verb} by ".(User::find($byId)?->full_name ?: 'another reviewer')
+        ).($at ? ' at '.$at->format('j M Y, H:i') : '').'.';
+
+        return match ($campaign->status) {
+            'approved' => in_array($attempted, ['approved', 'rejected'], true)
+                ? $decided('approved', $campaign->approved_by, $campaign->approved_at)
+                : 'This campaign is approved but not queued yet. Queue it first.',
+            'rejected' => $decided('rejected', $campaign->rejected_by, $campaign->rejected_at),
+            'queued' => $attempted === 'queued'
+                ? 'This campaign has already been queued.'
+                : 'This campaign has already been approved and queued.',
+            'sending' => 'Sending has already started for this campaign.',
+            'sent' => 'This campaign has already been sent.',
+            'cancelled' => 'This campaign has been cancelled.',
+            default => "This campaign is now {$campaign->status}, so it cannot be {$attempted}.",
+        };
+    }
+
     private function auditCampaign(string $action, MessagingCampaign $campaign, array $extra, string $description): void
     {
         $sms = $this->smsProjection($campaign);
