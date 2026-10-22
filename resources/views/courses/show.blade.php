@@ -252,7 +252,9 @@
                         <h3 class="text-base font-semibold text-gray-900 mb-2">Send a message</h3>
                         <p class="text-sm text-gray-600 mb-4">
                             Opens the campaign wizard (email / SMS) with this course's people as the audience.
-                            @if(auth()->user()->getAccessLevel() !== 'national')
+                            @if($course->isManageableBy(auth()->user()))
+                                As an organiser you reach everyone on the course, also people from other branches.
+                            @else
                                 As for all branch campaigns, only people in your own branch are reached.
                             @endif
                         </p>

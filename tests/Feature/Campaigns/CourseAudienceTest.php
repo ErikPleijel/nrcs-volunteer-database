@@ -101,9 +101,43 @@ it('filters a course\'s people by role and result, without archived people', fun
         ->and(courseAudience(['archived_filter' => 'operational']))->toBe(courseAudienceIds($this->passedA, $this->failedB, $this->facilitatorA));
 });
 
-it('keeps the sender\'s area', function () {
+it('keeps the viewer\'s area outside campaigns (e.g. the Persons list)', function () {
     expect(courseAudience([], 'branch', $this->branchA->id))->toBe(courseAudienceIds($this->passedA, $this->pendingA, $this->facilitatorA))
         ->and(courseAudience([], 'branch', $this->branchB->id))->toBe(courseAudienceIds($this->failedB));
+});
+
+it('lets a campaign from the organising branch reach everyone on the course', function () {
+    $campaignAudience = fn (array $filters, string $level, ?int $scopedId) => app(UserFilterService::class)
+        ->applyForCampaign(User::query(), ['course_id' => $this->course->id, 'archived_filter' => 'not_archived', ...$filters], $level, $scopedId)
+        ->pluck('id')->sort()->values()->all();
+
+    expect($campaignAudience([], 'branch', $this->branchA->id))
+        ->toBe(courseAudienceIds($this->passedA, $this->failedB, $this->pendingA, $this->facilitatorA))
+        // Another branch is not an organiser: own branch only.
+        ->and($campaignAudience([], 'branch', $this->branchB->id))->toBe(courseAudienceIds($this->failedB))
+        // Extra location or organisation filters cannot widen it beyond the course.
+        ->and($campaignAudience(['org_representatives' => '1', 'branch_id' => $this->branchB->id], 'branch', $this->branchA->id))
+        ->toBe(courseAudienceIds($this->passedA, $this->failedB, $this->pendingA, $this->facilitatorA));
+
+    // Without a course filter the branch scope applies as always.
+    $all = app(UserFilterService::class)->applyForCampaign(User::query(), ['archived_filter' => 'all'], 'branch', $this->branchA->id)->pluck('branch_id')->unique()->all();
+    expect($all)->toBe([$this->branchA->id]);
+});
+
+it('builds the recipients of an organiser\'s campaign from the whole course', function () {
+    $campaign = MessagingCampaign::create([
+        'channel' => 'email',
+        'audience_type' => 'both',
+        'body' => ' ',
+        'filter_json' => ['course_id' => $this->course->id, 'archived_filter' => 'not_archived', 'course_role' => 'participant'],
+        'status' => 'draft',
+        'scope_level' => 'branch',
+        'scope_id' => $this->branchA->id,
+        'created_by' => $this->branchAdmin->id,
+    ]);
+
+    expect(app(CampaignRecipientBuilder::class)->audience($campaign)->pluck('id')->sort()->values()->all())
+        ->toBe(courseAudienceIds($this->passedA, $this->failedB, $this->pendingA));
 });
 
 it('describes the course filters', function () {
@@ -158,6 +192,13 @@ it('offers "Participants who passed" once the course is closed', function () {
 
     $this->actingAs($this->branchAdmin)->get(route('courses.show', $this->course))
         ->assertSee('Participants who passed')
+        ->assertSee('As an organiser you reach everyone on the course');
+});
+
+it('tells non-organisers that only their own branch is reached', function () {
+    $this->course->update(['branch_id' => null]);
+
+    $this->actingAs($this->branchAdmin)->get(route('courses.show', $this->course))
         ->assertSee('only people in your own branch are reached');
 });
 

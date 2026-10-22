@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Course;
 use App\Models\CourseParticipant;
 use App\Models\User;
 use App\Support\Filters\ParsedSearch;
@@ -19,6 +20,31 @@ class UserFilterService
      * @param  string  $accessLevel  'national'|'branch'|'division' (and maybe more later)
      * @param  mixed  $scopedId
      */
+    /**
+     * apply() for a campaign audience. One exception to the sender's area: a
+     * branch sender who filters on a course their branch organised reaches
+     * everyone on that course, also people from other branches (Decisions.md
+     * 2026-10-23); the course filter keeps the audience to that course. Only
+     * campaign code calls this, never the Persons list, which shows contact
+     * details. The organisation-representative option is not widened: it is
+     * dropped here, and CampaignRecipientBuilder keeps its own area for it.
+     */
+    public function applyForCampaign(Builder $query, array $filters, string $accessLevel, $scopedId): Builder
+    {
+        $organisesCourse = $accessLevel === 'branch'
+            && $scopedId
+            && ! empty($filters['course_id'])
+            && Course::whereKey((int) $filters['course_id'])->where('branch_id', $scopedId)->exists();
+
+        if ($organisesCourse) {
+            unset($filters['org_representatives'], $filters['branch_id'], $filters['division_id']);
+
+            return $this->apply($query, $filters, 'national', null);
+        }
+
+        return $this->apply($query, $filters, $accessLevel, $scopedId);
+    }
+
     public function apply(Builder $query, array $filters, string $accessLevel, $scopedId): Builder
     {
         // Organisation representatives are placed by their ORGANISATION's

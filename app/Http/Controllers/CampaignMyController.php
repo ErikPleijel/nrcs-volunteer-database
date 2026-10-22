@@ -147,7 +147,7 @@ class CampaignMyController extends Controller
         // Audience stats (same logic as CampaignAdminController::show)
         $filters = is_array($campaign->filter_json) ? $campaign->filter_json : [];
 
-        $filteredQuery = $userFilterService->apply(
+        $filteredQuery = $userFilterService->applyForCampaign(
             User::query()->with(['branch', 'division', 'redCrossUnit'])->where('is_super_admin', false),
             $filters,
             $campaign->scope_level,

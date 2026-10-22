@@ -111,7 +111,7 @@ class CampaignAdminController extends Controller
 
         // Important: apply campaign creator scope, not admin scope
         // so the audience preview matches what the creator actually targeted.
-        $filteredQuery = $userFilterService->apply(
+        $filteredQuery = $userFilterService->applyForCampaign(
             $baseQuery,
             $filters,
             $campaign->scope_level,

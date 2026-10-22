@@ -2332,3 +2332,18 @@ campaign wizard with these filters in `filter_json`, applied by `UserFilterServi
 **Unchanged:** the sender's area still applies, so a branch campaign reaches only the course's
 people in that branch; campaign approval stays national. Unlike certificates, no exception was
 made for course organisers.
+
+## 2026-10-23 — Course organisers message everyone on their course (supersedes "Unchanged" above)
+
+**Decision:** as with certificates, a course's organisers can message everyone on their own course,
+also people from other branches. National campaign approval is unchanged.
+
+**How:** `UserFilterService::applyForCampaign()` is used by all campaign code (wizard steps 2 and
+5, My campaigns, the approver's page, `CampaignRecipientBuilder`). When a branch sender's filter
+names a course their branch organised, the audience is that course's people in every branch.
+`branch_id`, `division_id` and the organisation-representative option are dropped from the user
+query, so nothing widens it beyond the course; organisation emails added by the recipient
+builder stay within the sender's own area. National senders already reach everyone.
+
+**Not widened:** the Persons list (which shows contact details) keeps using `apply()` and the
+normal area, even with a course filter in the URL.

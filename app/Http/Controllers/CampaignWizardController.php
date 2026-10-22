@@ -184,7 +184,7 @@ class CampaignWizardController extends Controller
             ->where('is_super_admin', false);
 
         // Apply EXACT same filter rules
-        $filteredQuery = $userFilterService->apply(
+        $filteredQuery = $userFilterService->applyForCampaign(
             $baseQuery,
             $filters,
             $admin->getAccessLevel(),
@@ -637,7 +637,7 @@ class CampaignWizardController extends Controller
             ->with(['branch', 'division', 'redCrossUnit'])
             ->where('is_super_admin', false);
 
-        $filteredQuery = $userFilterService->apply(
+        $filteredQuery = $userFilterService->applyForCampaign(
             $baseQuery,
             $filters,
             $admin->getAccessLevel(),

@@ -42,7 +42,7 @@ final class CampaignRecipientBuilder
     {
         $filters = is_array($campaign->filter_json) ? $campaign->filter_json : [];
 
-        return $this->userFilterService->apply(
+        return $this->userFilterService->applyForCampaign(
             User::query()->where('is_super_admin', false),
             $filters,
             $campaign->scope_level,
