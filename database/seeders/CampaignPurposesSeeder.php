@@ -170,7 +170,7 @@ class CampaignPurposesSeeder extends Seeder
 <p>If you have any questions, or if you believe you are receiving this message in error, your branch coordinator is happy to help.</p>
 <p>Warm regards,<br>Nigerian Red Cross Society</p>
 ',
-                'default_sms_body' => 'This is the Nigerian Red Cross Society. Our records show you as a {{user.branch}} Branch member. We have upgraded our system — please call [Telephone number] with any questions.',
+                'default_sms_body' => 'Dear {{user.first_name}}, you are registered with the Nigerian Red Cross Society, {{user.branch}} Branch. Log in at {{app.url}} to see your next steps. Questions? Call [Telephone number].',
                 'sort_order' => 60,
             ],
             [
