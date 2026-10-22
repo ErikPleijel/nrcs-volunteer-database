@@ -627,7 +627,9 @@ again.
 
 Show the appended entry. Do not change anything else.
 
-NOTE: dates:shift is dev-only; never run on production data.
+NOTE: `dates:shift` (dev-only, shifted every date in every table) was **removed on
+2026-10-22**: it only made an old dev database look recent and is no longer needed, and
+deleting it means it can never be run on live data. Covered by `RemovedDevCommandsTest`.
 
 ## Dormant → active promotion on record approval (Approvable.php)
 

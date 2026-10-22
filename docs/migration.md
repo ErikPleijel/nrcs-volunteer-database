@@ -159,6 +159,3 @@ Expected result: both columns show 0.
 
 TODO IMPORTANT, after final production migration, go to UserTokenSeeder, and delete file. If seeder run accidentally, the printed ID cards will be useless!
 
-ONLY ON DEV, not real migration! php artisan dates:shift 2360 + days from 1 jan 2026
-php artisan dates:shift 2560
-?? run   php artisan lifecycle:reconcile --apply

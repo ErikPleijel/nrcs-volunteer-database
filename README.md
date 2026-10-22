@@ -132,8 +132,6 @@ If you adapt this for your national society, contributions back to the main repo
 
 ```
 
-> ⚠️ The `dates:shift` command is for development/testing only and must never be run against production data.
-
 A full deployment checklist is maintained in `DEPLOYMENT_CHECKLIST.md`.
 
 ---
