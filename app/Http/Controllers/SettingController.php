@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Log as AuditLog;
 use App\Models\Setting;
 use App\Services\FeeDistributionSettings;
+use App\Services\ProfileResources;
 use App\Services\SettingHtmlSanitizer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -13,6 +14,16 @@ use Illuminate\Support\Str;
 
 class SettingController extends Controller
 {
+    /**
+     * Groups edited on their own Settings page and never on this form: fee
+     * distribution (each rule must add up to 100) and the My Profile links
+     * and downloads (json lists, which this form would show as raw JSON).
+     */
+    private const OWN_PAGE_GROUPS = [
+        FeeDistributionSettings::GROUP,
+        ProfileResources::GROUP,
+    ];
+
     public function index()
     {
         return view('settings.index');
@@ -20,8 +31,7 @@ class SettingController extends Controller
 
     public function edit()
     {
-        // Fee distribution has its own page (each rule must add up to 100).
-        $settings = Setting::where('group', '!=', FeeDistributionSettings::GROUP)
+        $settings = Setting::whereNotIn('group', self::OWN_PAGE_GROUPS)
             ->orWhereNull('group')
             ->get()
             ->groupBy('group');
@@ -41,9 +51,7 @@ class SettingController extends Controller
 
         foreach ($settings as $key => $value) {
             $setting = Setting::where('key', $key)->first();
-            // Fee distribution is saved only through its own page, which
-            // checks that each rule adds up to 100.
-            if ($setting && $setting->group !== FeeDistributionSettings::GROUP) {
+            if ($setting && ! in_array($setting->group, self::OWN_PAGE_GROUPS, true)) {
                 // An empty field arrives as null (ConvertEmptyStringsToNull)
                 // but is stored as ''; normalise it so an unchanged empty
                 // setting is not audited as changed on every save.

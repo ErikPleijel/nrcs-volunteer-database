@@ -241,6 +241,11 @@ Skip after a fresh import. Details: docs/migration.md, section C.
 - [ ] Zero users with >1 role (check Database Team report, or query).
 - [ ] Set fees for Organisations.
 - [ ] What is the maximum upload file size for images on the VPS? (had problem with itacenmu.org treeplanting app, when user uploaded selfie)
+- [ ] Upload limits ≥ 21 MB, for Settings → Useful Links & Downloads (files up to 20 MB, plus the rest of the form):
+  - PHP (the php.ini used by PHP-FPM): `upload_max_filesize = 21M` and `post_max_size = 21M` or more. Check with `php-fpm -i | grep -E 'upload_max|post_max'` (or a phpinfo page), then restart PHP-FPM.
+  - nginx: `client_max_body_size 21M;` (or more) in the site's `server` block, then `sudo nginx -t && sudo systemctl reload nginx`. Apache has no limit by default unless `LimitRequestBody` is set.
+  - Test: upload a ~15 MB PDF on that Settings page and open it from My Profile.
+- [ ] After `php artisan migrate`: Settings → Useful Links & Downloads shows the eight IFRC links; uploaded files go to `storage/app/private/profile-downloads/` (served only to logged-in users, no `storage:link` needed).
 - [ ] Check e.g. heat map and see if any division has missing coordinates
 
 

@@ -105,6 +105,7 @@
                                     <li><span class="font-semibold">Membership Fees</span> — change fee amounts, or add new membership fee types.</li>
                                     <li><span class="font-semibold">Fee Distribution</span> — set how online membership income is shared between HQ, branch and division.</li>
                                     <li><span class="font-semibold">Training Types</span> — manage the kinds of trainings, and mark whether certificates for a type are HQ-print only.</li>
+                                    <li><span class="font-semibold">Useful Links &amp; Downloads</span> — the website links and documents (e.g. the Volunteer Diary) shown at the bottom of everyone's My Profile page.</li>
                                 </ul>
                             </div>
                         </div>
@@ -194,6 +195,9 @@
                         </a>
                         <a href="{{ route('task-force-types.index') }}" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
                             <i class="fas fa-users-gear mr-1"></i>Task Force Types
+                        </a>
+                        <a href="{{ route('admin.settings.profile-resources.index') }}" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+                            <i class="fas fa-link mr-1"></i>Useful Links &amp; Downloads
                         </a>
                     </div>
                 </div>

@@ -1522,6 +1522,9 @@
 
                 </div>
             </div>
+
+            {{-- Useful links and Downloads: full width, below both columns --}}
+            <x-profile-resources-section />
         </div>
     </div>
     <script>

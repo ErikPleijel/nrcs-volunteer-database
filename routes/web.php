@@ -230,6 +230,11 @@ Route::middleware(['auth', 'verified.or.absent'])->group(function () {
         ->name('photos.show')
         ->whereIn('type', ['profile', 'passport', 'signature']);
 
+    // Files uploaded under Settings → Useful Links & Downloads, listed on
+    // My Profile. Any logged-in user; the id is the download row's id.
+    Route::get('/downloads/{id}', [\App\Http\Controllers\ProfileDownloadController::class, 'show'])
+        ->name('downloads.show');
+
     // --- SHARED AJAX ROUTES (OVERRIDE PUBLIC) ---
     // These routes override the public definitions for authenticated users,
     // ensuring the correct controllers are used within the admin panel.
@@ -981,6 +986,9 @@ Route::middleware(['auth', 'verified.or.absent'])->group(function () {
 
         Route::get('/settings/fee-distribution', [\App\Http\Controllers\FeeDistributionSettingsController::class, 'index'])->name('settings.fee-distribution.index');
         Route::post('/settings/fee-distribution', [\App\Http\Controllers\FeeDistributionSettingsController::class, 'update'])->name('settings.fee-distribution.update');
+
+        Route::get('/settings/profile-resources', [\App\Http\Controllers\ProfileResourcesSettingsController::class, 'index'])->name('settings.profile-resources.index');
+        Route::post('/settings/profile-resources', [\App\Http\Controllers\ProfileResourcesSettingsController::class, 'update'])->name('settings.profile-resources.update');
     });
 
     /*
