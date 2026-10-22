@@ -2316,3 +2316,19 @@ certificates from their own course, also those of participants from other branch
 
 **Also:** with the Course filter set, the certificates page shows all of that course's
 certificates on one page (no 24-per-page split), so a course is printed in one go.
+
+## 2026-10-23 — Messaging a course's people through the campaign wizard
+
+A course page has "Send a message" buttons (for `campaign_request_create`) that start the normal
+campaign wizard with these filters in `filter_json`, applied by `UserFilterService` like
+`task_force_id`:
+- `course_id`, with optional `course_role` (participant / facilitator; empty = everyone) and
+  `course_result` (passed / failed / absent). "Participants who passed" is offered once the course
+  is closed.
+- `archived_filter = not_archived`, a new lifecycle option (everyone except archived), because
+  course participants may still be pending engagement, which the default "operational" filter
+  leaves out.
+
+**Unchanged:** the sender's area still applies, so a branch campaign reaches only the course's
+people in that branch; campaign approval stays national. Unlike certificates, no exception was
+made for course organisers.

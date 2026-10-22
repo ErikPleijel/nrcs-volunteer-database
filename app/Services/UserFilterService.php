@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\CourseParticipant;
 use App\Models\User;
 use App\Support\Filters\ParsedSearch;
 use App\Support\Filters\SearchTerm;
@@ -45,6 +46,18 @@ class UserFilterService
         // Task Force (any)
         if (! empty($filters['task_force_id'])) {
             $query->whereHas('taskForces', fn ($q) => $q->where('task_forces.id', $filters['task_force_id']));
+        }
+
+        // Course: everyone on it, or only participants / facilitators, and
+        // optionally only one result (passed / failed / absent).
+        if (! empty($filters['course_id'])) {
+            $role = $filters['course_role'] ?? null;
+            $result = $filters['course_result'] ?? null;
+
+            $query->whereHas('courseParticipations', fn ($q) => $q
+                ->where('course_id', (int) $filters['course_id'])
+                ->when(in_array($role, CourseParticipant::ROLES, true), fn ($q) => $q->where('role', $role))
+                ->when(in_array($result, CourseParticipant::RESULTS, true), fn ($q) => $q->where('result', $result)));
         }
 
         // Database Roles
@@ -303,6 +316,11 @@ class UserFilterService
         switch ($archivedFilter) {
             case 'operational':
                 $query->whereIn('lifecycle_status', User::OPERATIONAL_STATUSES);
+                break;
+
+            // Everyone but archived, e.g. a course's people, who may still be pending engagement.
+            case 'not_archived':
+                $query->where('lifecycle_status', '!=', 'archived');
                 break;
 
             case 'pending_engagement':

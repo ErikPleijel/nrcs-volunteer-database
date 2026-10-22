@@ -240,6 +240,45 @@
                 </div>
             @endforeach
 
+            @can('campaign_request_create')
+                @if(! $course->isCancelled() && ($participants->isNotEmpty() || $facilitators->isNotEmpty()))
+                    @php
+                        $audiences = ['' => 'Everyone on the course', 'participant' => 'Participants', 'facilitator' => 'Facilitators'];
+                        if ($course->isClosed()) {
+                            $audiences['passed'] = 'Participants who passed';
+                        }
+                    @endphp
+                    <div class="bg-white shadow-sm sm:rounded-lg p-6">
+                        <h3 class="text-base font-semibold text-gray-900 mb-2">Send a message</h3>
+                        <p class="text-sm text-gray-600 mb-4">
+                            Opens the campaign wizard (email / SMS) with this course's people as the audience.
+                            @if(auth()->user()->getAccessLevel() !== 'national')
+                                As for all branch campaigns, only people in your own branch are reached.
+                            @endif
+                        </p>
+                        <div class="flex flex-wrap gap-2">
+                            @foreach($audiences as $audience => $label)
+                                <form method="POST" action="{{ route('campaigns.wizard.start') }}">
+                                    @csrf
+                                    <input type="hidden" name="filter_json[course_id]" value="{{ $course->id }}">
+                                    <input type="hidden" name="filter_json[archived_filter]" value="not_archived">
+                                    <input type="hidden" name="filter_json[audience_type]" value="both">
+                                    @if($audience === 'passed')
+                                        <input type="hidden" name="filter_json[course_role]" value="participant">
+                                        <input type="hidden" name="filter_json[course_result]" value="passed">
+                                    @elseif($audience !== '')
+                                        <input type="hidden" name="filter_json[course_role]" value="{{ $audience }}">
+                                    @endif
+                                    <button type="submit" class="inline-flex items-center rounded-md px-3 py-1.5 text-sm font-semibold text-white bg-slate-700 hover:bg-slate-800">
+                                        <i class="fas fa-envelope mr-1"></i>{{ $label }}
+                                    </button>
+                                </form>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
+            @endcan
+
             @if($canManage && $course->isPlanned())
                 <div class="bg-white shadow-sm sm:rounded-lg p-6">
                     <h3 class="text-base font-semibold text-gray-900 mb-2">Close this course</h3>

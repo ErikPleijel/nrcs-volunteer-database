@@ -3,6 +3,7 @@
 namespace App\Support\Filters;
 
 use App\Models\Branch;
+use App\Models\Course;
 use App\Models\Division;
 use App\Models\RedCrossUnit;
 use App\Models\TaskForce;
@@ -69,6 +70,20 @@ class UserFilterDescriber
             }
         }
 
+        if ($id = $get('course_id')) {
+            if ($course = Course::find($id, ['id', 'name'])) {
+                $labels[] = 'Course: '.$course->name;
+            }
+            $labels[] = match ($get('course_role')) {
+                'participant' => 'Course role: Participants',
+                'facilitator' => 'Course role: Facilitators',
+                default => 'Course role: Participants and facilitators',
+            };
+            if ($result = $get('course_result')) {
+                $labels[] = 'Course result: '.ucfirst($result);
+            }
+        }
+
         // --------------------------------------------------
         // Membership
         // --------------------------------------------------
@@ -125,6 +140,7 @@ class UserFilterDescriber
         // --------------------------------------------------
         $labels[] = match ($get('archived_filter', 'operational')) {
             'operational' => 'Lifecycle: Active-Dormant',
+            'not_archived' => 'Lifecycle: All except archived',
             'pending_engagement' => 'Lifecycle: Pending Engagement',
             'active' => 'Lifecycle: Active',
             'dormant' => 'Lifecycle: Dormant',
