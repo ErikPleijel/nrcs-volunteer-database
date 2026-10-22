@@ -1,5 +1,26 @@
 # NRCS Laravel — Deployment Checklist
 
+## ⚠️ Open with NRCS Finance — must be settled before deployment
+
+- [ ] **1. Historical split percentages (HQ / branch / division) for the legacy payment
+  import.** Many different splits have been mentioned over the years, and it is probably
+  NOT 25/25/50 (the default). Erik gets the correct figures from NRCS Finance before the new
+  database is deployed. They must be set in SQL **after `migrate:fresh` and before
+  `migrate:old-db`** (see "Legacy Income Distribution shares" under Database → Migration
+  below). Stored shares are never recalculated, so this cannot be fixed afterwards by changing
+  a setting.
+  If the historical split has changed over the years, find out whether ONE set of percentages
+  is acceptable for all legacy payments. If not, tell Erik: today the import applies one set
+  to every legacy payment, so different splits for different periods would need a change to
+  the import (`payments:backfill-manual-shares`).
+- [ ] **2. Live split percentages from go-live.** Not decided yet. Must be set in
+  Settings → Fee Distribution **before the first staff payment is approved or the first
+  online payment is made** (each payment's split is stored at that moment and never
+  recalculated).
+- [ ] **3. `MANUAL_GO_LIVE_DATE` in `.env`.** Not decided yet. It decides which quarters the
+  Income Distribution report shows as estimates and which as real. Never change it
+  afterwards.
+
 ## Pre-flight Check 
 [ ] Check any outstanding issues in PRE_DEPLOYMENT.md
 [ ] Check any outstanding issues in one note
