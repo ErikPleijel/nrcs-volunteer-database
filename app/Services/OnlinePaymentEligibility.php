@@ -26,8 +26,8 @@ final class OnlinePaymentEligibility
 
     private const MESSAGES = [
         'archived' => 'Your account is archived. Please contact your branch or Red Cross Unit directly to renew your membership.',
+        'contact_branch_first' => 'Your next step: contact your branch office for an interview and to fill in the paper registration form. When you have been placed in a Red Cross unit, you can pay your membership fee online here.',
         'no_email' => 'Please add an email address to your profile before making a payment.',
-        'volunteer_contact_branch' => 'You have registered interest in volunteering. Please contact your branch first, so they can place you in a Red Cross Unit.',
         'pending_approval' => 'A payment is awaiting approval at your branch.',
         'membership_valid' => 'Your membership is still valid. You can renew online from '.self::RENEWAL_WINDOW_DAYS.' days before it expires.',
         'payments_disabled' => self::NOT_AVAILABLE_MESSAGE,
@@ -75,13 +75,19 @@ final class OnlinePaymentEligibility
             $subcase = 'valid';
         }
 
+        // contact_branch_first: a new (pending) person who is not a supporting
+        // member — volunteering or nothing ticked — and not in a unit yet. They
+        // see the branch for an interview and the paper form first, and pay
+        // once placed in a unit. Checked before no_email, since that is their
+        // next step either way, but after pending_approval: a payment already
+        // entered at the branch means they have been there.
         $reason = match (true) {
             $user->lifecycle_status === 'archived' => 'archived',
-            blank($user->email) => 'no_email',
-            $user->lifecycle_status === 'pending_engagement'
-                && $user->can_contribute_volunteering
-                && ! $user->can_contribute_member => 'volunteer_contact_branch',
             self::hasPendingManualPayment($user) => 'pending_approval',
+            $user->lifecycle_status === 'pending_engagement'
+                && $user->red_cross_unit_id === null
+                && ! $user->can_contribute_member => 'contact_branch_first',
+            blank($user->email) => 'no_email',
             $subcase === 'valid' => 'membership_valid',
             ! self::isAvailable() => 'payments_disabled',
             default => null,

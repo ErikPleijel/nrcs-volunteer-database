@@ -1932,3 +1932,38 @@ way to tell HQ which cards were ready.
 - Users are not notified by email or SMS; they see the banner on My Profile.
 - A cancelled mark is not restored when a rejection is undone or a new image is uploaded; it
   must be marked again.
+
+## 2026-10-22 — New volunteers contact their branch before paying online
+
+**Problem:** My Profile told some new (pending) people "Pay your membership fee online to activate
+your membership." A new volunteer's first step is an interview at the branch and the paper
+registration form; they pay once placed in a Red Cross Unit. The old rule
+(`volunteer_contact_branch`) covered only pending people with volunteering ticked. People with
+nothing ticked still got the button. A missing email was checked first, so a new volunteer without
+one was told to "pay directly at your branch".
+
+**Decision:**
+- `OnlinePaymentEligibility` reason `contact_branch_first` (replaces `volunteer_contact_branch`):
+  `pending_engagement` + no Red Cross Unit (`red_cross_unit_id` null) + member not ticked. That
+  covers pending volunteers and pending people with nothing ticked. Pending supporting members
+  keep the button.
+- Order of checks: `archived`, `pending_approval`, `contact_branch_first`, `no_email`, then the
+  rest. A new volunteer whose payment was entered at the branch has already been there, so they
+  see "A payment is awaiting approval at your branch." As a result `pending_approval` now also
+  comes before `no_email` for everyone (it used to come after): someone without an email whose
+  branch payment awaits approval sees that, not "Pay your membership fee directly at your branch".
+- Message (also the flash error on the payment page): "Your next step: contact your branch office
+  for an interview and to fill in the paper registration form. When you have been placed in a
+  Red Cross unit, you can pay your membership fee online here." My Profile adds the branch name,
+  phone and email below it, and "See the branch contact details further down this page." No
+  button.
+- The payment page keeps blocking this group: the locked membership URL redirects to the profile
+  with the message, the unlocked page shows it above an empty fee list, `initiate()` refuses.
+  Donations still work.
+- The "Next step: Contact your branch so we can place you in a Red Cross Unit" box on My Profile
+  is no longer shown to this group, so they don't get the instruction twice. It stays for
+  active/dormant volunteers without a unit. The box for people who left their unit is unchanged.
+
+**Not changed (on purpose):** active and dormant volunteers who were never in a unit (about 7,400
+locally, mostly migrated) still get the button. People who left their unit still get the button,
+with the left-unit advice on the payment page (2026-10-09).

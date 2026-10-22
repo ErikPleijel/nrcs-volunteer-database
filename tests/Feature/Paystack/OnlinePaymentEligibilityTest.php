@@ -25,8 +25,10 @@ beforeEach(function () {
     $this->withoutVite();
     config(['paystack.enabled' => true, 'paystack.public_key' => 'pk_test_public', 'paystack.secret_key' => 'sk_test_secret']);
 
-    $branch = Branch::create(['name' => 'Eligibility Branch', 'code' => 'ELB']);
+    $branch = Branch::create(['name' => 'Eligibility Branch', 'code' => 'ELB', 'telephone' => '0803 555 0101', 'email' => 'eligibility@example.org']);
     $division = Division::create(['name' => 'Eligibility Division', 'branch_id' => $branch->id]);
+    $this->branch = $branch;
+    $this->division = $division;
     $this->unit = RedCrossUnit::create(['name' => 'Eligibility Unit', 'division_id' => $division->id, 'is_active' => true]);
 
     $this->supportingFee = MembershipFee::factory()->create(['name' => 'Supporting Silver', 'amount' => 5000, 'is_volunteer_fee' => false]);
@@ -98,22 +100,85 @@ test('a user with no email gets no button', function () {
     expect(OnlinePaymentEligibility::for($user)->reason)->toBe('no_email');
 });
 
-test('a pending_engagement volunteering-only user is told to contact their branch, with no button', function () {
+test('a pending volunteer, or a pending user with nothing ticked, is told to contact their branch, with branch details and no button', function (bool $volunteering, ?bool $member) {
+    $user = eligibilityUser([
+        'lifecycle_status' => 'pending_engagement',
+        'can_contribute_volunteering' => $volunteering,
+        'can_contribute_member' => $member,
+        'branch_id' => test()->branch->id,
+        'division_id' => test()->division->id,
+    ]);
+
+    $html = $this->actingAs($user)->get(route('profile.show'))
+        ->assertOk()
+        ->assertSee('Your next step: contact your branch office for an interview and to fill in the paper registration form. When you have been placed in a Red Cross unit, you can pay your membership fee online here.')
+        ->assertDontSee('Make a Payment')
+        ->assertDontSee('Pay your membership fee online to activate your membership.')
+        ->getContent();
+
+    $membershipSection = \Illuminate\Support\Str::between($html, 'YOUR MEMBERSHIP', 'YOUR DONATIONS');
+    expect($membershipSection)->toContain('Eligibility Branch Branch')
+        ->toContain('0803 555 0101')
+        ->toContain('eligibility@example.org')
+        ->toContain('See the branch contact details further down this page.');
+
+    expect(OnlinePaymentEligibility::for($user)->reason)->toBe('contact_branch_first');
+})->with([
+    'volunteering ticked' => [true, false],
+    'volunteering ticked, member null' => [true, null],
+    'nothing ticked' => [false, false],
+]);
+
+test('a pending volunteer does not also get the separate Next step box; an active volunteer without a unit still does', function () {
+    $pending = eligibilityUser(['lifecycle_status' => 'pending_engagement', 'can_contribute_volunteering' => true, 'can_contribute_member' => false]);
+    $this->actingAs($pending)->get(route('profile.show'))
+        ->assertOk()
+        ->assertDontSee('so we can place you in a Red Cross Unit.');
+
+    $active = eligibilityUser(['lifecycle_status' => 'active', 'can_contribute_volunteering' => true, 'can_contribute_member' => false]);
+    $this->actingAs($active)->get(route('profile.show'))
+        ->assertOk()
+        ->assertSee('so we can place you in a Red Cross Unit.')
+        ->assertSee('Make a Payment');
+});
+
+test('contact-branch wins over no email for a pending volunteer; a pending member with no email gets the no-email text', function () {
+    $volunteer = eligibilityUser(['lifecycle_status' => 'pending_engagement', 'can_contribute_volunteering' => true, 'can_contribute_member' => false, 'email' => null]);
+    expect(OnlinePaymentEligibility::for($volunteer)->reason)->toBe('contact_branch_first');
+    $this->actingAs($volunteer)->get(route('profile.show'))
+        ->assertSee('Your next step: contact your branch office')
+        ->assertDontSee('Pay your membership fee directly at your branch.');
+
+    $member = eligibilityUser(['lifecycle_status' => 'pending_engagement', 'email' => null]);
+    expect(OnlinePaymentEligibility::for($member)->reason)->toBe('no_email');
+});
+
+test('a pending volunteer who is somehow already in a Red Cross Unit gets the button', function () {
     $user = eligibilityUser([
         'lifecycle_status' => 'pending_engagement',
         'can_contribute_volunteering' => true,
         'can_contribute_member' => false,
     ]);
+    // Assigning a unit normally promotes to active; force the odd state.
+    $user->forceFill(['red_cross_unit_id' => $this->unit->id, 'lifecycle_status' => 'pending_engagement'])->saveQuietly();
+    $user = $user->fresh();
 
+    expect($user->lifecycle_status)->toBe('pending_engagement')
+        ->and(OnlinePaymentEligibility::for($user)->canPay)->toBeTrue();
     $this->actingAs($user)->get(route('profile.show'))
-        ->assertOk()
-        ->assertSee('You have registered interest in volunteering. Please contact your branch first, so they can place you in a Red Cross Unit.')
-        ->assertDontSee('Make a Payment');
-
-    expect(OnlinePaymentEligibility::for($user)->reason)->toBe('volunteer_contact_branch');
+        ->assertSee('Pay your membership fee online to activate your membership.')
+        ->assertSee('Make a Payment');
 });
 
-test('pending_engagement users with member only, both boxes, or neither box ticked get the button', function (bool $volunteering, bool $member) {
+test('a pending volunteer going straight to the locked payment URL is sent back with the contact-branch message', function () {
+    $user = eligibilityUser(['lifecycle_status' => 'pending_engagement', 'can_contribute_volunteering' => true, 'can_contribute_member' => false]);
+
+    $this->actingAs($user)->get(route('make-payment.show', ['payment_type' => 'membership']))
+        ->assertRedirect(route('profile.show'))
+        ->assertSessionHas('error', OnlinePaymentEligibility::for($user)->message());
+});
+
+test('pending_engagement users with member only or both boxes ticked get the button', function (bool $volunteering, bool $member) {
     $user = eligibilityUser([
         'lifecycle_status' => 'pending_engagement',
         'can_contribute_volunteering' => $volunteering,
@@ -122,11 +187,11 @@ test('pending_engagement users with member only, both boxes, or neither box tick
 
     $this->actingAs($user)->get(route('profile.show'))
         ->assertOk()
+        ->assertSee('Pay your membership fee online to activate your membership.')
         ->assertSee('Make a Payment');
 })->with([
     'member only' => [false, true],
     'both boxes' => [true, true],
-    'neither box' => [false, false],
 ]);
 
 test('active and dormant users get the button with or without a Red Cross Unit', function (string $status, bool $inUnit) {
@@ -208,6 +273,28 @@ test('a pending manual payment hides the button and blocks show() and initiate()
 
     expect(PaymentTransaction::count())->toBe(0);
 });
+
+test('a pending volunteer whose payment was entered at the branch sees awaiting approval, not contact-branch', function (?string $email) {
+    $user = eligibilityUser([
+        'lifecycle_status' => 'pending_engagement',
+        'can_contribute_volunteering' => true,
+        'can_contribute_member' => false,
+        'email' => $email,
+    ]);
+    eligibilityPersonalPayment($user, now()->addYear()->toDateString(), approved: false);
+
+    expect($user->fresh()->lifecycle_status)->toBe('pending_engagement')
+        ->and(OnlinePaymentEligibility::for($user)->reason)->toBe('pending_approval');
+
+    $this->actingAs($user)->get(route('profile.show'))
+        ->assertSee('A payment is awaiting approval at your branch.')
+        ->assertDontSee('Your next step: contact your branch office')
+        ->assertDontSee('Pay your membership fee directly at your branch.')
+        ->assertDontSee('Make a Payment');
+})->with([
+    'with email' => ['pending-approval@example.org'],
+    'without email' => [null],
+]);
 
 test('a rejected or deleted pending payment does not block the button', function () {
     $user = eligibilityUser();
@@ -314,7 +401,7 @@ test('initiate refuses a personal membership payment from a volunteering-only pe
     $this->actingAs($user)
         ->from(route('make-payment.show'))
         ->post(route('make-payment.initiate'), ['payment_type' => 'membership', 'membership_fee_id' => $this->supportingFee->id])
-        ->assertSessionHas('error', 'You have registered interest in volunteering. Please contact your branch first, so they can place you in a Red Cross Unit.');
+        ->assertSessionHas('error', 'Your next step: contact your branch office for an interview and to fill in the paper registration form. When you have been placed in a Red Cross unit, you can pay your membership fee online here.');
 
     expect(PaymentTransaction::count())->toBe(0);
 });
@@ -348,7 +435,7 @@ test('the unlocked payment page still works for donations when the payer cannot 
 
     $this->actingAs($user)->get(route('make-payment.show'))
         ->assertOk()
-        ->assertSee('Please contact your branch first')
+        ->assertSee('Your next step: contact your branch office')
         ->assertDontSee('Supporting Silver');
 });
 
@@ -391,7 +478,7 @@ test('with online payment switched off or keys missing there are no payment butt
     'secret key missing' => [['paystack.secret_key' => '']],
 ]);
 
-test('with the switch off a volunteering-only pending user still gets the contact-branch text; only donations say not available', function () {
+test('with the switch off a pending volunteer still gets the contact-branch text; only donations say not available', function () {
     config(['paystack.enabled' => false]);
     $user = eligibilityUser([
         'lifecycle_status' => 'pending_engagement',
@@ -399,13 +486,13 @@ test('with the switch off a volunteering-only pending user still gets the contac
         'can_contribute_member' => false,
     ]);
 
-    expect(OnlinePaymentEligibility::for($user)->reason)->toBe('volunteer_contact_branch');
+    expect(OnlinePaymentEligibility::for($user)->reason)->toBe('contact_branch_first');
 
     $html = $this->actingAs($user)->get(route('profile.show'))->assertOk()->getContent();
     $membershipSection = \Illuminate\Support\Str::between($html, 'YOUR MEMBERSHIP', 'YOUR DONATIONS');
     $donationSection = \Illuminate\Support\Str::after($html, 'YOUR DONATIONS');
 
-    expect($membershipSection)->toContain('Please contact your branch first')
+    expect($membershipSection)->toContain('Your next step: contact your branch office')
         ->not->toContain(OnlinePaymentEligibility::NOT_AVAILABLE_MESSAGE)
         ->and($donationSection)->toContain(OnlinePaymentEligibility::NOT_AVAILABLE_MESSAGE);
 });

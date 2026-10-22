@@ -292,16 +292,20 @@
                             $wantsMember = (bool) $user->can_contribute_member && !$wantsVolunteering; // prefer volunteering if both are set
                         @endphp
 
+                        {{-- Not for a pending volunteer: YOUR MEMBERSHIP already tells them to
+                             contact their branch first (contact_branch_first). --}}
                         @if($wantsVolunteering && !$user->redCrossUnit && !$user->isUnassignedGhost())
-                            <div class="mt-6 p-5 bg-sky-50 border border-sky-200 rounded-lg">
-                                <div class="flex items-start gap-3">
-                                    <i class="fas fa-seedling text-sky-500 mt-1"></i>
-                                    <div class="text-lg text-sky-900">
-                                        <p><strong>Next step:</strong> Contact your branch so we can place you in a Red Cross Unit.</p>
-                                        <p>See contact details below.</p>
+                            @if($membershipEligibility->reason !== 'contact_branch_first')
+                                <div class="mt-6 p-5 bg-sky-50 border border-sky-200 rounded-lg">
+                                    <div class="flex items-start gap-3">
+                                        <i class="fas fa-seedling text-sky-500 mt-1"></i>
+                                        <div class="text-lg text-sky-900">
+                                            <p><strong>Next step:</strong> Contact your branch so we can place you in a Red Cross Unit.</p>
+                                            <p>See contact details below.</p>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
+                            @endif
                         @elseif(!$wantsVolunteering && !$wantsMember)
                             <div class="mt-6 p-5 bg-sky-50 border border-sky-200 rounded-lg">
                                 <div class="flex items-start gap-3">
@@ -529,6 +533,20 @@
 
                         @if($membershipEligibility->reason === 'archived')
                             <p class="profile-instruction-text mb-6">{{ $membershipEligibility->message() }}</p>
+                        @elseif($membershipEligibility->reason === 'contact_branch_first')
+                            <p class="profile-instruction-text mb-2">{{ $membershipEligibility->message() }}</p>
+                            <div class="mb-6 text-sm text-gray-700 space-y-0.5" data-contact-branch-first>
+                                @if($user->branch)
+                                    <p class="font-semibold text-gray-900">{{ $user->branch->name }} Branch</p>
+                                    @if($user->branch->telephone)
+                                        <p><i class="fas fa-phone text-gray-400 text-xs mr-1"></i>{{ $user->branch->telephone }}</p>
+                                    @endif
+                                    @if($user->branch->email)
+                                        <p class="break-all"><i class="fas fa-envelope text-gray-400 text-xs mr-1"></i>{{ $user->branch->email }}</p>
+                                    @endif
+                                @endif
+                                <p class="pt-1">See the branch contact details further down this page.</p>
+                            </div>
                         @elseif($membershipEligibility->reason === 'no_email')
                             @if($membershipEligibility->subcase === 'new')
                                 <p class="profile-instruction-text mb-6">Pay your membership fee directly at your branch.</p>
@@ -541,7 +559,7 @@
                                     {{ $currentMembership['days_until_expiry'] }} days to renewal
                                 </p>
                             @endif
-                        @elseif(in_array($membershipEligibility->reason, ['volunteer_contact_branch', 'pending_approval'], true))
+                        @elseif($membershipEligibility->reason === 'pending_approval')
                             <p class="profile-instruction-text mb-6">{{ $membershipEligibility->message() }}</p>
                         @elseif($membershipEligibility->subcase === 'valid')
                             <p class="text-xl font-bold text-center text-gray-700 mb-6">
