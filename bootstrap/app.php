@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Foundation\Application;
+use Illuminate\Foundation\Bootstrap\LoadConfiguration;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 
@@ -67,12 +68,15 @@ $app = Application::configure(basePath: dirname(__DIR__))
     ->create();
 
 /**
- * Your public web root is /www/dev (outside the Laravel project’s /public).
- * From /laravel/bootstrap, two levels up is /www/dev.
+ * Hosts whose web root is not the project's public/ folder (one.com: /www/dev,
+ * outside the Laravel folder) set PUBLIC_PATH_OVERRIDE in .env. Empty means
+ * Laravel's normal public/. Read from config after it loads, so it also works
+ * with a cached config (.env is not read at this point in the file).
  */
-if (env('APP_ENV') === 'production') {
-    // two levels up from /laravel/bootstrap is /www/dev
-    $app->usePublicPath(dirname(__DIR__, 2));
-}
+$app->afterBootstrapping(LoadConfiguration::class, function (Application $app) {
+    if ($path = $app['config']->get('app.public_path_override')) {
+        $app->usePublicPath($path);
+    }
+});
 
 return $app;

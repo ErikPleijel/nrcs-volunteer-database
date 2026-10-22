@@ -28,6 +28,10 @@ return [
 
     'env' => env('APP_ENV', 'production'),
 
+    // Absolute path of the web root when it is not the project's public/
+    // folder (one.com). Empty = Laravel's normal public/. See bootstrap/app.php.
+    'public_path_override' => env('PUBLIC_PATH_OVERRIDE') ?: null,
+
     /*
     |--------------------------------------------------------------------------
     | Application Debug Mode

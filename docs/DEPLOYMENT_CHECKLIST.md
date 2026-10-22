@@ -150,6 +150,11 @@ For DB-273857: since it holds a finance role and would be the one archived, don'
 --> Remember: after changing .env: php artisan config:cache
 - [ ] APP_ENV=production
 - [ ] APP_DEBUG=false
+- [ ] `PUBLIC_PATH_OVERRIDE`: leave EMPTY on a VPS (web root = the project's `public/`).
+  one.com only: set it to the absolute path of the web root that holds `index.php`
+  (the `/www/dev` folder, outside the Laravel folder). Until 2026-10-22 this was decided
+  by `APP_ENV=production`; that no longer moves the public folder, so one.com MUST have
+  this set before deploying this version, or assets and uploads break there.
 - [ ] Diff VPS `.env` against local: MAIL_*, APP_KEY, IMAGE_MIGRATION_SOURCE,
   ElevenLabs/analytics keys, queue driver
 - [ ] `super_admin_emails` set in `.env`

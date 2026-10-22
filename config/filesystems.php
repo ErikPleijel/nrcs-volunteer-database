@@ -74,7 +74,9 @@ return [
     */
 
     'links' => [
-        public_path('storage') => storage_path('app/public'),
+        // Config loads before bootstrap/app.php applies PUBLIC_PATH_OVERRIDE,
+        // so read it here too or storage:link would point at public/.
+        (env('PUBLIC_PATH_OVERRIDE') ?: public_path()).DIRECTORY_SEPARATOR.'storage' => storage_path('app/public'),
     ],
 
 ];
