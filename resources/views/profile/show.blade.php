@@ -1524,18 +1524,28 @@
                         @endif
                     </div>
 
-                    <!-- Your privacy -->
+                    <!-- Privacy & Code of Conduct -->
                     <div class="bg-white rounded-lg shadow-lg p-6">
                         <h2 class="text-lg font-bold text-gray-900 mb-2">
-                            <i class="fas fa-user-shield mr-2 text-gray-500"></i>Your privacy
+                            <i class="fas fa-user-shield mr-2 text-gray-500"></i>Privacy &amp; Code of Conduct
                         </h2>
-                        <p class="text-sm text-gray-600 mb-4">
+                        <p class="text-sm text-gray-600 mb-2">
                             Read how the Nigerian Red Cross Society handles your personal data and how to contact our
-                            Data Protection Officer.
+                            Data Protection Officer, or read the Code of Conduct again.
                         </p>
-                        <a href="{{ route('privacy-policy') }}" class="btn-primary">
-                            <i class="fas fa-file-shield mr-1"></i>Privacy Policy
-                        </a>
+                        @if($user->code_of_conduct_accepted_at)
+                            <p class="text-sm text-gray-600">
+                                You accepted the Code of Conduct on {{ $user->code_of_conduct_accepted_at->format('j F Y') }}.
+                            </p>
+                        @endif
+                        <div class="flex flex-wrap gap-2 mt-4">
+                            <a href="{{ route('privacy-policy') }}" class="btn-primary">
+                                <i class="fas fa-file-shield mr-1"></i>Your privacy
+                            </a>
+                            <a href="{{ route('code-of-conduct') }}" class="btn-primary">
+                                <i class="fas fa-book-open mr-1"></i>Code of Conduct
+                            </a>
+                        </div>
                     </div>
 
                 </div>

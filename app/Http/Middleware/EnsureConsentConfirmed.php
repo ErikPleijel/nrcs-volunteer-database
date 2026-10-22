@@ -26,6 +26,7 @@ class EnsureConsentConfirmed
         'photos.show',
         'archived-account.show',
         'privacy-policy',
+        'code-of-conduct',
     ];
 
     public function handle(Request $request, Closure $next): Response

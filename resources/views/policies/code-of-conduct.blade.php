@@ -1,4 +1,13 @@
-{{-- resources/views/policies/code-of-conduct.blade.php --}}
+{{--
+    The Code of Conduct wording — the only copy. Shown read-only on
+    pages/code-of-conduct (route code-of-conduct), and embedded in the
+    scroll box of policies/code-of-conduct-reader (registration and the
+    one-time consent page).
+
+    $embedded: true inside the scroll box; drops the card styling and the logo
+    so the box itself reads as the container.
+--}}
+@php($embedded = $embedded ?? false)
 
 <style>
 
@@ -147,6 +156,11 @@
         .coc-header h1 { font-size: 24px; }
     }
 
+    /* Inside the registration / consent scroll box */
+    .coc-wrap--embedded { max-width: none; padding: 0; }
+    .coc-wrap--embedded .coc-card { background: transparent; border: none; box-shadow: none; padding: 4px 2px; }
+    .coc-wrap--embedded .coc-header h1 { font-size: 22px; }
+
     /* Print-friendly */
     @media print {
         .coc-wrap { max-width: none; padding: 0; }
@@ -155,16 +169,18 @@
     }
 </style>
 
-<div class="coc-wrap">
+<div class="coc-wrap{{ $embedded ? ' coc-wrap--embedded' : '' }}">
 
     <article class="coc-card">
         <header class="coc-header">
             <h1 class="coc-title">
+                @unless($embedded)
                 <img
                     src="{{ asset('images/NRCS_logo.jpg') }}"
                     alt="Nigerian Red Cross Society (NRCS) logo"
                     class="coc-title-logo"
                 >
+                @endunless
                 Code of Conduct
             </h1>
 

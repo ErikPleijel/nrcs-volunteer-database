@@ -24,7 +24,7 @@ class RequiresPolicyAcceptance
             'policy.accept', 'policy.accept.store', 'logout',
             'verification.required', 'verification.resend', 'verification.verify',
             'consent.confirm', 'consent.confirm.store',
-            'privacy-policy',
+            'privacy-policy', 'code-of-conduct',
         ];
         if ($request->routeIs(...$exemptRoutes)) {
             return $next($request);

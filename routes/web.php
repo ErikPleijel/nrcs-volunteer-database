@@ -91,6 +91,10 @@ Route::get('/corporate-membership', function () {
 Route::get('/privacy-policy', function () {
     return view('pages.privacy-policy');
 })->name('privacy-policy');
+// Public, read-only Code of Conduct; exempt from the same gates.
+Route::get('/code-of-conduct', function () {
+    return view('pages.code-of-conduct');
+})->name('code-of-conduct');
 
 // Archived account notice (public — no auth)
 Route::get('/account-deactivated', [ArchivedAccountController::class, 'show'])->name('archived-account.show');

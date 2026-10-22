@@ -3,8 +3,7 @@
         <div class="max-w-4xl mx-auto">
             <div
                 class="bg-white shadow-md rounded-lg"
-                x-data="codeOfConductFlow()"
-                x-init="init()"
+                x-data="cocReader()"
             >
                 <div class="px-6 py-4 border-b border-gray-200">
                     <h1 class="text-2xl font-semibold text-gray-800">Registration Form</h1>
@@ -464,27 +463,10 @@
 
                         <p class="text-sm text-gray-600 mb-4">
                             Please read the full Code of Conduct below. You must scroll to the end,
-                            then confirm the three commitments before you can create your account.
+                            then confirm the four commitments before you can create your account.
                         </p>
 
-                        <div
-                            id="coc-scroll-container"
-                            class="border border-gray-200 rounded-md bg-gray-50 px-2 sm:px-4 py-3 max-h-72 overflow-y-auto focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            tabindex="0"
-                            role="region"
-                            aria-label="Code of Conduct"
-                            @scroll="onScroll($event)"
-                        >
-                            @include('policies.code-of-conduct')
-                        </div>
-
-                        <p class="mt-2 text-xs text-gray-500"
-                           x-show="!hasScrolledToBottom"
-                           x-cloak>
-                            Scroll to the bottom of the Code of Conduct to enable the confirmation checkboxes.
-                        </p>
-
-                        @include('policies.code-of-conduct-commitments')
+                        @include('policies.code-of-conduct-reader')
                     </div>
 
                     <!-- Submit Button -->
@@ -492,8 +474,7 @@
                         <button type="submit"
                                 class="px-6 py-3 text-white font-medium rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-200
                                        bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:text-gray-600 disabled:cursor-not-allowed"
-                                :disabled="!canSubmit"
-                                aria-disabled="true">
+                                :disabled="!canSubmit">
                             Create Account
                         </button>
                     </div>
@@ -757,42 +738,4 @@
         setupPasswordToggle('password', 'togglePassword', 'togglePasswordIcon');
         setupPasswordToggle('password_confirmation', 'togglePasswordConfirmation', 'togglePasswordConfirmationIcon');
     });
-
-    function codeOfConductFlow() {
-        return {
-            hasScrolledToBottom: false,
-            commitment1: false,
-            commitment2: false,
-            commitment3: false,
-            commitment4: false,
-
-            init() {
-                // Restore state from old input on validation error
-                this.commitment1 = {{ old('coc_commitment_1') ? 'true' : 'false' }};
-                this.commitment2 = {{ old('coc_commitment_2') ? 'true' : 'false' }};
-                this.commitment3 = {{ old('coc_commitment_3') ? 'true' : 'false' }};
-                this.commitment4 = {{ old('coc_commitment_4') ? 'true' : 'false' }};
-
-                if (this.commitment1 || this.commitment2 || this.commitment3 || this.commitment4) {
-                    this.hasScrolledToBottom = true;
-                }
-            },
-
-            onScroll(event) {
-                const target = event.target;
-                const nearBottom = target.scrollHeight - target.scrollTop - target.clientHeight <= 4;
-                if (nearBottom && !this.hasScrolledToBottom) {
-                    this.hasScrolledToBottom = true;
-                }
-            },
-
-            get canSubmit() {
-                return this.hasScrolledToBottom &&
-                    this.commitment1 &&
-                    this.commitment2 &&
-                    this.commitment3 &&
-                    this.commitment4;
-            }
-        }
-    }
 </script>
