@@ -142,6 +142,10 @@ For DB-273857: since it holds a finance role and would be the one archived, don'
 - [ ] Copy the app code to the VPS
 - [ ] Install dependencies (`composer install`)
 - [ ] Set correct file/folder permissions (`storage/`, `bootstrap/cache/`)
+- [ ] Upload folders under `public/` owned by the web user (www-data), folders 775, files 664
+  (664, not 775, so git sees no mode change): `public/images/signatures`,
+  `public/images/id-card`, `public/photos`. The VPS `deploy.sh` re-applies this after every
+  deploy, because its git steps run as root.
 - [ ] Run Laravel schema migrations: `php artisan migrate`
 - [ ] Copy the .env used on dev.itacenmu.org (or use .env.example)  Remember: php artisan config:cache
 
