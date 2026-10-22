@@ -3,7 +3,7 @@
 /**
  * Campaign unsubscribe links use users.optout_token (16 letters/digits),
  * separate from id_check_token (ID cards, certificates). Links already sent
- * with id_check_token keep working.
+ * with id_check_token keep working; the token pages are rate limited.
  */
 
 use App\Campaigns\Delivery\CampaignDeliveryService;
@@ -145,6 +145,29 @@ test('an unknown token gives 404', function (string $channel) {
     $this->get("/u/NoSuchToken12345/{$channel}")->assertNotFound()->assertSee('invalid');
     $this->post("/u/NoSuchToken12345/{$channel}", ['action' => 'optout'])->assertNotFound();
 })->with(['email', 'sms']);
+
+test('the opt-out pages allow 30 requests a minute per IP', function (string $channel) {
+    for ($i = 0; $i < 30; $i++) {
+        expect($this->get("/u/NoSuchToken12345/{$channel}")->status())->toBe(404);
+    }
+
+    $this->get("/u/NoSuchToken12345/{$channel}")->assertStatus(429);
+})->with(['email', 'sms']);
+
+test('the ID check page allows 120 requests a minute per IP, separate from the opt-out pages', function () {
+    $path = '/idcheck/'.User::factory()->create()->id_check_token;
+
+    // Using up the opt-out budget does not touch the ID check one.
+    for ($i = 0; $i < 31; $i++) {
+        $this->get('/u/NoSuchToken12345/sms');
+    }
+
+    for ($i = 0; $i < 120; $i++) {
+        expect($this->get($path)->status())->toBe(200);
+    }
+
+    $this->get($path)->assertStatus(429);
+});
 
 test('wizard step 4 previews the opt-out link with 16 X\'s', function () {
     $this->withoutVite();

@@ -190,7 +190,8 @@ Route::get('/register/divisions/by-branch', [RegisterController::class, 'getDivi
     ->middleware('throttle:register-lookups');
 
 // Public ID card verification
-Route::get('/idcheck/{token}', [IdCardController::class, 'verifyId'])->name('id.verify');
+Route::get('/idcheck/{token}', [IdCardController::class, 'verifyId'])->name('id.verify')
+    ->middleware('throttle:id-check');
 
 // Public certificate verification (scanned from a physical certificate's QR code).
 // Protected by the `signed` middleware (tamper-proof URL) plus an opaque
@@ -201,10 +202,12 @@ Route::get('/certificates/verify', [CertificateController::class, 'verify'])
 
 // Public unsubscribe / communication preference routes. {token} is
 // users.optout_token, or id_check_token in messages sent before it existed.
-Route::get('/u/{token}/email', [UnsubscribeController::class, 'showEmail'])->name('unsubscribe.email.show');
-Route::post('/u/{token}/email', [UnsubscribeController::class, 'handleEmail'])->name('unsubscribe.email.handle');
-Route::get('/u/{token}/sms', [UnsubscribeController::class, 'showSms'])->name('unsubscribe.sms.show');
-Route::post('/u/{token}/sms', [UnsubscribeController::class, 'handleSms'])->name('unsubscribe.sms.handle');
+Route::middleware('throttle:unsubscribe-links')->group(function () {
+    Route::get('/u/{token}/email', [UnsubscribeController::class, 'showEmail'])->name('unsubscribe.email.show');
+    Route::post('/u/{token}/email', [UnsubscribeController::class, 'handleEmail'])->name('unsubscribe.email.handle');
+    Route::get('/u/{token}/sms', [UnsubscribeController::class, 'showSms'])->name('unsubscribe.sms.show');
+    Route::post('/u/{token}/sms', [UnsubscribeController::class, 'handleSms'])->name('unsubscribe.sms.handle');
+});
 
 // Paystack server-to-server webhook — Paystack's servers call this, not a
 // logged-in user, so it carries no 'auth' middleware and is CSRF-exempted

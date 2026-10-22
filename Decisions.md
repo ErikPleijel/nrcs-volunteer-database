@@ -2026,5 +2026,8 @@ had no notes at all.
 - `SmsFooter::TOKEN_LENGTH` is `User::OPTOUT_TOKEN_LENGTH`. Wizard step 4 builds the placeholder
   X's and the tooltip's length from it; the SMS counter, step 5, the admin show page and the SMS
   projections already used `SmsFooter::preview()`.
+- Rate limits per IP (neither route had one): `unsubscribe-links` 30 requests a minute on `/u/...`;
+  `id-check` 120 a minute on `/idcheck/{token}`, separate, because staff may scan many cards quickly
+  at events. Both are generous because many Nigerian mobile users share one carrier IP (NAT).
 - Organisations and Red Cross Units: no change. Organisation representatives get email only, and
   opt-out links are only added for `User` recipients; units never receive campaign messages.

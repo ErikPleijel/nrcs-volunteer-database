@@ -70,6 +70,18 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(10)->by($request->ip());
         });
 
+        // Public pages opened by a secret token in the URL, per IP, to stop
+        // anyone trying tokens in bulk. Generous because many mobile users
+        // share one carrier IP. Unsubscribe links: 30/min.
+        RateLimiter::for('unsubscribe-links', function (Request $request) {
+            return Limit::perMinute(30)->by($request->ip());
+        });
+
+        // ID card QR check: 120/min, as staff may scan many cards quickly at events.
+        RateLimiter::for('id-check', function (Request $request) {
+            return Limit::perMinute(120)->by($request->ip());
+        });
+
         \Illuminate\Support\Facades\View::composer(
             [
                 'components.navigation',
