@@ -2347,3 +2347,14 @@ builder stay within the sender's own area. National senders already reach everyo
 
 **Not widened:** the Persons list (which shows contact details) keeps using `apply()` and the
 normal area, even with a course filter in the URL.
+
+## 2026-10-23 — Upcoming courses on the dashboard and My Profile
+
+- **Dashboard** (for `view_courses`): up to 10 planned courses that have not ended, in the
+  viewer's own area (`Course::visibleTo()`: own branch or division plus national courses), with
+  dates, place, organiser, status and number of participants. It follows the viewer's area, not
+  the branch chosen in the dashboard's branch selector, and is queried on every visit, outside the
+  hourly dashboard cache.
+- **My Profile**: "Your upcoming courses" lists the person's own planned courses that have not
+  ended, as participant or facilitator, with dates, place and organiser. Hidden when there are none.
+  It shows nothing about the other people on the course.

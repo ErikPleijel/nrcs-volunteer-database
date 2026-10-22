@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Reports;
 
 use App\Http\Controllers\Controller;
 use App\Models\Branch;
+use App\Models\Course;
+use App\Models\CourseParticipant;
 use App\Models\MessagingRecipient;
 use App\Models\User;
 use App\Services\Reports\MembershipStatsService;
@@ -101,7 +103,20 @@ class DashboardController extends Controller
         );
         $dashboardGeneratedAt = $cached['generated_at'];
 
-        return view('dashboard', compact('dashboardData', 'branches', 'extended', 'dashboardGeneratedAt'));
+        // Upcoming courses in the viewer's own area (Course::visibleTo), not
+        // the selected branch, and outside the hourly cache.
+        $upcomingCourses = $user->can('view_courses')
+            ? Course::query()
+                ->visibleTo($user)
+                ->upcoming()
+                ->with(['trainingType:id,name', 'branch:id,name', 'division:id,name'])
+                ->withCount(['courseParticipants as participants_count' => fn ($q) => $q->where('role', CourseParticipant::ROLE_PARTICIPANT)])
+                ->orderBy('start_date')
+                ->limit(10)
+                ->get()
+            : collect();
+
+        return view('dashboard', compact('dashboardData', 'branches', 'extended', 'dashboardGeneratedAt', 'upcomingCourses'));
     }
 
     /**

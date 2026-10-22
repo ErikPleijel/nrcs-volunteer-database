@@ -858,6 +858,42 @@
                         @endif
                     </div>
 
+                    {{-- Upcoming courses (participant or facilitator) --}}
+                    @if($upcomingCourses->isNotEmpty())
+                        <div class="bg-white rounded-lg shadow-lg p-6">
+                            <div class="flex items-center mb-4">
+                                <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mr-4">
+                                    <i class="fas fa-chalkboard-user text-purple-600 text-xl"></i>
+                                </div>
+                                <h2 class="text-xl font-bold text-gray-900">YOUR UPCOMING COURSES</h2>
+                            </div>
+                            <ul class="divide-y divide-gray-100 text-sm">
+                                @foreach($upcomingCourses as $entry)
+                                    <li class="py-3">
+                                        <div class="flex items-start justify-between gap-3">
+                                            <div>
+                                                <div class="font-semibold text-gray-900">{{ $entry->course->name }}</div>
+                                                <div class="text-gray-600">
+                                                    {{ $entry->course->date_range }}@if($entry->course->place) · {{ $entry->course->place }}@endif
+                                                </div>
+                                                <div class="text-xs text-gray-500">
+                                                    {{ $entry->course->trainingType->name ?? '' }} ·
+                                                    Organised by {{ $entry->course->branch->name ?? 'NRCS National Headquarters' }}@if($entry->course->division), {{ $entry->course->division->name }}@endif
+                                                </div>
+                                            </div>
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium whitespace-nowrap {{ $entry->isFacilitator() ? 'bg-indigo-100 text-indigo-800' : 'bg-purple-100 text-purple-800' }}">
+                                                {{ $entry->isFacilitator() ? 'Facilitator' : 'Participant' }}
+                                            </span>
+                                        </div>
+                                        @if($entry->course->isOngoing())
+                                            <div class="mt-1 text-xs font-medium text-blue-700">Ongoing</div>
+                                        @endif
+                                    </li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
+
 
                     <!-- Training Section -->
                     <div class="bg-white rounded-lg shadow-lg p-6">

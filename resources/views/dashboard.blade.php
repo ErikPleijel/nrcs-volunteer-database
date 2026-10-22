@@ -76,6 +76,39 @@
             </div>
         </section>
 
+        {{-- Upcoming courses in the viewer's own area --}}
+        @can('view_courses')
+            <section class="mt-14">
+                <h2 class="dashboard-heading text-center block w-full">Upcoming Courses</h2>
+                <div class="mt-2 max-w-4xl mx-auto bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                    @if($upcomingCourses->isEmpty())
+                        <p class="text-sm text-gray-500 text-center">No upcoming courses in your area.</p>
+                    @else
+                        <ul class="divide-y divide-gray-100 text-sm">
+                            @foreach($upcomingCourses as $course)
+                                <li class="py-2 flex items-start justify-between gap-3">
+                                    <div>
+                                        <a href="{{ route('courses.show', $course) }}" class="font-semibold text-blue-700 hover:underline">{{ $course->name }}</a>
+                                        <div class="text-xs text-gray-500">
+                                            {{ $course->date_range }}@if($course->place) · {{ $course->place }}@endif ·
+                                            {{ $course->branch->name ?? 'National' }}@if($course->division), {{ $course->division->name }}@endif
+                                        </div>
+                                    </div>
+                                    <div class="text-right whitespace-nowrap">
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{ $course->status_badge_class }}">{{ $course->status_label }}</span>
+                                        <div class="text-xs text-gray-500 mt-1">{{ $course->participants_count }} participant{{ $course->participants_count === 1 ? '' : 's' }}</div>
+                                    </div>
+                                </li>
+                            @endforeach
+                        </ul>
+                    @endif
+                    <div class="mt-3 text-center">
+                        <a href="{{ route('courses.index') }}" class="text-sm text-blue-600 hover:underline">All courses</a>
+                    </div>
+                </div>
+            </section>
+        @endcan
+
         {{-- Selected Branch Name --}}
         <div class="mt-16 text-center">
             <p class="dashboard-heading text-center block w-full">

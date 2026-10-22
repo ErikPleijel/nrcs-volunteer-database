@@ -228,8 +228,17 @@ class ProfileController extends Controller
 
         $paymentsAvailable = OnlinePaymentEligibility::isAvailable();
 
+        // Planned courses that have not ended, where the user is a participant or facilitator.
+        $upcomingCourses = $user->courseParticipations()
+            ->whereHas('course', fn ($q) => $q->upcoming())
+            ->with(['course.trainingType:id,name', 'course.branch:id,name', 'course.division:id,name'])
+            ->get()
+            ->sortBy(fn ($entry) => $entry->course->start_date)
+            ->values();
+
         return view('profile.show', compact(
             'user',
+            'upcomingCourses',
             'membershipPayments',
             'currentMembership',
             'membershipEligibility',
