@@ -333,6 +333,10 @@ class MigrateOldDatabase extends Command
         $this->info('Marking accounts the person has logged in to as self-managed...');
         Artisan::call('users:backfill-self-managed');
         $this->line(Artisan::output());
+
+        // Same reason: the optout_token migration's back-fill found no users.
+        Artisan::call('users:backfill-optout-tokens');
+        $this->line(Artisan::output());
     }
 
     private function migrateBranches($batchSize)

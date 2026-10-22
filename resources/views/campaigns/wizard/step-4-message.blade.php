@@ -175,7 +175,7 @@
                                       {{ $smsDisabled ? 'disabled' : '' }}>{{ old('sms_body', data_get($content, 'sms_body', '')) }}</textarea>
                             @if($showSms)
                                 <div class="rounded-md border border-gray-200 bg-gray-50 p-3 text-xs text-gray-500" id="sms-footer-preview">
-                                    <p class="break-all">To stop: {{ rtrim(config('app.url'), '/') }}/u/<span class="not-italic text-gray-600 bg-gray-200 rounded px-0.5" title="Placeholder only — the real link uses a unique 32-character token per recipient">XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX</span>/sms</p>
+                                    <p class="break-all">To stop: {{ rtrim(config('app.url'), '/') }}/u/<span class="not-italic text-gray-600 bg-gray-200 rounded px-0.5" title="Placeholder only — the real link uses a unique {{ \App\Campaigns\Sending\SmsFooter::TOKEN_LENGTH }}-character token per recipient">{{ str_repeat('X', \App\Campaigns\Sending\SmsFooter::TOKEN_LENGTH) }}</span>/sms</p>
 
                                     <p class="mt-3  text-gray-600 mb-1"><i class="fas fa-lock mr-1"></i>Opt out automatically appended.</p>
 
@@ -475,9 +475,9 @@
                 }
 
                 // ── SMS OPT-OUT FOOTER (appended to every SMS at send time) ──
-                // Placeholder token is a fixed 32 X's, matching the real
-                // id_check_token length (Str::random(32)) exactly, so the
-                // character count below matches what actually gets sent.
+                // Placeholder token is SmsFooter::TOKEN_LENGTH X's, matching the
+                // real optout_token length exactly, so the character count
+                // below matches what actually gets sent.
                 const appUrl = "{{ config('app.url') }}";
                 const smsFooterSuffix = @json(\App\Campaigns\Sending\SmsFooter::preview());
 

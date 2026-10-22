@@ -104,7 +104,7 @@ test('personal fields are cleared and the statistical ones kept', function () {
         'disciplin', 'occupation', 'personal_info', 'organisation', 'residential_address',
         'workplace_address', 'public_contact_position', 'picture', 'signature', 'image_upload_date',
         'consent_notes', 'form_reg_id', 'legacy_password_hash', 'legacy_role', 'remember_token',
-        'id_check_token'] as $column) {
+        'id_check_token', 'optout_token'] as $column) {
         expect($row[$column])->toBeNull("{$column} should be null");
     }
 

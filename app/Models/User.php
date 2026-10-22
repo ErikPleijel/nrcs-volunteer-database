@@ -21,6 +21,9 @@ class User extends Authenticatable implements MustVerifyEmail
 {
     use HasFactory, HasRoles, Notifiable; // Add HasApiTokens if needed
 
+    /** Length of optout_token, the token in campaign unsubscribe links (letters/digits). */
+    public const OPTOUT_TOKEN_LENGTH = 16;
+
     protected $fillable = [
         'id_check_token',
         'first_name',
@@ -73,6 +76,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'remember_token',
         'legacy_password_hash', // Added to hide the legacy hash from array/JSON output
         'national_id_number_hash', // Keyed hash, but still derived from the NIN — never serialise it
+        'optout_token', // Anyone holding it can change the person's campaign opt-outs
     ];
 
     protected $casts = [
@@ -110,6 +114,9 @@ class User extends Authenticatable implements MustVerifyEmail
         static::creating(function ($user) {
             if (empty($user->id_check_token)) {
                 $user->id_check_token = Str::random(32);
+            }
+            if (empty($user->optout_token)) {
+                $user->optout_token = Str::random(self::OPTOUT_TOKEN_LENGTH);
             }
         });
 

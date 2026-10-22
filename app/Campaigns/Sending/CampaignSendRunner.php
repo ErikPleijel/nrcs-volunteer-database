@@ -95,7 +95,7 @@ final class CampaignSendRunner
         $userRecipientIds = $recipients->where('recipient_type', User::class)->pluck('recipient_id');
         $userRows = User::whereIn('id', $userRecipientIds)
             ->select([
-                'id_check_token', 'email_opt_out', 'sms_opt_out',
+                'optout_token', 'id_check_token', 'email_opt_out', 'sms_opt_out',
                 // columns and relations read by placeholder tokens (shared with the previews)
                 ...CampaignPlaceholderRenderer::USER_COLUMNS,
             ])
@@ -231,7 +231,9 @@ final class CampaignSendRunner
                 $smsBodyFinal = $user ? CampaignPlaceholderRenderer::render($baseSmsBody, $user) : $baseSmsBody;
 
                 if ($r->recipient_type === User::class) {
-                    $token = $user?->id_check_token;
+                    // id_check_token only for a user the optout_token back-fill missed:
+                    // the unsubscribe routes accept both, and an opt-out link must never be left out.
+                    $token = $user?->optout_token ?: $user?->id_check_token;
                     if ($token) {
                         $profileUrl = config('app.campaign_display_url') ?: route('welcome');
                         if ($wantsEmail) {

@@ -2,14 +2,16 @@
 
 namespace App\Campaigns\Sending;
 
+use App\Models\User;
+
 /**
  * The opt-out line appended to every campaign SMS. One definition for the send runner and
  * the previews/projections, so page counts shown before sending match what is sent.
  */
 final class SmsFooter
 {
-    /** Length of the per-user token in the link (users.id_check_token, Str::random(32)). */
-    public const TOKEN_LENGTH = 32;
+    /** Length of the per-user token in the link (users.optout_token). */
+    public const TOKEN_LENGTH = User::OPTOUT_TOKEN_LENGTH;
 
     public static function for(string $token): string
     {

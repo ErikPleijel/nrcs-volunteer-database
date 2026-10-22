@@ -2006,3 +2006,25 @@ had no notes at all.
   person must be in the staff member's scope), like `create()`.
 - Server side unchanged: `initiate()` and `store()` still work out the price from the fee and
   refuse an ID card on donations, organisation and Red Cross Unit payments.
+
+## 2026-10-22 — Campaign opt-out links get their own token
+
+- New column `users.optout_token`: 16 random letters/digits (`User::OPTOUT_TOKEN_LENGTH`, about 95
+  bits), unique, case-sensitive (`utf8mb4_bin`). Made in `User::creating`; existing users are filled
+  by `users:backfill-optout-tokens` (chunks of 2,000, query builder, skips anonymised users), run by
+  the migration and by `migrate:old-db` after the users import. `UserAnonymizer` clears it.
+  It is in `User::$hidden`.
+- Why: unsubscribe links used `id_check_token`, the 32-character token printed on ID cards and
+  certificates. Anyone who saw an SMS could open that person's `/idcheck` page, and the token could
+  not be shortened without breaking printed cards. `id_check_token`, the ID card QR code and the
+  certificate check are unchanged.
+- New SMS and email opt-out links use `optout_token` (`CampaignSendRunner`). The SMS footer is 16
+  characters shorter. A user the back-fill missed still gets a link, with `id_check_token`.
+- `/u/{token}/email` and `/u/{token}/sms` accept either token, so links in messages already sent keep
+  working. `/sms` and `/email` stay in the links (the same token serves both). An unknown token now
+  returns 404 (the "invalid link" page with a 404 status; before, it was 200).
+- `SmsFooter::TOKEN_LENGTH` is `User::OPTOUT_TOKEN_LENGTH`. Wizard step 4 builds the placeholder
+  X's and the tooltip's length from it; the SMS counter, step 5, the admin show page and the SMS
+  projections already used `SmsFooter::preview()`.
+- Organisations and Red Cross Units: no change. Organisation representatives get email only, and
+  opt-out links are only added for `User` recipients; units never receive campaign messages.

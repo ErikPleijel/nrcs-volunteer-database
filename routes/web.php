@@ -199,7 +199,8 @@ Route::get('/certificates/verify', [CertificateController::class, 'verify'])
     ->name('certificates.verify')
     ->middleware('signed');
 
-// Public unsubscribe / communication preference routes
+// Public unsubscribe / communication preference routes. {token} is
+// users.optout_token, or id_check_token in messages sent before it existed.
 Route::get('/u/{token}/email', [UnsubscribeController::class, 'showEmail'])->name('unsubscribe.email.show');
 Route::post('/u/{token}/email', [UnsubscribeController::class, 'handleEmail'])->name('unsubscribe.email.handle');
 Route::get('/u/{token}/sms', [UnsubscribeController::class, 'showSms'])->name('unsubscribe.sms.show');

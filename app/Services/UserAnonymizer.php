@@ -99,6 +99,7 @@ class UserAnonymizer
                 'form_reg_id' => null,
                 'legacy_role' => null,
                 'id_check_token' => null, // old ID-card QR codes stop verifying
+                'optout_token' => null, // unsubscribe links in messages already sent stop working
                 'password' => '',
                 'legacy_password_hash' => null,
                 'remember_token' => null,

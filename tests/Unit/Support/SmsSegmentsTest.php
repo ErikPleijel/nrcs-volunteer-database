@@ -65,5 +65,5 @@ test('emoji are Unicode and take two UTF-16 units', function () {
 });
 
 test('the opt-out footer preview is as long as a real footer', function () {
-    expect(mb_strlen(SmsFooter::preview()))->toBe(mb_strlen(SmsFooter::for(str_repeat('a', 32))));
+    expect(mb_strlen(SmsFooter::preview()))->toBe(mb_strlen(SmsFooter::for(str_repeat('a', \App\Models\User::OPTOUT_TOKEN_LENGTH))));
 });
