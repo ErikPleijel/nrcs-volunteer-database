@@ -427,6 +427,7 @@
                             'tagline' => 'Serve, and pay a small fee',
                             'description' => 'Serve as an active volunteer in a Red Cross unit and register as a paying member.',
                             'categories' => $volunteerMemberFeeNames,
+                            'note' => 'When you visit your branch to fill in the paper registration form, you will be asked to pay a one-time registration fee.',
                             'cta' => 'Become a Volunteer & Member',
                             'bar' => 'bg-red-600',
                             'badgeClass' => 'bg-red-100 text-red-700',
@@ -472,12 +473,26 @@
                                 </div>
                                 <h4 class="text-xl font-bold text-gray-900 mb-1">{{ $card['title'] }}</h4>
                                 <p class="text-xs font-semibold uppercase tracking-wide mb-3 {{ $card['accent'] }}">{{ $card['tagline'] }}</p>
-                                <p class="text-sm text-gray-600 flex-1">
-                                    {{ $card['description'] }}
-                                    @if(!empty($card['categories']))
-                                        Categories: {{ implode(', ', $card['categories']) }}.
-                                    @endif
-                                </p>
+                                @if(!empty($card['note']))
+                                    {{-- Note sits between the description and the fee list. --}}
+                                    <div class="flex-1 text-sm text-gray-600">
+                                        <p>{{ $card['description'] }}</p>
+                                        <div class="my-3 flex gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-base text-amber-900">
+                                            <i class="fas fa-info-circle mt-1 flex-shrink-0"></i>
+                                            <p><strong>Please note:</strong> {{ $card['note'] }}</p>
+                                        </div>
+                                        @if(!empty($card['categories']))
+                                            <p>Categories: {{ implode(', ', $card['categories']) }}.</p>
+                                        @endif
+                                    </div>
+                                @else
+                                    <p class="text-sm text-gray-600 flex-1">
+                                        {{ $card['description'] }}
+                                        @if(!empty($card['categories']))
+                                            Categories: {{ implode(', ', $card['categories']) }}.
+                                        @endif
+                                    </p>
+                                @endif
                                 <a href="{{ route($card['route']) }}"
                                    class="mt-6 block text-white text-center font-semibold px-4 py-3 rounded-lg shadow transition duration-300 {{ $card['button'] }}">
                                     {{ $card['cta'] }}
