@@ -2229,3 +2229,21 @@ were not used (volunteering already uses activities). Skills will be `Skill` / `
 **Accepted consequences:** a branch approver may approve a course record for a participant from
 another branch, because their branch organised the course. That is the one exception to the
 "own area" approval rule.
+
+## 2026-10-23 — Course participant lists are visible to everyone who sees the course
+
+**Decision:** everyone who can see a course (`Course::visibleTo()`) sees all its participants and
+facilitators, also those from other branches. The list shows name, branch and division only: no
+phone, email, photo or other details. A name links to the person's page only when the viewer may
+open it anyway (`UserPolicy::view`).
+
+**Why:** a course is a shared event, participants meet in person, and branches need to know who
+attends. Recorded for NDPA in COMPLIANCE.md §5 ("Courses").
+
+**Adding and removing people** (`Course::canHandlePerson()` / `addablePeopleFor()`, with
+`manage_course_participants`): the course's organisers (national staff, or the organising
+branch's staff) may add anyone from any branch. Other staff with the permission may add and
+remove people from their own branch or division only, e.g. a branch nominating its people for a
+national course. Archived and anonymized people cannot be added. People can only be changed on a
+planned course. Audit log: `course_participant_added` / `course_participant_removed`, logged with
+the person's branch and division.

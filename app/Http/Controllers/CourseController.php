@@ -4,10 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Models\Branch;
 use App\Models\Course;
+use App\Models\CourseParticipant;
 use App\Models\Division;
 use App\Models\Log;
 use App\Models\TrainingType;
 use App\Models\User;
+use App\Services\UserFilterService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -18,8 +20,8 @@ use Illuminate\View\View;
 /**
  * Courses: create, edit, cancel and list. Permissions are checked by route
  * middleware (view_courses, add_courses, edit_courses); the area by
- * Course::visibleTo() and Course::isManageableBy(). Participants, results and
- * closing follow in later steps.
+ * Course::visibleTo() and Course::isManageableBy(). Adding and removing people
+ * is in CourseParticipantController; results and closing follow later.
  */
 class CourseController extends Controller
 {
@@ -106,15 +108,48 @@ class CourseController extends Controller
         return redirect()->route('courses.show', $course)->with('success', 'Course created.');
     }
 
-    public function show(Course $course): View
+    /**
+     * Course page. Everyone who can see the course sees all the people on it,
+     * with name, branch and division only (Decisions.md 2026-10-23). Staff
+     * with manage_course_participants also get a person search, limited to
+     * the people they may add (Course::addablePeopleFor()).
+     */
+    public function show(Request $request, Course $course, UserFilterService $userFilterService): View
     {
-        abort_unless($course->isVisibleTo(Auth::user()), 403, 'This course is outside your area.');
+        $viewer = Auth::user();
+        abort_unless($course->isVisibleTo($viewer), 403, 'This course is outside your area.');
 
         $course->load(['trainingType', 'branch', 'division', 'createdBy', 'closedBy', 'cancelledBy']);
 
+        $people = $course->courseParticipants()
+            ->with(['user:id,first_name,middle_name,last_name,title,branch_id,division_id', 'user.branch:id,name', 'user.division:id,name'])
+            ->get()
+            ->sortBy(fn (CourseParticipant $p) => mb_strtolower($p->user?->full_name ?? ''))
+            ->values();
+
+        $canChangePeople = $viewer->can('manage_course_participants') && $course->isPlanned();
+
+        $search = trim((string) $request->input('person_search', ''));
+        $searchResults = collect();
+        if ($canChangePeople && mb_strlen($search) >= 2) {
+            $searchResults = $userFilterService
+                ->applySearch($course->addablePeopleFor($viewer), $search)
+                ->with(['branch:id,name', 'division:id,name'])
+                ->orderBy('first_name')
+                ->orderBy('last_name')
+                ->limit(20)
+                ->get(['id', 'first_name', 'middle_name', 'last_name', 'title', 'branch_id', 'division_id']);
+        }
+
         return view('courses.show', [
             'course' => $course,
-            'canManage' => Auth::user()->can('edit_courses') && $course->isManageableBy(Auth::user()),
+            'canManage' => $viewer->can('edit_courses') && $course->isManageableBy($viewer),
+            'facilitators' => $people->filter->isFacilitator()->values(),
+            'participants' => $people->reject->isFacilitator()->values(),
+            'canChangePeople' => $canChangePeople,
+            'canAddAnyone' => $course->isManageableBy($viewer),
+            'search' => $search,
+            'searchResults' => $searchResults,
         ]);
     }
 

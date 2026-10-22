@@ -15,6 +15,7 @@ use App\Http\Controllers\CampaignWizardController;
 use App\Http\Controllers\CertificateController;
 use App\Http\Controllers\ConsentConfirmationController;
 use App\Http\Controllers\CourseController;
+use App\Http\Controllers\CourseParticipantController;
 use App\Http\Controllers\DivisionController;
 use App\Http\Controllers\DonationController;
 use App\Http\Controllers\DormantUserController;
@@ -634,6 +635,9 @@ Route::middleware(['auth', 'verified.or.absent'])->group(function () {
             Route::get('/{course}/edit', [CourseController::class, 'edit'])->name('edit')->middleware('can:edit_courses');
             Route::put('/{course}', [CourseController::class, 'update'])->name('update')->middleware('can:edit_courses');
             Route::post('/{course}/cancel', [CourseController::class, 'cancel'])->name('cancel')->middleware('can:edit_courses');
+
+            Route::post('/{course}/participants', [CourseParticipantController::class, 'store'])->name('participants.store')->middleware('can:manage_course_participants');
+            Route::delete('/{course}/participants/{participant}', [CourseParticipantController::class, 'destroy'])->name('participants.destroy')->middleware('can:manage_course_participants');
         });
 
         // Organisation Management

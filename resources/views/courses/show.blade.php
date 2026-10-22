@@ -78,6 +78,103 @@
                 </div>
             </div>
 
+            {{-- People: name, branch and division only (Decisions.md 2026-10-23) --}}
+            @if($canChangePeople)
+                <div class="bg-white shadow-sm sm:rounded-lg p-6">
+                    <h3 class="text-base font-semibold text-gray-900 mb-1">Add people</h3>
+                    <p class="text-sm text-gray-600 mb-4">
+                        {{ $canAddAnyone
+                            ? 'You can add people from any branch.'
+                            : 'You can add people from your own '.(auth()->user()->getAccessLevel() === 'division' ? 'division' : 'branch').'.' }}
+                        Search by name or database ID.
+                    </p>
+
+                    <form method="GET" action="{{ route('courses.show', $course) }}" class="flex gap-2 mb-4">
+                        <input type="text" name="person_search" value="{{ $search }}" minlength="2"
+                               placeholder="Name or database ID"
+                               class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <button type="submit" class="btn-primary"><i class="fas fa-search mr-1"></i>Search</button>
+                    </form>
+
+                    @if($search !== '')
+                        @if($searchResults->isEmpty())
+                            <p class="text-sm text-gray-500">No one found who can be added.</p>
+                        @else
+                            <table class="w-full text-sm">
+                                <tbody class="divide-y divide-gray-100">
+                                @foreach($searchResults as $person)
+                                    <tr>
+                                        <td class="py-2 pr-4">
+                                            <div class="font-medium text-gray-900">{{ $person->full_name }}</div>
+                                            <div class="text-xs text-gray-500">{{ $person->branch->name ?? '—' }}, {{ $person->division->name ?? '—' }}</div>
+                                        </td>
+                                        <td class="py-2 text-right whitespace-nowrap">
+                                            @foreach(['participant' => 'Add as participant', 'facilitator' => 'Add as facilitator'] as $role => $label)
+                                                <form method="POST" action="{{ route('courses.participants.store', $course) }}" class="inline">
+                                                    @csrf
+                                                    <input type="hidden" name="user_id" value="{{ $person->id }}">
+                                                    <input type="hidden" name="role" value="{{ $role }}">
+                                                    <button type="submit" class="{{ $role === 'participant' ? 'btn-primary' : 'btn-cancel' }} text-xs">{{ $label }}</button>
+                                                </form>
+                                            @endforeach
+                                        </td>
+                                    </tr>
+                                @endforeach
+                                </tbody>
+                            </table>
+                        @endif
+                    @endif
+                </div>
+            @endif
+
+            @foreach(['Facilitators' => $facilitators, 'Participants' => $participants] as $heading => $people)
+                <div class="bg-white shadow-sm sm:rounded-lg p-6">
+                    <h3 class="text-base font-semibold text-gray-900 mb-4">{{ $heading }} ({{ $people->count() }})</h3>
+
+                    @if($people->isEmpty())
+                        <p class="text-sm text-gray-500">None yet.</p>
+                    @else
+                        <table class="w-full text-sm">
+                            <thead>
+                            <tr class="text-left text-xs uppercase text-gray-500 border-b">
+                                <th class="py-2 pr-4">Name</th>
+                                <th class="py-2 pr-4">Branch</th>
+                                <th class="py-2 pr-4">Division</th>
+                                @if($canChangePeople)<th class="py-2"></th>@endif
+                            </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100">
+                            @foreach($people as $entry)
+                                <tr>
+                                    <td class="py-2 pr-4">
+                                        @can('view', $entry->user)
+                                            <a href="{{ route('users.show', $entry->user_id) }}" class="text-blue-600 hover:underline">{{ $entry->user->full_name }}</a>
+                                        @else
+                                            {{ $entry->user->full_name }}
+                                        @endcan
+                                    </td>
+                                    <td class="py-2 pr-4">{{ $entry->user->branch->name ?? '—' }}</td>
+                                    <td class="py-2 pr-4">{{ $entry->user->division->name ?? '—' }}</td>
+                                    @if($canChangePeople)
+                                        <td class="py-2 text-right">
+                                            @if($course->canHandlePerson(auth()->user(), $entry->user))
+                                                <form method="POST" action="{{ route('courses.participants.destroy', [$course, $entry]) }}"
+                                                      onsubmit="return confirm(@js('Remove '.$entry->user->full_name.' from this course?'))">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="text-xs text-red-600 hover:text-red-800 underline">Remove</button>
+                                                </form>
+                                            @endif
+                                        </td>
+                                    @endif
+                                </tr>
+                            @endforeach
+                            </tbody>
+                        </table>
+                    @endif
+                </div>
+            @endforeach
+
             @if($canManage && $course->isPlanned())
                 <div class="bg-white shadow-sm sm:rounded-lg p-6">
                     <h3 class="text-base font-semibold text-gray-900 mb-2">Cancel this course</h3>

@@ -165,6 +165,53 @@ class Course extends Model
         };
     }
 
+    /**
+     * Whether $viewer may add or remove $person on this course (the
+     * manage_course_participants permission is checked by route middleware).
+     * The organisers (isManageableBy) may add anyone, since participants come
+     * from any branch; other staff only people in their own branch or
+     * division, e.g. a branch nominating its own people for a national course.
+     */
+    public function canHandlePerson(User $viewer, User $person): bool
+    {
+        if ($this->isManageableBy($viewer)) {
+            return true;
+        }
+
+        $scopedId = $viewer->getScopedId();
+
+        return match ($viewer->getAccessLevel()) {
+            'branch' => $scopedId !== null && (int) $person->branch_id === $scopedId,
+            'division' => $scopedId !== null && (int) $person->division_id === $scopedId,
+            default => false,
+        };
+    }
+
+    /**
+     * People $viewer may add to this course (same rule as canHandlePerson()):
+     * not archived or anonymized, not a System Administrator, not already on it.
+     */
+    public function addablePeopleFor(User $viewer): Builder
+    {
+        $query = User::query()
+            ->selectableForEntry()
+            ->whereIn('lifecycle_status', ['pending_engagement', ...User::OPERATIONAL_STATUSES])
+            ->whereNull('anonymized_at')
+            ->whereDoesntHave('courseParticipations', fn ($q) => $q->where('course_id', $this->id));
+
+        if ($this->isManageableBy($viewer)) {
+            return $query;
+        }
+
+        $scopedId = $viewer->getScopedId();
+
+        return match ($viewer->getAccessLevel()) {
+            'branch' => $query->where('branch_id', $scopedId ?? 0),
+            'division' => $query->where('division_id', $scopedId ?? 0),
+            default => $query->whereRaw('1 = 0'),
+        };
+    }
+
     // --- Status helpers ---
 
     public function isPlanned(): bool

@@ -110,6 +110,11 @@ address used for the payment.
   of a task force can see their teammates. On these pages only the phone numbers of the team
   leader and assistant team leader are shown, so members can reach them; members' phone numbers
   are not shown to anyone, the leaders included.
+- **Courses.** Staff who can see a course (national staff all courses, branch and division staff
+  their own area's courses and national courses) see everyone on it, also people from other
+  branches: a course is a shared event, participants meet in person, and branches need to know who
+  attends. The course page shows only each person's name, branch and division, never contact
+  details. Opening a person's own record still follows the normal access rules above.
 - **Staff commitment.** Before they can use the system, every staff member with an administrative
   role must accept a data handling commitment: to access only what their role needs, not to share
   data outside NRCS channels, and to handle it under the NDPA.
