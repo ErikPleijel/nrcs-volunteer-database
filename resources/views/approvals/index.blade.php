@@ -91,7 +91,7 @@
             @if($records->count() > 0)
                 {{-- Bulk toolbar --}}
                 <div class="flex flex-wrap items-center justify-end gap-3 mb-3 bg-white border border-gray-200 rounded-lg px-4 py-2">
-                    <form method="POST" action="{{ route($routeName . '.bulk-approve') }}"
+                    <form method="POST" action="{{ route($routeName . '.bulk-approve') }}" data-submit-once
                           @submit="if (! confirm('Approve ' + selected.length + ' selected record(s)?')) $event.preventDefault()">
                         @csrf
                         <template x-for="id in selected" :key="id">

@@ -17,7 +17,7 @@
     </a>
 
     @if ($status === 'approved')
-        <form method="POST" action="{{ route('campaigns.admin.queue', $campaign) }}">
+        <form method="POST" action="{{ route('campaigns.admin.queue', $campaign) }}" data-submit-once>
             @csrf
             <button type="submit"
                     class="inline-flex items-center px-3 py-1.5 rounded-md text-sm font-medium bg-blue-600 text-white hover:bg-blue-700">
@@ -60,7 +60,7 @@
             @endif
         @endif
 
-        <form method="POST" action="{{ route('campaigns.admin.startSending', $campaign) }}">
+        <form method="POST" action="{{ route('campaigns.admin.startSending', $campaign) }}" data-submit-once>
             @csrf
             @php
                 $startButtonClasses = $startDisabled

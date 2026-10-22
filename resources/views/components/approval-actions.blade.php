@@ -13,25 +13,26 @@
     // self-directed modal afterwards if both apply), then self-directed, then submit.
     $approveClick = $archived
         ? 'archivedOpen = true'
-        : ($selfDirected ? 'selfDirectedOpen = true' : '$refs.approveForm.submit()');
+        : ($selfDirected ? 'selfDirectedOpen = true' : '$refs.approveForm.requestSubmit()');
 
     // The archived modal's confirm button: chain into the self-directed modal
     // instead of submitting, if that warning also applies — never merge the two.
     $archivedConfirmClick = $selfDirected
         ? 'archivedOpen = false; selfDirectedOpen = true'
-        : '$refs.approveForm.submit()';
+        : '$refs.approveForm.requestSubmit()';
 @endphp
 
 <div x-data="{ rejectOpen: false, archivedOpen: false, selfDirectedOpen: false }" class="inline-flex items-center gap-2">
 
     {{-- Approve --}}
-    <form method="POST" action="{{ $approveUrl }}" x-ref="approveForm" class="inline">
+    <form method="POST" action="{{ $approveUrl }}" x-ref="approveForm" class="inline" data-submit-once>
         @csrf
         @if($archived)
             <input type="hidden" name="confirm_archived_reactivation" value="1">
         @endif
         <button type="button"
                 @click="{{ $approveClick }}"
+                data-submit-button
                 class="inline-flex items-center {{ $btn }} font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500">
             <i class="fas fa-check mr-1"></i>Approve
             @if($archived)<i class="fas fa-triangle-exclamation ml-1 text-yellow-200" title="Member is archived"></i>@endif
@@ -51,7 +52,7 @@
         <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6" @click.outside="rejectOpen = false">
             <h3 class="text-lg font-semibold text-gray-900 mb-2">Reject this {{ strtolower($record->approvalModuleKey()) }}</h3>
             <p class="text-sm text-gray-600 mb-4">The submitter will be notified with the reason you give.</p>
-            <form method="POST" action="{{ $rejectUrl }}">
+            <form method="POST" action="{{ $rejectUrl }}" data-submit-once>
                 @csrf
                 <textarea name="reason" rows="3" required maxlength="1000"
                           placeholder="Reason for rejection (required)"
@@ -117,7 +118,7 @@
                 <div class="mt-5 flex justify-end gap-2">
                     <button type="button" @click="selfDirectedOpen = false"
                             class="px-4 py-2 text-sm font-medium rounded-md text-gray-700 bg-gray-100 hover:bg-gray-200">Cancel</button>
-                    <button type="button" @click="$refs.approveForm.submit()"
+                    <button type="button" @click="$refs.approveForm.requestSubmit()"
                             class="px-4 py-2 text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700">
                         <i class="fas fa-check mr-1"></i>Confirm &amp; approve
                     </button>

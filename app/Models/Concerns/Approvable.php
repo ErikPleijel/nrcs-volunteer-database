@@ -3,6 +3,7 @@
 namespace App\Models\Concerns;
 
 use App\Exceptions\ArchivedReactivationRequiresConfirmation;
+use App\Exceptions\RecordAlreadyDecided;
 use App\Models\Scopes\ApprovedScope;
 use App\Models\User;
 use App\Notifications\RecordRejected;
@@ -222,6 +223,7 @@ trait Approvable
     public function approve(User $approver, bool $allowArchivedReactivation = false): bool
     {
         return DB::transaction(function () use ($approver, $allowArchivedReactivation) {
+            $this->lockForDecision();
             $this->guardPending();
             $this->guardNotSelf($approver, 'approved');
 
@@ -413,6 +415,7 @@ trait Approvable
     public function reject(User $approver, string $reason): void
     {
         DB::transaction(function () use ($approver, $reason) {
+            $this->lockForDecision();
             $this->guardPending();
             $this->guardNotSelf($approver, 'rejected');
 
@@ -440,15 +443,27 @@ trait Approvable
     |--------------------------------------------------------------------------
     */
 
+    /**
+     * Re-read this row with a lock (inside the decision transaction), so two
+     * reviewers deciding the same record at once run one after the other and
+     * the second sees the first one's decision.
+     */
+    private function lockForDecision(): void
+    {
+        $fresh = static::withoutGlobalScope(ApprovedScope::class)
+            ->whereKey($this->getKey())
+            ->lockForUpdate()
+            ->first();
+
+        if ($fresh) {
+            $this->setRawAttributes($fresh->getAttributes(), true);
+        }
+    }
+
     private function guardPending(): void
     {
         if (! $this->isPendingApproval()) {
-            throw new RuntimeException(sprintf(
-                '%s #%s is not pending approval (status: %s).',
-                ucfirst($this->approvalModuleKey()),
-                $this->getKey(),
-                $this->approval_status
-            ));
+            throw new RecordAlreadyDecided($this);
         }
     }
 

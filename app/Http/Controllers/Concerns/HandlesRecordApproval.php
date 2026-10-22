@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Concerns;
 
 use App\Exceptions\ArchivedReactivationRequiresConfirmation;
+use App\Exceptions\RecordAlreadyDecided;
 use App\Models\Branch;
 use App\Models\Division;
 use App\Models\User;
@@ -211,20 +212,28 @@ trait HandlesRecordApproval
      */
     public function approve(Request $request, $id): RedirectResponse
     {
-        $modelClass = $this->approvalModelClass();
-
         // §8.1: explicit scope-lifting resolution (no implicit binding).
-        $record = $modelClass::pendingApproval()->findOrFail($id);
+        $record = $this->approvalModelClass()::withAnyApprovalStatus()->find($id);
+        if (! $record) {
+            return $this->recordGoneResponse();
+        }
 
         $approver = Auth::user();
         $this->authorizeApprovalScope($approver, $record);
         $this->guardFourEyes($approver, $record);
+
+        if (! $record->isPendingApproval()) {
+            return $this->alreadyDecidedResponse($record, $approver);
+        }
 
         try {
             $reactivated = $record->approve(
                 $approver,
                 $request->boolean('confirm_archived_reactivation')
             );
+        } catch (RecordAlreadyDecided $e) {
+            // Another reviewer decided it between loading and locking the row.
+            return $this->alreadyDecidedResponse($e->record, $approver);
         } catch (ArchivedReactivationRequiresConfirmation $e) {
             return back()->with('warning',
                 'This record belongs to an archived member. Re-submit the approval with '
@@ -249,15 +258,24 @@ trait HandlesRecordApproval
             'reason' => 'required|string|max:1000',
         ]);
 
-        $modelClass = $this->approvalModelClass();
-
-        $record = $modelClass::pendingApproval()->findOrFail($id);
+        $record = $this->approvalModelClass()::withAnyApprovalStatus()->find($id);
+        if (! $record) {
+            return $this->recordGoneResponse();
+        }
 
         $approver = Auth::user();
         $this->authorizeApprovalScope($approver, $record);
         $this->guardFourEyes($approver, $record);
 
-        $record->reject($approver, $validated['reason']);
+        if (! $record->isPendingApproval()) {
+            return $this->alreadyDecidedResponse($record, $approver);
+        }
+
+        try {
+            $record->reject($approver, $validated['reason']);
+        } catch (RecordAlreadyDecided $e) {
+            return $this->alreadyDecidedResponse($e->record, $approver);
+        }
 
         return back()->with('success', $this->approvalLabel().' rejected.');
     }
@@ -330,6 +348,35 @@ trait HandlesRecordApproval
             default:
                 abort(403, 'You are not authorized to review records.');
         }
+    }
+
+    /**
+     * Stale page or double-click: the record was already decided. Goes to the
+     * approvals tab rather than back(), because the review page of a record
+     * someone else decided is no longer viewable by this reviewer.
+     */
+    private function alreadyDecidedResponse(Model $record, User $viewer): RedirectResponse
+    {
+        $verb = $record->isApproved() ? 'approved' : 'rejected';
+        $what = strtolower($this->approvalLabel());
+        $at = $record->decided_at ? ' at '.$record->decided_at->format('j M Y, H:i') : '';
+
+        if ($record->decided_by_user_id !== null && (int) $record->decided_by_user_id === (int) $viewer->id) {
+            $message = "You already {$verb} this {$what}{$at}.";
+        } elseif ($record->decided_by_user_id !== null) {
+            $name = User::find($record->decided_by_user_id)?->full_name ?: 'another reviewer';
+            $message = "This {$what} has already been {$verb} by {$name}{$at}.";
+        } else {
+            $message = "This {$what} has already been {$verb}{$at}.";
+        }
+
+        return redirect()->route($this->approvalRouteName().'.approvals')->with('warning', $message);
+    }
+
+    private function recordGoneResponse(): RedirectResponse
+    {
+        return redirect()->route($this->approvalRouteName().'.approvals')->with('warning',
+            'This '.strtolower($this->approvalLabel()).' no longer exists. The submitter may have withdrawn it.');
     }
 
     /**
