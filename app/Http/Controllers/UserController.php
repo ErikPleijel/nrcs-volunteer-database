@@ -1097,6 +1097,32 @@ class UserController extends Controller
         }
         $passwordSet = $request->filled('password');
 
+        // Unit, opt-outs and contribution type — one Audit Log entry with the
+        // fields that changed (written after the save, below).
+        $detailsOld = [];
+        $detailsNew = [];
+        $unitIdBefore = $user->red_cross_unit_id === null ? null : (int) $user->red_cross_unit_id;
+        $unitIdAfter = ($validated['red_cross_unit_id'] ?? null) === null ? null : (int) $validated['red_cross_unit_id'];
+        if ($unitIdBefore !== $unitIdAfter) {
+            $detailsOld += ['red_cross_unit_id' => $unitIdBefore, 'red_cross_unit' => $user->redCrossUnit?->name];
+            $detailsNew += ['red_cross_unit_id' => $unitIdAfter, 'red_cross_unit' => $unitIdAfter ? RedCrossUnit::find($unitIdAfter)?->name : null];
+        }
+        if ($wasEmailOptOut !== $newEmailOptOut) {
+            $detailsOld['email_opt_out'] = $wasEmailOptOut;
+            $detailsNew['email_opt_out'] = $newEmailOptOut;
+        }
+        if ($wasSmsOptOut !== $newSmsOptOut) {
+            $detailsOld['sms_opt_out'] = $wasSmsOptOut;
+            $detailsNew['sms_opt_out'] = $newSmsOptOut;
+        }
+        $contributionBefore = $user->can_contribute_member
+            ? ($user->can_contribute_volunteering ? 'volunteering and member' : 'member')
+            : ($user->can_contribute_volunteering ? 'volunteering' : null);
+        if ($contributionBefore !== $request->input('contribution_type')) {
+            $detailsOld['contribution_type'] = $contributionBefore;
+            $detailsNew['contribution_type'] = $request->input('contribution_type');
+        }
+
         // A national DB administrator's correction of a self-managed person's
         // name, gender or birth year (the reason was required above).
         $correctionOld = [];
@@ -1260,6 +1286,18 @@ class UserController extends Controller
                 $contactOld,
                 $contactNew,
                 "DB-{$user->id} login details changed on users/edit by DB-".Auth::id().' ('.implode(', ', array_keys($contactNew)).').'
+            );
+        }
+
+        if ($detailsNew) {
+            AuditLog::write(
+                'user_details_changed',
+                $user,
+                $logContext,
+                $detailsOld,
+                $detailsNew,
+                "DB-{$user->id} unit, opt-out or contribution type changed on users/edit by DB-".Auth::id()
+                    .' ('.implode(', ', array_keys($detailsNew)).').'
             );
         }
 
