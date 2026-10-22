@@ -14,6 +14,7 @@ use App\Http\Controllers\CampaignAdminController;
 use App\Http\Controllers\CampaignWizardController;
 use App\Http\Controllers\CertificateController;
 use App\Http\Controllers\ConsentConfirmationController;
+use App\Http\Controllers\CourseClosingController;
 use App\Http\Controllers\CourseController;
 use App\Http\Controllers\CourseParticipantController;
 use App\Http\Controllers\DivisionController;
@@ -639,6 +640,9 @@ Route::middleware(['auth', 'verified.or.absent'])->group(function () {
             Route::post('/{course}/participants', [CourseParticipantController::class, 'store'])->name('participants.store')->middleware('can:manage_course_participants');
             Route::delete('/{course}/participants/{participant}', [CourseParticipantController::class, 'destroy'])->name('participants.destroy')->middleware('can:manage_course_participants');
             Route::put('/{course}/results', [CourseParticipantController::class, 'updateResults'])->name('results.update')->middleware('can:manage_course_participants');
+
+            Route::post('/{course}/close', [CourseClosingController::class, 'close'])->name('close')->middleware('can:edit_courses');
+            Route::post('/{course}/approve-records', [CourseClosingController::class, 'approveRecords'])->name('approve-records')->middleware('can:approve_training');
         });
 
         // Organisation Management

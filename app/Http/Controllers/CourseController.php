@@ -7,6 +7,7 @@ use App\Models\Course;
 use App\Models\CourseParticipant;
 use App\Models\Division;
 use App\Models\Log;
+use App\Models\Training;
 use App\Models\TrainingType;
 use App\Models\User;
 use App\Services\UserFilterService;
@@ -122,7 +123,11 @@ class CourseController extends Controller
         $course->load(['trainingType', 'branch', 'division', 'createdBy', 'closedBy', 'cancelledBy']);
 
         $people = $course->courseParticipants()
-            ->with(['user:id,first_name,middle_name,last_name,title,branch_id,division_id', 'user.branch:id,name', 'user.division:id,name'])
+            ->with([
+                'user:id,first_name,middle_name,last_name,title,branch_id,division_id', 'user.branch:id,name', 'user.division:id,name',
+                // Issued records are pending at first, which the default scope hides.
+                'training' => fn ($q) => $q->withAnyApprovalStatus(),
+            ])
             ->get()
             ->sortBy(fn (CourseParticipant $p) => mb_strtolower($p->user?->full_name ?? ''))
             ->values();
@@ -144,9 +149,14 @@ class CourseController extends Controller
         $participants = $people->reject->isFacilitator()->values();
         $resultCounts = $participants->countBy(fn (CourseParticipant $p) => $p->result ?? 'none');
 
+        $canManage = $viewer->can('edit_courses') && $course->isManageableBy($viewer);
+
         return view('courses.show', [
             'course' => $course,
-            'canManage' => $viewer->can('edit_courses') && $course->isManageableBy($viewer),
+            'canManage' => $canManage,
+            'closeBlocker' => $canManage && $course->isPlanned() ? $course->closeBlocker() : null,
+            'canApproveRecords' => $course->isClosed() && $course->canApproveRecords($viewer),
+            'pendingRecords' => $course->isClosed() ? Training::pendingApproval()->where('course_id', $course->id)->count() : 0,
             'facilitators' => $people->filter->isFacilitator()->values(),
             'participants' => $participants,
             'resultCounts' => $resultCounts,

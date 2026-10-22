@@ -210,6 +210,59 @@ class Course extends Model
     }
 
     /**
+     * Why the course cannot be closed yet, or null when it can: it must be
+     * planned, its end date reached (the last day included), and every
+     * participant must have a result.
+     */
+    public function closeBlocker(): ?string
+    {
+        if (! $this->isPlanned()) {
+            return 'Only a planned course can be closed.';
+        }
+        if ($this->end_date->isAfter(today())) {
+            return 'The course can be closed from its end date, '.$this->end_date->format('j M Y').'.';
+        }
+
+        $missing = $this->courseParticipants()
+            ->where('role', CourseParticipant::ROLE_PARTICIPANT)
+            ->whereNull('result')
+            ->count();
+
+        if ($missing > 0) {
+            return $missing === 1
+                ? '1 participant has no result yet.'
+                : "{$missing} participants have no result yet.";
+        }
+
+        return null;
+    }
+
+    /** Days from the first to the last day, both included (1–3 Dec = 3). */
+    public function durationInDays(): int
+    {
+        return (int) $this->start_date->diffInDays($this->end_date) + 1;
+    }
+
+    /**
+     * Whether $viewer may use "Approve all from this course": anyone with
+     * approve_training for the organising branch, or national staff, also for
+     * participants from other branches (Decisions.md 2026-10-23). Four-eyes is
+     * still applied per record (the one who closed the course cannot approve).
+     */
+    public function canApproveRecords(User $viewer): bool
+    {
+        if (! $viewer->can('approve_training')) {
+            return false;
+        }
+
+        return match ($viewer->getAccessLevel()) {
+            'national' => true,
+            'branch' => $this->branch_id !== null && $this->branch_id === $viewer->getScopedId(),
+            default => false,
+        };
+    }
+
+    /**
      * People $viewer may add to this course (same rule as canHandlePerson()):
      * not archived or anonymized, not a System Administrator, not already on it.
      */

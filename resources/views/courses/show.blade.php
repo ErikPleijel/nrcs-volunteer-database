@@ -33,6 +33,16 @@
                     {{ session('error') }}
                 </div>
             @endif
+            @if(session('skipped'))
+                <div class="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded text-sm">
+                    Not approved:
+                    <ul class="list-disc pl-5 mt-1">
+                        @foreach(session('skipped') as $line)
+                            <li>{{ $line }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
 
             <div class="bg-white shadow-sm sm:rounded-lg p-6">
                 <div class="flex items-start justify-between gap-4 mb-4">
@@ -185,6 +195,9 @@
                                             @else
                                                 {{ $resultLabels[$entry->result] ?? '—' }}
                                             @endif
+                                            @if($entry->training)
+                                                <span class="ml-1 text-xs text-gray-500">· record {{ $entry->training->approval_status }}</span>
+                                            @endif
                                         </td>
                                     @endif
                                     @if($canChangePeople)
@@ -219,6 +232,43 @@
                     @endif
                 </div>
             @endforeach
+
+            @if($canManage && $course->isPlanned())
+                <div class="bg-white shadow-sm sm:rounded-lg p-6">
+                    <h3 class="text-base font-semibold text-gray-900 mb-2">Close this course</h3>
+                    <p class="text-sm text-gray-600 mb-4">
+                        Closing creates a training record for every participant who passed. The records then wait
+                        for approval by another approver. A course can be closed only once, and after that it cannot be changed.
+                    </p>
+                    @if($closeBlocker)
+                        <p class="text-sm text-amber-700"><i class="fas fa-circle-info mr-1"></i>{{ $closeBlocker }}</p>
+                    @else
+                        <form action="{{ route('courses.close', $course) }}" method="POST"
+                              onsubmit="return confirm('Close this course and create the training records? This cannot be undone.')">
+                            @csrf
+                            <button type="submit" class="btn-primary"><i class="fas fa-flag-checkered mr-1"></i>Close course</button>
+                        </form>
+                    @endif
+                </div>
+            @endif
+
+            @if($canApproveRecords && $pendingRecords > 0)
+                <div class="bg-white shadow-sm sm:rounded-lg p-6">
+                    <h3 class="text-base font-semibold text-gray-900 mb-2">Training records waiting for approval ({{ $pendingRecords }})</h3>
+                    @if((int) $course->closed_by_user_id === (int) auth()->id())
+                        <p class="text-sm text-gray-600">You closed this course, so another approver must approve its training records.</p>
+                    @else
+                        <p class="text-sm text-gray-600 mb-4">
+                            Approve all pending training records from this course at once, including participants from other branches.
+                        </p>
+                        <form action="{{ route('courses.approve-records', $course) }}" method="POST"
+                              onsubmit="return confirm(@js('Approve '.$pendingRecords.' training record(s) from this course?'))">
+                            @csrf
+                            <button type="submit" class="btn-primary"><i class="fas fa-check-double mr-1"></i>Approve all from this course</button>
+                        </form>
+                    @endif
+                </div>
+            @endif
 
             @if($canManage && $course->isPlanned())
                 <div class="bg-white shadow-sm sm:rounded-lg p-6">

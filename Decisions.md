@@ -2264,3 +2264,29 @@ After closing or cancelling, results are read-only.
 rows are left alone, so `result_recorded_by_user_id` / `result_recorded_at` show who last set
 each result. One audit entry per save, `course_results_recorded`, lists the changed results by
 user id (old and new), logged under the course's branch and division.
+
+## 2026-10-23 — Closing a course creates pending training records
+
+**Decision** (`CourseClosingController`):
+- A course can be closed by its organisers (`edit_courses` + `Course::isManageableBy()`) from its
+  end date, the last day included, and only when every participant has a result
+  (`Course::closeBlocker()`).
+- Closing creates one **pending** training record per participant who passed, submitted by the
+  person who closed it: training type of the course, training date = start date, duration in days
+  counting both the first and the last day (1–3 Dec = 3, so the certificate reads "from 1 December
+  to 3 December"), `valid_years` from the training type, reference = the course name (first 45
+  characters), and the participant's own branch and division. Failed and absent results get no
+  record. `course_participants.training_id` links each record back.
+- It runs once: the course row is locked and the status re-checked inside the transaction, and
+  `UNIQUE(course_id, user_id)` on `trainings` backs that up. Audit log: `course_closed` with the
+  counts per result and the number of records created.
+- **"Approve all from this course"** (`approve_training` + `Course::canApproveRecords()`):
+  approvers of the organising branch or national approvers approve every pending record of the
+  course, also for participants from other branches, through the normal per-record `approve()`
+  (four-eyes, lifecycle, first-aid date). The person who closed the course cannot. Archived members
+  are skipped, as in bulk approve. Each record also stays in its own branch's normal Approvals tab.
+
+**A rejected course record stays rejected.** Training records cannot be edited or resubmitted in
+the app (a rejection is final, see the 2026-06-22 approval workflow entry), so nothing was built
+for that. The course stays closed; a corrected record is entered by hand the normal way, without
+the course link. Accepted: such a record is not counted as "from this course".
