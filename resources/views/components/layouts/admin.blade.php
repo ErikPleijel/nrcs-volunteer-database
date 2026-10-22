@@ -163,6 +163,16 @@
                         </li>
                     @endcan
 
+                    {{-- Donations --}}
+                    @can('view_donations')
+                        <li>
+                            <a href="{{ route('donations.index') }}"
+                               class="flex items-center px-6 py-3 text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors {{ request()->routeIs('donations.*') ? 'bg-red-50 text-red-600 border-r-4 border-red-600' : '' }}">
+                                <i class="fas fa-heart mr-3"></i>Donation Records
+                            </a>
+                        </li>
+                    @endcan
+
                     {{-- Activities / Volunteering --}}
                     @can('view_volunteering')
                         <li>
@@ -179,16 +189,6 @@
                             <a href="{{ route('trainings.index') }}"
                                class="flex items-center px-6 py-3 text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors {{ request()->routeIs('trainings.*') ? 'bg-red-50 text-red-600 border-r-4 border-red-600' : '' }}">
                                 <i class="fas fa-graduation-cap mr-3"></i>Training Records
-                            </a>
-                        </li>
-                    @endcan
-
-                    {{-- Donations --}}
-                    @can('view_donations')
-                        <li>
-                            <a href="{{ route('donations.index') }}"
-                               class="flex items-center px-6 py-3 text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors {{ request()->routeIs('donations.*') ? 'bg-red-50 text-red-600 border-r-4 border-red-600' : '' }}">
-                                <i class="fas fa-heart mr-3"></i>Donation Records
                             </a>
                         </li>
                     @endcan
