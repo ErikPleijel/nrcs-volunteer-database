@@ -139,7 +139,11 @@ For DB-273857: since it holds a finance role and would be the one archived, don'
 
 ### Deploy files 
 - [ ] Deploy the new Laravel app files to a NEW folder on the VPS
-- [ ] Copy the app code to the VPS
+- [ ] Deploy with git (`git clone` the first time, `git pull` after). **Never copy the
+  local project folder** (zip, FTP, file manager): `storage/app/` holds files with personal
+  data that git ignores (the phone-duplicate spreadsheets in `storage/app/reports/`,
+  `storage/app/organisation-divisions.csv`), and a folder copy would take them to the
+  server. Likewise never copy `public/hot` (it makes the site load scripts from a dev server).
 - [ ] Install dependencies (`composer install`)
 - [ ] Set correct file/folder permissions (`storage/`, `bootstrap/cache/`)
 - [ ] Upload folders under `public/` owned by the web user (www-data), folders 775, files 664
@@ -162,6 +166,12 @@ For DB-273857: since it holds a finance role and would be the one archived, don'
 --> Remember: after changing .env: php artisan config:cache
 - [ ] APP_ENV=production
 - [ ] APP_DEBUG=false
+- [ ] `LOG_LEVEL=warning` (`.env.example` has `debug`, which fills the log with dev
+  detail). Errors are always logged whatever the level.
+- [ ] `SESSION_SECURE_COOKIE=true`, so the login cookie is only sent over HTTPS. The site
+  must be on HTTPS first, or nobody can log in.
+- [ ] `APP_URL` is the real domain (`https://…`), not dev.itacenmu.org: links in emails,
+  QR codes and the Paystack callback are built from it.
 - [ ] `PUBLIC_PATH_OVERRIDE`: leave EMPTY on a VPS (web root = the project's `public/`).
   one.com only: set it to the absolute path of the web root that holds `index.php`
   (the `/www/dev` folder, outside the Laravel folder). Until 2026-10-22 this was decided
@@ -224,8 +234,29 @@ Skip after a fresh import. Details: docs/migration.md, section C.
 - [ ] `rm storage/app/organisation-divisions.csv`
 
 ### Other
-  [ ] Set cron jobs (as www-data user):
+- [ ] **Before adding the cron line the first time**, check what it will start. Adding it
+  switches on EVERY scheduled job at once, including campaign sending (every minute),
+  anonymization (`--apply`, 03:30) and the lifecycle sweep (`--apply`, 03:00). See
+  Decisions.md "Activating the scheduler cron is a deployment event".
+  1. `php artisan schedule:list`: read every line; anything that sends, deletes,
+     anonymizes or archives must be wanted on this server.
+  2. Mail and SMS: until SES and the SMS account are ready, keep `MAIL_MAILER=log`
+     (campaign emails then fail instead of being sent; they are never counted as sent in
+     production), `CAMPAIGN_SMS_CHANNEL=log` and `SMSLIVE247_DRY_RUN=true`, then
+     `php artisan config:cache`.
+  3. No campaign waiting to send:
+     `SELECT messaging_campaign_id, COUNT(*) FROM messaging_recipients WHERE status = 'pending' GROUP BY messaging_campaign_id;`
+     → nothing, or only campaigns you want sent.
+  4. `php artisan users:anonymize-expired` (dry run, no `--apply`): check the count is what
+     you expect (0 right after a fresh import) before the 03:30 job runs.
+  5. Server time zone (`timedatectl`): the jobs run at server time. The app itself uses
+     Africa/Lagos.
+- [ ] Set cron jobs (as www-data user):
   `* * * * * cd /var/www/[actual-path] && /usr/bin/php artisan schedule:run >> /var/log/laravel-scheduler.log 2>&1`
+- [ ] Re-run the permissions audit (Decisions.md "Pre-deploy audit practice", audit 1) on
+  the exact code being deployed: every route has a server-side permission check, no
+  endpoint is reachable with only `auth` that should not be, menu `@can`s match the
+  server checks. Fix or record every finding before go-live.
 
 
 
@@ -276,6 +307,10 @@ show the placeholder), so every file must be copied across first.
 
 - [ ] Zero users with >1 role (check Database Team report, or query).
 - [ ] Set fees for Organisations.
+- [ ] **Before the first real payment** (staff-entered or online): check the HQ / branch /
+  division split percentages in Settings → Fee Distribution with NRCS finance. Each payment's
+  shares are stored when it is recorded and never recalculated, so a wrong percentage stays
+  wrong on every payment recorded before it is corrected.
 - [ ] What is the maximum upload file size for images on the VPS? (had problem with itacenmu.org treeplanting app, when user uploaded selfie)
 - [ ] Upload limits ≥ 21 MB, for Settings → Useful Links & Downloads (files up to 20 MB, plus the rest of the form):
   - PHP (the php.ini used by PHP-FPM): `upload_max_filesize = 21M` and `post_max_size = 21M` or more. Check with `php-fpm -i | grep -E 'upload_max|post_max'` (or a phpinfo page), then restart PHP-FPM.
