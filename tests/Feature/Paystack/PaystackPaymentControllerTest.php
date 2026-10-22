@@ -1008,20 +1008,40 @@ test('show names the branch, or falls back when the volunteer has none', functio
         ->assertSee('You will collect it at your branch office.');
 });
 
-test('show switches the photo note on whether a profile photo is on file', function () {
+test('show names photo and signature, with a line for each one missing', function () {
     MembershipFee::factory()->create();
+    $intro = 'We will use the photo and signature in your profile. If either is not clear, staff may ask you to upload a new one.';
 
     $this->actingAs(paystackVolunteer())
         ->get(route('make-payment.show', ['payment_type' => 'membership']))
-        ->assertSee('You need to upload a passport-style photo of yourself.')
+        ->assertSee($intro)
+        ->assertSee('You have no photo yet.')
+        ->assertSee('You have no signature yet.')
         ->assertSee('Upload photo')
-        ->assertDontSee('We will use the photo in your profile.');
+        ->assertSee('Upload signature')
+        ->assertSee(route('profile.edit-photo'), false)
+        ->assertSee(route('profile.edit-signature'), false);
 
-    $this->actingAs(paystackVolunteer(['picture' => 'photos/me.jpg']))
+    $this->actingAs(paystackVolunteer(['picture' => 'photos/me.jpg', 'signature' => 'signatures/me.png']))
         ->get(route('make-payment.show', ['payment_type' => 'membership']))
-        ->assertSee('We will use the photo in your profile.')
+        ->assertSee($intro)
         ->assertSee('Check your photo')
-        ->assertDontSee('You need to upload a passport-style photo of yourself.');
+        ->assertSee('Check your signature')
+        ->assertDontSee('You have no photo yet.')
+        ->assertDontSee('You have no signature yet.')
+        ->assertDontSee('was not accepted');
+});
+
+test('show tells the payer when the photo or signature was rejected', function () {
+    MembershipFee::factory()->create();
+    $user = paystackVolunteer(['picture' => 'photos/me.jpg', 'signature' => 'signatures/me.png']);
+    \Illuminate\Support\Facades\DB::table('users')->where('id', $user->id)->update(['signature_rejected_at' => now()]);
+
+    $this->actingAs($user->fresh())
+        ->get(route('make-payment.show', ['payment_type' => 'membership']))
+        ->assertSee('Your signature was not accepted for the ID card. Please upload a new one.')
+        ->assertDontSee('Your photo was not accepted')
+        ->assertSee('Upload again');
 });
 
 test('show warns about a missing NIN only when none is on file', function () {
@@ -1060,5 +1080,128 @@ test('show warns when the volunteer already holds a valid ID card', function () 
 
     $this->actingAs($user)
         ->get(route('make-payment.show', ['payment_type' => 'membership']))
+        ->assertSee('Your ID card is valid until')
         ->assertSee('You already have a valid ID card until '.now()->addMonths(11)->format('d M Y').'. Only tick this box if you need a replacement.');
+});
+
+/*
+| ID card default (IdCardOrderAdvice, Decisions.md 2026-10-22): ON for a
+| volunteer without a card valid beyond 28 days, OFF otherwise.
+*/
+
+function paystackIdCardPrint(User $user, \Carbon\CarbonInterface $expiry): void
+{
+    \App\Models\IdCardPrint::create([
+        'user_id' => $user->id,
+        'printed_by_user_id' => $user->id,
+        'printed_at' => now()->subMonth(),
+        'status' => 'printed',
+        'validity_months' => 12,
+        'expiry_date' => $expiry,
+    ]);
+}
+
+function paystackIdCardBoxChecked(string $html): bool
+{
+    preg_match('/<input[^>]*id="id_card_included"[^>]*>/', $html, $m);
+
+    return str_contains($m[0] ?? '', 'checked');
+}
+
+test('the ID card box starts ticked for a volunteer with no card, an expired card, or one expiring within 28 days', function (?int $expiryInDays) {
+    MembershipFee::factory()->create();
+    $user = paystackVolunteer();
+    if ($expiryInDays !== null) {
+        paystackIdCardPrint($user, now()->addDays($expiryInDays)->startOfDay());
+    }
+
+    $html = $this->actingAs($user)->get(route('make-payment.show', ['payment_type' => 'membership']))
+        ->assertOk()
+        ->assertSee('Volunteers are expected to have a Red Cross ID card. Only turn this off if you already have a valid ID card or have agreed this with your branch.')
+        ->getContent();
+
+    expect(paystackIdCardBoxChecked($html))->toBeTrue()
+        ->and(\App\Services\IdCardOrderAdvice::for($user)->defaultOn())->toBeTrue();
+})->with([
+    'no card' => [null],
+    'expired card' => [-5],
+    'expiring in 20 days' => [20],
+    'expiring in exactly 28 days' => [28],
+]);
+
+test('the ID card box starts unticked for a volunteer whose card is valid beyond 28 days, with the valid-until note', function () {
+    MembershipFee::factory()->create();
+    $user = paystackVolunteer();
+    paystackIdCardPrint($user, now()->addDays(60)->startOfDay());
+
+    $html = $this->actingAs($user)->get(route('make-payment.show', ['payment_type' => 'membership']))
+        ->assertSee('Your ID card is valid until')
+        ->assertSee(now()->addDays(60)->format('d M Y'))
+        ->getContent();
+
+    expect(paystackIdCardBoxChecked($html))->toBeFalse();
+});
+
+test('the ID card box starts unticked for a supporting member and for someone who left their unit, with no volunteer warning', function (string $case) {
+    MembershipFee::factory()->create();
+    $user = $case === 'member'
+        ? User::factory()->create()
+        : User::factory()->create(['red_cross_unit_id' => null, 'assigned_rcu_date' => now()->subYear()]);
+
+    if ($case === 'left unit') {
+        expect($user->isUnassignedGhost())->toBeTrue();
+    }
+
+    $html = $this->actingAs($user)->get(route('make-payment.show', ['payment_type' => 'membership']))
+        ->assertOk()
+        ->assertSee('id="id_card_included"', false)
+        ->assertDontSee('Volunteers are expected to have a Red Cross ID card')
+        ->getContent();
+
+    expect(paystackIdCardBoxChecked($html))->toBeFalse();
+})->with(['member', 'left unit']);
+
+test('a volunteer in an archived unit still gets the volunteer default', function () {
+    MembershipFee::factory()->create();
+    $user = paystackVolunteer();
+    $user->redCrossUnit->update(['is_active' => false]);
+
+    $html = $this->actingAs($user->fresh())->get(route('make-payment.show', ['payment_type' => 'membership']))->getContent();
+
+    expect(paystackIdCardBoxChecked($html))->toBeTrue();
+});
+
+test('after a failed submit the payer\'s own ID card choice is kept, not the default', function () {
+    $fee = MembershipFee::factory()->create();
+    $user = paystackVolunteer();
+
+    // A volunteer unticks the box (nothing sent for it) and the submit fails.
+    $this->actingAs($user)
+        ->from(route('make-payment.show', ['payment_type' => 'membership']))
+        ->post(route('make-payment.initiate'), ['payment_type' => 'membership'])
+        ->assertSessionHasErrors('membership_fee_id');
+
+    $html = $this->actingAs($user)->get(route('make-payment.show', ['payment_type' => 'membership']))->getContent();
+    expect(paystackIdCardBoxChecked($html))->toBeFalse();
+
+    // A supporting member ticks it and the submit fails: stays ticked.
+    $member = User::factory()->create();
+    $this->actingAs($member)
+        ->from(route('make-payment.show', ['payment_type' => 'membership']))
+        ->post(route('make-payment.initiate'), ['payment_type' => 'membership', 'id_card_included' => '1'])
+        ->assertSessionHasErrors('membership_fee_id');
+
+    $html = $this->actingAs($member)->get(route('make-payment.show', ['payment_type' => 'membership']))->getContent();
+    expect(paystackIdCardBoxChecked($html))->toBeTrue();
+});
+
+test('the NIN warning has a clear heading and a direct Add NIN link', function () {
+    MembershipFee::factory()->create();
+
+    $this->actingAs(paystackVolunteer())
+        ->get(route('make-payment.show', ['payment_type' => 'membership']))
+        ->assertSee('NIN needed to print the card')
+        ->assertSee('Your card cannot be printed without your National Identification Number (NIN).')
+        ->assertSee(route('profile.edit').'#national_id_number', false)
+        ->assertSee('Add NIN');
 });

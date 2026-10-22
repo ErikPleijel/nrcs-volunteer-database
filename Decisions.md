@@ -1967,3 +1967,42 @@ one was told to "pay directly at your branch".
 **Not changed (on purpose):** active and dormant volunteers who were never in a unit (about 7,400
 locally, mostly migrated) still get the button. People who left their unit still get the button,
 with the left-unit advice on the payment page (2026-10-09).
+
+## 2026-10-22 — ID card default: on for volunteers, off for supporting members
+
+**Problem:** NRCS wants an ID card for every volunteer, but optional for supporting members. The
+"Include ID card" box on a personal membership payment started unticked for everyone. The online
+page mentioned only the photo (not the signature or rejected images), and the staff payment form
+had no notes at all.
+
+**Decision:**
+- One rule, `App\Services\IdCardOrderAdvice`, for the online page (`/make-payment`) and the staff
+  form (`/membership-payments/create`). The box starts **ticked** for a volunteer
+  (`User::isVolunteer()`, so it follows the card that will print — a unit that was archived
+  still counts) who has no printed card, or whose card has expired, or expires within
+  `OnlinePaymentEligibility::RENEWAL_WINDOW_DAYS` (28) days. Otherwise it starts **unticked**:
+  supporting members, people who left their unit (`isUnassignedGhost()`), and volunteers whose
+  card is valid beyond 28 days. Those get the note "Your ID card is valid until …".
+- A volunteer who unticks the box gets a warning ("Volunteers are expected to have a Red Cross ID
+  card…"). It is a warning only; nothing is blocked.
+- Notes (shared partial `x-payments.id-card-advice`). Online page (payer): collect at the
+  branch; "we will use the photo and signature in your profile"; a separate line for a missing
+  or rejected photo and for a missing or rejected signature, linking to `profile.edit-photo` /
+  `profile.edit-signature`; a clearly marked "NIN needed to print the card" box with an
+  "Add NIN" button; the replacement warning for a valid card. Staff form: staff know the rules,
+  so only three one-line notes, no links: "Volunteers should have an ID card." (volunteer,
+  box unticked); "Card valid until {date}." and "Missing for the ID card: photo, signature,
+  NIN." (box ticked; only the missing items, a rejected image shown as "photo (rejected)";
+  nothing when nothing is missing). Printing rules are unchanged: photo, signature and NIN are
+  still all required.
+- The default stays ON for volunteers without a NIN (almost nobody has one yet), with the NIN box
+  shown while the box is ticked.
+- After a failed submit, the payer's own choice is kept: the online page checks
+  `old('payment_type') === 'membership'`, the staff form `old('user_id')` for the same person
+  (an unticked box sends nothing).
+- Staff form: the card facts come with `/membership-payments/user/{user}/current-membership`,
+  fetched once the person is selected (not the search results, to avoid extra queries per row).
+  That endpoint had no permission check; it now needs `add_payments` and `UserPolicy::view` (the
+  person must be in the staff member's scope), like `create()`.
+- Server side unchanged: `initiate()` and `store()` still work out the price from the fee and
+  refuse an ID card on donations, organisation and Red Cross Unit payments.

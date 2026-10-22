@@ -11,6 +11,7 @@ use App\Models\MembershipPayment;
 use App\Models\Organisation;
 use App\Models\RedCrossUnit;
 use App\Models\User;
+use App\Services\IdCardOrderAdvice;
 use App\Services\IncomeDistributionCalculator;
 use Carbon\Carbon;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -447,11 +448,16 @@ class MembershipPaymentController extends Controller
             ->latest('payment_date')
             ->first();
 
+        // ID card default and notes for the form (IdCardOrderAdvice, shared
+        // with the online page).
+        $idCard = IdCardOrderAdvice::for($user)->toArray();
+
         if (! $payment) {
-            return response()->json(null);
+            return response()->json(['id_card' => $idCard]);
         }
 
         return response()->json([
+            'id_card' => $idCard,
             'membership_fee_id' => $payment->membership_fee_id,
             'membership_fee_name' => $payment->membershipFee->name ?? null,
             'payment_date' => $payment->payment_date?->format('Y-m-d'),

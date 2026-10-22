@@ -9,6 +9,7 @@ use App\Models\MembershipPayment;
 use App\Models\PaymentTransaction;
 use App\Models\RedCrossUnit;
 use App\Services\IncomeDistributionCalculator;
+use App\Services\IdCardOrderAdvice;
 use App\Services\OnlinePaymentEligibility;
 use App\Services\PaystackService;
 use Carbon\Carbon;
@@ -118,18 +119,18 @@ class PaystackPaymentController extends Controller
         $personalFeeGroups = MembershipFee::personalFeeGroups($personalMembershipFees, $inActiveRedCrossUnit);
         $leftRedCrossUnit = $user->isUnassignedGhost();
 
-        // The optional ID card on a personal membership payment (offered to
-        // everyone initiate() accepts it from — see canOrderIdCardWithPayment()),
-        // with the notes shown when the box is ticked worked out here from the
-        // payer's own record.
+        // The ID card on a personal membership payment (offered to everyone
+        // initiate() accepts it from — see canOrderIdCardWithPayment()): its
+        // default and notes come from IdCardOrderAdvice, shared with the staff
+        // form. After a submitted membership form the payer's own choice wins
+        // (an unticked box sends nothing, hence the payment_type check).
         $idCard = null;
+        $idCardChecked = false;
         if (! $lockedOrganisation && ! $lockedRedCrossUnit && $personalMembershipFees->isNotEmpty() && $user->canOrderIdCardWithPayment()) {
-            $idCard = [
-                'branchName' => $user->branch?->name,
-                'hasPhoto' => $user->hasProfilePhoto(),
-                'hasNin' => $user->hasNationalIdNumber(),
-                'validUntil' => $user->hasValidIdCardPrinted() ? $user->latest_id_card_expiry_date : null,
-            ];
+            $idCard = IdCardOrderAdvice::for($user);
+            $idCardChecked = $request->old('payment_type') === 'membership'
+                ? (bool) $request->old('id_card_included')
+                : $idCard->defaultOn();
         }
 
         // for_organizations, for_red_cross_units and is_volunteer_fee are all plain NOT NULL
@@ -147,6 +148,7 @@ class PaystackPaymentController extends Controller
             'leftRedCrossUnit' => $leftRedCrossUnit,
             'personalMembershipBlockedReason' => $personalMembershipBlockedReason,
             'idCard' => $idCard,
+            'idCardChecked' => $idCardChecked,
             'organisationMembershipFees' => $organisationMembershipFees,
             'rcuMembershipFees' => $rcuMembershipFees,
             'lockedPaymentType' => $lockedPaymentType,

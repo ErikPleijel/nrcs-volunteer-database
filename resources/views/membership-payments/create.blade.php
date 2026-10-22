@@ -138,6 +138,10 @@
                                                 @error('id_card_included')
                                                     <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
                                                 @enderror
+
+                                                {{-- Default and notes follow the selected person (IdCardOrderAdvice
+                                                     via the current-membership JSON; see applyIdCardFacts()). --}}
+                                                <x-payments.id-card-advice id="id-card-advice" class="mt-2" audience="staff" />
                                             </div>
 
                                             <!-- Payment Date -->
@@ -553,7 +557,65 @@
         const overlapNote              = document.getElementById('payment-date-overlap-note');
         const overlapText              = document.getElementById('payment-date-overlap-text');
 
+        // ID card box and notes (x-payments.id-card-advice, audience "staff"),
+        // filled from the current-membership JSON's id_card facts. The default
+        // (IdCardOrderAdvice) is applied when a person is chosen, except right
+        // after a failed submit for that same person: their submitted choice
+        // is kept (an unticked box sends nothing, hence the user_id check).
+        const idCardAdvice = document.getElementById('id-card-advice');
+        let submittedIdCard = @json(old('user_id') !== null ? ['user_id' => (int) old('user_id'), 'checked' => (bool) old('id_card_included')] : null);
+        let idCardFacts = null;
+
+        function showIdCardNote(key, show) {
+            idCardAdvice.querySelectorAll(`[data-id-card-advice="${key}"]`)
+                .forEach(el => el.classList.toggle('hidden', !show));
+        }
+
+        // What the card still needs, e.g. ['photo (rejected)', 'NIN'].
+        function idCardMissingItems(f) {
+            const items = [];
+            if (!f.has_photo) items.push('photo');
+            else if (f.photo_rejected) items.push('photo (rejected)');
+            if (!f.has_signature) items.push('signature');
+            else if (f.signature_rejected) items.push('signature (rejected)');
+            if (!f.has_nin) items.push('NIN');
+            return items;
+        }
+
+        // One-line notes: the volunteer warning (advice only) while a
+        // volunteer's box is unticked; valid card and missing items while
+        // it is ticked.
+        function updateIdCardNotes() {
+            const f = idCardFacts;
+            const checked = idCardCheckbox.checked;
+            showIdCardNote('volunteer-off', !!(f && f.is_volunteer) && !checked);
+            showIdCardNote('valid-until', !!(f && f.valid_until_display) && checked);
+            showIdCardNote('missing', !!f && checked && idCardMissingItems(f).length > 0);
+        }
+
+        function applyIdCardFacts(facts, userId) {
+            const f = facts || null;
+            idCardFacts = f;
+
+            if (f) {
+                if (submittedIdCard && submittedIdCard.user_id === Number(userId)) {
+                    idCardCheckbox.checked = submittedIdCard.checked;
+                } else {
+                    idCardCheckbox.checked = !!f.default_on;
+                }
+                submittedIdCard = null;
+            }
+
+            idCardAdvice.querySelector('[data-id-card-slot="valid-until"]').textContent = (f && f.valid_until_display) || '';
+            idCardAdvice.querySelector('[data-id-card-slot="missing"]').textContent = f ? idCardMissingItems(f).join(', ') : '';
+
+            updateIdCardNotes();
+            updatePaymentSummary();
+        }
+
         function applyCurrentMembership(membership) {
+            applyIdCardFacts(membership ? membership.id_card : null, selectedUserId.value);
+
             // Hide panel and reset
             currentMembershipPanel.classList.add('hidden');
             currentMembershipPanel.className = currentMembershipPanel.className
@@ -692,7 +754,10 @@
             // Fetch current membership for this user
             fetch(`/membership-payments/user/${user.id}/current-membership`)
                 .then(r => r.json())
-                .then(membership => applyCurrentMembership(membership))
+                .then(membership => {
+                    // Ignore a late answer for a person no longer selected.
+                    if (String(selectedUserId.value) === String(user.id)) applyCurrentMembership(membership);
+                })
                 .catch(() => applyCurrentMembership(null));
         }
 
@@ -708,6 +773,7 @@
             currentMembershipPanel.classList.add('hidden');
             selectedFeeFacts = null;
             updateFeeAdvice();
+            applyIdCardFacts(null, null);
             overlapNote.classList.add('hidden');
             paymentDateInput.value = new Date().toISOString().split('T')[0];
         }
@@ -746,6 +812,7 @@
         membershipFeeSelect.addEventListener('change', updatePaymentSummary);
         membershipFeeSelect.addEventListener('change', updateFeeAdvice);
         idCardCheckbox.addEventListener('change', updatePaymentSummary);
+        idCardCheckbox.addEventListener('change', updateIdCardNotes);
 
         // If a user was pre-selected, populate the form right away
         if (preselectedUser) {
