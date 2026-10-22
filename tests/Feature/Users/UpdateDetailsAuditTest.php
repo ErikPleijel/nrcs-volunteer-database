@@ -3,7 +3,8 @@
 /**
  * users/edit writes one `user_details_changed` Audit Log entry per save for
  * the unit assignment, email/SMS opt-outs and contribution type: old and new
- * values of only the fields that changed, with the unit's name.
+ * values of only the fields that changed, with the unit's name. Also: a save
+ * with the same unit is not a unit change (the form posts the id as a string).
  */
 
 use App\Models\Branch;
@@ -127,6 +128,39 @@ test('a person who was both volunteer and member shows that as the old type', fu
         ->assertSessionHasNoErrors();
 
     expect(detailsLog($this->person)->old_values)->toBe(['contribution_type' => 'volunteering and member']);
+});
+
+test('saving without changing the unit keeps who assigned it and when', function () {
+    $assigner = User::factory()->create();
+    $this->person->forceFill([
+        'assigned_rcu_by_id' => $assigner->id,
+        'assigned_rcu_date' => '2020-01-15 10:00:00',
+    ])->save();
+
+    $this->actingAs($this->admin)
+        ->put(route('users.update', $this->person), detailsPayload($this->person, [
+            'red_cross_unit_id' => (string) $this->unitA->id, // as the form posts it
+        ]))
+        ->assertSessionHasNoErrors();
+
+    $this->person->refresh();
+    expect((int) $this->person->assigned_rcu_by_id)->toBe($assigner->id)
+        ->and((string) $this->person->assigned_rcu_date)->toStartWith('2020-01-15');
+});
+
+test('an unchanged unit does not count as a unit change for a pending person', function () {
+    // The promotion on a unit change (UserController::update) must not run.
+    $this->person->forceFill(['lifecycle_status' => 'pending_engagement', 'assigned_rcu_date' => null])->save();
+
+    $this->actingAs($this->admin)
+        ->put(route('users.update', $this->person), detailsPayload($this->person, [
+            'red_cross_unit_id' => (string) $this->unitA->id,
+        ]))
+        ->assertSessionHasNoErrors();
+
+    $this->person->refresh();
+    expect($this->person->lifecycle_status)->toBe('pending_engagement')
+        ->and($this->person->assigned_rcu_date)->toBeNull();
 });
 
 test('no entry when none of these fields changed', function () {

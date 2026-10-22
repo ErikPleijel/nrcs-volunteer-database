@@ -1101,8 +1101,9 @@ class UserController extends Controller
         // fields that changed (written after the save, below).
         $detailsOld = [];
         $detailsNew = [];
-        $unitIdBefore = $user->red_cross_unit_id === null ? null : (int) $user->red_cross_unit_id;
-        $unitIdAfter = ($validated['red_cross_unit_id'] ?? null) === null ? null : (int) $validated['red_cross_unit_id'];
+        // As ?int: the stored id is an int, the submitted one a string.
+        $unitIdBefore = blank($user->red_cross_unit_id) ? null : (int) $user->red_cross_unit_id;
+        $unitIdAfter = blank($validated['red_cross_unit_id'] ?? null) ? null : (int) $validated['red_cross_unit_id'];
         if ($unitIdBefore !== $unitIdAfter) {
             $detailsOld += ['red_cross_unit_id' => $unitIdBefore, 'red_cross_unit' => $user->redCrossUnit?->name];
             $detailsNew += ['red_cross_unit_id' => $unitIdAfter, 'red_cross_unit' => $unitIdAfter ? RedCrossUnit::find($unitIdAfter)?->name : null];
@@ -1137,8 +1138,8 @@ class UserController extends Controller
         // -------------------------------
         // Red Cross Unit assignment logic
         // -------------------------------
-        $oldUnitId = $user->red_cross_unit_id;
-        $newUnitId = $validated['red_cross_unit_id'] ?? null;
+        $oldUnitId = $unitIdBefore;
+        $newUnitId = $unitIdAfter;
 
         $unitChanged = ($oldUnitId !== $newUnitId);
 
