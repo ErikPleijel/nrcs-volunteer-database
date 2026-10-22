@@ -112,7 +112,7 @@ class Training extends Model
         return [
             'Training type' => $this->trainingType->name ?? '—',
             'Date' => optional($this->training_date)->format('M d, Y') ?? '—',
-            'Duration' => $this->duration ? $this->duration.' hrs' : '—',
+            'Duration' => $this->duration ? $this->formatted_duration : '—',
             'Reference' => $this->reference ?: '—',
         ];
     }

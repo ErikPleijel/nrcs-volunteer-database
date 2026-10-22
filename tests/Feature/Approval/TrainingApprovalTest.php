@@ -386,3 +386,21 @@ test('approving a non-first-aid training does not affect last_first_aid_at', fun
 
     expect($member->refresh()->last_first_aid_at)->toBeNull();
 });
+
+test('the review page shows the duration in days', function () {
+    $approver = User::factory()->inBranch($this->branchA)->create();
+    $approver->assignRole('branch_secretary');
+    $member = User::factory()->inBranch($this->branchA)->create();
+
+    $training = Training::factory()->create([
+        'user_id' => $member->id,
+        'branch_id' => $this->branchA->id,
+        'duration' => 3,
+    ]);
+
+    $this->actingAs($approver)
+        ->get(route('trainings.review', $training->id))
+        ->assertOk()
+        ->assertSee('3 days')
+        ->assertDontSee('3 hrs');
+});
