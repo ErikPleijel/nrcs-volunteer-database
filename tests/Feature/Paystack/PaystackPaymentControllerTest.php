@@ -1205,3 +1205,47 @@ test('the NIN warning has a clear heading and a direct Add NIN link', function (
         ->assertSee(route('profile.edit').'#national_id_number', false)
         ->assertSee('Add NIN');
 });
+
+test('webhook: a second delivery that passed the first check while the first was fulfilling creates nothing', function () {
+    $user = User::factory()->create();
+    $transaction = PaymentTransaction::create([
+        'user_id' => $user->id,
+        'payable_type' => 'donation',
+        'reference' => 'PSK-race',
+        'amount' => 250000,
+        'status' => 'initiated',
+        'meta' => ['payment_type' => 'donation', 'donation_purpose' => null],
+    ]);
+    $payload = ['event' => 'charge.success', 'data' => ['reference' => 'PSK-race']];
+    $verified = ['status' => true, 'data' => ['status' => 'success', 'amount' => 250000, 'reference' => 'PSK-race']];
+
+    // First delivery fulfils normally.
+    Http::fake(['api.paystack.co/transaction/verify/*' => Http::response($verified, 200)]);
+    $this->postJson('/webhooks/paystack', $payload, paystackWebhookHeaders($payload))
+        ->assertJson(['status' => 'processed']);
+
+    // Second delivery read the transaction while it was still 'initiated'
+    // (before the first committed): replay that by putting the status back
+    // for its unlocked check and letting the first delivery's commit land
+    // during the Paystack verify call.
+    $transaction->refresh()->forceFill(['status' => 'initiated'])->save();
+    Http::fake(['api.paystack.co/transaction/verify/*' => function () use ($transaction, $verified) {
+        $transaction->forceFill(['status' => 'success'])->save();
+
+        return Http::response($verified, 200);
+    }]);
+
+    $this->postJson('/webhooks/paystack', $payload, paystackWebhookHeaders($payload))
+        ->assertOk()
+        ->assertJson(['status' => 'already processed']);
+
+    expect(Donation::withAnyApprovalStatus()->count())->toBe(1)
+        ->and(\Illuminate\Support\Facades\DB::table('notifications')->count())->toBe(0)
+        ->and(\App\Models\Log::count())->toBe(0);
+
+    // The payer's return page still shows the normal success state.
+    $this->actingAs($user)
+        ->get(route('make-payment.callback', ['reference' => 'PSK-race']))
+        ->assertOk()
+        ->assertSee('Payment received');
+});

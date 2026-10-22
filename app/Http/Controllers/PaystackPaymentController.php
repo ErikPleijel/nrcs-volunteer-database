@@ -416,7 +416,16 @@ class PaystackPaymentController extends Controller
             $verifiedAmount = (int) ($verified['data']['amount'] ?? 0);
 
             if ($verifiedStatus === 'success' && $verifiedAmount === (int) $transaction->amount) {
-                DB::transaction(function () use ($transaction, $verified) {
+                $fulfilled = DB::transaction(function () use ($transaction, $verified) {
+                    // The status check above is unlocked: two deliveries of the
+                    // same event can both get here. Re-check on the locked row so
+                    // only the first creates the payment; the second does nothing.
+                    $locked = PaymentTransaction::whereKey($transaction->id)->lockForUpdate()->first();
+                    if ($locked->status === 'success') {
+                        return false;
+                    }
+                    $transaction->setRawAttributes($locked->getAttributes(), true);
+
                     $meta = $transaction->meta ?? [];
 
                     // Personal payment: scope to the payer's own branch/division.
@@ -507,9 +516,11 @@ class PaystackPaymentController extends Controller
                         'membership_payment_id' => $record instanceof MembershipPayment ? $record->id : null,
                         'raw_payload' => $verified,
                     ])->save();
+
+                    return true;
                 });
 
-                return response()->json(['status' => 'processed'], 200);
+                return response()->json(['status' => $fulfilled ? 'processed' : 'already processed'], 200);
             }
 
             // Either Paystack itself says the charge didn't succeed, or the

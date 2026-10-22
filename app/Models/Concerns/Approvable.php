@@ -296,11 +296,14 @@ trait Approvable
      */
     public function markApprovedViaGateway(string $channel = 'paystack'): bool
     {
-        if (! $this->isPendingApproval()) {
-            return false;
-        }
+        // Status is checked on the locked row, so two webhook deliveries at
+        // the same moment approve once; the second is a quiet no-op.
+        return DB::transaction(function () {
+            $this->lockForDecision();
+            if (! $this->isPendingApproval()) {
+                return false;
+            }
 
-        DB::transaction(function () {
             $this->forceFill([
                 'approval_status' => self::APPROVED,
                 'decided_at' => now(),
@@ -329,9 +332,9 @@ trait Approvable
             }
 
             $this->afterApproved($member);
-        });
 
-        return true;
+            return true;
+        });
     }
 
     /**

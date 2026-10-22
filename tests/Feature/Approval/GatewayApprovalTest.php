@@ -105,3 +105,25 @@ test('markApprovedViaGateway does NOT promote a pending_engagement member for a 
     // recalculateLifecycle() itself no-ops for a non-active member.
     expect($member->refresh()->lifecycle_status)->toBe('pending_engagement');
 });
+
+test('markApprovedViaGateway on a stale copy approves once: the second call re-reads the row and does nothing', function () {
+    $member = User::factory()->create();
+    $donation = Donation::factory()->create([
+        'user_id' => $member->id,
+        'entered_by_user_id' => $member->id,
+    ]);
+
+    // Two deliveries each loaded the record while it was still pending.
+    $first = Donation::withAnyApprovalStatus()->find($donation->id);
+    $second = Donation::withAnyApprovalStatus()->find($donation->id);
+
+    expect($first->markApprovedViaGateway())->toBeTrue();
+    $decidedAt = Donation::withAnyApprovalStatus()->find($donation->id)->decided_at;
+
+    $this->travel(5)->minutes();
+    expect($second->markApprovedViaGateway())->toBeFalse();
+
+    $fresh = Donation::withAnyApprovalStatus()->find($donation->id);
+    expect($fresh->approval_status)->toBe(Donation::APPROVED)
+        ->and($fresh->decided_at->equalTo($decidedAt))->toBeTrue();
+});
