@@ -345,7 +345,7 @@ class IdCardController extends Controller
             'qr_image' => 'data:image/svg+xml;base64,'.base64_encode(QrCode::format('svg')->size(200)->generate($verificationUrl)),
             'img_bg' => asset('images/id-card/IDbackground.JPG'),
             'img_logo' => asset('images/id-card/NRCS_logo.jpg'),
-            'img_sg_signature' => asset('images/id-card/sg-signature.png'),
+            'img_sg_signature' => IdSignatureController::signatureUrl(),
             'hq_address' => Setting::get('site.hq_address', 'National Headquarters Plot 589 T.O.S Benson Crescent Off Ngozi Okonjo Iweala, Utako District, Abuja.'),
         ];
 
@@ -417,7 +417,7 @@ class IdCardController extends Controller
                 'qr_image' => 'data:image/svg+xml;base64,'.base64_encode(QrCode::format('svg')->size(200)->generate($verificationUrl)),
                 'img_bg' => asset('images/id-card/IDbackground.JPG'),
                 'img_logo' => asset('images/id-card/NRCS_logo.jpg'),
-                'img_sg_signature' => asset('images/id-card/sg-signature.png'),
+                'img_sg_signature' => IdSignatureController::signatureUrl(),
                 'hq_address' => Setting::get('site.hq_address', 'National Headquarters Plot 589 T.O.S Benson Crescent Off Ngozi Okonjo Iweala, Utako District, Abuja.'),
             ];
         }

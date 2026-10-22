@@ -146,6 +146,14 @@ For DB-273857: since it holds a finance role and would be the one archived, don'
   (664, not 775, so git sees no mode change): `public/images/signatures`,
   `public/images/id-card`, `public/photos`. The VPS `deploy.sh` re-applies this after every
   deploy, because its git steps run as root.
+- [ ] **Upload the real signatures through the app after deploy.** They are NOT in git
+  (since 2026-10-22), so a new server has none:
+  - Settings → ID card signature: the Secretary General's signature (`sg-signature.png`).
+    Until then ID cards print the placeholder `sg-signature-placeholder.png`.
+  - Settings → Certificate signatures: the signature PNGs offered when printing
+    certificates. Until then only "line only" is available.
+  - Moving servers: copy `public/images/id-card/sg-signature.png` and
+    `public/images/signatures/*.png` across instead of re-uploading.
 - [ ] Run Laravel schema migrations: `php artisan migrate`
 - [ ] Copy the .env used on dev.itacenmu.org (or use .env.example)  Remember: php artisan config:cache
 

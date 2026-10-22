@@ -23,7 +23,9 @@
                 <img src="{{ $signatureUrl }}" alt="SG Signature"
                      style="max-height:80px; background: repeating-conic-gradient(#e5e7eb 0% 25%, white 0% 50%) 0 0 / 12px 12px;">
             @else
-                <p class="text-sm text-gray-500">No signature uploaded yet.</p>
+                <p class="text-sm text-gray-500 mb-2">No signature uploaded yet. ID cards use this placeholder until you upload the real signature:</p>
+                <img src="{{ $placeholderUrl }}" alt="Placeholder signature"
+                     style="max-height:80px; background: repeating-conic-gradient(#e5e7eb 0% 25%, white 0% 50%) 0 0 / 12px 12px;">
             @endif
         </div>
 

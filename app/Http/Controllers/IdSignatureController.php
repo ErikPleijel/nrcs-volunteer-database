@@ -7,12 +7,26 @@ use Illuminate\Http\Request;
 
 class IdSignatureController extends Controller
 {
+    // The uploaded file is not in git (.gitignore), so a deploy never overwrites
+    // it. Until one is uploaded, ID cards use the placeholder, which is in git.
+    public const FILENAME = 'sg-signature.png';
+
+    public const PLACEHOLDER = 'sg-signature-placeholder.png';
+
     private string $path;
-    private string $filename = 'sg-signature.png';
+    private string $filename = self::FILENAME;
 
     public function __construct()
     {
         $this->path = public_path('images/id-card');
+    }
+
+    /** URL of the SG signature for ID cards: the uploaded one, else the placeholder. */
+    public static function signatureUrl(): string
+    {
+        $name = file_exists(public_path('images/id-card/'.self::FILENAME)) ? self::FILENAME : self::PLACEHOLDER;
+
+        return asset('images/id-card/'.$name);
     }
 
     public function index()
@@ -24,6 +38,8 @@ class IdSignatureController extends Controller
 
         if ($signatureExists) {
             $data['signatureUrl'] = asset('images/id-card/' . $this->filename) . '?v=' . time();
+        } else {
+            $data['placeholderUrl'] = asset('images/id-card/'.self::PLACEHOLDER);
         }
 
         return view('settings.id-signature', $data);
