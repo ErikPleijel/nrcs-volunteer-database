@@ -90,6 +90,8 @@ then uploaded to the new server (DEPLOYMENT_CHECKLIST.md, "Upload DB to VPS").
 8. Photos (check the file first and run a small batch to test; this needs
    some prep, it has never been tested on the NRCS VPS):
    --> php artisan images:migrate
+   On the live switch: copy the files from one.com first and compare the file
+   counts; see "Copy the old photos and signatures" in DEPLOYMENT_CHECKLIST.md.
    --> Close the old nrcs database picture and signature folders from public access!
    (ndpa:encrypt-national-ids is NOT needed: the old DB holds no NINs.)
 

@@ -229,6 +229,25 @@ Skip after a fresh import. Details: docs/migration.md, section C.
 
 
 
+## Copy the old photos and signatures (BEFORE switching the domain)
+After the switch, nrcsvdb.org points at the new app, so the old files can no longer
+be fetched from there. The app never fetches them on a server anyway (missing files
+show the placeholder), so every file must be copied across first.
+- [ ] In the one.com file manager, find the old system's `images/pictures/` folder
+  (under `nrcs/database/`; it holds both photos and signatures) and note its file count.
+- [ ] Download it and upload it to the new VPS, outside `public/`, keeping the
+  `images/pictures/` part, e.g. `/var/www/legacy-images/images/pictures/`.
+- [ ] Compare the file counts on both sides; they must be equal:
+  `find /var/www/legacy-images/images/pictures -type f | wc -l`
+- [ ] `php artisan images:migrate --source=/var/www/legacy-images --limit=20 --dry-run`,
+  then `--limit=20` for real, check a few profiles, then the full run without `--limit`.
+  (`--source` is the folder that CONTAINS `images/`: the database stores
+  `images/pictures/<file>` and the command adds that to the source.)
+- [ ] Check the command's report: every user with a picture or signature migrated,
+  or listed as a failure to look at.
+- [ ] Keep `/var/www/legacy-images` until the photos have been checked on the live
+  site, then delete it (it holds personal photos).
+
 ## Point the domain at the new Laravel app
 - [ ] Update the web server's virtual host / site config so the domain's
   document root points at the new Laravel app's `public/` folder
