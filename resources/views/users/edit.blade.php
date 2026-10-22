@@ -187,8 +187,9 @@
                             // Self-managed account: these are shown as text, not submitted (UserController::update refuses them).
                             $locked = fn (string $field) => in_array($field, $lockedFields, true);
                             // Notes next to the fields staff may still change (UserController::update audits them
-                            // and emails a self-managed person about login-detail changes).
-                            $contactNote = ! $user->isSelfManaged() ? null
+                            // all, and email a self-managed person about an email or password change, not phones).
+                            $phoneNote = $user->isSelfManaged() ? 'Changes here are recorded in the Audit Log.' : null;
+                            $loginNote = ! $user->isSelfManaged() ? null
                                 : ($user->email
                                     ? 'Changes here are recorded in the Audit Log, and the person will be notified by email.'
                                     : 'Changes here are recorded in the Audit Log.');
@@ -302,7 +303,7 @@
                                     @error('email')
                                     <p class="form-error">{{ $message }}</p>
                                     @enderror
-                                    @include('users.partials.audit-note', ['note' => $contactNote])
+                                    @include('users.partials.audit-note', ['note' => $loginNote])
                                 </div>
 
                                 <!-- Gender -->
@@ -385,7 +386,7 @@
                                     @error('telephone1')
                                     <p class="form-error">{{ $message }}</p>
                                     @enderror
-                                    @include('users.partials.audit-note', ['note' => $contactNote])
+                                    @include('users.partials.audit-note', ['note' => $phoneNote])
                                 </div>
 
                                 <!-- Telephone 2 -->
@@ -401,7 +402,7 @@
                                     @error('telephone2')
                                     <p class="form-error">{{ $message }}</p>
                                     @enderror
-                                    @include('users.partials.audit-note', ['note' => $contactNote])
+                                    @include('users.partials.audit-note', ['note' => $phoneNote])
                                 </div>
                             </div>
 
@@ -691,7 +692,7 @@
                                     </div>
                                 </div>
                                 <p class="form-hint"><strong>Leave blank</strong> if you don't want to change the password.</p>
-                                @include('users.partials.audit-note', ['note' => $contactNote])
+                                @include('users.partials.audit-note', ['note' => $loginNote])
 
                             @else
                                 <div class="mb-4 rounded-lg bg-blue-50 border-l-4 border-blue-400 p-5 text-base text-blue-900">

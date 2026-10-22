@@ -2031,3 +2031,22 @@ had no notes at all.
   at events. Both are generous because many Nigerian mobile users share one carrier IP (NAT).
 - Organisations and Red Cross Units: no change. Organisation representatives get email only, and
   opt-out links are only added for `User` recipients; units never receive campaign messages.
+
+## 2026-10-22 — users/edit: phone changes no longer email the person
+
+- When staff edit a self-managed account on users/edit, `AccountDetailsChanged` is now sent only
+  for changes that matter for account security:
+  - **Email address changed:** sent to the old address, so a wrong or hostile change is noticed
+    (the person would otherwise lose password reset without knowing). Sent to the new address only
+    when there was no old one.
+  - **Password set by staff:** sent to the current address.
+- Phone changes (`telephone1`, `telephone2`) no longer send a notice. They are routine help with
+  logging in, and the email added noise. If a phone and the email change in the same save, the
+  notice lists only the email.
+- The Audit Log is the record for all of these: `user_contact_changed` (old and new values of the
+  email and phones that changed, for every user) and `user_password_set_by_staff` (no values).
+- users/edit notes: next to the phones, "Changes here are recorded in the Audit Log."; next to
+  email and password, "…and the person will be notified by email." (Audit Log only when there is
+  no email on file).
+- Unchanged: the verification email to a new address, and no notice at all for accounts that are
+  not yet self-managed.

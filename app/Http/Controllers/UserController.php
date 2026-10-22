@@ -1083,8 +1083,9 @@ class UserController extends Controller
             $validated['title'] = $request->input('title');
         }
 
-        // Login details staff may always change — logged in the Audit Log, and
-        // a self-managed person is told by email (after the save, below).
+        // Login details staff may always change — logged in the Audit Log. A
+        // self-managed person is told by email of an email or password change
+        // (after the save, below); phone changes are only logged.
         $contactOld = [];
         $contactNew = [];
         foreach (['email', 'telephone1', 'telephone2'] as $field) {
@@ -1335,7 +1336,7 @@ class UserController extends Controller
         }
 
         $noticeSentTo = null;
-        if ($user->isSelfManaged() && ($contactNew || $passwordSet)) {
+        if ($user->isSelfManaged() && (array_key_exists('email', $contactNew) || $passwordSet)) {
             $noticeSentTo = $this->notifyAccountDetailsChanged($user, $contactOld, $contactNew, $passwordSet);
         }
 
@@ -1359,10 +1360,11 @@ class UserController extends Controller
     }
 
     /**
-     * Email a self-managed person that staff changed their login details:
-     * to the old address when the email changed (so a wrong change is
-     * noticed), otherwise to the current one. No email on file → nothing sent;
-     * SMS notices wait for live SMS delivery. A mail failure is only logged.
+     * Email a self-managed person that staff changed their email address or
+     * set a password: to the old address when the email changed (so a wrong
+     * change is noticed), otherwise to the current one. Phone changes are only
+     * in the Audit Log. No email on file → nothing sent. A mail failure is
+     * only logged.
      * Returns the address the notice went to, or null if none was sent.
      */
     private function notifyAccountDetailsChanged(User $user, array $contactOld, array $contactNew, bool $passwordSet): ?string
@@ -1372,12 +1374,11 @@ class UserController extends Controller
             return null;
         }
 
-        $labels = ['email' => 'Email address', 'telephone1' => 'Primary phone', 'telephone2' => 'Secondary phone'];
         $changes = [];
-        foreach ($contactNew as $field => $value) {
-            $changes[] = blank($value)
-                ? "{$labels[$field]} removed"
-                : "{$labels[$field]} changed to {$value}";
+        if (array_key_exists('email', $contactNew)) {
+            $changes[] = blank($contactNew['email'])
+                ? 'Email address removed'
+                : "Email address changed to {$contactNew['email']}";
         }
         if ($passwordSet) {
             $changes[] = 'A new password was set';

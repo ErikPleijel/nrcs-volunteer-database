@@ -5,14 +5,15 @@ namespace App\Notifications;
 use Illuminate\Notifications\Notification;
 
 /**
- * Tells a self-managed person that staff changed their login details on
- * users/edit (email, phone numbers, password). Sent to $to — the old email
- * address when that is what changed, so a hijacked address is noticed.
+ * Tells a self-managed person that staff changed their email address or set
+ * a password on users/edit (phone changes are only in the Audit Log). Sent to
+ * $to — the old email address when that is what changed, so a hijacked
+ * address is noticed.
  */
 class AccountDetailsChanged extends Notification
 {
     /**
-     * @param  string[]  $changes  One line per change, e.g. "Email address changed to x@y.com".
+     * @param  string[]  $changes  One line per change, "Email address changed to x@y.com" or "A new password was set".
      */
     public function __construct(
         public readonly string $to,

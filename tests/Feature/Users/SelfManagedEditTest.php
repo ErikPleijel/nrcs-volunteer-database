@@ -3,7 +3,8 @@
 /**
  * users/edit on a self-managed account (the person has logged in or
  * registered themselves): staff can change login details (email, phones,
- * password — audited, with a notice to the person) and organisational fields,
+ * password — all audited; an email or password change also emails the
+ * person) and organisational fields,
  * but not personal details. A national DB administrator may still correct
  * name, gender and birth year, with a reason in the Audit Log.
  */
@@ -228,7 +229,7 @@ test('a national admin save without corrections needs no reason', function () {
     expect(AuditLog::where('action', 'personal_details_corrected')->exists())->toBeFalse();
 });
 
-test('staff can change email and phone; it is logged and the old address is told', function () {
+test('staff can change email and phone; both are logged and the old address is told of the email only', function () {
     Notification::fake();
 
     $this->actingAs($this->branchAdmin)
@@ -248,8 +249,19 @@ test('staff can change email and phone; it is logged and the old address is told
 
     Notification::assertSentTo($this->person, AccountDetailsChanged::class,
         fn (AccountDetailsChanged $n) => $n->to === 'ada@example.com'
-            && in_array('Email address changed to ada.new@example.com', $n->changes, true)
-            && in_array('Primary phone changed to 08039999999', $n->changes, true));
+            && $n->changes === ['Email address changed to ada.new@example.com']);
+});
+
+test('an email added where there was none notifies the new address', function () {
+    Notification::fake();
+    $this->person->forceFill(['email' => null])->save();
+
+    $this->actingAs($this->branchAdmin)
+        ->put(route('users.update', $this->person), selfManagedPayload($this->person, ['email' => 'ada.new@example.com']))
+        ->assertSessionHasNoErrors();
+
+    Notification::assertSentTo($this->person, AccountDetailsChanged::class,
+        fn (AccountDetailsChanged $n) => $n->to === 'ada.new@example.com');
 });
 
 test('the success message names the masked address the notice went to', function () {
@@ -272,6 +284,7 @@ test('staff see the audit notes next to the login and correction fields', functi
     $this->actingAs($this->branchAdmin)
         ->get(route('users.edit', $this->person))
         ->assertSee('Changes here are recorded in the Audit Log, and the person will be notified by email.')
+        ->assertSee('Changes here are recorded in the Audit Log.')
         ->assertDontSee('Corrections need a reason and are recorded in the Audit Log.');
 
     $this->actingAs($this->national)
@@ -297,15 +310,19 @@ test('no audit notes on a not yet self-managed account', function () {
         ->assertDontSee('Corrections need a reason');
 });
 
-test('a phone change alone notifies the current email', function () {
+test('a phone change alone sends no notice but is logged', function () {
     Notification::fake();
 
     $this->actingAs($this->branchAdmin)
         ->put(route('users.update', $this->person), selfManagedPayload($this->person, ['telephone1' => '08039999999']))
-        ->assertSessionHasNoErrors();
+        ->assertSessionHasNoErrors()
+        ->assertSessionHas('success', 'User updated successfully.');
 
-    Notification::assertSentTo($this->person, AccountDetailsChanged::class,
-        fn (AccountDetailsChanged $n) => $n->to === 'ada@example.com');
+    Notification::assertNotSentTo($this->person, AccountDetailsChanged::class);
+
+    $log = AuditLog::where('action', 'user_contact_changed')->where('subject_id', $this->person->id)->sole();
+    expect($log->old_values)->toBe(['telephone1' => '08031234567'])
+        ->and($log->new_values)->toBe(['telephone1' => '08039999999']);
 });
 
 test('a password set by staff is logged without the value and the person is told', function () {
@@ -322,7 +339,8 @@ test('a password set by staff is logged without the value and the person is told
     expect($log->new_values)->toBeNull();
 
     Notification::assertSentTo($this->person, AccountDetailsChanged::class,
-        fn (AccountDetailsChanged $n) => $n->changes === ['A new password was set']);
+        fn (AccountDetailsChanged $n) => $n->to === 'ada@example.com'
+            && $n->changes === ['A new password was set']);
 });
 
 test('no notice for a not yet self-managed account, but the change is logged', function () {
