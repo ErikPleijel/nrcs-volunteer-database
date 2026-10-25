@@ -2402,3 +2402,17 @@ of the logged-in person (participant or facilitator, course planned and not ende
 are registered for First Aid Basic, 1 – 3 Dec 2026, at Ikeja branch office." ("as facilitator"
 when relevant). Each line links to the "Your upcoming courses" card further down. Hidden when
 there are none. Covered by `CourseUpcomingTest`.
+
+## 2026-10-25 — Volunteer skills parked; task forces used instead
+
+**Decision:** the volunteer skills feature (steps 9–14 of the 2026-10-23 plan, branch
+`feature/skills`) is parked and not built. The "Skills (later)" decisions under 2026-10-23 stay
+as a record but are not in force.
+
+**Instead:** people with a particular capacity are organised in **task forces** (for example
+"Water Supply – Pool" or the ERUs), each with a team leader who knows the members and can judge
+who is ready to deploy.
+
+**Why:** a skills filter gives long lists of names with no measure of quality: it shows who once
+took a training or ticked a skill, not who is actually able and available. A task force with a
+team leader who knows its members gives a short, vetted list.
