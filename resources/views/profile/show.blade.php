@@ -159,6 +159,21 @@
                             <p class="text-base text-gray-700 italic text-center leading-relaxed mt-2"><strong>Humanity</strong> · <strong>Impartiality</strong> · <strong>Neutrality</strong> · <strong>Independence</strong> · <strong>Voluntary Service</strong> · <strong>Unity</strong> · <strong>Universality</strong></p>
                         </div>
 
+                        {{-- Upcoming courses, one line each; the card further down has the details --}}
+                        @if($upcomingCourses->isNotEmpty())
+                            <div class="mt-4 rounded-lg border border-purple-200 bg-purple-50 px-4 py-3 text-purple-900">
+                                @foreach($upcomingCourses as $entry)
+                                    <a href="#upcoming-courses" class="flex items-start gap-2 text-sm hover:underline {{ $loop->first ? '' : 'mt-1' }}">
+                                        <i class="fas fa-chalkboard-user mt-0.5 text-purple-600"></i>
+                                        <span>
+                                            You are registered for <strong>{{ $entry->course->name }}</strong>{{ $entry->isFacilitator() ? ' as facilitator' : '' }},
+                                            {{ $entry->course->date_range }}{{ $entry->course->place ? ', at '.$entry->course->place : '' }}.
+                                        </span>
+                                    </a>
+                                @endforeach
+                            </div>
+                        @endif
+
                         @if($user->needsPictureReupload())
                             @php $photoReason = \App\Support\ImageRejection::describe($user, 'photo'); @endphp
                             <div class="mt-4 flex justify-center">
@@ -860,7 +875,7 @@
 
                     {{-- Upcoming courses (participant or facilitator) --}}
                     @if($upcomingCourses->isNotEmpty())
-                        <div class="bg-white rounded-lg shadow-lg p-6">
+                        <div id="upcoming-courses" class="bg-white rounded-lg shadow-lg p-6 scroll-mt-4">
                             <div class="flex items-center mb-4">
                                 <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mr-4">
                                     <i class="fas fa-chalkboard-user text-purple-600 text-xl"></i>

@@ -2376,3 +2376,29 @@ Mark as printed.
 
 **Why:** this restores the certificates page's original rule, which the 2026-10-23 server check
 had widened to attendance certificates. Covered by `CertificatePrintScopeTest` and `CertificateCourseFilterTest`.
+
+## 2026-10-25 — Division staff change course people only on their own division's course
+
+**Before:** division staff with `manage_course_participants` (division assistants, finance and
+operations) could add and remove people from their own division on any course they could see,
+and record results on any branch course of their branch.
+
+**Decision:** division staff add and remove participants and facilitators, and record results,
+**only on a course organised for their own division** (the course's `division_id` is theirs).
+On branch-level courses (no division) and national courses they see the participants and results
+read-only. Instead of the "Add people" search the course page then says "Participants are added
+and removed by the branch." or "... by national HQ.". Their area rule is unchanged: on their own
+division's course they still add only people from their division.
+
+**How:** `Course::allowsPeopleChangesBy()` is checked by the course page, the person search,
+adding, removing (`CourseParticipantController`) and `Course::canRecordResults()`; a request
+outside it is refused (403). Branch and national staff are not affected. Covered by
+`CourseParticipantTest` and `CourseResultTest`.
+
+## 2026-10-25 — My Profile: notice for upcoming courses
+
+Directly under the seven fundamental principles, My Profile shows one line per upcoming course
+of the logged-in person (participant or facilitator, course planned and not ended), e.g. "You
+are registered for First Aid Basic, 1 – 3 Dec 2026, at Ikeja branch office." ("as facilitator"
+when relevant). Each line links to the "Your upcoming courses" card further down. Hidden when
+there are none. Covered by `CourseUpcomingTest`.

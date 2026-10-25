@@ -130,5 +130,35 @@ it('hides the section on My Profile when there are no upcoming courses', functio
 
     $this->actingAs($person)->get(route('profile.show'))
         ->assertOk()
-        ->assertDontSee('YOUR UPCOMING COURSES');
+        ->assertDontSee('YOUR UPCOMING COURSES')
+        ->assertDontSee('You are registered for')
+        ->assertDontSee('href="#upcoming-courses"', false);
+});
+
+it('shows a notice per upcoming course under the seven principles on My Profile', function () {
+    $person = User::factory()->inDivision($this->divisionA1)->create();
+    $participating = upcomingCourse('First Aid Basic', [
+        'start_date' => today()->addDays(3), 'end_date' => today()->addDays(5), 'place' => 'Ikeja branch office',
+    ]);
+    $facilitating = upcomingCourse('Disaster Response', ['start_date' => today()->addDays(20), 'end_date' => today()->addDays(20), 'place' => null]);
+    $past = upcomingCourse('Past course', ['start_date' => today()->subDays(5), 'end_date' => today()->subDays(4)]);
+
+    $participating->courseParticipants()->create(['user_id' => $person->id]);
+    $facilitating->courseParticipants()->create(['user_id' => $person->id, 'role' => CourseParticipant::ROLE_FACILITATOR]);
+    $past->courseParticipants()->create(['user_id' => $person->id]);
+
+    $response = $this->actingAs($person)->get(route('profile.show'))->assertOk();
+
+    $response->assertSeeInOrder([
+        '<strong>Universality</strong>',
+        'href="#upcoming-courses"',
+        'You are registered for <strong>First Aid Basic</strong>,',
+        e($participating->date_range).', at Ikeja branch office.',
+        'You are registered for <strong>Disaster Response</strong> as facilitator,',
+        e($facilitating->date_range).'.',
+        'id="upcoming-courses"',
+    ], false);
+
+    $response->assertDontSee('You are registered for <strong>Past course</strong>', false);
+    expect(substr_count($response->getContent(), 'You are registered for'))->toBe(2);
 });
