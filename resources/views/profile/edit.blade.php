@@ -325,12 +325,13 @@
                             $locationLocked = $isRedCrossUnitMember || $hasScopedRole;
                         @endphp
 
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4" @if($locationLocked) x-data="branchDivisionHelpNudge()" @endif>
                                 <!-- Branch Dropdown -->
                             <div>
                                 <label for="branch_id" class="block text-sm font-medium text-gray-700 mb-2">
                                     Branch @unless($isRedCrossUnitMember)<span class="text-red-500">*</span>@endunless
                                 </label>
+                                <div class="relative">
                                 <select id="branch_id" name="branch_id" required
                                         class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 @error('branch_id') border-red-500 @enderror"
                                         @if($locationLocked) disabled @endif>
@@ -341,6 +342,12 @@
                                         </option>
                                     @endforeach
                                 </select>
+                                @if($locationLocked)
+                                    {{-- A disabled select fires no click: this layer catches the click or tap and points to the help button. --}}
+                                    <div class="absolute inset-0 cursor-not-allowed" data-location-locked-overlay @click="nudgeHelp()"
+                                         title="Why can't I change my Branch or Division?"></div>
+                                @endif
+                                </div>
                                 @if($locationLocked)
                                     <input type="hidden" name="branch_id" value="{{ old('branch_id', $user->branch_id) }}">
                                 @endif
@@ -354,6 +361,7 @@
                                 <label for="division_id" class="block text-sm font-medium text-gray-700 mb-2">
                                     Division @unless($isRedCrossUnitMember)<span class="text-red-500">*</span>@endunless
                                 </label>
+                                <div class="relative">
                                 <select id="division_id" name="division_id" required
                                         data-selected-division="{{ old('division_id', $user->division_id) }}"
                                         class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 @error('division_id') border-red-500 @enderror"
@@ -361,6 +369,12 @@
                                     <option value="">Select Division</option>
                                     {{-- Options will be loaded dynamically by JavaScript --}}
                                 </select>
+                                @if($locationLocked)
+                                    {{-- A disabled select fires no click: this layer catches the click or tap and points to the help button. --}}
+                                    <div class="absolute inset-0 cursor-not-allowed" data-location-locked-overlay @click="nudgeHelp()"
+                                         title="Why can't I change my Branch or Division?"></div>
+                                @endif
+                                </div>
                                 @if($locationLocked)
                                     <input type="hidden" name="division_id" value="{{ old('division_id', $user->division_id) }}">
                                 @endif
@@ -370,12 +384,12 @@
                             </div>
 
                             @if($isRedCrossUnitMember || $hasScopedRole)
-                                <button type="button" id="branchDivisionHelpRevealBtn"
+                                <button type="button" id="branchDivisionHelpRevealBtn" x-ref="helpButton"
                                         class="md:col-span-2 mt-2 inline-flex items-center px-3 py-1.5 rounded-md border border-gray-300 text-sm text-gray-600 hover:text-blue-600 hover:border-blue-300 focus:outline-none w-fit">
                                     <i class="fas fa-circle-question mr-2"></i>Why can't I change my Branch or Division?
                                 </button>
 
-                                <div id="branchDivisionHelp" class="md:col-span-2 hidden mt-2 space-y-2">
+                                <div id="branchDivisionHelp" x-ref="helpText" class="md:col-span-2 hidden mt-2 space-y-2 rounded-md">
                                     @if($isRedCrossUnitMember)
                                         <div class="rounded-md bg-amber-50 border border-amber-200 px-3 py-2 text-sm text-amber-800">
                                             <i class="fas fa-triangle-exclamation mr-1 text-amber-500"></i>
@@ -621,6 +635,29 @@
         })();
     </script>
     <script>
+        // Locked Branch/Division: a click or tap on either field makes the help button stand out
+        // (or the help text, once it is open): highlighted, pulsing for a few seconds, scrolled into view.
+        window.branchDivisionHelpNudge = function () {
+            const highlight = ['ring-4', 'ring-amber-400', 'ring-offset-2', 'bg-amber-50', 'text-amber-800', 'animate-pulse'];
+
+            return {
+                timer: null,
+
+                nudgeHelp() {
+                    const button = this.$refs.helpButton;
+                    const target = button && !button.classList.contains('hidden') ? button : this.$refs.helpText;
+                    if (!target) return;
+
+                    clearTimeout(this.timer);
+                    [this.$refs.helpButton, this.$refs.helpText].forEach(el => el?.classList.remove(...highlight));
+                    target.classList.add(...highlight);
+                    target.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+                    this.timer = setTimeout(() => target.classList.remove(...highlight), 3000);
+                },
+            };
+        };
+
         (function () {
             const revealBtn = document.getElementById('branchDivisionHelpRevealBtn');
             const section = document.getElementById('branchDivisionHelp');
