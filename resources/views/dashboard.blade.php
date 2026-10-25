@@ -103,7 +103,11 @@
                         </ul>
                     @endif
                     <div class="mt-3 text-center">
-                        <a href="{{ route('courses.index') }}" class="text-sm text-blue-600 hover:underline">All courses</a>
+                        @if($moreUpcomingCourses)
+                            <a href="{{ route('courses.index', ['status' => 'upcoming']) }}" class="text-sm font-medium text-blue-600 hover:underline">View all courses</a>
+                        @else
+                            <a href="{{ route('courses.index') }}" class="text-sm text-blue-600 hover:underline">All courses</a>
+                        @endif
                     </div>
                 </div>
             </section>

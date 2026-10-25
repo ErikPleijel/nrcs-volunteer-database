@@ -82,6 +82,27 @@ it('lists upcoming courses in the viewer\'s area on the dashboard', function () 
         ->assertDontSee('Cancelled course');
 });
 
+it('shows 10 upcoming courses and a "View all courses" link when there are more', function () {
+    foreach (range(1, 10) as $i) {
+        upcomingCourse("Course {$i}", ['start_date' => today()->addDays($i), 'end_date' => today()->addDays($i)]);
+    }
+
+    $link = 'href="'.route('courses.index', ['status' => 'upcoming']).'"';
+
+    $response = $this->actingAs($this->branchAdmin)->get(route('reports.dashboard'))->assertOk();
+    expect($response->viewData('upcomingCourses'))->toHaveCount(10);
+    $response->assertDontSee('View all courses')->assertDontSee($link, false)->assertSee('All courses');
+
+    upcomingCourse('Course 11', ['start_date' => today()->addDays(11), 'end_date' => today()->addDays(11)]);
+
+    $response = $this->actingAs($this->branchAdmin)->get(route('reports.dashboard'))->assertOk();
+    expect($response->viewData('upcomingCourses'))->toHaveCount(10);
+    $response->assertSee('View all courses')
+        ->assertSee($link, false)
+        ->assertSee('Course 10')
+        ->assertDontSee('Course 11');
+});
+
 it('is not cached: a new course shows on the next visit', function () {
     $this->actingAs($this->branchAdmin)->get(route('reports.dashboard'))->assertSee('No upcoming courses in your area.');
 

@@ -104,7 +104,8 @@ class DashboardController extends Controller
         $dashboardGeneratedAt = $cached['generated_at'];
 
         // Upcoming courses in the viewer's own area (Course::visibleTo), not
-        // the selected branch, and outside the hourly cache.
+        // the selected branch, and outside the hourly cache. One more than
+        // shown tells whether to link to the full list.
         $upcomingCourses = $user->can('view_courses')
             ? Course::query()
                 ->visibleTo($user)
@@ -112,11 +113,13 @@ class DashboardController extends Controller
                 ->with(['trainingType:id,name', 'branch:id,name', 'division:id,name'])
                 ->withCount(['courseParticipants as participants_count' => fn ($q) => $q->where('role', CourseParticipant::ROLE_PARTICIPANT)])
                 ->orderBy('start_date')
-                ->limit(10)
+                ->limit(11)
                 ->get()
             : collect();
+        $moreUpcomingCourses = $upcomingCourses->count() > 10;
+        $upcomingCourses = $upcomingCourses->take(10);
 
-        return view('dashboard', compact('dashboardData', 'branches', 'extended', 'dashboardGeneratedAt', 'upcomingCourses'));
+        return view('dashboard', compact('dashboardData', 'branches', 'extended', 'dashboardGeneratedAt', 'upcomingCourses', 'moreUpcomingCourses'));
     }
 
     /**
