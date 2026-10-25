@@ -2416,3 +2416,23 @@ who is ready to deploy.
 **Why:** a skills filter gives long lists of names with no measure of quality: it shows who once
 took a training or ticked a skill, not who is actually able and available. A task force with a
 team leader who knows its members gives a short, vetted list.
+
+## 2026-10-25 — Dashboard 7-day figures: up to now, and for the dashboard's branch
+
+**Before:** "Campaign messages sent", "ID cards printed" and "Certificates printed" (last 7 days)
+in the Database Administration row counted everything from 7 days ago with no upper limit, and
+always for the whole country. Four imported ID card prints dated 2027–2029 therefore always
+counted, so "ID cards printed" never went below 4.
+
+**Decision:**
+- The three figures count from 7 days ago **up to now**.
+- They follow the dashboard's branch like the rest of the page (the viewer's own branch at
+  first, or the branch chosen in the selector; national when none). Attribution is the same as
+  the Admin Activities report: the card holder's or recipient's branch; organisation
+  certificates and messages through the organisation; Red Cross unit certificates through the
+  unit's division. Deleted prints are not counted.
+- **Legacy import** (`migrate:id-card-prints`): a print date in the future is logged and
+  replaced by the import date; the expiry date is worked out from that, and the record's note
+  says so. Dates outside the storable range (for example year 2926) are still skipped, as before.
+
+Covered by `DashboardActivityFiguresTest` and `MigrateIdCardPrintsFutureDateTest`.

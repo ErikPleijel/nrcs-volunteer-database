@@ -4,6 +4,7 @@ namespace App\Console\Commands\OldDbMigration;
 
 use App\Console\Commands\OldDbMigration\Concerns\SanitizesOldDbDates;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
 use App\Models\User;
 use App\Models\IdCardPrint; // Assuming you create a model for id_card_prints
 
@@ -39,6 +40,8 @@ class MigrateIdCardPrints extends Command
 
         $count = 0;
         $skipped = 0;
+        $futureDated = 0;
+        $importedAt = now();
         foreach ($usersToMigrate as $user) {
             // users.id_card_timestamp is a DATE column (1000-9999 valid range),
             // but id_card_prints.printed_at is a narrower TIMESTAMP column
@@ -56,6 +59,21 @@ class MigrateIdCardPrints extends Command
                 // fields — skip creating the row entirely instead.
                 $skipped++;
                 continue;
+            }
+
+            // A print date in the future is a typo in the old system (e.g. 2029
+            // for 2019). It would count as "printed in the last 7 days" for
+            // years, so the import date is used instead and the expiry date is
+            // worked out from it (Decisions.md 2026-10-25).
+            $notes = 'Record migrated from old database user data.';
+            if ($printedAt->greaterThan($importedAt)) {
+                $message = "Old-DB ID card print date in the future: users.id_card_timestamp (user {$user->id}) = '{$user->id_card_timestamp}' — import date {$importedAt->toDateString()} used instead";
+                $this->warn($message);
+                Log::warning($message);
+
+                $notes .= " Print date {$printedAt->toDateString()} was in the future; import date used.";
+                $printedAt = $importedAt->copy();
+                $futureDated++;
             }
 
             $validityMonths = $user->id_card_valid_years * 12;
@@ -81,12 +99,13 @@ class MigrateIdCardPrints extends Command
                 'status' => 'Printed',
                 'validity_months' => $validityMonths,
                 'expiry_date' => $expiryDate,
-                'notes' => 'Record migrated from old database user data.',
+                'notes' => $notes,
             ]);
             $count++;
         }
 
         $this->info("Migration complete. {$count} ID card print records created."
-            . ($skipped > 0 ? " {$skipped} skipped due to invalid/out-of-range id_card_timestamp (see warnings above)." : ''));
+            . ($skipped > 0 ? " {$skipped} skipped due to invalid/out-of-range id_card_timestamp (see warnings above)." : '')
+            . ($futureDated > 0 ? " {$futureDated} had a print date in the future and got the import date instead (see warnings above)." : ''));
     }
 }

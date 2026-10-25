@@ -4,9 +4,14 @@ namespace App\Http\Controllers\Reports;
 
 use App\Http\Controllers\Controller;
 use App\Models\Branch;
+use App\Models\CertificatePrint;
 use App\Models\Course;
 use App\Models\CourseParticipant;
+use App\Models\Division;
+use App\Models\IdCardPrint;
 use App\Models\MessagingRecipient;
+use App\Models\Organisation;
+use App\Models\RedCrossUnit;
 use App\Models\User;
 use App\Services\Reports\MembershipStatsService;
 use App\Services\Reports\RedCrossUnitStatsService;
@@ -472,13 +477,38 @@ class DashboardController extends Controller
      */
     private function buildFreshDashboardData($user, ?int $branchId): array
     {
-        $sevenDaysAgo = now()->subDays(7);
-        $messagesSentLast7 = DB::table('messaging_recipients')->whereIn('status', MessagingRecipient::SENT_STATUSES)->where('sent_at', '>=', $sevenDaysAgo)->count();
-        $idCardsPrintedLast7 = DB::table('id_card_prints')
-            ->where('status', 'printed')
-            ->where('printed_at', '>=', $sevenDaysAgo)
+        // 7-day activity figures, up to now (an imported date in the future must not count), and
+        // for the dashboard's branch like the rest of the page. Branch attribution follows the
+        // Admin Activities report (AdminActivityStatsService): the card holder's or recipient's
+        // branch; organisation and Red Cross unit certificates through the organisation or unit.
+        $lastSevenDays = [now()->subDays(7), now()];
+
+        $messagesSentLast7 = DB::table('messaging_recipients')
+            ->whereIn('status', MessagingRecipient::SENT_STATUSES)
+            ->whereBetween('sent_at', $lastSevenDays)
+            ->when($branchId, fn ($q) => $q->where(fn ($q) => $q
+                ->where(fn ($q) => $q->where('recipient_type', User::class)
+                    ->whereIn('recipient_id', User::query()->withoutGlobalScopes()->where('branch_id', $branchId)->select('id')))
+                ->orWhere(fn ($q) => $q->where('recipient_type', Organisation::class)
+                    ->whereIn('recipient_id', Organisation::query()->withoutGlobalScopes()->where('branch_id', $branchId)->select('id')))))
             ->count();
-        $certificatesPrintedLast7 = DB::table('certificates_print')->whereNull('deleted_at')->where('printed_at', '>=', $sevenDaysAgo)->count();
+
+        $idCardsPrintedLast7 = IdCardPrint::query()
+            ->where('status', 'printed')
+            ->whereBetween('printed_at', $lastSevenDays)
+            ->when($branchId, fn ($q) => $q->whereIn('user_id', User::query()->withoutGlobalScopes()->where('branch_id', $branchId)->select('id')))
+            ->count();
+
+        $certificatesPrintedLast7 = CertificatePrint::query()
+            ->whereBetween('printed_at', $lastSevenDays)
+            ->when($branchId, fn ($q) => $q->where(fn ($q) => $q
+                ->where(fn ($q) => $q->whereNull('organisation_id')->whereNull('red_cross_unit_id')
+                    ->whereIn('user_id', User::query()->withoutGlobalScopes()->where('branch_id', $branchId)->select('id')))
+                ->orWhereIn('organisation_id', Organisation::query()->withoutGlobalScopes()->where('branch_id', $branchId)->select('id'))
+                ->orWhereIn('red_cross_unit_id', RedCrossUnit::query()->withoutGlobalScopes()
+                    ->whereIn('division_id', Division::query()->withoutGlobalScopes()->where('branch_id', $branchId)->select('id'))
+                    ->select('id'))))
+            ->count();
         $loggedInLast24h = User::query()
             ->where('last_login_at', '>=', now()->subHours(3))
             ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
