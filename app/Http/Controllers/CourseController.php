@@ -133,7 +133,8 @@ class CourseController extends Controller
             ->sortBy(fn (CourseParticipant $p) => mb_strtolower($p->user?->full_name ?? ''))
             ->values();
 
-        $canChangePeople = $viewer->can('manage_course_participants') && $course->isPlanned();
+        $mayManagePeople = $viewer->can('manage_course_participants') && $course->isPlanned();
+        $canChangePeople = $mayManagePeople && $course->allowsPeopleChangesBy($viewer);
 
 
         $participants = $people->reject->isFacilitator()->values();
@@ -153,6 +154,10 @@ class CourseController extends Controller
             'resultCounts' => $resultCounts,
             'canRecordResults' => $canChangePeople && $course->canRecordResults($viewer),
             'canChangePeople' => $canChangePeople,
+            // Division staff on a branch or national course: read-only, with a note who adds people.
+            'peopleChangedBy' => $mayManagePeople && ! $canChangePeople
+                ? ($course->isNational() ? 'national HQ' : 'the branch')
+                : null,
             'canAddAnyone' => $course->isManageableBy($viewer),
             'search' => trim((string) $request->input('person_search', '')),
         ]);

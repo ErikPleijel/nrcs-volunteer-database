@@ -143,6 +143,12 @@
                         </table>
                     </div>
                 </div>
+            @elseif($peopleChangedBy)
+                <div class="bg-white shadow-sm sm:rounded-lg p-6">
+                    <p class="text-sm text-gray-600">
+                        <i class="fas fa-info-circle mr-1 text-gray-400"></i>Participants are added and removed by {{ $peopleChangedBy }}.
+                    </p>
+                </div>
             @endif
 
             @foreach(['Facilitators' => $facilitators, 'Participants' => $participants] as $heading => $people)

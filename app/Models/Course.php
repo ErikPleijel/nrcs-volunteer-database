@@ -166,16 +166,39 @@ class Course extends Model
     }
 
     /**
+     * Whether $viewer's area lets them add and remove people on this course at
+     * all (manage_course_participants is checked by route middleware).
+     * Division staff only on a course organised for their own division; on
+     * branch and national courses they only see the people (Decisions.md
+     * 2026-10-25). Everyone else who can see the course may.
+     */
+    public function allowsPeopleChangesBy(User $viewer): bool
+    {
+        if ($viewer->getAccessLevel() === 'division') {
+            return $this->division_id !== null
+                && (int) $this->division_id === $viewer->getScopedId()
+                && $this->isVisibleTo($viewer);
+        }
+
+        return $this->isVisibleTo($viewer);
+    }
+
+    /**
      * Whether $viewer may add or remove $person on this course (the
      * manage_course_participants permission is checked by route middleware).
      * The organisers (isManageableBy) may add anyone, since participants come
      * from any branch; other staff only people in their own branch or
      * division, e.g. a branch nominating its own people for a national course.
+     * Division staff only on their own division's course (allowsPeopleChangesBy).
      */
     public function canHandlePerson(User $viewer, User $person): bool
     {
         if ($this->isManageableBy($viewer)) {
             return true;
+        }
+
+        if (! $this->allowsPeopleChangesBy($viewer)) {
+            return false;
         }
 
         $scopedId = $viewer->getScopedId();
@@ -191,8 +214,9 @@ class Course extends Model
      * Whether $viewer is on the organising side and so may record results
      * (manage_course_participants is checked by route middleware): national
      * staff on any course; for a branch course also the staff of that branch,
-     * assistants included, who can see it. Staff who only nominated people
-     * for another branch's or a national course cannot.
+     * assistants included, who can see it; division staff only on a course
+     * organised for their own division. Staff who only nominated people for
+     * another branch's or a national course cannot.
      */
     public function canRecordResults(User $viewer): bool
     {
@@ -200,7 +224,7 @@ class Course extends Model
             return true;
         }
 
-        return $this->branch_id !== null && $this->isVisibleTo($viewer);
+        return $this->branch_id !== null && $this->allowsPeopleChangesBy($viewer);
     }
 
     /** Results can be recorded from the start date while the course is planned. */
@@ -276,6 +300,10 @@ class Course extends Model
 
         if ($this->isManageableBy($viewer)) {
             return $query;
+        }
+
+        if (! $this->allowsPeopleChangesBy($viewer)) {
+            return $query->whereRaw('1 = 0');
         }
 
         $scopedId = $viewer->getScopedId();

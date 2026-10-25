@@ -4,7 +4,8 @@
  * Courses step 4: recording results (passed / failed / absent).
  * - only the organising side (Course::canRecordResults): national staff on any
  *   course; for a branch course the staff of that branch who can see it,
- *   assistants included; not staff who only nominated people
+ *   assistants included; division staff only on their own division's course;
+ *   not staff who only nominated people
  * - from the start date while the course is planned
  * - participants only (not facilitators), only entries of this course
  * - unchanged entries are left alone; one audit entry per save
@@ -174,7 +175,23 @@ it('lets the organising branch\'s assistants and national staff record results',
     saveResults($this->{$who}, $course, [$this->ann->id => 'passed'])->assertSessionHas('success');
 
     expect($this->ann->fresh()->result_recorded_by_user_id)->toBe($this->{$who}->id);
-})->with(['branchAssistant', 'divisionAssistant', 'national']);
+})->with(['branchAssistant', 'national']);
+
+it('lets division staff record results only on their own division\'s course', function () {
+    $branchCourse = resultCourse();
+
+    saveResults($this->divisionAssistant, $branchCourse, [$this->ann->id => 'passed'])->assertForbidden();
+    expect($this->ann->fresh()->result)->toBeNull();
+
+    $this->actingAs($this->divisionAssistant)->get(route('courses.show', $branchCourse))
+        ->assertOk()
+        ->assertDontSee('Save results');
+
+    $divisionCourse = resultCourse(['division_id' => $this->divisionA1->id]);
+
+    saveResults($this->divisionAssistant, $divisionCourse, [$this->ann->id => 'passed'])->assertSessionHas('success');
+    expect($this->ann->fresh()->result_recorded_by_user_id)->toBe($this->divisionAssistant->id);
+});
 
 it('does not let staff who only nominated people record results on a national course', function () {
     $course = resultCourse(['branch_id' => null]);

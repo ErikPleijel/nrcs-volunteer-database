@@ -5,6 +5,8 @@
  * - organisers (national, or the organising branch) add anyone from any branch;
  *   other staff with manage_course_participants only people from their own
  *   branch or division (Course::canHandlePerson / addablePeopleFor)
+ * - division staff add and remove people only on a course organised for their
+ *   own division; on branch and national courses they only see the people
  * - the person search is a JSON endpoint (courses.people.search): at least 2
  *   characters, up to 20 results, name, branch and division only
  * - archived, anonymized and System Administrator accounts are never offered;
@@ -154,7 +156,7 @@ it('lets branch staff add only their own branch\'s people to a national course',
 });
 
 it('lets a division assistant add and remove only their own division\'s people', function () {
-    $course = participantCourse();
+    $course = participantCourse(['division_id' => $this->divisionA1->id]);
 
     expect(foundNames($this->divisionAssistant, $course))
         ->toBe(['Aone']);
@@ -206,6 +208,44 @@ it('puts a person on a course once', function () {
 
     expect($course->courseParticipants()->count())->toBe(1)
         ->and(Log::where('action', 'course_participant_added')->count())->toBe(1);
+});
+
+it('gives division staff only a read-only view on branch and national courses', function (?string $branch, string $note) {
+    $course = participantCourse(['branch_id' => $branch === 'A' ? $this->branchA->id : null]);
+    $entry = $course->courseParticipants()->create(['user_id' => $this->personA1->id]);
+
+    $this->actingAs($this->divisionAssistant)->get(route('courses.show', $course))
+        ->assertOk()
+        ->assertSee('Zebulon Aone')
+        ->assertSee($note)
+        ->assertDontSee('Add people')
+        ->assertDontSee('Remove');
+
+    searchPeople($this->divisionAssistant, $course, 'Zebulon')->assertForbidden();
+    addPerson($this->divisionAssistant, $course, $this->personA2)->assertForbidden();
+    $this->actingAs($this->divisionAssistant)
+        ->delete(route('courses.participants.destroy', [$course, $entry]))
+        ->assertForbidden();
+
+    expect($course->courseParticipants()->pluck('user_id')->all())->toBe([$this->personA1->id]);
+
+    // Branch staff do not get the note.
+    $this->actingAs($this->branchAdmin)->get(route('courses.show', $course))
+        ->assertSee('Add people')
+        ->assertDontSee('Participants are added and removed by');
+})->with([
+    'branch course' => ['A', 'Participants are added and removed by the branch.'],
+    'national course' => [null, 'Participants are added and removed by national HQ.'],
+]);
+
+it('gives division staff the search on their own division\'s course only', function () {
+    $own = participantCourse(['division_id' => $this->divisionA1->id]);
+
+    $this->actingAs($this->divisionAssistant)->get(route('courses.show', $own))
+        ->assertSee('Add people')
+        ->assertDontSee('Participants are added and removed by');
+
+    expect(foundNames($this->divisionAssistant, $own))->toBe(['Aone']);
 });
 
 /*

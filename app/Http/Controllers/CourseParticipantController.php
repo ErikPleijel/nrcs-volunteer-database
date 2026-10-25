@@ -189,5 +189,6 @@ class CourseParticipantController extends Controller
     {
         abort_unless($course->isVisibleTo($viewer), 403, 'This course is outside your area.');
         abort_unless($course->isPlanned(), 403, 'People can only be changed on a planned course.');
+        abort_unless($course->allowsPeopleChangesBy($viewer), 403, 'People on this course are added and removed by '.($course->isNational() ? 'national HQ.' : 'the branch.'));
     }
 }
