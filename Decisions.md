@@ -2421,8 +2421,8 @@ team leader who knows its members gives a short, vetted list.
 
 **Before:** "Campaign messages sent", "ID cards printed" and "Certificates printed" (last 7 days)
 in the Database Administration row counted everything from 7 days ago with no upper limit, and
-always for the whole country. Four imported ID card prints dated 2027–2029 therefore always
-counted, so "ID cards printed" never went below 4.
+always for the whole country. Four ID card prints dated 2027–2029 (leftover sandbox test data,
+not legacy records) therefore always counted, so "ID cards printed" never went below 4.
 
 **Decision:**
 - The three figures count from 7 days ago **up to now**.
@@ -2431,8 +2431,6 @@ counted, so "ID cards printed" never went below 4.
   the Admin Activities report: the card holder's or recipient's branch; organisation
   certificates and messages through the organisation; Red Cross unit certificates through the
   unit's division. Deleted prints are not counted.
-- **Legacy import** (`migrate:id-card-prints`): a print date in the future is logged and
-  replaced by the import date; the expiry date is worked out from that, and the record's note
-  says so. Dates outside the storable range (for example year 2926) are still skipped, as before.
+- The legacy import is unchanged, and the four test rows are left as they are.
 
-Covered by `DashboardActivityFiguresTest` and `MigrateIdCardPrintsFutureDateTest`.
+Covered by `DashboardActivityFiguresTest`.
