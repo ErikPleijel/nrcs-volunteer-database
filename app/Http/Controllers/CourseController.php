@@ -113,9 +113,10 @@ class CourseController extends Controller
      * Course page. Everyone who can see the course sees all the people on it,
      * with name, branch and division only (Decisions.md 2026-10-23). Staff
      * with manage_course_participants also get a person search, limited to
-     * the people they may add (Course::addablePeopleFor()).
+     * the people they may add (CourseParticipantController::search()).
+     * person_search only fills the search box again after adding or removing.
      */
-    public function show(Request $request, Course $course, UserFilterService $userFilterService): View
+    public function show(Request $request, Course $course): View
     {
         $viewer = Auth::user();
         abort_unless($course->isVisibleTo($viewer), 403, 'This course is outside your area.');
@@ -134,17 +135,6 @@ class CourseController extends Controller
 
         $canChangePeople = $viewer->can('manage_course_participants') && $course->isPlanned();
 
-        $search = trim((string) $request->input('person_search', ''));
-        $searchResults = collect();
-        if ($canChangePeople && mb_strlen($search) >= 2) {
-            $searchResults = $userFilterService
-                ->applySearch($course->addablePeopleFor($viewer), $search)
-                ->with(['branch:id,name', 'division:id,name'])
-                ->orderBy('first_name')
-                ->orderBy('last_name')
-                ->limit(20)
-                ->get(['id', 'first_name', 'middle_name', 'last_name', 'title', 'branch_id', 'division_id']);
-        }
 
         $participants = $people->reject->isFacilitator()->values();
         $resultCounts = $participants->countBy(fn (CourseParticipant $p) => $p->result ?? 'none');
@@ -164,8 +154,7 @@ class CourseController extends Controller
             'canRecordResults' => $canChangePeople && $course->canRecordResults($viewer),
             'canChangePeople' => $canChangePeople,
             'canAddAnyone' => $course->isManageableBy($viewer),
-            'search' => $search,
-            'searchResults' => $searchResults,
+            'search' => trim((string) $request->input('person_search', '')),
         ]);
     }
 

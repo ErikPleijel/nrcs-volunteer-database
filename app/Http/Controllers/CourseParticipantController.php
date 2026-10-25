@@ -6,7 +6,9 @@ use App\Models\Course;
 use App\Models\CourseParticipant;
 use App\Models\Log;
 use App\Models\User;
+use App\Services\UserFilterService;
 use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -16,11 +18,43 @@ use Illuminate\Validation\Rule;
  * Add and remove the people on a course (participants and facilitators).
  * manage_course_participants is checked by route middleware; the course must
  * be visible to the viewer and still planned, and the person within reach
- * (Course::canHandlePerson()). Searching happens on the course page
- * (CourseController::show()).
+ * (Course::canHandlePerson()). The course page searches people through
+ * search() without reloading.
  */
 class CourseParticipantController extends Controller
 {
+    /**
+     * People the viewer may add to the course (Course::addablePeopleFor()),
+     * matching a name or database ID: at least 2 characters, up to 20 results,
+     * with name, branch and division only.
+     */
+    public function search(Request $request, Course $course, UserFilterService $userFilterService): JsonResponse
+    {
+        $viewer = Auth::user();
+        $this->authorizeCourse($viewer, $course);
+
+        $search = trim((string) $request->input('q', ''));
+        if (mb_strlen($search) < 2) {
+            return response()->json(['results' => []]);
+        }
+
+        $results = $userFilterService
+            ->applySearch($course->addablePeopleFor($viewer), $search)
+            ->with(['branch:id,name', 'division:id,name'])
+            ->orderBy('first_name')
+            ->orderBy('last_name')
+            ->limit(20)
+            ->get(['id', 'first_name', 'middle_name', 'last_name', 'title', 'branch_id', 'division_id'])
+            ->map(fn (User $person) => [
+                'id' => $person->id,
+                'name' => $person->full_name,
+                'branch' => $person->branch?->name,
+                'division' => $person->division?->name,
+            ]);
+
+        return response()->json(['results' => $results]);
+    }
+
     public function store(Request $request, Course $course): RedirectResponse
     {
         $viewer = Auth::user();

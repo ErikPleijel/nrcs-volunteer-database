@@ -637,6 +637,7 @@ Route::middleware(['auth', 'verified.or.absent'])->group(function () {
             Route::put('/{course}', [CourseController::class, 'update'])->name('update')->middleware('can:edit_courses');
             Route::post('/{course}/cancel', [CourseController::class, 'cancel'])->name('cancel')->middleware('can:edit_courses');
 
+            Route::get('/{course}/people-search', [CourseParticipantController::class, 'search'])->name('people.search')->middleware('can:manage_course_participants');
             Route::post('/{course}/participants', [CourseParticipantController::class, 'store'])->name('participants.store')->middleware('can:manage_course_participants');
             Route::delete('/{course}/participants/{participant}', [CourseParticipantController::class, 'destroy'])->name('participants.destroy')->middleware('can:manage_course_participants');
             Route::put('/{course}/results', [CourseParticipantController::class, 'updateResults'])->name('results.update')->middleware('can:manage_course_participants');

@@ -5,6 +5,8 @@
  * - organisers (national, or the organising branch) add anyone from any branch;
  *   other staff with manage_course_participants only people from their own
  *   branch or division (Course::canHandlePerson / addablePeopleFor)
+ * - the person search is a JSON endpoint (courses.people.search): at least 2
+ *   characters, up to 20 results, name, branch and division only
  * - archived, anonymized and System Administrator accounts are never offered;
  *   a person is on a course once
  * - everyone who sees the course sees all its people: name, branch and
@@ -21,6 +23,7 @@ use App\Models\Log;
 use App\Models\TrainingType;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Js;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -84,9 +87,17 @@ function participantCourse(array $attributes = []): Course
     ]);
 }
 
-function foundNames($response): array
+function searchPeople(User $actor, Course $course, string $term)
 {
-    return $response->viewData('searchResults')->pluck('last_name')->sort()->values()->all();
+    return test()->actingAs($actor)->getJson(route('courses.people.search', [$course, 'q' => $term]));
+}
+
+/** Last names of the people the search offers. */
+function foundNames(User $actor, Course $course, string $term = 'Zebulon'): array
+{
+    $ids = searchPeople($actor, $course, $term)->assertOk()->json('results.*.id');
+
+    return User::whereIn('id', $ids)->pluck('last_name')->sort()->values()->all();
 }
 
 function addPerson(User $actor, Course $course, User $person, string $role = 'participant')
@@ -105,7 +116,7 @@ function addPerson(User $actor, Course $course, User $person, string $role = 'pa
 it('lets the organising branch find and add people from any branch', function () {
     $course = participantCourse();
 
-    expect(foundNames($this->actingAs($this->branchAdmin)->get(route('courses.show', [$course, 'person_search' => 'Zebulon']))))
+    expect(foundNames($this->branchAdmin, $course))
         ->toBe(['Aone', 'Atwo', 'Bone']);
 
     addPerson($this->branchAdmin, $course, $this->personB1)
@@ -123,14 +134,14 @@ it('lets the organising branch find and add people from any branch', function ()
         ->and($log->new_values)->toBe(['user_id' => $this->personB1->id, 'role' => 'participant']);
 
     // Someone already on the course is not offered again.
-    expect(foundNames($this->actingAs($this->branchAdmin)->get(route('courses.show', [$course, 'person_search' => 'Zebulon']))))
+    expect(foundNames($this->branchAdmin, $course))
         ->toBe(['Aone']);
 });
 
 it('lets branch staff add only their own branch\'s people to a national course', function () {
     $course = participantCourse(['branch_id' => null]);
 
-    expect(foundNames($this->actingAs($this->branchAdmin)->get(route('courses.show', [$course, 'person_search' => 'Zebulon']))))
+    expect(foundNames($this->branchAdmin, $course))
         ->toBe(['Aone', 'Atwo']);
 
     addPerson($this->branchAdmin, $course, $this->personB1)->assertSessionHas('error', 'This person cannot be added to the course.');
@@ -145,7 +156,7 @@ it('lets branch staff add only their own branch\'s people to a national course',
 it('lets a division assistant add and remove only their own division\'s people', function () {
     $course = participantCourse();
 
-    expect(foundNames($this->actingAs($this->divisionAssistant)->get(route('courses.show', [$course, 'person_search' => 'Zebulon']))))
+    expect(foundNames($this->divisionAssistant, $course))
         ->toBe(['Aone']);
 
     addPerson($this->divisionAssistant, $course, $this->personA2)->assertSessionHas('error');
@@ -177,7 +188,7 @@ it('never offers archived, anonymized or System Administrator accounts', functio
     $pending = User::factory()->inDivision($this->divisionA1)->create(['first_name' => 'Zebulon', 'last_name' => 'Pending', 'lifecycle_status' => 'pending_engagement']);
     $superAdmin = User::factory()->inDivision($this->divisionA1)->create(['first_name' => 'Zebulon', 'last_name' => 'Super', 'lifecycle_status' => 'active', 'is_super_admin' => true]);
 
-    expect(foundNames($this->actingAs($this->national)->get(route('courses.show', [$course, 'person_search' => 'Zebulon']))))
+    expect(foundNames($this->national, $course))
         ->toBe(['Aone', 'Atwo', 'Bone', 'Pending']);
 
     foreach ([$archived, $anonymized, $superAdmin] as $person) {
@@ -236,6 +247,8 @@ it('gives staff without manage_course_participants no search and no changes', fu
         ->assertDontSee('Add people')
         ->assertDontSee('Remove');
 
+    searchPeople($this->observer, $course, 'Zebulon')->assertForbidden();
+
     addPerson($this->observer, $course, $this->personA2)->assertForbidden();
     $this->actingAs($this->observer)->delete(route('courses.participants.destroy', [$course, $entry]))->assertForbidden();
 });
@@ -255,6 +268,7 @@ it('changes people only on a planned course', function (string $status) {
         ->assertDontSee('Add people')
         ->assertDontSee('Remove');
 
+    searchPeople($this->branchAdmin, $course, 'Zebulon')->assertForbidden();
     addPerson($this->branchAdmin, $course, $this->personA2)->assertForbidden();
     $this->actingAs($this->branchAdmin)->delete(route('courses.participants.destroy', [$course, $entry]))->assertForbidden();
 
@@ -266,9 +280,60 @@ it('refuses a course outside the viewer\'s area and an entry of another course',
     $course = participantCourse();
     $entryElsewhere = participantCourse()->courseParticipants()->create(['user_id' => $this->personA1->id]);
 
+    searchPeople($this->branchAdmin, $otherBranchCourse, 'Zebulon')->assertForbidden();
     addPerson($this->branchAdmin, $otherBranchCourse, $this->personA1)->assertForbidden();
 
     $this->actingAs($this->branchAdmin)
         ->delete(route('courses.participants.destroy', [$course, $entryElsewhere]))
         ->assertNotFound();
+});
+
+/*
+|--------------------------------------------------------------------------
+| The search endpoint
+|--------------------------------------------------------------------------
+*/
+
+it('returns name, branch and division only', function () {
+    $course = participantCourse();
+
+    $response = searchPeople($this->branchAdmin, $course, 'Aone')->assertOk();
+
+    expect($response->json('results'))->toBe([[
+        'id' => $this->personA1->id,
+        'name' => $this->personA1->full_name,
+        'branch' => 'Alpha Branch',
+        'division' => 'Alpha One',
+    ]]);
+    $response->assertDontSee('08031112222')->assertDontSee('aone@example.org');
+
+    // A database ID finds the person too.
+    expect(foundNames($this->branchAdmin, $course, 'DB-'.$this->personB1->id))->toBe(['Bone']);
+});
+
+it('needs at least 2 characters', function () {
+    $course = participantCourse();
+
+    foreach (['', ' ', 'Z', ' Z '] as $term) {
+        searchPeople($this->national, $course, $term)->assertOk()->assertExactJson(['results' => []]);
+    }
+
+    expect(foundNames($this->national, $course, 'Zebul'))->toBe(['Aone', 'Atwo', 'Bone']);
+});
+
+it('returns at most 20 people', function () {
+    $course = participantCourse();
+    User::factory()->count(22)->inDivision($this->divisionA1)->create(['first_name' => 'Zebulon', 'lifecycle_status' => 'active']);
+
+    expect(searchPeople($this->national, $course, 'Zebulon')->assertOk()->json('results'))->toHaveCount(20);
+});
+
+it('fills the search box again from the address after adding someone', function () {
+    $course = participantCourse();
+
+    $this->actingAs($this->branchAdmin)->get(route('courses.show', [$course, 'person_search' => 'Zebulon']))
+        ->assertOk()
+        ->assertSee(Js::from(route('courses.people.search', $course))->toHtml(), false)
+        ->assertSee('coursePeopleSearch(', false)
+        ->assertSee(Js::from('Zebulon')->toHtml(), false);
 });

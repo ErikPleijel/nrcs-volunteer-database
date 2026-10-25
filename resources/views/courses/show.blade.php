@@ -106,41 +106,42 @@
                         Search by name or database ID.
                     </p>
 
-                    <form method="GET" action="{{ route('courses.show', $course) }}" class="flex gap-2 mb-4">
-                        <input type="text" name="person_search" value="{{ $search }}" minlength="2"
-                               placeholder="Name or database ID"
-                               class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <button type="submit" class="btn-primary"><i class="fas fa-search mr-1"></i>Search</button>
-                    </form>
+                    {{-- Searches without reloading (CourseParticipantController::search). The term is kept in
+                         the URL, so the box is filled again after adding someone reloads the page. --}}
+                    <div x-data="coursePeopleSearch(@js(route('courses.people.search', $course)), @js($search))">
+                        <div class="relative mb-4">
+                            <input type="text" x-model="query" @input.debounce.300ms="search()" autocomplete="off"
+                                   placeholder="Name or database ID (at least 2 characters)"
+                                   class="w-full px-3 py-2 pr-9 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <i x-show="loading" style="display: none;" class="fas fa-spinner fa-spin absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                        </div>
 
-                    @if($search !== '')
-                        @if($searchResults->isEmpty())
-                            <p class="text-sm text-gray-500">No one found who can be added.</p>
-                        @else
-                            <table class="w-full text-sm">
-                                <tbody class="divide-y divide-gray-100">
-                                @foreach($searchResults as $person)
-                                    <tr>
-                                        <td class="py-2 pr-4">
-                                            <div class="font-medium text-gray-900">{{ $person->full_name }}</div>
-                                            <div class="text-xs text-gray-500">{{ $person->branch->name ?? '—' }}, {{ $person->division->name ?? '—' }}</div>
-                                        </td>
-                                        <td class="py-2 text-right whitespace-nowrap">
-                                            @foreach(['participant' => 'Add as participant', 'facilitator' => 'Add as facilitator'] as $role => $label)
-                                                <form method="POST" action="{{ route('courses.participants.store', $course) }}" class="inline">
-                                                    @csrf
-                                                    <input type="hidden" name="user_id" value="{{ $person->id }}">
-                                                    <input type="hidden" name="role" value="{{ $role }}">
-                                                    <button type="submit" class="{{ $role === 'participant' ? 'btn-primary' : 'btn-cancel' }} text-xs">{{ $label }}</button>
-                                                </form>
-                                            @endforeach
-                                        </td>
-                                    </tr>
-                                @endforeach
-                                </tbody>
-                            </table>
-                        @endif
-                    @endif
+                        <p x-show="error" style="display: none;" class="text-sm text-red-600">The search failed. Please try again.</p>
+                        <p x-show="searched && !error && results.length === 0" style="display: none;" class="text-sm text-gray-500">No one found who can be added.</p>
+
+                        <table x-show="results.length > 0" style="display: none;" class="w-full text-sm">
+                            <tbody class="divide-y divide-gray-100">
+                            <template x-for="person in results" :key="person.id">
+                                <tr>
+                                    <td class="py-2 pr-4">
+                                        <div class="font-medium text-gray-900" x-text="person.name"></div>
+                                        <div class="text-xs text-gray-500" x-text="(person.branch ?? '—') + ', ' + (person.division ?? '—')"></div>
+                                    </td>
+                                    <td class="py-2 text-right whitespace-nowrap">
+                                        @foreach(['participant' => 'Add as participant', 'facilitator' => 'Add as facilitator'] as $role => $label)
+                                            <form method="POST" action="{{ route('courses.participants.store', $course) }}" class="inline">
+                                                @csrf
+                                                <input type="hidden" name="user_id" :value="person.id">
+                                                <input type="hidden" name="role" value="{{ $role }}">
+                                                <button type="submit" class="{{ $role === 'participant' ? 'btn-primary' : 'btn-cancel' }} text-xs">{{ $label }}</button>
+                                            </form>
+                                        @endforeach
+                                    </td>
+                                </tr>
+                            </template>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             @endif
 
@@ -335,4 +336,74 @@
             @endif
         </div>
     </div>
+
+    @if($canChangePeople)
+    @push('scripts')
+        <script>
+            // "Add people" search on the course page: at least 2 characters, results replace each other
+            // (an older, slower response never overwrites a newer one).
+            window.coursePeopleSearch = function (url, initialQuery) {
+                return {
+                    query: initialQuery,
+                    results: [],
+                    loading: false,
+                    searched: false,
+                    error: false,
+                    controller: null,
+
+                    init() {
+                        if (this.query.trim().length >= 2) {
+                            this.search();
+                        }
+                    },
+
+                    async search() {
+                        const term = this.query.trim();
+                        this.rememberTerm(term);
+                        this.controller?.abort();
+
+                        if (term.length < 2) {
+                            this.results = [];
+                            this.searched = false;
+                            this.error = false;
+                            this.loading = false;
+                            return;
+                        }
+
+                        this.controller = new AbortController();
+                        this.loading = true;
+
+                        try {
+                            const response = await fetch(`${url}?q=${encodeURIComponent(term)}`, {
+                                headers: { 'Accept': 'application/json' },
+                                signal: this.controller.signal,
+                            });
+                            if (!response.ok) {
+                                throw new Error(response.statusText);
+                            }
+                            this.results = (await response.json()).results;
+                            this.error = false;
+                        } catch (e) {
+                            if (e.name === 'AbortError') {
+                                return;
+                            }
+                            this.results = [];
+                            this.error = true;
+                        }
+
+                        this.searched = true;
+                        this.loading = false;
+                    },
+
+                    // Keep the term in the address, so the page comes back with it after adding or removing someone.
+                    rememberTerm(term) {
+                        const address = new URL(window.location.href);
+                        term.length >= 2 ? address.searchParams.set('person_search', term) : address.searchParams.delete('person_search');
+                        window.history.replaceState(null, '', address);
+                    },
+                };
+            };
+        </script>
+    @endpush
+    @endif
 </x-layouts.admin>
