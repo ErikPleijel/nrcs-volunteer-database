@@ -2183,7 +2183,8 @@ stale request could print or record certificates from another branch.
 - every selected record must be in the viewer's own area: the record's branch/division for
   trainings and membership payments, the person's for volunteering and donations (the same rule
   as the certificates page);
-- a training certificate whose type has `certificate_hq_only` needs a national viewer;
+- a training certificate whose type has `certificate_hq_only` needs a national viewer
+  (since 2026-10-25: competence certificates only, see below);
 - one disallowed, missing or pending ID refuses the whole request (403). Nothing is printed or
   recorded, because the page never offers such an ID.
 
@@ -2310,7 +2311,8 @@ certificates from their own course, also those of participants from other branch
   the filter, and for everyone else, the normal area scope stays.
 - `CertificateController::guardPrintableIds()` allows a branch viewer training records in their
   branch **or** from a course their branch organised.
-- "HQ only" training types still need a national role, also on the organiser's own course.
+- "HQ only" training types still need a national role for competence certificates, also on the
+  organiser's own course (attendance certificates: see 2026-10-25).
 
 **Why:** certificates are handed out at the end of the course by the organiser.
 
@@ -2358,3 +2360,19 @@ normal area, even with a course filter in the URL.
 - **My Profile**: "Your upcoming courses" lists the person's own planned courses that have not
   ended, as participant or facilitator, with dates, place and organiser. Hidden when there are none.
   It shows nothing about the other people on the course.
+
+## 2026-10-25 — "HQ only" applies to competence certificates only (supersedes part of 2026-10-23)
+
+**Before:** since 2026-10-23 the training type's "HQ only" setting blocked branch and division
+staff from printing both competence and attendance certificates, on the certificates page and in
+`CertificateController::guardPrintableIds()`.
+
+**Decision:** "HQ only" applies **only to competence certificates**, as the certificates page did
+originally. Attendance certificates can always be printed at branch level, also for training types
+marked "HQ only". The area rules are unchanged: the record must be in the viewer's own area, or
+come from a course the viewer's branch organised. This applies on the certificates page ("Printed
+at HQ" only on HQ-only competence certificates) and on the server check for all print routes and
+Mark as printed.
+
+**Why:** this restores the certificates page's original rule, which the 2026-10-23 server check
+had widened to attendance certificates. Covered by `CertificatePrintScopeTest` and `CertificateCourseFilterTest`.

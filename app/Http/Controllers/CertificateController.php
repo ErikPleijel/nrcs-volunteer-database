@@ -923,8 +923,8 @@ class CertificateController extends Controller
      * Refuse the request (403) unless the viewer may print every selected
      * person certificate: the record must be in their own area (the same rule
      * as index()), or come from a course their branch organised, and a
-     * training certificate whose type is "HQ only" needs a
-     * national viewer. The page never offers anything else, so a mismatch is a
+     * competence certificate whose training type is "HQ only" needs a national
+     * viewer (attendance certificates are never HQ only). The page never offers anything else, so a mismatch is a
      * stale page or a crafted request. Organisation and unit certificates have
      * their own scope checks.
      */
@@ -959,7 +959,7 @@ class CertificateController extends Controller
             default => $query->whereRaw('1 = 0'),
         };
 
-        if ($isTraining && $viewer->getAccessLevel() !== 'national') {
+        if ($certificateType === 'training_competence' && $viewer->getAccessLevel() !== 'national') {
             $query->whereDoesntHave('trainingType', fn ($q) => $q->where('certificate_hq_only', true));
         }
 

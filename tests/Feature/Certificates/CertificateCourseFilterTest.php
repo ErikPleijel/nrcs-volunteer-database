@@ -6,7 +6,8 @@
  *   all on one page
  * - the course's organisers who print certificates see, print and mark as
  *   printed all its certificates, also of participants from other branches;
- *   HQ-only types still need national roles; everyone else keeps the area scope
+ *   competence certificates of HQ-only types still need national roles;
+ *   everyone else keeps the area scope
  * - the dropdown lists closed courses the viewer can see that issued approved records
  * - a closed course's page links to its certificates
  */
@@ -145,7 +146,7 @@ it('still refuses other branches\' records outside the organiser\'s courses, and
         ->assertForbidden();
 });
 
-it('still needs a national role for HQ-only certificates from the organiser\'s course', function () {
+it('still needs a national role for HQ-only competence certificates from the organiser\'s course', function () {
     $this->type->update(['certificate_hq_only' => true]);
 
     $this->actingAs($this->branchAdmin)
@@ -159,6 +160,15 @@ it('still needs a national role for HQ-only certificates from the organiser\'s c
     $this->actingAs($this->national)
         ->post(route('certificates.bulk.print.branded'), ['certificate_type' => 'training_competence', 'training_ids' => [$this->recordB->id]])
         ->assertOk();
+
+    // Attendance certificates are never HQ only: the organisers print them as usual.
+    $this->actingAs($this->branchAdmin)
+        ->post(route('certificates.bulk.print.branded'), ['certificate_type' => 'training_attendance', 'training_ids' => [$this->recordB->id]])
+        ->assertOk();
+
+    $this->actingAs($this->branchAdmin)
+        ->get(route('certificates.index', ['certificate_type' => 'training_attendance', 'course_id' => $this->course->id]))
+        ->assertDontSee('Printed<br>at HQ', false);
 });
 
 it('shows all of a course\'s certificates on one page', function () {

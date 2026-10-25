@@ -4,10 +4,11 @@
  * Server-side checks on the person certificate print routes (plain, branded,
  * branded portrait) and Mark as printed:
  * - every selected record must be in the viewer's own area (branch or division)
- * - training certificates (competence AND attendance) of an "HQ only" training
- *   type can only be printed by national roles
+ * - competence certificates of an "HQ only" training type can only be printed
+ *   by national roles; attendance certificates of such a type can be printed
+ *   in the area as usual
  * - one disallowed ID refuses the whole request, nothing is printed or recorded
- * The index hides the checkbox for HQ-only attendance certificates too.
+ * The index shows "Printed at HQ" only for HQ-only competence certificates.
  */
 
 use App\Models\Branch;
@@ -171,13 +172,28 @@ it('refuses a membership certificate from another branch', function () {
 |--------------------------------------------------------------------------
 */
 
-it('refuses an HQ-only training certificate to a branch admin', function (string $routeName, string $type) {
+it('refuses an HQ-only competence certificate to a branch admin', function (string $routeName) {
     $training = printableTraining($this->divisionA1, $this->hqType);
 
     $this->actingAs($this->branchAdmin)
-        ->post(route($routeName), printRequest($type, [$training->id]))
+        ->post(route($routeName), printRequest('training_competence', [$training->id]))
         ->assertForbidden();
-})->with(PRINT_ROUTES)->with(TRAINING_CERTIFICATES);
+})->with(PRINT_ROUTES);
+
+it('lets a branch admin print an attendance certificate of an HQ-only type in their area', function (string $routeName) {
+    $training = printableTraining($this->divisionA1, $this->hqType);
+
+    $this->actingAs($this->branchAdmin)
+        ->post(route($routeName), printRequest('training_attendance', [$training->id]))
+        ->assertOk()
+        ->assertSee($training->user->full_name);
+
+    // The area rule still applies.
+    $other = printableTraining($this->divisionB1, $this->hqType);
+    $this->actingAs($this->branchAdmin)
+        ->post(route($routeName), printRequest('training_attendance', [$other->id]))
+        ->assertForbidden();
+})->with(PRINT_ROUTES);
 
 it('lets a national admin print an HQ-only training certificate', function (string $routeName, string $type) {
     $training = printableTraining($this->divisionB1, $this->hqType);
@@ -196,12 +212,7 @@ it('lets a national admin print an HQ-only training certificate', function (stri
 
 it('records prints only for allowed training certificates', function (string $type) {
     $own = printableTraining($this->divisionA1, $this->branchType);
-    $hqOnly = printableTraining($this->divisionA1, $this->hqType);
     $other = printableTraining($this->divisionB1, $this->branchType);
-
-    $this->actingAs($this->branchAdmin)
-        ->postJson(route('certificates.mark-as-printed'), printRequest($type, [$hqOnly->id]))
-        ->assertForbidden();
 
     $this->actingAs($this->branchAdmin)
         ->postJson(route('certificates.mark-as-printed'), printRequest($type, [$own->id, $other->id]))
@@ -216,6 +227,22 @@ it('records prints only for allowed training certificates', function (string $ty
     expect(CertificatePrint::pluck('training_id')->all())->toBe([$own->id])
         ->and(CertificatePrint::first()->certificate_type)->toBe($type);
 })->with(TRAINING_CERTIFICATES);
+
+it('records HQ-only prints for branch admins only on attendance certificates', function () {
+    $hqOnly = printableTraining($this->divisionA1, $this->hqType);
+
+    $this->actingAs($this->branchAdmin)
+        ->postJson(route('certificates.mark-as-printed'), printRequest('training_competence', [$hqOnly->id]))
+        ->assertForbidden();
+
+    expect(CertificatePrint::count())->toBe(0);
+
+    $this->actingAs($this->branchAdmin)
+        ->postJson(route('certificates.mark-as-printed'), printRequest('training_attendance', [$hqOnly->id]))
+        ->assertOk();
+
+    expect(CertificatePrint::pluck('certificate_type')->all())->toBe(['training_attendance']);
+});
 
 it('records volunteering and donation prints only for people in the area', function (string $type) {
     $own = User::factory()->inDivision($this->divisionA1)->create();
@@ -244,7 +271,25 @@ it('records volunteering and donation prints only for people in the area', funct
 |--------------------------------------------------------------------------
 */
 
-it('shows HQ-only attendance certificates as "Printed at HQ" without a checkbox to branch admins', function () {
+it('shows HQ-only competence certificates as "Printed at HQ" without a checkbox to branch admins', function () {
+    $training = printableTraining($this->divisionA1, $this->hqType);
+
+    $checkbox = 'name="training_ids[]"'."\n".'                                               value="'.$training->id.'"';
+
+    $this->actingAs($this->branchAdmin)
+        ->get(route('certificates.index', ['certificate_type' => 'training_competence']))
+        ->assertOk()
+        ->assertSee('Printed<br>at HQ', false)
+        ->assertDontSee($checkbox, false);
+
+    $this->actingAs($this->national)
+        ->get(route('certificates.index', ['certificate_type' => 'training_competence']))
+        ->assertOk()
+        ->assertDontSee('Printed<br>at HQ', false)
+        ->assertSee($checkbox, false);
+});
+
+it('gives branch admins a checkbox for attendance certificates of an HQ-only type', function () {
     $training = printableTraining($this->divisionA1, $this->hqType);
 
     $checkbox = 'name="training_ids[]"'."\n".'                                               value="'.$training->id.'"';
@@ -252,11 +297,6 @@ it('shows HQ-only attendance certificates as "Printed at HQ" without a checkbox 
     $this->actingAs($this->branchAdmin)
         ->get(route('certificates.index', ['certificate_type' => 'training_attendance']))
         ->assertOk()
-        ->assertSee('Printed<br>at HQ', false)
-        ->assertDontSee($checkbox, false);
-
-    $this->actingAs($this->national)
-        ->get(route('certificates.index', ['certificate_type' => 'training_attendance']))
-        ->assertOk()
-        ->assertDontSee('Printed<br>at HQ', false);
+        ->assertDontSee('Printed<br>at HQ', false)
+        ->assertSee($checkbox, false);
 });
